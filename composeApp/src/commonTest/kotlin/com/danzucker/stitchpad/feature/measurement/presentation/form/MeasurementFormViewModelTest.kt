@@ -16,7 +16,8 @@ import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
-import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
+import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import com.danzucker.stitchpad.feature.measurement.data.FakeMeasurementPreferencesStore
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -47,7 +48,7 @@ import kotlin.test.assertTrue
 class MeasurementFormViewModelTest {
 
     private lateinit var measurementRepository: FakeMeasurementRepository
-    private lateinit var authRepository: FakeAuthRepository
+    private lateinit var activeWorkshopProvider: FakeActiveWorkshopProvider
     private lateinit var preferencesStore: FakeMeasurementPreferencesStore
     private lateinit var orderRepository: FakeOrderRepository
     private lateinit var customFieldRepository: FakeCustomMeasurementFieldRepository
@@ -57,7 +58,7 @@ class MeasurementFormViewModelTest {
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         measurementRepository = FakeMeasurementRepository()
-        authRepository = FakeAuthRepository()
+        activeWorkshopProvider = FakeActiveWorkshopProvider()
         preferencesStore = FakeMeasurementPreferencesStore()
         orderRepository = FakeOrderRepository()
         customFieldRepository = FakeCustomMeasurementFieldRepository()
@@ -85,7 +86,7 @@ class MeasurementFormViewModelTest {
         val vm = MeasurementFormViewModel(
             savedStateHandle = SavedStateHandle(args),
             measurementRepository = measurementRepository,
-            authRepository = authRepository,
+            activeWorkshopProvider = activeWorkshopProvider,
             measurementPreferencesStore = preferencesStore,
             orderRepository = orderRepository,
             customFieldRepository = customFieldRepository,
@@ -158,7 +159,7 @@ class MeasurementFormViewModelTest {
         val vm = MeasurementFormViewModel(
             savedStateHandle = SavedStateHandle(),
             measurementRepository = measurementRepository,
-            authRepository = authRepository,
+            activeWorkshopProvider = activeWorkshopProvider,
             measurementPreferencesStore = preferencesStore,
             orderRepository = orderRepository,
             customFieldRepository = customFieldRepository,
@@ -212,7 +213,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun onStart_editMode_loadsMeasurement_populatesState() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         measurementRepository.measurementsList = listOf(fakeMeasurement())
         val vm = createViewModel(measurementId = "meas-1")
 
@@ -225,7 +225,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun onStart_editMode_fieldsLoadedAsString_wholeNumberFormattedAsInt() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         measurementRepository.measurementsList = listOf(fakeMeasurement())
         val vm = createViewModel(measurementId = "meas-1")
 
@@ -236,7 +235,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun onStart_editMode_measurementNotFound_clearsLoading() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         measurementRepository.measurementsList = emptyList()
         val vm = createViewModel(measurementId = "meas-missing")
 
@@ -246,7 +244,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun onStart_editMode_observeError_setsErrorMessage() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         measurementRepository.observeError = DataError.Network.UNKNOWN
         val vm = createViewModel(measurementId = "meas-1")
 
@@ -256,7 +253,8 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun onStart_editMode_noAuthUser_clearsLoading() = runTest {
-        // no signUp — auth has no current user
+        // Signed out — no workshop tree to load from.
+        activeWorkshopProvider.setSession(WorkshopSession.signedOut())
         val vm = createViewModel(measurementId = "meas-1")
 
         assertFalse(vm.state.value.isLoading)
@@ -405,7 +403,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun onSkipClick_emitsSkipMeasurements_andSavesNothing() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel(fromCustomerCreation = true)
         vm.onAction(MeasurementFormAction.OnFieldChange("bust_circumference", "92"))
         // Name is mandatory; the Root effect pre-fills it in production, so set it
@@ -427,7 +424,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun save_createMode_callsCreateMeasurement_andEmitsMeasurementSaved() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
         vm.onAction(MeasurementFormAction.OnFieldChange("bust_circumference", "92"))
         vm.onAction(MeasurementFormAction.OnNameChange("Women's measurement 1"))
@@ -443,7 +439,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun save_createMode_parsesFieldsToDoubles_andFiltersZeros() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
         vm.onAction(MeasurementFormAction.OnFieldChange("bust_circumference", "90"))
         vm.onAction(MeasurementFormAction.OnFieldChange("waist", ""))  // blank → 0.0 → filtered out
@@ -458,7 +453,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun save_createMode_whenNotEntitled_dropsCustomDraftValues() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         fakeEntitlements = FakeEntitlementsProvider(initialCanUseCustomMeasurements = false)
         customFieldRepository.seedFields(listOf(
             customField(
@@ -482,7 +476,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun save_createMode_whenEntitlementExpiresWithOnlyCustomDraft_doesNotCreateEmptyMeasurement() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customFieldRepository.seedFields(listOf(
             customField(
                 id = "f-both",
@@ -502,7 +495,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun save_createMode_trimsBlanksNotes_storesNullWhenBlank() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
         vm.onAction(MeasurementFormAction.OnNotesChange("   "))
         vm.onAction(MeasurementFormAction.OnSaveClick)
@@ -514,7 +506,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun `save emits MeasurementSaved with the persisted id`() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
         // canSave requires gender + non-blank name + at least one positive field.
         vm.onAction(MeasurementFormAction.OnGenderChange(CustomerGender.FEMALE))
@@ -530,7 +521,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun `save during customer creation still navigates back`() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel(fromCustomerCreation = true)
         vm.onAction(MeasurementFormAction.OnGenderChange(CustomerGender.FEMALE))
         vm.onAction(MeasurementFormAction.OnNameChange("Agbada"))
@@ -543,7 +533,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun `save with linkToOrderId still navigates back`() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel(linkToOrderId = "order-1")
         vm.onAction(MeasurementFormAction.OnGenderChange(CustomerGender.FEMALE))
         vm.onAction(MeasurementFormAction.OnNameChange("Agbada"))
@@ -558,7 +547,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun save_editMode_callsUpdateMeasurement_andEmitsMeasurementSaved() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         measurementRepository.measurementsList = listOf(fakeMeasurement())
         val vm = createViewModel(measurementId = "meas-1")
         vm.onAction(MeasurementFormAction.OnNameChange("Women's measurement 1"))
@@ -577,7 +565,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun save_editMode_preservesOriginalCreatedAtAndDateTaken() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         measurementRepository.measurementsList = listOf(fakeMeasurement())
         val vm = createViewModel(measurementId = "meas-1")
         vm.onAction(MeasurementFormAction.OnNameChange("Women's measurement 1"))
@@ -602,7 +589,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun save_withRepositoryError_setsErrorMessage() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         measurementRepository.operationError = DataError.Network.UNKNOWN
         val vm = createViewModel()
         // Provide at least one positive field so canSave is true and save()
@@ -628,7 +614,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun onErrorDismiss_clearsErrorMessage() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         measurementRepository.operationError = DataError.Network.UNKNOWN
         val vm = createViewModel()
         // Provide at least one positive field so canSave is true and save()
@@ -646,7 +631,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun observeCustomFields_filtersByGenderAndArchive() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customFieldRepository.seedFields(listOf(
             customField(id = "f1", label = "Cuff", genders = setOf(CustomerGender.FEMALE)),
             customField(id = "f2", label = "Lapel", genders = setOf(CustomerGender.MALE)),
@@ -660,7 +644,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun onGenderChange_afterObserverFires_showsOtherGenderFieldsFromCache() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customFieldRepository.seedFields(listOf(
             customField(id = "f1", label = "Bra cup", genders = setOf(CustomerGender.FEMALE)),
             customField(id = "f2", label = "Lapel", genders = setOf(CustomerGender.MALE)),
@@ -679,7 +662,6 @@ class MeasurementFormViewModelTest {
         // Create mode has no "past measurement" value to preserve. If another
         // device archives this field while the form is open, remove the row and
         // its draft value so save cannot persist a now-archived custom key.
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val field = customField(
             id = "f-both",
             label = "Cuff",
@@ -700,7 +682,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun onAddCustomFieldClick_whenEntitled_opensAddingSheet() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
         vm.onAction(MeasurementFormAction.OnAddCustomFieldClick)
         assertIs<CustomFieldSheet.Adding>(vm.state.value.customFieldSheet)
@@ -708,7 +689,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun onAddCustomFieldClick_whenNotEntitled_emitsNavigateToUpgrade() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         fakeEntitlements = FakeEntitlementsProvider(initialCanUseCustomMeasurements = false)
         val vm = createViewModel()
         vm.onAction(MeasurementFormAction.OnAddCustomFieldClick)
@@ -718,7 +698,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun onAddCustomFieldClick_awaitsHydratedEntitlementBeforeRouting() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         fakeEntitlements = FakeEntitlementsProvider(initialCanUseCustomMeasurements = false).also {
             it.setAwaitedEntitled(true)
         }
@@ -731,7 +710,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun onAddCustomFieldClick_whenHydrationNeverCompletes_fallsBackToCurrentEntitlement() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         fakeEntitlements = FakeEntitlementsProvider(initialCanUseCustomMeasurements = false).also {
             it.neverHydrate()
         }
@@ -750,7 +728,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun onAddCustomFieldClick_whenHydrationNeverCompletesAndCurrentEntitled_opensSheet() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         fakeEntitlements = FakeEntitlementsProvider(initialCanUseCustomMeasurements = true).also {
             it.neverHydrate()
         }
@@ -765,7 +742,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun onLockedCustomFieldClick_whenHydratedNotEntitled_emitsNavigateToUpgrade() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         fakeEntitlements = FakeEntitlementsProvider(initialCanUseCustomMeasurements = false)
         val vm = createViewModel()
         vm.onAction(MeasurementFormAction.OnLockedCustomFieldClick)
@@ -774,7 +750,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun onEditCustomFieldClick_opensEditingSheet() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val f = customField(id = "f1", label = "Cuff", genders = setOf(CustomerGender.FEMALE))
         customFieldRepository.seedFields(listOf(f))
         val vm = createViewModel()
@@ -786,7 +761,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun onArchiveCustomFieldRequest_opensConfirmSheet() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val f = customField(id = "f1", label = "Cuff", genders = setOf(CustomerGender.FEMALE))
         customFieldRepository.seedFields(listOf(f))
         val vm = createViewModel()
@@ -797,7 +771,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun onCustomFieldSheetDismiss_clearsSheet() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
         vm.onAction(MeasurementFormAction.OnAddCustomFieldClick)
         assertIs<CustomFieldSheet.Adding>(vm.state.value.customFieldSheet)
@@ -809,7 +782,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun saveCustomField_create_callsRepoCreate_withNewUuid_andClosesSheet() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
         vm.onAction(MeasurementFormAction.OnAddCustomFieldClick)
         vm.onAction(MeasurementFormAction.OnSaveCustomField(
@@ -828,7 +800,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun saveCustomField_create_withInitialValue_seedsCurrentMeasurementField() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
         vm.onAction(MeasurementFormAction.OnAddCustomFieldClick)
         vm.onAction(MeasurementFormAction.OnSaveCustomField(
@@ -846,7 +817,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun saveCustomField_create_withInitialValueForOtherGender_doesNotSeedHiddenField() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
         assertEquals(CustomerGender.FEMALE, vm.state.value.gender)
 
@@ -865,7 +835,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun customFieldDraft_updatesStayInViewModelState() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
 
         vm.onAction(MeasurementFormAction.OnAddCustomFieldClick)
@@ -882,7 +851,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun saveCustomField_edit_callsRepoUpdate_preservesId_andClosesSheet() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val existing = customField(id = "f1", label = "Cuff", genders = setOf(CustomerGender.FEMALE))
         customFieldRepository.seedFields(listOf(existing))
         val vm = createViewModel()
@@ -902,7 +870,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun saveCustomField_blankLabel_doesNotCallRepo_andKeepsSheetOpen() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
         vm.onAction(MeasurementFormAction.OnAddCustomFieldClick)
         vm.onAction(MeasurementFormAction.OnSaveCustomField(
@@ -916,7 +883,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun saveCustomField_emptyGenders_doesNotCallRepo_andKeepsSheetOpen() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
         vm.onAction(MeasurementFormAction.OnAddCustomFieldClick)
         vm.onAction(MeasurementFormAction.OnSaveCustomField(
@@ -930,7 +896,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun saveCustomField_whenEntitlementLost_emitsUpgrade_andDoesNotCallRepo() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
         // VM was created while entitled; entitlement lost (e.g., welcome ended)
         fakeEntitlements.setEntitled(false)
@@ -945,7 +910,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun onArchiveCustomFieldConfirm_callsRepoArchive_andClosesSheet() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val f = customField(id = "f1", label = "Cuff", genders = setOf(CustomerGender.FEMALE))
         customFieldRepository.seedFields(listOf(f))
         val vm = createViewModel()
@@ -958,7 +922,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun onArchiveCustomFieldConfirm_removesFieldFromCurrentForm() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val f = customField(id = "f1", label = "Cuff", genders = setOf(CustomerGender.FEMALE))
         customFieldRepository.seedFields(listOf(f))
         val vm = createViewModel()
@@ -977,7 +940,6 @@ class MeasurementFormViewModelTest {
         // immediately and the value is dropped from THIS measurement on save.
         // (Other measurements that recorded the field keep their values — their
         // documents are untouched.)
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val f = customField(id = "f1", label = "Cuff", genders = setOf(CustomerGender.FEMALE))
         customFieldRepository.seedFields(listOf(f))
         measurementRepository.measurementsList = listOf(
@@ -996,7 +958,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun archiveCustomField_whenNotEntitled_emitsUpgrade_andDoesNotCallRepo() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val f = customField(id = "f1", label = "Cuff", genders = setOf(CustomerGender.FEMALE))
         customFieldRepository.seedFields(listOf(f))
         val vm = createViewModel()
@@ -1014,7 +975,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun loadMeasurement_withCustomFieldValues_populatesAllKeys() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customFieldRepository.seedFields(listOf(
             customField(id = "custom-1", label = "Cuff", genders = setOf(CustomerGender.FEMALE)),
         ))
@@ -1043,7 +1003,6 @@ class MeasurementFormViewModelTest {
         // A measurement stored with a custom-field key whose definition the
         // user has archived (or that was imported from another source). The
         // form must NOT drop the value when saving.
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         // No matching definition in customFieldRepository — that's the point
         val measurement = Measurement(
             id = "m1",
@@ -1073,7 +1032,6 @@ class MeasurementFormViewModelTest {
         // wildcard filter would pass ALL fields. loadMeasurement must re-filter
         // against the measurement's actual gender so opposite-gender custom fields
         // don't leak into the form and onto save.
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customFieldRepository.seedFields(listOf(
             customField(id = "custom-female", label = "Bra cup", genders = setOf(CustomerGender.FEMALE)),
             customField(id = "custom-male", label = "Lapel", genders = setOf(CustomerGender.MALE)),
@@ -1101,7 +1059,6 @@ class MeasurementFormViewModelTest {
         // An archived field with a recorded value must surface in the edit form so
         // the tailor can see/correct/save the value, not silently leak via the
         // orphan path.
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customFieldRepository.seedFields(listOf(
             customField(
                 id = "archived-cuff",
@@ -1130,7 +1087,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun observeEntitlements_updatesStateWhenFlowEmits() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         // Start NOT entitled (simulates cold-start default before hydration)
         fakeEntitlements = FakeEntitlementsProvider(initialCanUseCustomMeasurements = false)
         val vm = createViewModel()
@@ -1143,7 +1099,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun observeEntitlements_seedsTierIntoState() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         // FakeEntitlementsProvider hardcodes tier = FREE; verify it lands in state
         // so the "First Month" pill can correctly distinguish trial-only (FREE +
         // welcome) from permanent (Pro/Atelier) access in CustomFieldsSection.
@@ -1156,7 +1111,6 @@ class MeasurementFormViewModelTest {
         // HIGH bug: editing an archived field's label/genders MUST keep the
         // archive flag — otherwise the field silently un-archives, contradicting
         // the soft-archive contract.
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val archived = customField(
             id = "f1",
             label = "Old",
@@ -1180,7 +1134,6 @@ class MeasurementFormViewModelTest {
     fun onGenderChange_preservesCustomFieldValuesForFieldsVisibleInBothGenders() = runTest {
         // Medium bug: switching gender used to wipe typed values for custom
         // fields because the field-map reset only included template keys.
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customFieldRepository.seedFields(listOf(
             customField(
                 id = "f-both",
@@ -1198,7 +1151,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun onGenderChange_editMode_preservesRecordedArchivedCustomRowAndOrphanValuesOnSave() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customFieldRepository.seedFields(listOf(
             customField(
                 id = "archived-cuff",
@@ -1242,7 +1194,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun blankName_blocksSave() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
         vm.onAction(MeasurementFormAction.OnFieldChange("bust_circumference", "92"))
         // Clearing the (default-filled) name must block save.
@@ -1256,7 +1207,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun namePersists_onCreate() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val vm = createViewModel()
         vm.onAction(MeasurementFormAction.OnFieldChange("bust_circumference", "92"))
         vm.onAction(MeasurementFormAction.OnNameChange("Wedding Agbada"))
@@ -1268,7 +1218,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun namePersists_onEdit() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         measurementRepository.measurementsList = listOf(
             fakeMeasurement(id = "meas-1").copy(name = "Original"),
         )
@@ -1282,7 +1231,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun editPrefill_setsName() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         measurementRepository.measurementsList = listOf(
             fakeMeasurement(id = "meas-1").copy(name = "X"),
         )
@@ -1315,7 +1263,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun create_save_logs_measurement_added() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val analytics = FakeAnalytics()
         val vm = createViewModel(analytics = analytics)
         vm.onAction(MeasurementFormAction.OnFieldChange("bust_circumference", "92"))
@@ -1327,7 +1274,6 @@ class MeasurementFormViewModelTest {
 
     @Test
     fun edit_save_does_not_log_measurement_added() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         measurementRepository.measurementsList = listOf(fakeMeasurement())
         val analytics = FakeAnalytics()
         val vm = createViewModel(measurementId = "meas-1", analytics = analytics)

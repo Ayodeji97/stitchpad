@@ -21,7 +21,7 @@ val customerPresentationModule = module {
         CustomerListViewModel(
             customerRepository = get(),
             orderRepository = get(),
-            authRepository = get(),
+            activeWorkshopProvider = get(),
             freemiumRepository = get<FreemiumRepository>(),
             measurementEntryResolver = get(),
         )

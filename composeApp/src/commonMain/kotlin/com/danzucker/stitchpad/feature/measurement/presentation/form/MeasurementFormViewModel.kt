@@ -15,7 +15,8 @@ import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesSto
 import com.danzucker.stitchpad.core.domain.repository.CustomMeasurementFieldRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
-import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
+import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.workshopUidOrNull
 import com.danzucker.stitchpad.feature.measurement.presentation.isPersistableMeasurementValue
 import com.danzucker.stitchpad.feature.measurement.presentation.toMeasurementUiText
 import kotlinx.coroutines.channels.Channel
@@ -43,7 +44,7 @@ import kotlin.uuid.Uuid
 class MeasurementFormViewModel(
     savedStateHandle: SavedStateHandle,
     private val measurementRepository: MeasurementRepository,
-    private val authRepository: AuthRepository,
+    private val activeWorkshopProvider: ActiveWorkshopProvider,
     private val measurementPreferencesStore: MeasurementPreferencesStore,
     private val orderRepository: OrderRepository,
     private val customFieldRepository: CustomMeasurementFieldRepository,
@@ -275,7 +276,7 @@ class MeasurementFormViewModel(
 
     private fun observeCustomFields() {
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
             customFieldRepository.observeFields(userId).collect { result ->
                 if (result is Result.Success) {
                     allCustomFields = result.data
@@ -336,7 +337,7 @@ class MeasurementFormViewModel(
         val customerId = customerId ?: return
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            val userId = authRepository.getCurrentUser()?.id ?: run {
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: run {
                 _state.update { it.copy(isLoading = false) }
                 return@launch
             }
@@ -415,7 +416,7 @@ class MeasurementFormViewModel(
         val customerId = customerId ?: return
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            val userId = authRepository.getCurrentUser()?.id ?: run {
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: run {
                 _state.update { it.copy(isLoading = false) }
                 return@launch
             }
@@ -537,7 +538,7 @@ class MeasurementFormViewModel(
         if (trimmed.isEmpty() || genders.isEmpty()) return
 
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
             val now = Clock.System.now().toEpochMilliseconds()
             val isCreate = id == null
             // Look up the whole existing field once so we preserve BOTH
@@ -638,7 +639,7 @@ class MeasurementFormViewModel(
             return
         }
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
             val result = customFieldRepository.archiveField(userId, fieldId)
             if (result is Result.Success) {
                 _state.update { current ->

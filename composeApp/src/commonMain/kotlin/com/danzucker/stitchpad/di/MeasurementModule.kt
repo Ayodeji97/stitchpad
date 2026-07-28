@@ -31,6 +31,7 @@ val measurementPresentationModule = module {
             customFieldRepository = get(),
             customerRepository = get(),
             authRepository = get(),
+            activeWorkshopProvider = get(),
             analytics = get(),
             measurementSharer = get(),
         )

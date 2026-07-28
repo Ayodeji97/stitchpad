@@ -9,9 +9,10 @@ import com.danzucker.stitchpad.core.domain.repository.CustomMeasurementFieldRepo
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
+import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.workshopUidOrNull
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.util.WhatsAppMessageBuilder
-import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.customer.presentation.toCustomerUiText
 import com.danzucker.stitchpad.feature.measurement.presentation.toMeasurementUiText
 import kotlinx.coroutines.channels.Channel
@@ -31,7 +32,7 @@ class CustomerDetailViewModel(
     savedStateHandle: SavedStateHandle,
     private val customerRepository: CustomerRepository,
     private val measurementRepository: MeasurementRepository,
-    private val authRepository: AuthRepository,
+    private val activeWorkshopProvider: ActiveWorkshopProvider,
     private val customFieldRepository: CustomMeasurementFieldRepository,
     private val orderRepository: OrderRepository,
 ) : ViewModel() {
@@ -178,7 +179,7 @@ class CustomerDetailViewModel(
     private fun loadData() {
         val customerId = customerId ?: return
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: run {
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: run {
                 _state.update { it.copy(isLoading = false) }
                 return@launch
             }
@@ -288,7 +289,7 @@ class CustomerDetailViewModel(
         // about to delete, so a stale "customer not found" snackbar doesn't flash.
         isDeletingCustomer = true
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id
+            val userId = activeWorkshopProvider.workshopUidOrNull()
             if (userId == null) {
                 // No signed-in user — nothing was deleted, so re-arm the observer
                 // rather than leaving it permanently swallowing errors (Bugbot #147).

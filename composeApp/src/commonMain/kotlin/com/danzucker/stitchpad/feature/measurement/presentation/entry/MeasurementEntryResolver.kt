@@ -3,7 +3,8 @@ package com.danzucker.stitchpad.feature.measurement.presentation.entry
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
-import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
+import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.workshopUidOrNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -21,7 +22,7 @@ sealed interface MeasurementEntryDestination {
  */
 class MeasurementEntryResolver(
     private val measurementRepository: MeasurementRepository,
-    private val authRepository: AuthRepository,
+    private val activeWorkshopProvider: ActiveWorkshopProvider,
 ) {
     suspend fun resolve(customerId: String): MeasurementEntryDestination {
         val measurements = firstSnapshotOrNull(customerId)
@@ -41,7 +42,7 @@ class MeasurementEntryResolver(
      * state for a customer who may well have measurements.
      */
     private suspend fun firstSnapshotOrNull(customerId: String): List<Measurement>? {
-        val userId = authRepository.getCurrentUser()?.id ?: return null
+        val userId = activeWorkshopProvider.workshopUidOrNull() ?: return null
         val result = withTimeoutOrNull(FIRST_SNAPSHOT_TIMEOUT_MS) {
             measurementRepository.observeMeasurements(userId, customerId).first()
         }

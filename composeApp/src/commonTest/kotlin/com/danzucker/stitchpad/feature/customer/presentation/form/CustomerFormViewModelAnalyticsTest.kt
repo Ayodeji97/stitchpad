@@ -8,8 +8,8 @@ import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
+import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
 import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
-import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.auth.data.FakePatternValidator
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
 import kotlinx.coroutines.CoroutineScope
@@ -35,14 +35,14 @@ import kotlin.test.assertTrue
 class CustomerFormViewModelAnalyticsTest {
 
     private lateinit var customerRepository: FakeCustomerRepository
-    private lateinit var authRepository: FakeAuthRepository
+    private lateinit var activeWorkshopProvider: FakeActiveWorkshopProvider
     private lateinit var fakeAnalytics: FakeAnalytics
 
     @BeforeTest
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         customerRepository = FakeCustomerRepository()
-        authRepository = FakeAuthRepository()
+        activeWorkshopProvider = FakeActiveWorkshopProvider()
         fakeAnalytics = FakeAnalytics()
     }
 
@@ -56,7 +56,7 @@ class CustomerFormViewModelAnalyticsTest {
         val vm = CustomerFormViewModel(
             savedStateHandle = SavedStateHandle(args),
             customerRepository = customerRepository,
-            authRepository = authRepository,
+            activeWorkshopProvider = activeWorkshopProvider,
             emailValidator = FakePatternValidator(shouldMatch = true),
             entitlements = FakeEntitlementsProvider(),
             analytics = fakeAnalytics,
@@ -90,7 +90,6 @@ class CustomerFormViewModelAnalyticsTest {
 
     @Test
     fun `successful create logs CustomerCreated`() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         val viewModel = createViewModel() // no customerId → create path
         viewModel.onAction(CustomerFormAction.OnNameChange("Ade Fashions"))
         viewModel.onAction(CustomerFormAction.OnPhoneChange("+2348012345678"))
@@ -104,7 +103,6 @@ class CustomerFormViewModelAnalyticsTest {
 
     @Test
     fun `successful edit does NOT log CustomerCreated`() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.storedCustomer = Customer(
             id = "customer-123",
             userId = "test-uid",

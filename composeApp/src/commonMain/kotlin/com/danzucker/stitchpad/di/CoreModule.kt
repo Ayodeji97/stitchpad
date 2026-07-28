@@ -1,7 +1,9 @@
 package com.danzucker.stitchpad.di
 
 import com.danzucker.stitchpad.core.data.entitlement.UserDocEntitlementsProvider
+import com.danzucker.stitchpad.core.data.session.FirebaseActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
+import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.offline.OfflineUploadOutbox
 import com.danzucker.stitchpad.core.offline.OfflineWriteDispatcher
 import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
@@ -30,6 +32,10 @@ val coreModule = module {
     single<CoroutineScope>(qualifier = named("offlineWriteAppScope")) {
         CoroutineScope(SupervisorJob() + Dispatchers.Default)
     }
+    // App-lifetime scope for the ActiveWorkshopProvider auth-state listener.
+    single<CoroutineScope>(qualifier = named("workshopSessionAppScope")) {
+        CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    }
     single {
         OfflineWriteDispatcher(
             appScope = get<CoroutineScope>(qualifier = named("offlineWriteAppScope")),
@@ -49,6 +55,12 @@ val coreModule = module {
             auth = get(),
             firestore = get(),
             scope = get<CoroutineScope>(qualifier = named("entitlementsAppScope")),
+        )
+    }
+    single<ActiveWorkshopProvider> {
+        FirebaseActiveWorkshopProvider(
+            authUserIds = get<FirebaseAuth>().authStateChanged.map { it?.uid },
+            scope = get<CoroutineScope>(qualifier = named("workshopSessionAppScope")),
         )
     }
 

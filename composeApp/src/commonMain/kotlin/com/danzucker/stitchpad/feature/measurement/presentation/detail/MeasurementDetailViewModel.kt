@@ -14,6 +14,8 @@ import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.repository.CustomMeasurementFieldRepository
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
+import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.workshopUidOrNull
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.MeasurementShareData
 import com.danzucker.stitchpad.core.sharing.MeasurementSharer
@@ -52,6 +54,7 @@ class MeasurementDetailViewModel(
     private val customFieldRepository: CustomMeasurementFieldRepository,
     private val customerRepository: CustomerRepository,
     private val authRepository: AuthRepository,
+    private val activeWorkshopProvider: ActiveWorkshopProvider,
     private val analytics: Analytics,
     private val measurementSharer: MeasurementSharer,
     // Defaulted (rather than a plain member fun) so ViewModel tests can substitute a
@@ -181,7 +184,7 @@ class MeasurementDetailViewModel(
 
     private fun observeMeasurement(customerId: String, measurementId: String?) {
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
             measurementRepository.observeMeasurements(userId, customerId).collect { result ->
                 when (result) {
                     is Result.Success -> {
@@ -223,7 +226,7 @@ class MeasurementDetailViewModel(
 
     private fun observeCustomFieldLabels() {
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
             customFieldRepository.observeFields(userId).collect { result ->
                 if (result is Result.Success) {
                     // ALL definitions, archived included — recorded values on old
@@ -239,7 +242,7 @@ class MeasurementDetailViewModel(
 
     private fun observeCustomer(customerId: String) {
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
             customerRepository.observeCustomer(userId, customerId).collect { result ->
                 if (result is Result.Success) {
                     _state.update {
@@ -261,7 +264,7 @@ class MeasurementDetailViewModel(
         if (customerId == null || measurement == null || newName.isBlank()) return
         _state.update { it.copy(renameDraft = null) }
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
             val result = measurementRepository.updateMeasurement(
                 userId,
                 customerId,
@@ -278,7 +281,7 @@ class MeasurementDetailViewModel(
         val measurement = _state.value.measurement ?: return
         _state.update { it.copy(showDeleteDialog = false) }
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
             navigatedAway = true
             // deleteMeasurement only schedules the write on the app-lifetime
             // OfflineWriteDispatcher scope and returns — it never awaits the

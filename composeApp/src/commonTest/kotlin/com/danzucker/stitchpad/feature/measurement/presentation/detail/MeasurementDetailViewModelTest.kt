@@ -12,7 +12,7 @@ import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
-import com.danzucker.stitchpad.core.domain.model.User
+import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
 import com.danzucker.stitchpad.core.sharing.FakeMeasurementSharer
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.measurement.presentation.share.MeasurementShareFormatter
@@ -41,6 +41,7 @@ class MeasurementDetailViewModelTest {
     private lateinit var customFieldRepository: FakeCustomMeasurementFieldRepository
     private lateinit var customerRepository: FakeCustomerRepository
     private lateinit var authRepository: FakeAuthRepository
+    private lateinit var activeWorkshopProvider: FakeActiveWorkshopProvider
     private lateinit var analytics: FakeAnalytics
     private lateinit var measurementSharer: FakeMeasurementSharer
 
@@ -51,18 +52,7 @@ class MeasurementDetailViewModelTest {
         customFieldRepository = FakeCustomMeasurementFieldRepository()
         customerRepository = FakeCustomerRepository()
         authRepository = FakeAuthRepository()
-        // Fakes ignore the userId value itself (they key off customerId/measurementId),
-        // but the ViewModel bails out of every observe*() early when getCurrentUser()
-        // is null — so a signed-in user must be present for these tests to reach them.
-        authRepository.currentUser = User(
-            id = "user-1",
-            email = "tailor@example.com",
-            displayName = "Test Tailor",
-            businessName = null,
-            phoneNumber = null,
-            whatsappNumber = null,
-            avatarColorIndex = 0,
-        )
+        activeWorkshopProvider = FakeActiveWorkshopProvider()
         analytics = FakeAnalytics()
         measurementSharer = FakeMeasurementSharer()
     }
@@ -129,6 +119,7 @@ class MeasurementDetailViewModelTest {
             customFieldRepository = customFieldRepository,
             customerRepository = customerRepository,
             authRepository = authRepository,
+            activeWorkshopProvider = activeWorkshopProvider,
             analytics = analytics,
             measurementSharer = measurementSharer,
             shareLabelsResolver = ::fakeShareLabels,

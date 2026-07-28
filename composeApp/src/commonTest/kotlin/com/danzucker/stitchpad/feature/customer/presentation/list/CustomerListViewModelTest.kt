@@ -11,7 +11,7 @@ import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
-import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
+import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
 import com.danzucker.stitchpad.feature.freemium.domain.FreemiumRepository
 import com.danzucker.stitchpad.feature.measurement.presentation.entry.MeasurementEntryResolver
 import kotlinx.coroutines.Dispatchers
@@ -38,7 +38,7 @@ class CustomerListViewModelTest {
     private lateinit var customerRepository: FakeCustomerRepository
     private lateinit var measurementRepository: FakeMeasurementRepository
     private lateinit var orderRepository: FakeOrderRepository
-    private lateinit var authRepository: FakeAuthRepository
+    private lateinit var activeWorkshopProvider: FakeActiveWorkshopProvider
     private lateinit var freemiumRepository: FreemiumRepository
 
     @BeforeTest
@@ -47,7 +47,7 @@ class CustomerListViewModelTest {
         customerRepository = FakeCustomerRepository()
         measurementRepository = FakeMeasurementRepository()
         orderRepository = FakeOrderRepository()
-        authRepository = FakeAuthRepository()
+        activeWorkshopProvider = FakeActiveWorkshopProvider()
         freemiumRepository = FakeFreemiumRepository()
     }
 
@@ -60,9 +60,9 @@ class CustomerListViewModelTest {
         val vm = CustomerListViewModel(
             customerRepository = customerRepository,
             orderRepository = orderRepository,
-            authRepository = authRepository,
+            activeWorkshopProvider = activeWorkshopProvider,
             freemiumRepository = freemiumRepository,
-            measurementEntryResolver = MeasurementEntryResolver(measurementRepository, authRepository),
+            measurementEntryResolver = MeasurementEntryResolver(measurementRepository, activeWorkshopProvider),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -92,7 +92,6 @@ class CustomerListViewModelTest {
 
     @Test
     fun `view measurements from sheet with one measurement navigates to detail`() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.customersList = listOf(fakeCustomer())
         measurementRepository.measurementsList = listOf(fakeMeasurement(id = "meas-1"))
         val vm = createViewModel()
@@ -111,7 +110,6 @@ class CustomerListViewModelTest {
 
     @Test
     fun `view measurements from sheet with several measurements navigates to customer detail`() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.customersList = listOf(fakeCustomer())
         measurementRepository.measurementsList = listOf(
             fakeMeasurement(id = "m1"),
@@ -130,7 +128,6 @@ class CustomerListViewModelTest {
 
     @Test
     fun `view measurements from sheet with none navigates to empty-mode detail`() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.customersList = listOf(fakeCustomer())
         measurementRepository.measurementsList = emptyList()
         val vm = createViewModel()

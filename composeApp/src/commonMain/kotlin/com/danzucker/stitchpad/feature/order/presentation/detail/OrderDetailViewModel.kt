@@ -29,6 +29,8 @@ import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
+import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.workshopUidOrNull
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.OrderReceiptSharer
 import com.danzucker.stitchpad.core.sharing.ReceiptData
@@ -84,6 +86,7 @@ class OrderDetailViewModel(
     private val customFieldRepository: CustomMeasurementFieldRepository,
     private val styleRepository: StyleRepository,
     private val authRepository: AuthRepository,
+    private val activeWorkshopProvider: ActiveWorkshopProvider,
     private val userRepository: UserRepository,
     private val receiptSharer: OrderReceiptSharer,
     private val receiptImagePreferencesStore: ReceiptImagePreferencesStore,
@@ -456,7 +459,7 @@ class OrderDetailViewModel(
         val item = order.items.firstOrNull { it.id == itemId } ?: return
         if (item.styleImages.size >= MAX_IMAGES_PER_CATEGORY) return
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
             val upload = orderRepository.uploadStylePhotos(
                 userId = userId,
                 orderId = order.id,
@@ -509,7 +512,7 @@ class OrderDetailViewModel(
     @Suppress("ReturnCount")
     private fun removeStyleImage(itemId: String, index: Int) {
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
             photoMutationMutex.withLock {
                 val order = _state.value.order ?: return@withLock
                 val item = order.items.firstOrNull { it.id == itemId } ?: return@withLock
@@ -543,7 +546,7 @@ class OrderDetailViewModel(
         val item = order.items.firstOrNull { it.id == itemId } ?: return
         if (item.fabricImages.size >= MAX_IMAGES_PER_CATEGORY) return
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
             val upload = orderRepository.uploadFabricPhotos(
                 userId = userId,
                 orderId = order.id,
@@ -595,7 +598,7 @@ class OrderDetailViewModel(
     @Suppress("ReturnCount")
     private fun removeFabricImage(itemId: String, index: Int) {
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
             photoMutationMutex.withLock {
                 val order = _state.value.order ?: return@withLock
                 val item = order.items.firstOrNull { it.id == itemId } ?: return@withLock
@@ -629,7 +632,7 @@ class OrderDetailViewModel(
         if (order == null || firstItem == null || firstItem.fabricName == newName) return
         val updatedItems = listOf(firstItem.copy(fabricName = newName)) + order.items.drop(1)
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
             when (val res = orderRepository.updateOrder(userId, order.copy(items = updatedItems))) {
                 is Result.Success -> Unit
                 is Result.Error -> _state.update {
@@ -644,7 +647,7 @@ class OrderDetailViewModel(
         val order = _state.value.order ?: return
         if (order.deadline == epochMillis) return
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
             val updated = order.copy(deadline = epochMillis)
             when (val res = orderRepository.updateOrder(userId, updated)) {
                 is Result.Success -> Unit
@@ -739,7 +742,7 @@ class OrderDetailViewModel(
     private fun observeOrder() {
         val orderId = orderId ?: return
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: run {
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: run {
                 _state.update { it.copy(isLoading = false) }
                 return@launch
             }
@@ -802,7 +805,7 @@ class OrderDetailViewModel(
     // archived fields so previously recorded values keep their labels.
     private fun observeCustomFieldLabels() {
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
             customFieldRepository.observeFields(userId).collect { result ->
                 if (result is Result.Success) {
                     val labels = result.data.associate { it.id to it.label }
@@ -839,7 +842,7 @@ class OrderDetailViewModel(
         if (firstItem.measurementId != measurementId) {
             val updatedItems = listOf(firstItem.copy(measurementId = measurementId)) + order.items.drop(1)
             viewModelScope.launch {
-                val userId = authRepository.getCurrentUser()?.id ?: return@launch
+                val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
                 when (val res = orderRepository.updateOrder(userId, order.copy(items = updatedItems))) {
                     is Result.Success -> Unit // observeOrder Flow re-emits with the new measurementId
                     is Result.Error -> _state.update {
@@ -915,7 +918,7 @@ class OrderDetailViewModel(
         // Nothing new fitted (duplicate picks or already at cap) — no write needed.
         if (toAdd.isNotEmpty()) {
             viewModelScope.launch {
-                val userId = authRepository.getCurrentUser()?.id ?: return@launch
+                val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
                 when (val res = orderRepository.updateOrder(userId, order.copy(items = updatedItems))) {
                     is Result.Success -> Unit
                     is Result.Error -> _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
@@ -928,7 +931,7 @@ class OrderDetailViewModel(
         val orderId = orderId ?: return
         _state.update { it.copy(showDeleteDialog = false) }
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
             when (
                 val result = orderRepository.deleteOrder(
                     userId = userId,
@@ -948,7 +951,7 @@ class OrderDetailViewModel(
         val orderId = orderId ?: return
         _state.update { it.copy(showArchiveDialog = false) }
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
             when (val res = orderRepository.archiveOrder(userId, orderId)) {
                 is Result.Success -> _events.send(OrderDetailEvent.OrderArchived)
                 is Result.Error -> _state.update {
@@ -980,7 +983,7 @@ class OrderDetailViewModel(
     private fun performStatusUpdate(newStatus: OrderStatus, newSubStatus: OrderSubStatus?) {
         val orderId = orderId ?: return
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
             val statusResult = orderRepository.updateOrderStatus(userId, orderId, newStatus)
             if (statusResult is Result.Error) {
                 _state.update { it.copy(errorMessage = statusResult.error.toOrderUiText()) }
@@ -1000,7 +1003,7 @@ class OrderDetailViewModel(
         val orderId = orderId ?: return
         val draft = _state.value.notesDraft
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
             val toSave = draft.takeIf { it.isNotBlank() }
             when (val res = orderRepository.updateNotes(userId, orderId, toSave)) {
                 is Result.Success -> {
@@ -1020,7 +1023,7 @@ class OrderDetailViewModel(
         val existingNotes = _state.value.order?.costs.orEmpty().associate { it.category to it.note }
         val costs = orderCostsFromDraft(_state.value.costsDraft, existingNotes)
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
             when (val res = orderRepository.updateCosts(userId, orderId, costs)) {
                 is Result.Success -> {
                     _state.update { it.copy(costsEditorVisible = false) }
@@ -1092,7 +1095,7 @@ class OrderDetailViewModel(
             )
         }
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
             when (
                 val res = orderRepository.recordPayment(
                     userId = userId,

@@ -9,7 +9,8 @@ import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.ownedStoragePaths
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
-import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
+import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.workshopUidOrNull
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,7 +26,7 @@ import kotlinx.coroutines.launch
 class OrderListViewModel(
     private val orderRepository: OrderRepository,
     private val customerRepository: CustomerRepository,
-    private val authRepository: AuthRepository
+    private val activeWorkshopProvider: ActiveWorkshopProvider
 ) : ViewModel() {
 
     private var hasLoadedInitialData = false
@@ -99,7 +100,7 @@ class OrderListViewModel(
 
     private fun observeOrders() {
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: run {
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: run {
                 _state.update { it.copy(isLoading = false) }
                 return@launch
             }
@@ -134,7 +135,7 @@ class OrderListViewModel(
 
     private fun observeArchivedOrders() {
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: run {
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: run {
                 _state.update { it.copy(isArchivedLoading = false) }
                 return@launch
             }
@@ -171,7 +172,7 @@ class OrderListViewModel(
 
     private fun restoreOrder(order: Order) {
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
             when (val result = orderRepository.unarchiveOrder(userId, order.id)) {
                 is Result.Success -> _events.send(OrderListEvent.OrderRestored)
                 is Result.Error -> _state.update {
@@ -191,7 +192,7 @@ class OrderListViewModel(
      * load, and fail open to the form on error (it surfaces whatever's cached).
      */
     private suspend fun userHasActiveCustomer(): Boolean {
-        val userId = authRepository.getCurrentUser()?.id ?: return false
+        val userId = activeWorkshopProvider.workshopUidOrNull() ?: return false
         return when (val result = customerRepository.observeCustomers(userId).first()) {
             is Result.Success -> result.data.any { it.slotState == CustomerSlotState.ACTIVE }
             is Result.Error -> true
@@ -202,7 +203,7 @@ class OrderListViewModel(
         val order = _state.value.orderToDelete ?: return
         _state.update { it.copy(showDeleteDialog = false, orderToDelete = null) }
         viewModelScope.launch {
-            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
             val result = orderRepository.deleteOrder(
                 userId = userId,
                 orderId = order.id,

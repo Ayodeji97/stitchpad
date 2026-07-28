@@ -13,7 +13,8 @@ import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
-import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
+import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collect
@@ -39,7 +40,7 @@ class CustomerDetailViewModelTest {
 
     private lateinit var customerRepository: FakeCustomerRepository
     private lateinit var measurementRepository: FakeMeasurementRepository
-    private lateinit var authRepository: FakeAuthRepository
+    private lateinit var activeWorkshopProvider: FakeActiveWorkshopProvider
     private lateinit var customFieldRepository: FakeCustomMeasurementFieldRepository
     private lateinit var orderRepository: FakeOrderRepository
 
@@ -48,7 +49,7 @@ class CustomerDetailViewModelTest {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         customerRepository = FakeCustomerRepository()
         measurementRepository = FakeMeasurementRepository()
-        authRepository = FakeAuthRepository()
+        activeWorkshopProvider = FakeActiveWorkshopProvider()
         customFieldRepository = FakeCustomMeasurementFieldRepository()
         orderRepository = FakeOrderRepository()
     }
@@ -65,7 +66,7 @@ class CustomerDetailViewModelTest {
             savedStateHandle = SavedStateHandle(mapOf("customerId" to customerId)),
             customerRepository = customerRepository,
             measurementRepository = measurementRepository,
-            authRepository = authRepository,
+            activeWorkshopProvider = activeWorkshopProvider,
             customFieldRepository = customFieldRepository,
             orderRepository = orderRepository,
         )
@@ -101,7 +102,7 @@ class CustomerDetailViewModelTest {
             savedStateHandle = SavedStateHandle(),
             customerRepository = customerRepository,
             measurementRepository = measurementRepository,
-            authRepository = authRepository,
+            activeWorkshopProvider = activeWorkshopProvider,
             customFieldRepository = customFieldRepository,
             orderRepository = orderRepository,
         )
@@ -113,7 +114,6 @@ class CustomerDetailViewModelTest {
 
     @Test
     fun loadData_success_populatesCustomerAndMeasurements() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         // VM observes the customer doc now (was one-shot getCustomer pre-PR);
         // seed via customersList so observeCustomer emits a hit.
         customerRepository.customersList = listOf(fakeCustomer())
@@ -132,7 +132,6 @@ class CustomerDetailViewModelTest {
 
     @Test
     fun onAddMeasurement_withExistingMeasurements_showsSheet() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.customersList = listOf(fakeCustomer())
         measurementRepository.measurementsList = listOf(fakeMeasurement())
         val vm = createViewModel()
@@ -145,7 +144,6 @@ class CustomerDetailViewModelTest {
 
     @Test
     fun onAddMeasurement_withNoMeasurements_navigatesToAdd() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.customersList = listOf(fakeCustomer())
         val vm = createViewModel()
         assertTrue(vm.state.value.measurements.isEmpty())
@@ -158,7 +156,6 @@ class CustomerDetailViewModelTest {
 
     @Test
     fun measurementsLoaded_becomesTrue_afterMeasurementsEmit() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.customersList = listOf(fakeCustomer())
         measurementRepository.measurementsList = listOf(fakeMeasurement())
 
@@ -171,7 +168,8 @@ class CustomerDetailViewModelTest {
 
     @Test
     fun loadData_noAuthUser_setsIsLoadingFalse() = runTest {
-        // no signUp — no current user
+        // Signed out — no workshop tree to load from.
+        activeWorkshopProvider.setSession(WorkshopSession.signedOut())
         val vm = createViewModel()
 
         assertFalse(vm.state.value.isLoading)
@@ -181,7 +179,6 @@ class CustomerDetailViewModelTest {
 
     @Test
     fun loadData_customerError_setsErrorMessage() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.shouldReturnError = DataError.Network.NOT_FOUND
 
         val vm = createViewModel()
@@ -192,7 +189,6 @@ class CustomerDetailViewModelTest {
 
     @Test
     fun loadData_measurementError_setsErrorMessage() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         // VM observes the customer doc now (was one-shot getCustomer pre-PR);
         // seed via customersList so observeCustomer emits a hit.
         customerRepository.customersList = listOf(fakeCustomer())
@@ -206,7 +202,6 @@ class CustomerDetailViewModelTest {
 
     @Test
     fun loadData_emptyMeasurements_populatesEmptyList() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         // VM observes the customer doc now (was one-shot getCustomer pre-PR);
         // seed via customersList so observeCustomer emits a hit.
         customerRepository.customersList = listOf(fakeCustomer())
@@ -281,7 +276,6 @@ class CustomerDetailViewModelTest {
 
     @Test
     fun onDeleteCustomerClick_showsDialog_withActiveOrderCount() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.customersList = listOf(fakeCustomer())
         orderRepository.ordersList = listOf(fakeOrder(status = OrderStatus.PENDING))
         val vm = createViewModel()
@@ -294,7 +288,6 @@ class CustomerDetailViewModelTest {
 
     @Test
     fun confirmDeleteCustomer_withActiveOrders_isBlocked_andDoesNotDelete() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.customersList = listOf(fakeCustomer())
         orderRepository.ordersList = listOf(fakeOrder(status = OrderStatus.IN_PROGRESS))
         val vm = createViewModel()
@@ -310,7 +303,6 @@ class CustomerDetailViewModelTest {
 
     @Test
     fun confirmDeleteCustomer_deliveredOrdersOnly_deletes_andNavigatesBack() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.customersList = listOf(fakeCustomer())
         // Delivered orders don't count as active, so deletion is allowed.
         orderRepository.ordersList = listOf(fakeOrder(status = OrderStatus.DELIVERED))
@@ -341,15 +333,14 @@ class CustomerDetailViewModelTest {
 
     @Test
     fun confirmDeleteCustomer_whenSignedOutMidSession_doesNotDelete() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.customersList = listOf(fakeCustomer())
         orderRepository.ordersList = listOf(fakeOrder(status = OrderStatus.DELIVERED))
         val vm = createViewModel()
         vm.onAction(CustomerDetailAction.OnDeleteCustomerClick)
 
-        // Auth lost after the orders loaded but before confirm — delete must bail
+        // Session lost after the orders loaded but before confirm — delete must bail
         // and re-arm the observer (not leave isDeletingCustomer stuck), Bugbot #147.
-        authRepository.signOut()
+        activeWorkshopProvider.setSession(WorkshopSession.signedOut())
         vm.onAction(CustomerDetailAction.OnConfirmDeleteCustomer)
 
         assertTrue(customerRepository.customersList.any { it.id == "customer-1" })
@@ -357,7 +348,6 @@ class CustomerDetailViewModelTest {
 
     @Test
     fun confirmDeleteCustomer_whenOrdersLoadFailed_setsError_andDoesNotDelete() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.customersList = listOf(fakeCustomer())
         // Orders flow errors → ordersLoaded never flips true → delete is refused.
         orderRepository.shouldReturnError = DataError.Network.UNKNOWN
@@ -372,7 +362,6 @@ class CustomerDetailViewModelTest {
 
     @Test
     fun onDismissDeleteCustomerDialog_hidesDialog_andClearsCount() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.customersList = listOf(fakeCustomer())
         orderRepository.ordersList = listOf(fakeOrder(status = OrderStatus.PENDING))
         val vm = createViewModel()
@@ -400,7 +389,6 @@ class CustomerDetailViewModelTest {
 
     @Test
     fun onCallClick_emitsLaunchDialer_withCustomerPhone() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.customersList = listOf(fakeCustomer(phone = "+2348012345678"))
         val vm = createViewModel()
 
@@ -415,7 +403,6 @@ class CustomerDetailViewModelTest {
 
     @Test
     fun onErrorDismiss_clearsErrorMessage() = runTest {
-        authRepository.signUpWithEmail("test@test.com", "pass123", "Test")
         customerRepository.shouldReturnError = DataError.Network.UNKNOWN
         val vm = createViewModel()
         assertNotNull(vm.state.value.errorMessage)

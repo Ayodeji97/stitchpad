@@ -25,11 +25,11 @@ import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.domain.model.StyleFolder
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
-import com.danzucker.stitchpad.core.domain.model.User
+import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import com.danzucker.stitchpad.core.media.FakeImageCompressor
 import com.danzucker.stitchpad.core.media.ImageCompressor
 import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
-import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
 import com.danzucker.stitchpad.feature.style.domain.StylePickerFolder
 import kotlinx.coroutines.CompletableDeferred
@@ -60,7 +60,7 @@ class OrderFormViewModelTest {
     private lateinit var customerRepository: FakeCustomerRepository
     private lateinit var styleRepository: FakeStyleRepository
     private lateinit var measurementRepository: FakeMeasurementRepository
-    private lateinit var authRepository: FakeAuthRepository
+    private lateinit var activeWorkshopProvider: FakeActiveWorkshopProvider
     private lateinit var customGarmentTypeRepository: FakeCustomGarmentTypeRepository
 
     private val testCustomer = Customer(
@@ -70,16 +70,6 @@ class OrderFormViewModelTest {
         phone = "08012345678",
     )
 
-    private val testUser = User(
-        id = "user-1",
-        email = "test@stitchpad.app",
-        displayName = "Test",
-        businessName = null,
-        phoneNumber = null,
-        whatsappNumber = null,
-        avatarColorIndex = 0,
-    )
-
     @BeforeTest
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
@@ -87,7 +77,8 @@ class OrderFormViewModelTest {
         customerRepository = FakeCustomerRepository()
         styleRepository = FakeStyleRepository()
         measurementRepository = FakeMeasurementRepository()
-        authRepository = FakeAuthRepository().apply { currentUser = testUser }
+        // Match the userId the custom-garment-type assertions expect.
+        activeWorkshopProvider = FakeActiveWorkshopProvider(WorkshopSession.ownerOfSelf("user-1"))
         customGarmentTypeRepository = FakeCustomGarmentTypeRepository()
         customerRepository.customersList = listOf(testCustomer)
     }
@@ -110,7 +101,7 @@ class OrderFormViewModelTest {
             customerRepository = customerRepository,
             styleRepository = styleRepository,
             measurementRepository = measurementRepository,
-            authRepository = authRepository,
+            activeWorkshopProvider = activeWorkshopProvider,
             customGarmentTypeRepository = customGarmentTypeRepository,
             imageCompressor = imageCompressor,
             analytics = FakeAnalytics(),
