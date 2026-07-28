@@ -542,11 +542,11 @@ class DashboardViewModelTest {
     }
 
     @Test
-    fun onOutstandingClick_emitsNavigateToOrders() = runTest {
+    fun onOutstandingClick_emitsNavigateToToCollect() = runTest {
         signIn()
         val vm = createViewModel()
         vm.onAction(DashboardAction.OnOutstandingClick)
-        assertIs<DashboardEvent.NavigateToOrders>(vm.events.first())
+        assertIs<DashboardEvent.NavigateToToCollect>(vm.events.first())
     }
 
     @Test
