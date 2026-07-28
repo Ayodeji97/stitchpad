@@ -4,6 +4,7 @@ import com.danzucker.stitchpad.core.data.dto.FabricImageRefDto
 import com.danzucker.stitchpad.core.data.dto.OrderCostDto
 import com.danzucker.stitchpad.core.data.dto.OrderDto
 import com.danzucker.stitchpad.core.data.dto.OrderItemDto
+import com.danzucker.stitchpad.core.data.dto.OrderMoneyDto
 import com.danzucker.stitchpad.core.data.dto.PaymentDto
 import com.danzucker.stitchpad.core.data.dto.StatusChangeDto
 import com.danzucker.stitchpad.core.data.dto.StyleImageRefDto
@@ -115,6 +116,21 @@ fun Order.toOrderDto(): OrderDto {
         updatedAt = now,
     )
 }
+
+/**
+ * Owner-only money payload for `users/{uid}/orders/{oid}/private/money`.
+ * Carries the full money set — `{ totalPrice, discount, discountReason, payments,
+ * costs, itemPrices }` — every [Order] money getter derives from. `itemPrices`
+ * relocates each item's `price` keyed by item id (see [OrderMoneyDto]).
+ */
+fun Order.toOrderMoneyDto(): OrderMoneyDto = OrderMoneyDto(
+    totalPrice = totalPrice,
+    discount = discount,
+    discountReason = discountReason,
+    payments = payments.map { it.toPaymentDto() },
+    costs = costs.map { it.toOrderCostDto() },
+    itemPrices = items.associate { it.id to it.price },
+)
 
 fun PaymentDto.toPayment(): Payment = Payment(
     id = id,

@@ -1,0 +1,26 @@
+package com.danzucker.stitchpad.core.data.dto
+
+import kotlinx.serialization.Serializable
+
+/**
+ * Wire shape of the owner-only contact sub-document at
+ * `users/{uid}/customers/{cid}/private/contact`.
+ *
+ * Part of the Owner + Staff feature: a customer's reachable identity (phone,
+ * email, address) is the commercially sensitive part staff must never see — a
+ * staffer who has a customer's phone number can poach them. The base customer
+ * doc keeps only name + slot fields (which staff need to do the work), and this
+ * sub-doc holds the contact so Firestore rules can deny staff read access.
+ *
+ * During the dual-write window (Slice 2) the base [CustomerDto] still carries
+ * these fields for backward compatibility with older app versions; the owner app
+ * keeps reading them from the base doc. This sub-doc is written in parallel so a
+ * later slice can flip reads here and strip the base fields behind a minimum
+ * app-version floor.
+ */
+@Serializable
+data class CustomerContactDto(
+    val phone: String = "",
+    val email: String? = null,
+    val address: String? = null,
+)

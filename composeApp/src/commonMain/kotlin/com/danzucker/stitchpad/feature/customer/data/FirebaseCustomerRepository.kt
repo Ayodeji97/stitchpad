@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.customer.data
 import com.danzucker.stitchpad.core.data.decodeDocOrLog
 import com.danzucker.stitchpad.core.data.dto.CustomerDto
 import com.danzucker.stitchpad.core.data.mapper.toCustomer
+import com.danzucker.stitchpad.core.data.mapper.toCustomerContactDto
 import com.danzucker.stitchpad.core.data.mapper.toCustomerDto
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.DataError
@@ -56,6 +57,16 @@ class FirebaseCustomerRepository(
 ) : CustomerRepository {
 
     private val cachedActiveCustomerCounts = MutableStateFlow<Map<String, Int>>(emptyMap())
+
+    // Owner-only contact sub-doc (Owner + Staff feature). During the dual-write
+    // window the base customer doc still carries phone/email/address for old app
+    // versions and the owner app keeps reading them from there; this sub-doc is
+    // written in parallel so a later slice can flip reads here and Firestore rules
+    // can deny staff access to a customer's reachable identity.
+    private fun contactDoc(userId: String, customerId: String) =
+        firestore.collection("users").document(userId)
+            .collection("customers").document(customerId)
+            .collection("private").document("contact")
 
     override fun observeCustomers(userId: String): Flow<Result<List<Customer>, DataError.Network>> =
         firestore.collection("users")
@@ -148,6 +159,7 @@ class FirebaseCustomerRepository(
         val accepted = offlineWrites.enqueue("createCustomer customerId=${docRef.id}") {
             docRef.set(dto)
             docRef.set(mapOf("serverCreatedAt" to FieldValue.serverTimestamp), merge = true)
+            contactDoc(userId, docRef.id).set(customer.toCustomerContactDto())
         }
         if (!accepted) {
             return Result.Error(DataError.Network.UNKNOWN)
@@ -187,6 +199,8 @@ class FirebaseCustomerRepository(
             // Merge only fields from the edit form. slotState/lockedAt are
             // server-owned and must not be reconstructed from offline UI state.
             docRef.set(editableFields, merge = true)
+            // Mirror contact to the owner-only sub-doc (create-safe).
+            contactDoc(userId, customer.id).set(customer.toCustomerContactDto(), merge = true)
         }
         if (!accepted) {
             return Result.Error(DataError.Network.UNKNOWN)
@@ -204,6 +218,7 @@ class FirebaseCustomerRepository(
                 .collection("customers")
                 .document(customerId)
                 .delete()
+            contactDoc(userId, customerId).delete()
         }
         if (!accepted) {
             return Result.Error(DataError.Network.UNKNOWN)

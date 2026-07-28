@@ -238,6 +238,14 @@ service cloud.firestore {
             allow read, write: if isOwner(uid);
           }
         }
+
+        // Owner-only contact sub-doc (Owner + Staff feature) — phone/email/address.
+        // isOwner-only, so a future staff member (a non-owner) is denied: this is
+        // the customer-contact wall. Staff will be able to read the base customer
+        // doc (name, measurements) but never this.
+        match /private/{doc} {
+          allow read, write: if isOwner(uid);
+        }
       }
 
       // ── Orders subcollection ─────────────────────────────────────────────
@@ -246,6 +254,14 @@ service cloud.firestore {
         allow create: if activityCreateOk();
         allow update: if isOwner(uid) && serverCreatedAtProtectedOnUpdate() && activityCreatedAtStableOnUpdate();
         allow delete: if isOwner(uid);
+
+        // Owner-only money sub-doc (Owner + Staff feature) — price/discount/
+        // payments/costs/itemPrices. isOwner-only, so a future staff member is
+        // denied: this is the money wall. Staff will read the base order doc
+        // (garment, status, measurements) but never this.
+        match /private/{doc} {
+          allow read, write: if isOwner(uid);
+        }
       }
 
       // ── Inspiration style gallery ───────────────────────────────────────

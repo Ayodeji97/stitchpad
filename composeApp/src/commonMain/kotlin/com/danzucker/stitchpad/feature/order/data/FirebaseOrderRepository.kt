@@ -7,6 +7,7 @@ import com.danzucker.stitchpad.core.data.dto.StatusChangeDto
 import com.danzucker.stitchpad.core.data.mapper.toOrder
 import com.danzucker.stitchpad.core.data.mapper.toOrderCostDto
 import com.danzucker.stitchpad.core.data.mapper.toOrderDto
+import com.danzucker.stitchpad.core.data.mapper.toOrderMoneyDto
 import com.danzucker.stitchpad.core.data.mapper.toPaymentDto
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
@@ -129,6 +130,13 @@ class FirebaseOrderRepository(
 
     private fun ordersCollection(userId: String) =
         firestore.collection("users").document(userId).collection("orders")
+
+    // Owner-only money sub-doc (Owner + Staff feature). During the dual-write
+    // window the base order doc still carries money for old app versions and the
+    // owner app keeps reading it from there; this sub-doc is written in parallel
+    // so a later slice can flip reads here and Firestore rules can deny staff.
+    private fun orderMoneyDoc(userId: String, orderId: String) =
+        ordersCollection(userId).document(orderId).collection("private").document("money")
 
     private fun fabricStoragePath(userId: String, orderId: String, itemId: String): String =
         "users/$userId/orders/$orderId/fabrics/$itemId.jpg"
@@ -274,6 +282,7 @@ class FirebaseOrderRepository(
         val accepted = offlineWrites.enqueue("createOrder orderId=${docRef.id}") {
             docRef.set(dto)
             docRef.set(mapOf("serverCreatedAt" to FieldValue.serverTimestamp), merge = true)
+            orderMoneyDoc(userId, docRef.id).set(order.toOrderMoneyDto())
         }
         if (!accepted) {
             return Result.Error(DataError.Network.UNKNOWN)
@@ -294,6 +303,8 @@ class FirebaseOrderRepository(
             // written and field-clearing behaves exactly as before.
             ordersCollection(userId).document(order.id)
                 .set(order.withCompletedUploadPatches().toOrderDto(), merge = true)
+            // Full-money mirror; order carries the current money so a replace is correct.
+            orderMoneyDoc(userId, order.id).set(order.toOrderMoneyDto())
         }
         if (!accepted) {
             return Result.Error(DataError.Network.UNKNOWN)
@@ -342,6 +353,9 @@ class FirebaseOrderRepository(
                 "depositPaid" to 0.0,
                 "updatedAt" to now,
             )
+            // Mirror the payment append to the money sub-doc. merge=true so it
+            // create-or-updates even for orders whose money doc isn't backfilled yet.
+            orderMoneyDoc(userId, orderId).set(mapOf("payments" to paymentsArrayUnion), merge = true)
         }
         if (!accepted) {
             return Result.Error(DataError.Network.UNKNOWN)
@@ -408,6 +422,9 @@ class FirebaseOrderRepository(
             ordersCollection(userId).document(orderId).update(
                 *orderCostsWriteFields(costs).entries.map { it.key to it.value }.toTypedArray(),
             )
+            // Mirror costs to the money sub-doc (create-safe). Same "no updatedAt"
+            // invariant as the base write — the sub-doc has no updatedAt field.
+            orderMoneyDoc(userId, orderId).set(orderCostsWriteFields(costs), merge = true)
         }
         if (!accepted) {
             return Result.Error(DataError.Network.UNKNOWN)
@@ -466,6 +483,7 @@ class FirebaseOrderRepository(
         }
         val accepted = offlineWrites.enqueue("deleteOrder orderId=$orderId") {
             ordersCollection(userId).document(orderId).delete()
+            orderMoneyDoc(userId, orderId).delete()
         }
         if (!accepted) {
             return Result.Error(DataError.Network.UNKNOWN)
