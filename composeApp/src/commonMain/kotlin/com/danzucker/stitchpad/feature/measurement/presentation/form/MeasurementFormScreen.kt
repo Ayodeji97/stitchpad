@@ -72,6 +72,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
@@ -130,6 +132,9 @@ import stitchpad.composeapp.generated.resources.measurement_section_of
 import stitchpad.composeapp.generated.resources.measurement_show_less
 import stitchpad.composeapp.generated.resources.measurement_show_more_count
 import stitchpad.composeapp.generated.resources.measurement_skip_for_now
+import stitchpad.composeapp.generated.resources.measurement_step_state_completed
+import stitchpad.composeapp.generated.resources.measurement_step_state_current
+import stitchpad.composeapp.generated.resources.measurement_step_state_not_started
 import stitchpad.composeapp.generated.resources.measurement_unit_cm
 import stitchpad.composeapp.generated.resources.measurement_unit_inches
 
@@ -615,7 +620,17 @@ private fun SectionDot(
     onClick: () -> Unit,
 ) {
     val primary = MaterialTheme.colorScheme.primary
-    val click = Modifier.clickable(role = Role.Button, onClickLabel = onClickLabel, onClick = onClick)
+    val completedDesc = stringResource(Res.string.measurement_step_state_completed)
+    val currentDesc = stringResource(Res.string.measurement_step_state_current)
+    val notStartedDesc = stringResource(Res.string.measurement_step_state_not_started)
+    val stateDesc = when {
+        isCurrent -> currentDesc
+        isFilled -> completedDesc
+        else -> notStartedDesc
+    }
+    val click = Modifier
+        .clickable(role = Role.Button, onClickLabel = onClickLabel, onClick = onClick)
+        .semantics { stateDescription = stateDesc }
     when {
         // Current step = hollow ring + soft halo ("you are here"). Slightly larger
         // than the plain dots for emphasis. Shows a check inside when also filled.
