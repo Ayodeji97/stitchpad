@@ -1,9 +1,20 @@
 package com.danzucker.stitchpad.core.data.mapper
 
+import com.danzucker.stitchpad.core.data.dto.CustomerContactDto
 import com.danzucker.stitchpad.core.data.dto.CustomerDto
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import kotlin.time.Clock
+
+/**
+ * Owner-only contact payload for `users/{uid}/customers/{cid}/private/contact`.
+ * See [CustomerContactDto].
+ */
+fun Customer.toCustomerContactDto(): CustomerContactDto = CustomerContactDto(
+    phone = phone,
+    email = email,
+    address = address,
+)
 
 fun CustomerDto.toCustomer(userId: String = ""): Customer = Customer(
     id = id,
