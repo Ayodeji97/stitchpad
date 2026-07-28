@@ -1233,6 +1233,10 @@
     <!-- Shown when WhatsApp can&apos;t be opened from the customer screens -->
     <string name="whatsapp_launch_failed">Couldn&apos;t open WhatsApp. Make sure it&apos;s installed and try again.</string>
 
+    <!-- To collect "Chase" WhatsApp templates — balance-aware payment reminders (%1$s = first name, %2$s = amount, %3$s = signature) -->
+    <string name="whatsapp_collect_message_ready">Hi %1$s, your order is ready for collection. Kindly complete the outstanding balance of ₦%2$s when you can. Thank you! %3$s</string>
+    <string name="whatsapp_collect_message_delivered">Hi %1$s, a friendly reminder that you have an outstanding balance of ₦%2$s. Kindly complete the payment when you can. Thank you! %3$s</string>
+
     <!-- Login redesign additions -->
     <string name="login_subtitle">Sign in to manage your orders, customers, and payments.</string>
     <string name="login_secure_microcopy">Secure sign-in for your tailoring business.</string>

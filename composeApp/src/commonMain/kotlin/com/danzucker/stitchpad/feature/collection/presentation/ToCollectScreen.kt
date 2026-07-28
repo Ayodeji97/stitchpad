@@ -23,6 +23,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -50,6 +52,7 @@ import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 fun ToCollectScreen(
     state: ToCollectState,
     onAction: (ToCollectAction) -> Unit,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     Scaffold(
         topBar = {
@@ -65,6 +68,7 @@ fun ToCollectScreen(
                 },
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             SummaryHeader(state.summary)
@@ -231,10 +235,11 @@ private fun CollectibleRow(
         ) {
             Column(Modifier.weight(1f)) {
                 Text(row.customerName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                val unit = if (row.daysOwed == 1) "day" else "days"
                 val owedLabel = if (row.isOverdue) {
-                    "Overdue · owed ${row.daysOwed} days"
+                    "Overdue · owed ${row.daysOwed} $unit"
                 } else {
-                    "owed ${row.daysOwed} days"
+                    "owed ${row.daysOwed} $unit"
                 }
                 val owedColor = if (row.isOverdue) {
                     MaterialTheme.colorScheme.error
@@ -292,6 +297,7 @@ private fun ToCollectScreenFilledPreview() {
                 ),
             ),
             onAction = {},
+            snackbarHostState = remember { SnackbarHostState() },
         )
     }
 }
@@ -301,6 +307,10 @@ private fun ToCollectScreenFilledPreview() {
 @Preview
 private fun ToCollectScreenEmptyPreview() {
     StitchPadTheme {
-        ToCollectScreen(state = ToCollectState(isLoading = false), onAction = {})
+        ToCollectScreen(
+            state = ToCollectState(isLoading = false),
+            onAction = {},
+            snackbarHostState = remember { SnackbarHostState() },
+        )
     }
 }

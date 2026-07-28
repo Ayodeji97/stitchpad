@@ -35,6 +35,7 @@ class ToCollectViewModel(
     private var allCollectibles: List<CollectibleOrder> = emptyList()
     private var ordersById: Map<String, Order> = emptyMap()
     private var customersById: Map<String, Customer> = emptyMap()
+    private var signature: String = ""
 
     private val _state = MutableStateFlow(ToCollectState())
     val state = _state
@@ -69,10 +70,12 @@ class ToCollectViewModel(
 
     private fun observe() {
         viewModelScope.launch {
-            val uid = authRepository.getCurrentUser()?.id ?: run {
+            val user = authRepository.getCurrentUser() ?: run {
                 _state.update { it.copy(isLoading = false) }
                 return@launch
             }
+            val uid = user.id
+            signature = user.businessName?.takeIf { it.isNotBlank() } ?: user.displayName
             combine(
                 orderRepository.observeOrders(uid),
                 customerRepository.observeCustomers(uid),
@@ -118,6 +121,6 @@ class ToCollectViewModel(
     private fun onChaseClick(orderId: String) {
         val order = ordersById[orderId] ?: return
         val customer = customersById[order.customerId] ?: return
-        viewModelScope.launch { _events.send(ToCollectEvent.LaunchWhatsApp(order, customer)) }
+        viewModelScope.launch { _events.send(ToCollectEvent.LaunchWhatsApp(order, customer, signature)) }
     }
 }

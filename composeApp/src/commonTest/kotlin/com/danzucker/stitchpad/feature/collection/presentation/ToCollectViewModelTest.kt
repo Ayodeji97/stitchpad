@@ -106,6 +106,10 @@ class ToCollectViewModelTest {
 
     @Test
     fun chaseClickEmitsLaunchWhatsAppWithOrderAndCustomer() = runTest {
+        authRepository.currentUser = User(
+            id = "u", email = "e@x.com", displayName = "Dan",
+            businessName = "Dan's Tailoring", phoneNumber = null, whatsappNumber = null, avatarColorIndex = 0,
+        )
         customerRepository.customersList = listOf(Customer(id = "c1", userId = "u", name = "Ada Obi", phone = "08030000000"))
         orderRepository.ordersList = listOf(order("o1", OrderStatus.DELIVERED, 5_000.0, owedDaysAgo = 1))
         val vm = createViewModel()
@@ -115,6 +119,7 @@ class ToCollectViewModelTest {
             assertTrue(event is ToCollectEvent.LaunchWhatsApp)
             assertEquals("o1", event.order.id)
             assertEquals("08030000000", event.customer.phone)
+            assertEquals("Dan's Tailoring", event.signature)
             cancelAndIgnoreRemainingEvents()
         }
     }

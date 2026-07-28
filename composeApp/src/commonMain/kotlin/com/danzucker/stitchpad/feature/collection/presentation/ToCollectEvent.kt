@@ -6,5 +6,5 @@ import com.danzucker.stitchpad.core.domain.model.Order
 sealed interface ToCollectEvent {
     data object NavigateBack : ToCollectEvent
     data class NavigateToOrderDetail(val orderId: String) : ToCollectEvent
-    data class LaunchWhatsApp(val order: Order, val customer: Customer) : ToCollectEvent
+    data class LaunchWhatsApp(val order: Order, val customer: Customer, val signature: String) : ToCollectEvent
 }
