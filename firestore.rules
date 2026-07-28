@@ -231,9 +231,17 @@ service cloud.firestore {
       // slotState/lockedAt stay client-writable in V1.0 because the SwapSheet
       // mutates them directly via Firestore batch. See top-level comment.
       match /customers/{customerId} {
-        // Members read the base customer (name + slot); contact is walled off in
-        // /private/contact below. Create/update/delete stay owner-only.
-        allow read: if canReadWorkshop(uid);
+        // Members read the base customer (name + slot) — but ONLY once the contact
+        // fields have been stripped from the base doc (Slice 8). Firestore rules
+        // can't hide individual fields on read, and during the dual-write window
+        // the base doc still carries phone/email/address; the field-absence guard
+        // makes staff read auto-enable per-doc exactly when the strip lands, so a
+        // member can never see contact by reading the base doc. Owner reads always.
+        allow read: if isOwner(uid)
+          || (isActiveMember(uid)
+              && !('phone' in resource.data)
+              && !('email' in resource.data)
+              && !('address' in resource.data));
         allow create: if activityCreateOk();
         allow update: if isOwner(uid) && serverCreatedAtProtectedOnUpdate() && activityCreatedAtStableOnUpdate();
         allow delete: if isOwner(uid);
@@ -271,9 +279,19 @@ service cloud.firestore {
 
       // ── Orders subcollection ─────────────────────────────────────────────
       match /orders/{orderId} {
-        // Members read the base order (garment, status, dates); money is walled
-        // off in /private/money below.
-        allow read: if canReadWorkshop(uid);
+        // Members read the base order (garment, status, dates) — but ONLY once the
+        // money fields have been stripped from the base doc (Slice 8). Same reason
+        // as customers: rules can't hide fields, and the base doc still carries
+        // money during the dual-write window. The top-level money fields are the
+        // strip sentinel — Slice 8 removes them together with items[].price, so
+        // their absence guarantees the whole doc (incl. per-item price) is safe.
+        allow read: if isOwner(uid)
+          || (isActiveMember(uid)
+              && !('totalPrice' in resource.data)
+              && !('discount' in resource.data)
+              && !('discountReason' in resource.data)
+              && !('payments' in resource.data)
+              && !('costs' in resource.data));
         allow create: if activityCreateOk();
         // Owner: full update. Active staff: may ONLY advance production status —
         // status/subStatus/statusHistory/updatedAt — never money, customer, or

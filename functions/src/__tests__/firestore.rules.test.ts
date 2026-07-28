@@ -744,6 +744,16 @@ describe('active staff member access', () => {
     await assertSucceeds(getDoc(doc(staffDb('chidi', 'alice'), 'users/alice/orders/o1')));
   });
 
+  it('is denied a base doc that still carries sensitive fields (dual-write window)', async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice/customers/withPhone'), { name: 'Bola', phone: '+234' });
+      await setDoc(doc(admin, 'users/alice/orders/withMoney'), { status: 'PENDING', totalPrice: 5000 });
+    });
+    // The field-absence gate blocks staff until Slice 8 strips these fields.
+    await assertFails(getDoc(doc(staffDb('chidi', 'alice'), 'users/alice/customers/withPhone')));
+    await assertFails(getDoc(doc(staffDb('chidi', 'alice'), 'users/alice/orders/withMoney')));
+  });
+
   it('is denied the /private money and contact sub-docs (the wall)', async () => {
     await assertFails(
       getDoc(doc(staffDb('chidi', 'alice'), 'users/alice/customers/c1/private/contact')),
