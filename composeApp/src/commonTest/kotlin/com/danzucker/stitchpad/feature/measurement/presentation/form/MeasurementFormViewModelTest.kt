@@ -146,7 +146,7 @@ class MeasurementFormViewModelTest {
         id = id,
         customerId = customerId,
         gender = gender,
-        fields = mapOf("bust_circumference" to 90.0, "waist" to 70.5),
+        fields = mapOf("bust_circumference" to "90", "waist" to "70.5"),
         unit = unit,
         notes = notes,
         dateTaken = 0L,
@@ -452,7 +452,7 @@ class MeasurementFormViewModelTest {
 
         val saved = measurementRepository.lastCreatedMeasurement
         assertNotNull(saved)
-        assertEquals(90.0, saved.fields["bust_circumference"])
+        assertEquals("90", saved.fields["bust_circumference"])
         assertFalse(saved.fields.containsKey("waist"))
     }
 
@@ -476,7 +476,7 @@ class MeasurementFormViewModelTest {
 
         val saved = measurementRepository.lastCreatedMeasurement
         assertNotNull(saved)
-        assertEquals(90.0, saved.fields["bust_circumference"])
+        assertEquals("90", saved.fields["bust_circumference"])
         assertFalse(saved.fields.containsKey("f-both"))
     }
 
@@ -981,7 +981,7 @@ class MeasurementFormViewModelTest {
         val f = customField(id = "f1", label = "Cuff", genders = setOf(CustomerGender.FEMALE))
         customFieldRepository.seedFields(listOf(f))
         measurementRepository.measurementsList = listOf(
-            fakeMeasurement(id = "meas-1").copy(fields = mapOf("f1" to 12.5))
+            fakeMeasurement(id = "meas-1").copy(fields = mapOf("f1" to "12.5"))
         )
         val vm = createViewModel(measurementId = "meas-1")
 
@@ -1023,8 +1023,8 @@ class MeasurementFormViewModelTest {
             customerId = "customer-1",
             gender = CustomerGender.FEMALE,
             fields = mapOf(
-                "bust_circumference" to 92.0,
-                "custom-1" to 12.5,
+                "bust_circumference" to "92",
+                "custom-1" to "12.5",
             ),
             unit = MeasurementUnit.CM,
             notes = null,
@@ -1049,7 +1049,7 @@ class MeasurementFormViewModelTest {
             id = "m1",
             customerId = "customer-1",
             gender = CustomerGender.FEMALE,
-            fields = mapOf("orphan-key-99" to 7.0),
+            fields = mapOf("orphan-key-99" to "7"),
             unit = MeasurementUnit.CM,
             notes = null,
             dateTaken = 0L,
@@ -1064,7 +1064,7 @@ class MeasurementFormViewModelTest {
 
         val updated = measurementRepository.lastUpdatedMeasurement
         assertNotNull(updated)
-        assertEquals(7.0, updated.fields["orphan-key-99"])
+        assertEquals("7", updated.fields["orphan-key-99"])
     }
 
     @Test
@@ -1082,7 +1082,7 @@ class MeasurementFormViewModelTest {
             id = "m1",
             customerId = "customer-1",
             gender = CustomerGender.MALE,
-            fields = mapOf("custom-male" to 8.0),
+            fields = mapOf("custom-male" to "8"),
             unit = MeasurementUnit.CM,
             notes = null,
             dateTaken = 0L,
@@ -1114,7 +1114,7 @@ class MeasurementFormViewModelTest {
             id = "m1",
             customerId = "customer-1",
             gender = CustomerGender.FEMALE,
-            fields = mapOf("archived-cuff" to 11.0),
+            fields = mapOf("archived-cuff" to "11"),
             unit = MeasurementUnit.CM,
             notes = null,
             dateTaken = 0L,
@@ -1212,8 +1212,8 @@ class MeasurementFormViewModelTest {
             customerId = "customer-1",
             gender = CustomerGender.FEMALE,
             fields = mapOf(
-                "archived-cuff" to 11.0,
-                "orphan-key-99" to 7.0,
+                "archived-cuff" to "11",
+                "orphan-key-99" to "7",
             ),
             unit = MeasurementUnit.CM,
             notes = null,
@@ -1234,8 +1234,8 @@ class MeasurementFormViewModelTest {
 
         val updated = measurementRepository.lastUpdatedMeasurement
         assertNotNull(updated)
-        assertEquals(11.0, updated.fields["archived-cuff"])
-        assertEquals(7.0, updated.fields["orphan-key-99"])
+        assertEquals("11", updated.fields["archived-cuff"])
+        assertEquals("7", updated.fields["orphan-key-99"])
     }
 
     // --- Measurement name (mandatory + pre-filled) ---

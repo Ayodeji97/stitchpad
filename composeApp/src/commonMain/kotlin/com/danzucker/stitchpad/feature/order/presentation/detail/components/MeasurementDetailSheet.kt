@@ -24,7 +24,6 @@ import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.feature.measurement.presentation.filledPreviewFields
-import com.danzucker.stitchpad.feature.measurement.presentation.formatMeasurementValue
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import kotlinx.datetime.Instant
@@ -124,7 +123,7 @@ private fun MeasurementDetailSheetContent(
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        text = "${formatMeasurementValue(field.value)}$unitSuffix",
+                        text = "${field.value}$unitSuffix",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                         fontFamily = FontFamily.Monospace,
@@ -176,7 +175,7 @@ private fun MeasurementDetailSheetLightPreview() {
                     id = "m1",
                     customerId = "c1",
                     gender = CustomerGender.FEMALE,
-                    fields = mapOf("bust_circumference" to 36.0, "waist" to 28.0, "hip_circumference" to 40.0),
+                    fields = mapOf("bust_circumference" to "36", "waist" to "28", "hip_circumference" to "40"),
                     unit = MeasurementUnit.INCHES,
                     notes = null,
                     dateTaken = 1_743_638_400_000L,
@@ -201,7 +200,7 @@ private fun MeasurementDetailSheetDarkPreview() {
                     id = "m1",
                     customerId = "c1",
                     gender = CustomerGender.MALE,
-                    fields = mapOf("chest" to 42.0, "trouser_waist" to 34.0),
+                    fields = mapOf("chest" to "42", "trouser_waist" to "34"),
                     unit = MeasurementUnit.INCHES,
                     notes = null,
                     dateTaken = 1_743_638_400_000L,

@@ -12,7 +12,7 @@ class MeasurementDetailSectionsTest {
 
     private fun measurement(
         gender: CustomerGender = CustomerGender.FEMALE,
-        fields: Map<String, Double>,
+        fields: Map<String, String>,
     ) = Measurement(
         id = "m1",
         customerId = "c1",
@@ -30,22 +30,22 @@ class MeasurementDetailSectionsTest {
         val sections = measurementDetailSections(
             measurement = measurement(
                 fields = mapOf(
-                    "trouser_waist" to 31.0,
-                    "shoulder_width" to 15.0,
-                    "bust_circumference" to 38.0,
+                    "trouser_waist" to "31",
+                    "shoulder_width" to "15",
+                    "bust_circumference" to "38",
                 ),
             ),
             customFieldLabels = emptyMap(),
         )
         assertEquals(listOf("section_upper_body", "section_trouser"), sections.map { it.titleKey })
         assertEquals(listOf("Shoulder", "Bust"), sections[0].rows.map { it.label })
-        assertEquals(listOf(15.0, 38.0), sections[0].rows.map { it.value })
+        assertEquals(listOf("15", "38"), sections[0].rows.map { it.value })
     }
 
     @Test
     fun `drops zero and missing values and omits empty sections`() {
         val sections = measurementDetailSections(
-            measurement = measurement(fields = mapOf("waist" to 31.0, "hip_circumference" to 0.0)),
+            measurement = measurement(fields = mapOf("waist" to "31", "hip_circumference" to "0")),
             customFieldLabels = emptyMap(),
         )
         assertEquals(1, sections.size)
@@ -57,7 +57,7 @@ class MeasurementDetailSectionsTest {
     fun `custom fields come last as a null-titleKey group sorted alphabetically`() {
         val sections = measurementDetailSections(
             measurement = measurement(
-                fields = mapOf("waist" to 31.0, "uuid-b" to 12.0, "uuid-a" to 7.5),
+                fields = mapOf("waist" to "31", "uuid-b" to "12", "uuid-a" to "7.5"),
             ),
             customFieldLabels = mapOf("uuid-a" to "Zip length", "uuid-b" to "Agbada flare"),
         )
@@ -69,9 +69,9 @@ class MeasurementDetailSectionsTest {
     @Test
     fun `orphan keys without a label are skipped`() {
         val sections = measurementDetailSections(
-            measurement = measurement(fields = mapOf("waist" to 31.0, "unknown-key" to 9.0)),
+            measurement = measurement(fields = mapOf("waist" to "31", "unknown-key" to "9")),
             customFieldLabels = emptyMap(),
         )
-        assertTrue(sections.flatMap { it.rows }.none { it.value == 9.0 })
+        assertTrue(sections.flatMap { it.rows }.none { it.value == "9" })
     }
 }

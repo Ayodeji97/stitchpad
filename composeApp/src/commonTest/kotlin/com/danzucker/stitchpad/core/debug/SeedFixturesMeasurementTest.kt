@@ -37,7 +37,7 @@ class SeedFixturesMeasurementTest {
         val missing = templateKeysFor(measurement) - measurement.fields.keys
 
         assertEquals(emptySet(), missing, "Template fields left unseeded")
-        assertTrue(measurement.fields.values.all { it > 0.0 }, "Zero values are dropped when rendering")
+        assertTrue(measurement.fields.values.all { it.isNotBlank() }, "Zero values are dropped when rendering")
     }
 
     @Test

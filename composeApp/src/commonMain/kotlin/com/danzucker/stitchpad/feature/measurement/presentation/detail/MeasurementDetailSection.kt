@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.measurement.presentation.detail
 import com.danzucker.stitchpad.core.domain.model.BodyProfileTemplate
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.feature.measurement.presentation.MeasurementPreviewField
+import com.danzucker.stitchpad.feature.measurement.presentation.isPersistableMeasurementValue
 
 /**
  * One rendered section on the read-only measurement detail screen. [titleKey]
@@ -31,14 +32,16 @@ fun measurementDetailSections(
     val filled = templateSections.mapNotNull { section ->
         val rows = section.fields.mapNotNull { field ->
             measurement.fields[field.key]
-                ?.takeIf { it > 0.0 }
+                ?.takeIf { isPersistableMeasurementValue(it) }
                 ?.let { MeasurementPreviewField(field.label, it) }
         }
         if (rows.isEmpty()) null else MeasurementDetailSection(section.titleKey, rows)
     }
 
     val customRows = measurement.fields
-        .filter { (key, value) -> key !in templateKeys && key in customFieldLabels && value > 0.0 }
+        .filter { (key, value) ->
+            key !in templateKeys && key in customFieldLabels && isPersistableMeasurementValue(value)
+        }
         .map { (key, value) -> MeasurementPreviewField(customFieldLabels.getValue(key), value) }
         .sortedBy { it.label.lowercase() }
 

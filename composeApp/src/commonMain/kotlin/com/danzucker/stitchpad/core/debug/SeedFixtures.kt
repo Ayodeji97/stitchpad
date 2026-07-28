@@ -112,13 +112,20 @@ internal object SeedFixtures {
                 "trouser_hip" to 40.0 + girth,
                 "thigh_circumference" to 24.0 + girth,
                 "inseam" to 30.0,
-            ),
+            ).asMeasurementValues(),
             unit = MeasurementUnit.INCHES,
             notes = "Prefers a slightly loose sleeve. Add 1in ease at the bust.",
             dateTaken = now,
             createdAt = now,
         )
     }
+
+    /**
+     * Seed measurement values are authored as numbers for readability; the model
+     * stores free-text strings, so format each to a clean string (drop ".0").
+     */
+    private fun Map<String, Double>.asMeasurementValues(): Map<String, String> =
+        mapValues { (_, v) -> if (v == v.toLong().toDouble()) v.toLong().toString() else v.toString() }
 
     // ── Order fixtures ───────────────────────────────────────────────────────
 
@@ -301,7 +308,7 @@ internal object SeedFixtures {
             "hip_circumference" to 36.0,
             "full_length_gown" to 55.0,
             "sleeve_length" to 21.0,
-        ),
+        ).asMeasurementValues(),
         unit = MeasurementUnit.INCHES,
         notes = null,
         dateTaken = now,

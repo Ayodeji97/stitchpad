@@ -26,6 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import com.danzucker.stitchpad.core.domain.model.CustomMeasurementField
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.feature.measurement.presentation.form.CustomFieldDraft
+import com.danzucker.stitchpad.feature.measurement.presentation.sanitizeMeasurementInput
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
@@ -111,17 +112,13 @@ fun AddCustomFieldSheet(
                 OutlinedTextField(
                     value = draft.initialValue,
                     onValueChange = { newValue ->
-                        val filtered = newValue.filter { it.isDigit() || it == '.' }
-                        val dotCount = filtered.count { it == '.' }
-                        if (dotCount <= 1) {
-                            onInitialValueChange(filtered)
-                        }
+                        onInitialValueChange(sanitizeMeasurementInput(newValue))
                     },
                     label = { Text(stringResource(Res.string.custom_field_sheet_value)) },
                     placeholder = { Text(stringResource(Res.string.custom_field_sheet_value_placeholder)) },
                     suffix = { Text(unitSuffix) },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                     modifier = Modifier.fillMaxWidth(),
                 )
             }

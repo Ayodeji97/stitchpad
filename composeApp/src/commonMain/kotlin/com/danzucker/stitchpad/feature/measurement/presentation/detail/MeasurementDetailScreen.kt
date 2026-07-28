@@ -72,7 +72,6 @@ import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
-import com.danzucker.stitchpad.feature.measurement.presentation.formatMeasurementValue
 import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.JetBrainsMonoFamily
@@ -543,7 +542,7 @@ private fun SectionCard(section: MeasurementDetailSection, unit: MeasurementUnit
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        text = "${formatMeasurementValue(row.value)}$unitSuffix",
+                        text = "${row.value}$unitSuffix",
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold,
                         fontFamily = JetBrainsMonoFamily(),
@@ -648,10 +647,10 @@ private fun MeasurementDetailScreenPreview() {
                     gender = CustomerGender.FEMALE,
                     name = "Wedding guest gown",
                     fields = mapOf(
-                        "shoulder_width" to 15.0,
-                        "bust_circumference" to 38.0,
-                        "waist" to 31.0,
-                        "trouser_waist" to 31.0,
+                        "shoulder_width" to "15",
+                        "bust_circumference" to "38",
+                        "waist" to "31",
+                        "trouser_waist" to "31",
                     ),
                     unit = MeasurementUnit.INCHES,
                     notes = "Prefers the gown loose at the hip.",
@@ -678,10 +677,10 @@ private fun MeasurementDetailScreenDarkPreview() {
                     gender = CustomerGender.FEMALE,
                     name = "Wedding guest gown",
                     fields = mapOf(
-                        "shoulder_width" to 15.0,
-                        "bust_circumference" to 38.0,
-                        "waist" to 31.0,
-                        "trouser_waist" to 31.0,
+                        "shoulder_width" to "15",
+                        "bust_circumference" to "38",
+                        "waist" to "31",
+                        "trouser_waist" to "31",
                     ),
                     unit = MeasurementUnit.INCHES,
                     notes = "Prefers the gown loose at the hip.",
