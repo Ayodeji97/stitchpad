@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.collection.presentation
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -163,7 +165,10 @@ private fun FilterRow(
     onAction: (ToCollectAction) -> Unit,
 ) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = DesignTokens.space4),
+        Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = DesignTokens.space4),
         horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
     ) {
         FilterChip(
