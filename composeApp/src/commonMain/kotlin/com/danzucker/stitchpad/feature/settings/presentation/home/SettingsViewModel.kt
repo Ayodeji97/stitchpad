@@ -34,7 +34,9 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -87,14 +89,39 @@ class SettingsViewModel(
     val events = _events.receiveAsFlow()
 
     /**
+     * The hub-layout flag lives on its own flow, isolated from the main state
+     * combine, because the whole Settings landing switches between the new hub
+     * and the legacy layout on this single boolean. [appConfigRepository.config]
+     * re-emits the [AppConfig.Disabled] sentinel (settingsHubEnabled = false) on
+     * every (re)subscribe and on read errors; filtering it out means a resubscribe
+     * — e.g. returning to Settings after backgrounding past the WhileSubscribed
+     * window — retains the last real flag instead of flashing hub → legacy → hub.
+     * A real config with the flag off is a distinct instance (from
+     * `dto.toAppConfig()`), so it passes the filter and the remote kill switch
+     * still applies. Mirrors the fail-open-flash fix in AppGateViewModel (#251).
+     */
+    private val hubEnabledFlow: StateFlow<Boolean> =
+        appConfigRepository.config
+            .filter { it !== AppConfig.Disabled }
+            .map { it.settingsHubEnabled }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000L),
+                initialValue = false,
+            )
+
+    /**
      * The state flow IS the cold upstream chain (Firestore listeners + UI state)
      * passed through stateIn. WhileSubscribed(5_000L) actually triggers
      * cancellation of the listeners when the screen is gone for >5s and restarts
      * them on return — the previous topology launched the listeners as a
      * sibling coroutine on viewModelScope, which kept them running for the VM's
-     * full lifetime.
+     * full lifetime. [hubEnabledFlow] is combined in separately so the layout
+     * flag survives that resubscribe without flashing.
      */
-    val state = settingsStateFlow().stateIn(
+    val state = combine(settingsStateFlow(), hubEnabledFlow) { settings, hubEnabled ->
+        settings.copy(settingsHubEnabled = hubEnabled)
+    }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),
         initialValue = SettingsState(),
@@ -267,7 +294,9 @@ class SettingsViewModel(
             isSigningOut = ui.isSigningOut,
             communityEnabled = appConfig.communityEnabled,
             communityUrl = appConfig.communityInviteUrl,
-            settingsHubEnabled = appConfig.settingsHubEnabled,
+            // settingsHubEnabled is injected by the outer state combine via
+            // [hubEnabledFlow], which filters the Disabled sentinel so the whole
+            // landing layout never flashes on a config resubscribe.
         )
     }
 

@@ -74,6 +74,37 @@ class SettingsHubFlagTest {
             cancelAndIgnoreRemainingEvents()
         }
     }
+
+    @Test
+    fun settingsHubEnabled_staysOn_whenConfigReplaysDisabledSentinel() = runTest {
+        val config = FakeAppConfigRepository(AppConfig.Disabled.copy(settingsHubEnabled = true))
+        val vm = buildSettingsVm(appConfig = config)
+        vm.state.test {
+            var state = awaitItem()
+            while (!state.settingsHubEnabled) state = awaitItem()
+            // The repo re-emits the Disabled sentinel on every resubscribe / read
+            // error; the whole-landing layout flag must NOT flash back to false.
+            config.emit(AppConfig.Disabled)
+            expectNoEvents()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun settingsHubEnabled_turnsOff_whenClearedByRealConfig() = runTest {
+        val config = FakeAppConfigRepository(AppConfig.Disabled.copy(settingsHubEnabled = true))
+        val vm = buildSettingsVm(appConfig = config)
+        vm.state.test {
+            var state = awaitItem()
+            while (!state.settingsHubEnabled) state = awaitItem()
+            // A real config (a distinct instance, not the sentinel) with the flag
+            // off is the remote kill switch and must still apply.
+            config.emit(AppConfig.Disabled.copy(settingsHubEnabled = false))
+            while (state.settingsHubEnabled) state = awaitItem()
+            assertFalse(state.settingsHubEnabled)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
