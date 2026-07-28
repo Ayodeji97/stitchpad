@@ -117,7 +117,7 @@ import stitchpad.composeapp.generated.resources.settings_title
 // rejected 1.0 for the redeem-code path); now it's off on Android and web too.
 // Flip this back on when payments resume — iOS gifting must then route through
 // Apple Offer Codes, not this flow. The /claim + /redeem deep links stay intact.
-private const val GIFTING_ENABLED = false
+internal const val GIFTING_ENABLED = false
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

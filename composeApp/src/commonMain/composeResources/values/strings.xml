@@ -1307,6 +1307,7 @@
     <string name="settings_title">Settings</string>
     <string name="settings_back_cd">Back</string>
     <string name="settings_account_title">Account</string>
+    <string name="settings_invite_rewards_title">Invite &amp; rewards</string>
     <string name="settings_section_preferences">Preferences</string>
     <string name="settings_section_account">Account</string>
     <string name="settings_hero_plan_pro">Tailor Pro</string>

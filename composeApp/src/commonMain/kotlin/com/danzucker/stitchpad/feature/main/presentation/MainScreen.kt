@@ -57,6 +57,7 @@ import com.danzucker.stitchpad.feature.settings.presentation.deleteaccount.Delet
 import com.danzucker.stitchpad.feature.settings.presentation.editprofile.EditProfileRoot
 import com.danzucker.stitchpad.feature.settings.presentation.foundersnote.FoundersNoteRoot
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsRoot
+import com.danzucker.stitchpad.feature.settings.presentation.inviterewards.SettingsInviteRewardsRoot
 import com.danzucker.stitchpad.feature.smart.presentation.draft.DraftMessageRoot
 import com.danzucker.stitchpad.feature.style.presentation.folders.StyleFoldersRoot
 import com.danzucker.stitchpad.feature.style.presentation.form.StyleFormRoot
@@ -89,6 +90,7 @@ import com.danzucker.stitchpad.navigation.ReferralCodeRoute
 import com.danzucker.stitchpad.navigation.ReportsRoute
 import com.danzucker.stitchpad.navigation.ScreenViewTrackingEffect
 import com.danzucker.stitchpad.navigation.SettingsAccountRoute
+import com.danzucker.stitchpad.navigation.SettingsInviteRewardsRoute
 import com.danzucker.stitchpad.navigation.SettingsRoute
 import com.danzucker.stitchpad.navigation.ShareGiftLinkRoute
 import com.danzucker.stitchpad.navigation.StyleFoldersRoute
@@ -630,6 +632,7 @@ private fun MainNavGraph(
                 onNavigateToRedeemGift = { navController.navigate(RedeemGiftRoute) },
                 onNavigateToHelpTutorials = { navController.navigate(HelpTutorialsRoute) },
                 onNavigateToAccountSecurity = { navController.navigate(SettingsAccountRoute) },
+                onNavigateToInviteRewards = { navController.navigate(SettingsInviteRewardsRoute) },
             )
         }
         composable<SettingsAccountRoute> {
@@ -638,6 +641,14 @@ private fun MainNavGraph(
                 onNavigateToChangeEmail = { navController.navigate(ChangeEmailRoute) },
                 onNavigateToChangePassword = { navController.navigate(ChangePasswordRoute) },
                 onSignedOut = onSignedOut,
+            )
+        }
+        composable<SettingsInviteRewardsRoute> {
+            SettingsInviteRewardsRoot(
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToReferralCode = { navController.navigate(ReferralCodeRoute) },
+                onNavigateToShareGiftLink = { navController.navigate(ShareGiftLinkRoute) },
+                onNavigateToRedeemGift = { navController.navigate(RedeemGiftRoute) },
             )
         }
         composable<HelpTutorialsRoute> {
