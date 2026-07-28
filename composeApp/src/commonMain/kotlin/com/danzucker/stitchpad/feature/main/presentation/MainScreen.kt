@@ -56,6 +56,7 @@ import com.danzucker.stitchpad.feature.settings.presentation.changepassword.Chan
 import com.danzucker.stitchpad.feature.settings.presentation.deleteaccount.DeleteAccountRoot
 import com.danzucker.stitchpad.feature.settings.presentation.editprofile.EditProfileRoot
 import com.danzucker.stitchpad.feature.settings.presentation.foundersnote.FoundersNoteRoot
+import com.danzucker.stitchpad.feature.settings.presentation.helpsupport.SettingsHelpSupportRoot
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsRoot
 import com.danzucker.stitchpad.feature.settings.presentation.inviterewards.SettingsInviteRewardsRoot
 import com.danzucker.stitchpad.feature.smart.presentation.draft.DraftMessageRoot
@@ -90,6 +91,7 @@ import com.danzucker.stitchpad.navigation.ReferralCodeRoute
 import com.danzucker.stitchpad.navigation.ReportsRoute
 import com.danzucker.stitchpad.navigation.ScreenViewTrackingEffect
 import com.danzucker.stitchpad.navigation.SettingsAccountRoute
+import com.danzucker.stitchpad.navigation.SettingsHelpSupportRoute
 import com.danzucker.stitchpad.navigation.SettingsInviteRewardsRoute
 import com.danzucker.stitchpad.navigation.SettingsRoute
 import com.danzucker.stitchpad.navigation.ShareGiftLinkRoute
@@ -633,6 +635,7 @@ private fun MainNavGraph(
                 onNavigateToHelpTutorials = { navController.navigate(HelpTutorialsRoute) },
                 onNavigateToAccountSecurity = { navController.navigate(SettingsAccountRoute) },
                 onNavigateToInviteRewards = { navController.navigate(SettingsInviteRewardsRoute) },
+                onNavigateToHelpSupport = { navController.navigate(SettingsHelpSupportRoute) },
             )
         }
         composable<SettingsAccountRoute> {
@@ -649,6 +652,12 @@ private fun MainNavGraph(
                 onNavigateToReferralCode = { navController.navigate(ReferralCodeRoute) },
                 onNavigateToShareGiftLink = { navController.navigate(ShareGiftLinkRoute) },
                 onNavigateToRedeemGift = { navController.navigate(RedeemGiftRoute) },
+            )
+        }
+        composable<SettingsHelpSupportRoute> {
+            SettingsHelpSupportRoot(
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToHelpTutorials = { navController.navigate(HelpTutorialsRoute) },
             )
         }
         composable<HelpTutorialsRoute> {

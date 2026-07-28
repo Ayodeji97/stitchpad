@@ -24,6 +24,7 @@ fun SettingsRoot(
     onNavigateToHelpTutorials: () -> Unit,
     onNavigateToAccountSecurity: () -> Unit = {},
     onNavigateToInviteRewards: () -> Unit = {},
+    onNavigateToHelpSupport: () -> Unit = {},
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -47,6 +48,7 @@ fun SettingsRoot(
         onNavigateToHelpTutorials = onNavigateToHelpTutorials,
         onNavigateToAccountSecurity = onNavigateToAccountSecurity,
         onNavigateToInviteRewards = onNavigateToInviteRewards,
+        onNavigateToHelpSupport = onNavigateToHelpSupport,
     )
 
     SettingsScreen(
