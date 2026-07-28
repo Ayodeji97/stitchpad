@@ -106,4 +106,67 @@ class CollectionCalculatorTest {
         val item = CollectionCalculator.collectibles(listOf(order()), customers, NOW).single()
         assertEquals("08030000000", item.customerPhone)
     }
+
+    // --- summarize / sorted / filtered ---
+
+    private fun item(
+        id: String,
+        balance: Double = 1_000.0,
+        owedSince: Long = NOW - DAY,
+        overdue: Boolean = false,
+        name: String = "Ada",
+        status: OrderStatus = OrderStatus.DELIVERED,
+    ) = CollectibleOrder(
+        orderId = id, customerId = "c-$id", customerName = name, customerPhone = "080",
+        balanceRemaining = balance, owedSince = owedSince,
+        daysOwed = if (overdue) 9 else 1, isOverdue = overdue, status = status,
+    )
+
+    @Test
+    fun summarizeAggregatesTotalsAndOverdueCount() {
+        val items = listOf(
+            item("a", balance = 2_000.0, overdue = true),
+            item("b", balance = 3_000.0, overdue = false),
+        )
+        val summary = CollectionCalculator.summarize(items)
+        assertEquals(5_000.0, summary.totalOutstanding)
+        assertEquals(2, summary.orderCount)
+        assertEquals(1, summary.overdueCount)
+    }
+
+    @Test
+    fun sortedFloatsOverdueThenAppliesSort() {
+        val items = listOf(
+            item("newNotOverdue", owedSince = NOW - DAY, overdue = false),
+            item("oldOverdue", owedSince = NOW - 10 * DAY, overdue = true),
+        )
+        val sorted = CollectionCalculator.sorted(items, CollectionSort.OLDEST_OWED)
+        assertEquals(listOf("oldOverdue", "newNotOverdue"), sorted.map { it.orderId })
+    }
+
+    @Test
+    fun sortedByBiggestBalance() {
+        val items = listOf(item("small", balance = 1_000.0), item("big", balance = 9_000.0))
+        val sorted = CollectionCalculator.sorted(items, CollectionSort.BIGGEST_BALANCE)
+        assertEquals(listOf("big", "small"), sorted.map { it.orderId })
+    }
+
+    @Test
+    fun sortedByCustomerNameCaseInsensitive() {
+        val items = listOf(item("z", name = "zoe"), item("a", name = "Ada"))
+        val sorted = CollectionCalculator.sorted(items, CollectionSort.CUSTOMER_NAME)
+        assertEquals(listOf("a", "z"), sorted.map { it.orderId })
+    }
+
+    @Test
+    fun filteredByOverdueStatusAndCustomer() {
+        val items = listOf(
+            item("od", overdue = true, status = OrderStatus.DELIVERED),
+            item("ready", overdue = false, status = OrderStatus.READY),
+        )
+        assertEquals(listOf("od"), CollectionCalculator.filtered(items, CollectionFilter.OverdueOnly).map { it.orderId })
+        assertEquals(listOf("ready"), CollectionCalculator.filtered(items, CollectionFilter.ByStatus(OrderStatus.READY)).map { it.orderId })
+        assertEquals(listOf("ready"), CollectionCalculator.filtered(items, CollectionFilter.ByCustomer("c-ready")).map { it.orderId })
+        assertEquals(2, CollectionCalculator.filtered(items, CollectionFilter.None).size)
+    }
 }

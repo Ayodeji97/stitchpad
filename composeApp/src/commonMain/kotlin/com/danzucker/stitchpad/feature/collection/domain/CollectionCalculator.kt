@@ -52,4 +52,29 @@ object CollectionCalculator {
         if (to <= from) return 0
         return ((to - from) / MILLIS_PER_DAY).toInt()
     }
+
+    fun summarize(items: List<CollectibleOrder>): CollectionSummary =
+        CollectionSummary(
+            totalOutstanding = items.sumOf { it.balanceRemaining },
+            orderCount = items.size,
+            overdueCount = items.count { it.isOverdue },
+        )
+
+    fun sorted(items: List<CollectibleOrder>, sort: CollectionSort): List<CollectibleOrder> {
+        val bySort = when (sort) {
+            CollectionSort.OLDEST_OWED -> compareBy<CollectibleOrder> { it.owedSince }
+            CollectionSort.BIGGEST_BALANCE -> compareByDescending<CollectibleOrder> { it.balanceRemaining }
+            CollectionSort.NEWEST -> compareByDescending<CollectibleOrder> { it.owedSince }
+            CollectionSort.CUSTOMER_NAME -> compareBy<CollectibleOrder> { it.customerName.lowercase() }
+        }
+        return items.sortedWith(compareByDescending<CollectibleOrder> { it.isOverdue }.then(bySort))
+    }
+
+    fun filtered(items: List<CollectibleOrder>, filter: CollectionFilter): List<CollectibleOrder> =
+        when (filter) {
+            CollectionFilter.None -> items
+            CollectionFilter.OverdueOnly -> items.filter { it.isOverdue }
+            is CollectionFilter.ByStatus -> items.filter { it.status == filter.status }
+            is CollectionFilter.ByCustomer -> items.filter { it.customerId == filter.customerId }
+        }
 }
