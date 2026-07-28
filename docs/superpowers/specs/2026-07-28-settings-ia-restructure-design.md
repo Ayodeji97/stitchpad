@@ -90,17 +90,18 @@ Follows the existing Root/Screen + MVI pattern. Key choice: **reuse the single
 four sub-screens — no new ViewModels, one data load.
 
 ### State sharing
-Introduce a nested settings navigation sub-graph so the four sub-screens share
-the `SettingsViewModel` instance scoped to the graph's parent back-stack entry
-(`koinViewModel(viewModelStoreOwner = parentEntry)`). This keeps a single source
-of truth for toggles, the sign-out dialog, masked identifiers, and remote-flag
-state, and avoids re-subscribing to settings flows on every drill-down.
+Each sub-screen Root obtains its own `koinViewModel<SettingsViewModel>()`
+instance (scoped to that back-stack entry). This is deliberate: the VM's
+`events` is a single-consumer `Channel` (`receiveAsFlow`), so a shared instance
+collected by both the landing and a drill-down would race for the same event
+stream. Independent instances give each screen its own event stream and read the
+same underlying repositories/flows, so toggles and server-backed fields stay
+consistent. Cost is a redundant flow subscription per drill-down, kept cheap by
+the existing `SharingStarted.WhileSubscribed(5_000L)` on the state flow.
 
-If the nested-graph wiring proves noisy against the current flat
-`composable<Route>` list in `MainScreen`, the fallback is an independent
-`koinViewModel<SettingsViewModel>()` per sub-screen Root — functionally correct
-(rows read/write the same underlying repositories/flows), at the cost of a
-redundant flow subscription per screen. Prefer the shared graph.
+(An earlier draft preferred a nested nav sub-graph with a graph-scoped shared
+VM; the single-consumer `events` Channel makes per-screen instances the correct
+and simpler choice against the current flat `composable<Route>` nav.)
 
 ### Screens (stateless, previewable)
 - `SettingsScreen` (landing) — trimmed to Preferences + Manage + Delete + Debug.
