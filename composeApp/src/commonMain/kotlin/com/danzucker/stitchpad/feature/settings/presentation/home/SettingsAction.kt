@@ -26,4 +26,8 @@ sealed interface SettingsAction {
     data class OnDailyDigestToggle(val enabled: Boolean) : SettingsAction
     data class OnDailyPushToggle(val enabled: Boolean) : SettingsAction
     data object OnCommunityClick : SettingsAction
+    data object OnAccountSecurityClick : SettingsAction
+    data object OnInviteRewardsClick : SettingsAction
+    data object OnHelpSupportClick : SettingsAction
+    data object OnLegalAboutClick : SettingsAction
 }

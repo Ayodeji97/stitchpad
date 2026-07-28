@@ -30,6 +30,10 @@ fun SettingsEventEffect(
     onNavigateToShareGiftLink: () -> Unit = {},
     onNavigateToRedeemGift: () -> Unit = {},
     onNavigateToHelpTutorials: () -> Unit = {},
+    onNavigateToAccountSecurity: () -> Unit = {},
+    onNavigateToInviteRewards: () -> Unit = {},
+    onNavigateToHelpSupport: () -> Unit = {},
+    onNavigateToLegalAbout: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
@@ -49,6 +53,10 @@ fun SettingsEventEffect(
             SettingsEvent.NavigateToShareGiftLink -> onNavigateToShareGiftLink()
             SettingsEvent.NavigateToRedeemGift -> onNavigateToRedeemGift()
             SettingsEvent.NavigateToHelpTutorials -> onNavigateToHelpTutorials()
+            SettingsEvent.NavigateToAccountSecurity -> onNavigateToAccountSecurity()
+            SettingsEvent.NavigateToInviteRewards -> onNavigateToInviteRewards()
+            SettingsEvent.NavigateToHelpSupport -> onNavigateToHelpSupport()
+            SettingsEvent.NavigateToLegalAbout -> onNavigateToLegalAbout()
             is SettingsEvent.OpenUrl -> uriHandler.openUri(event.url)
             is SettingsEvent.OpenCommunityLink ->
                 runCatching { uriHandler.openUri(event.url) }

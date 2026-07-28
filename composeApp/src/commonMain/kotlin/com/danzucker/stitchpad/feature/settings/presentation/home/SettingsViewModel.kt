@@ -144,6 +144,10 @@ class SettingsViewModel(
                 viewModelScope.launch { communityJoinTracker.trackJoinTapped() }
                 viewModelScope.launch { dismissal.markDismissed() }
             }
+            SettingsAction.OnAccountSecurityClick -> emit(SettingsEvent.NavigateToAccountSecurity)
+            SettingsAction.OnInviteRewardsClick -> emit(SettingsEvent.NavigateToInviteRewards)
+            SettingsAction.OnHelpSupportClick -> emit(SettingsEvent.NavigateToHelpSupport)
+            SettingsAction.OnLegalAboutClick -> emit(SettingsEvent.NavigateToLegalAbout)
         }
     }
 
