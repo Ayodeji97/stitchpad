@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.collection.domain.CollectibleOrder
 import com.danzucker.stitchpad.feature.collection.domain.CollectionFilter
@@ -89,6 +90,9 @@ fun ToCollectScreen(
                         )
                     }
                 }
+                // A load failure left us with no items — don't pretend the
+                // tailor is all paid up when we simply couldn't fetch.
+                state.errorMessage != null -> ErrorState(state.errorMessage)
                 // No items left, but the underlying totals still say money is
                 // owed → a filter hid every row, not "all paid up".
                 state.summary.orderCount > 0 -> FilteredEmptyState(onAction)
@@ -286,6 +290,22 @@ private fun EmptyState() {
 private fun LoadingState() {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         CircularProgressIndicator()
+    }
+}
+
+@Composable
+private fun ErrorState(message: UiText) {
+    Column(
+        Modifier.fillMaxSize().padding(DesignTokens.space6),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text("Couldn't load", style = MaterialTheme.typography.titleMedium)
+        Text(
+            message.asString(),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
