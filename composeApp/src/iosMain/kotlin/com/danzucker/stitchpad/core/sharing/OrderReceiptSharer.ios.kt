@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.core.sharing
 
+import com.danzucker.stitchpad.core.domain.preferences.ReceiptImageStyle
 import com.danzucker.stitchpad.core.platform.activeKeyWindow
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -44,9 +45,9 @@ import platform.UIKit.sizeWithAttributes
 @Suppress("TooManyFunctions", "LargeClass")
 actual class OrderReceiptSharer {
 
-    actual suspend fun shareReceiptAsImage(receiptData: ReceiptData) {
+    actual suspend fun shareReceiptAsImage(receiptData: ReceiptData, style: ReceiptImageStyle) {
         val fileUrl = withContext(Dispatchers.Default) {
-            val image = renderDarkImage(receiptData)
+            val image = renderImage(receiptData, style.palette())
             val pngData = UIImagePNGRepresentation(image)
                 ?: error("Failed to encode receipt image as PNG")
             val url = tempFileUrl("png")
@@ -66,7 +67,7 @@ actual class OrderReceiptSharer {
     }
 
     @Suppress("LongMethod", "CyclomaticComplexMethod")
-    private fun renderDarkImage(data: ReceiptData): UIImage {
+    private fun renderImage(data: ReceiptData, palette: ReceiptPalette): UIImage {
         val width = 800.0
         val padding = 40.0
         val headerHeight = if (data.businessPhone != null) 90.0 else 70.0
@@ -105,7 +106,7 @@ actual class OrderReceiptSharer {
             val logoImage = data.businessLogoBytes?.toUIImage()
 
             // Background
-            darkColor("#121110").setFill()
+            darkColor(palette.backgroundHex).setFill()
             platform.UIKit.UIRectFill(CGRectMake(0.0, 0.0, width, estimatedHeight))
 
             // Tier watermark — drawn FIRST so all subsequent content layers on top.
@@ -113,7 +114,7 @@ actual class OrderReceiptSharer {
                 spec = data.watermark,
                 canvasWidth = width,
                 canvasHeight = estimatedHeight,
-                inkHex = "#A8A49D",
+                inkHex = palette.watermarkInkHex,
             )
 
             // Header band — indigo brand (was saffron pre-rebrand)
@@ -159,7 +160,7 @@ actual class OrderReceiptSharer {
                 y = y,
                 width = width,
                 font = boldFont(13.0),
-                color = darkColor("#E8A800")
+                color = darkColor(palette.accentHex)
             )
             y += 28.0
 
@@ -167,11 +168,11 @@ actual class OrderReceiptSharer {
             drawText("CUSTOMER", padding, y, labelFont(), darkColor("#7D7970"))
             drawTextRight("DATE", width - padding, y, labelFont(), darkColor("#7D7970"))
             y += 18.0
-            drawText(data.customerName, padding, y, boldFont(15.0), darkColor("#E5E3DF"))
-            drawTextRight(data.dateFormatted, width - padding, y, regularFont(14.0), darkColor("#E5E3DF"))
+            drawText(data.customerName, padding, y, boldFont(15.0), darkColor(palette.bodyTextHex))
+            drawTextRight(data.dateFormatted, width - padding, y, regularFont(14.0), darkColor(palette.bodyTextHex))
             y += 22.0
 
-            drawDivider(padding, y, width - padding, darkColor("#3A3731"))
+            drawDivider(padding, y, width - padding, darkColor(palette.dividerHex))
             y += 18.0
 
             // Items
@@ -180,13 +181,31 @@ actual class OrderReceiptSharer {
             data.items.forEach { item ->
                 if (item.quantity == 1) {
                     // Single row: garment name (left) + line total (right, bold). No subtitle.
-                    drawText(item.garmentName, padding, y, boldFont(14.0), darkColor("#E5E3DF"))
-                    drawTextRight(item.formattedPrice, width - padding, y, boldFont(14.0), darkColor("#E5E3DF"))
+                    drawText(item.garmentName, padding, y, boldFont(14.0), darkColor(palette.bodyTextHex))
+                    drawTextRight(
+                        item.formattedPrice,
+                        width - padding,
+                        y,
+                        boldFont(14.0),
+                        darkColor(palette.bodyTextHex)
+                    )
                     y += 30.0
                 } else {
                     // Row 1: "<name> ×N" (left, bold) + line total (right, bold).
-                    drawText("${item.garmentName} ×${item.quantity}", padding, y, boldFont(14.0), darkColor("#E5E3DF"))
-                    drawTextRight(item.formattedPrice, width - padding, y, boldFont(14.0), darkColor("#E5E3DF"))
+                    drawText(
+                        "${item.garmentName} ×${item.quantity}",
+                        padding,
+                        y,
+                        boldFont(14.0),
+                        darkColor(palette.bodyTextHex)
+                    )
+                    drawTextRight(
+                        item.formattedPrice,
+                        width - padding,
+                        y,
+                        boldFont(14.0),
+                        darkColor(palette.bodyTextHex)
+                    )
                     y += 22.0
                     // Row 2 (caption): "<unit price> each", muted, no right-column figure.
                     drawText("${item.formattedUnitPrice} each", padding, y, regularFont(12.0), darkColor("#7D7970"))
@@ -195,13 +214,19 @@ actual class OrderReceiptSharer {
             }
             y += 8.0
 
-            drawDivider(padding, y, width - padding, darkColor("#3A3731"))
+            drawDivider(padding, y, width - padding, darkColor(palette.dividerHex))
             y += 18.0
 
             // Payment
             data.discountFormatted?.let { discount ->
                 drawText("Subtotal", padding, y, regularFont(13.0), darkColor("#7D7970"))
-                drawTextRight(data.subtotalFormatted, width - padding, y, regularFont(13.0), darkColor("#E5E3DF"))
+                drawTextRight(
+                    data.subtotalFormatted,
+                    width - padding,
+                    y,
+                    regularFont(13.0),
+                    darkColor(palette.bodyTextHex)
+                )
                 y += 22.0
                 drawText("Discount", padding, y, regularFont(13.0), darkColor("#7D7970"))
                 drawTextRight(discount, width - padding, y, boldFont(13.0), darkColor("#2D9E6B"))
@@ -216,14 +241,20 @@ actual class OrderReceiptSharer {
             drawText("Deposit Paid", padding, y, regularFont(13.0), darkColor("#7D7970"))
             drawTextRight(data.depositFormatted, width - padding, y, regularFont(13.0), darkColor("#2D9E6B"))
             y += 24.0
-            drawText("Total", padding, y, boldFont(16.0), darkColor("#E5E3DF"))
-            drawTextRight(data.totalFormatted, width - padding, y, boldFont(16.0), darkColor("#E8A800"))
+            drawText("Total", padding, y, boldFont(16.0), darkColor(palette.bodyTextHex))
+            drawTextRight(data.totalFormatted, width - padding, y, boldFont(16.0), darkColor(palette.accentHex))
             y += 24.0
             drawText("Balance", padding, y, regularFont(13.0), darkColor("#7D7970"))
             if (data.isFullyPaid) {
                 drawTextRight("✓ PAID IN FULL", width - padding, y, boldFont(14.0), darkColor("#2D9E6B"))
             } else {
-                drawTextRight("${data.balanceFormatted} DUE", width - padding, y, boldFont(14.0), darkColor("#E8A800"))
+                drawTextRight(
+                    "${data.balanceFormatted} DUE",
+                    width - padding,
+                    y,
+                    boldFont(14.0),
+                    darkColor(palette.accentHex)
+                )
             }
             y += 26.0
 
@@ -233,23 +264,23 @@ actual class OrderReceiptSharer {
             val bank = data.bankBlock
             if (bank != null) {
                 y += 16.0
-                drawDivider(padding, y, width - padding, darkColor("#3A3731"))
+                drawDivider(padding, y, width - padding, darkColor(palette.dividerHex))
                 y += 24.0
                 drawText("PAY VIA TRANSFER", padding, y, labelFont(), darkColor("#7D7970"))
                 y += 26.0
                 val valueX = padding + 140.0
                 drawText("Bank", padding, y, regularFont(13.0), darkColor("#7D7970"))
-                drawText(bank.bankName, valueX, y, boldFont(14.0), darkColor("#E5E3DF"))
+                drawText(bank.bankName, valueX, y, boldFont(14.0), darkColor(palette.bodyTextHex))
                 y += 26.0
                 drawText("Account name", padding, y, regularFont(13.0), darkColor("#7D7970"))
-                drawText(bank.accountName, valueX, y, boldFont(14.0), darkColor("#E5E3DF"))
+                drawText(bank.accountName, valueX, y, boldFont(14.0), darkColor(palette.bodyTextHex))
                 y += 26.0
                 drawText("Account number", padding, y, regularFont(13.0), darkColor("#7D7970"))
-                drawText(bank.accountNumber, valueX, y, boldFont(14.0), darkColor("#E5E3DF"))
+                drawText(bank.accountNumber, valueX, y, boldFont(14.0), darkColor(palette.bodyTextHex))
                 y += 32.0
             }
 
-            drawDivider(padding, y, width - padding, darkColor("#3A3731"))
+            drawDivider(padding, y, width - padding, darkColor(palette.dividerHex))
             y += 18.0
 
             // Status & Deadline
@@ -271,7 +302,7 @@ actual class OrderReceiptSharer {
                     width - padding,
                     y,
                     regularFont(13.0),
-                    darkColor("#E5E3DF")
+                    darkColor(palette.bodyTextHex)
                 )
             }
             y += 8.0
@@ -289,14 +320,14 @@ actual class OrderReceiptSharer {
             }
 
             y += 24.0
-            drawDivider(padding, y, width - padding, darkColor("#3A3731"))
+            drawDivider(padding, y, width - padding, darkColor(palette.dividerHex))
             y += 16.0
             drawCentered(
                 "Order #${data.orderIdShort}",
                 y = y,
                 width = width,
                 font = regularFont(11.0),
-                color = darkColor("#3A3731")
+                color = darkColor(palette.footerHex)
             )
             val attributionText = data.attribution.footerText
             if (attributionText != null) {
@@ -306,7 +337,7 @@ actual class OrderReceiptSharer {
                     y = y,
                     width = width,
                     font = regularFont(10.0),
-                    color = darkColor("#3A3731")
+                    color = darkColor(palette.footerHex)
                 )
             }
         }

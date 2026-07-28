@@ -14,4 +14,5 @@ data class AppConfigDto(
     val forceUpdateMessage: String? = null,
     val maintenanceMode: Boolean = false,
     val maintenanceMessage: String? = null,
+    val settingsHubEnabled: Boolean = false,
 )

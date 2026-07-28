@@ -348,8 +348,12 @@ fun DashboardRoot(
     val errorText = state.errorMessage?.asString()
     LaunchedEffect(errorText) {
         if (errorText != null) {
-            snackbarHostState.showSnackbar(errorText)
+            // Clear state before showing so a config change (rotation) during the
+            // snackbar's display window can't re-trigger this effect and re-show it.
+            // showSnackbar runs on scope (not this state-keyed effect), so clearing
+            // state can't cancel the in-flight snackbar.
             viewModel.onAction(DashboardAction.OnErrorDismiss)
+            scope.launch { snackbarHostState.showSnackbar(errorText) }
         }
     }
 

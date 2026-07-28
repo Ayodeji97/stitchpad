@@ -154,8 +154,12 @@ fun OrderListRoot(
     val errorMessage = state.errorMessage?.asString()
     LaunchedEffect(errorMessage) {
         if (errorMessage != null) {
-            snackbarHostState.showSnackbar(errorMessage)
+            // Clear state before showing so a config change (rotation) during the
+            // snackbar's display window can't re-trigger this effect and re-show it.
+            // showSnackbar runs on scope (not this state-keyed effect), so clearing
+            // state can't cancel the in-flight snackbar.
             viewModel.onAction(OrderListAction.OnErrorDismiss)
+            scope.launch { snackbarHostState.showSnackbar(errorMessage) }
         }
     }
 

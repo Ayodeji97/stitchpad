@@ -75,12 +75,18 @@ class FirebaseMeasurementRepository(
         customerId: String,
         measurement: Measurement
     ): EmptyResult<DataError.Network> {
+        val dto = measurement.toMeasurementDto()
         val accepted = offlineWrites.enqueue("updateMeasurement measurementId=${measurement.id}") {
+            val docRef = measurementsCollection(userId, customerId).document(measurement.id)
             // merge = true so the server-stamped `serverCreatedAt` survives the edit
             // (see FirebaseOrderRepository.updateOrder for the full rationale).
-            measurementsCollection(userId, customerId)
-                .document(measurement.id)
-                .set(measurement.toMeasurementDto(), merge = true)
+            docRef.set(dto, merge = true)
+            // set(merge) RECURSIVELY merges map fields, so a value the tailor cleared
+            // on edit — dropped from `fieldValues` here — would linger in the document
+            // and reappear on the next read. update() replaces a named map field
+            // wholesale (no deep merge), so removed keys are actually deleted. Also
+            // clears any legacy numeric `fields` map on the first edit of an old record.
+            docRef.update("fieldValues" to dto.fieldValues, "fields" to dto.fields)
         }
         if (!accepted) {
             return Result.Error(DataError.Network.UNKNOWN)

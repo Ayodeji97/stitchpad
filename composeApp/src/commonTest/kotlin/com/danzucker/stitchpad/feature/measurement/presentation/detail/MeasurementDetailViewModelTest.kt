@@ -67,7 +67,7 @@ class MeasurementDetailViewModelTest {
         customerId = "customer-1",
         gender = CustomerGender.FEMALE,
         name = name,
-        fields = mapOf("waist" to 31.0),
+        fields = mapOf("waist" to "31"),
         unit = MeasurementUnit.INCHES,
         notes = null,
         dateTaken = 1L,

@@ -133,11 +133,16 @@ fun ReportsScreen(
     onAction: (ReportsAction) -> Unit,
     onNavigateToTutorial: (String) -> Unit = {},
 ) {
+    val scope = rememberCoroutineScope()
     val errorString = state.errorMessage?.asString()
     LaunchedEffect(errorString) {
         if (errorString != null) {
-            snackbarHostState.showSnackbar(errorString)
+            // Clear state before showing so a config change (rotation) during the
+            // snackbar's display window can't re-trigger this effect and re-show it.
+            // showSnackbar runs on scope (not this state-keyed effect), so clearing
+            // state can't cancel the in-flight snackbar.
             onAction(ReportsAction.OnErrorDismiss)
+            scope.launch { snackbarHostState.showSnackbar(errorString) }
         }
     }
 

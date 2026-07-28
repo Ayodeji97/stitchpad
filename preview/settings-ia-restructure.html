@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings IA — Restructure Options</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --page:#0C0B0A;
+    --screen:#131110;
+    --card:#1D1915;
+    --card-hi:#221D18;
+    --line:rgba(255,255,255,.06);
+    --line-soft:rgba(255,255,255,.045);
+    --text:#F3EFE8;
+    --sub:#928B81;
+    --label:#807971;
+    --chev:#57514A;
+    --chip-bg:rgba(96,112,190,.18);
+    --chip-fg:#A9B4EC;
+    --indigo:#4C63B6;
+    --indigo-soft:rgba(76,99,182,.22);
+    --indigo-txt:#B7C1EF;
+    --saffron:#E8A800;
+    --danger:#E0685C;
+    --danger-bg:rgba(224,104,92,.14);
+    --ok:#4C63B6;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--page);color:var(--text);
+    font-family:"Manrope",-apple-system,system-ui,sans-serif;
+    padding:40px 28px 80px;
+  }
+  .wrap{max-width:1280px;margin:0 auto}
+  h1{font-family:"Fraunces",serif;font-weight:600;font-size:30px;letter-spacing:-.4px;margin:0 0 6px}
+  .lede{color:var(--sub);font-size:15px;max-width:760px;line-height:1.55;margin:0 0 4px}
+  h2.sec{font-family:"Fraunces",serif;font-weight:600;font-size:22px;margin:52px 0 6px;letter-spacing:-.3px}
+  .sec-note{color:var(--sub);font-size:14px;max-width:820px;line-height:1.55;margin:0 0 22px}
+  .rec-tag{display:inline-block;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;
+    color:#0C0B0A;background:var(--saffron);padding:3px 9px;border-radius:6px;margin-left:10px;vertical-align:middle}
+  .alt-tag{display:inline-block;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;
+    color:var(--sub);border:1px solid var(--line);padding:2px 9px;border-radius:6px;margin-left:10px;vertical-align:middle}
+
+  .grid{display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start}
+
+  .phone{
+    width:296px;background:var(--screen);border-radius:34px;padding:10px 8px 14px;
+    border:1px solid rgba(255,255,255,.07);
+    box-shadow:0 30px 60px -30px rgba(0,0,0,.8);
+  }
+  .phone.tall{align-self:stretch}
+  .cap{display:flex;align-items:baseline;justify-content:space-between;padding:2px 10px 8px}
+  .cap .nm{font-weight:700;font-size:13px}
+  .cap .ds{font-size:11px;color:var(--sub)}
+  .statusbar{display:flex;justify-content:space-between;padding:6px 16px 2px;font-size:11px;color:var(--sub);font-weight:600}
+  .topbar{display:flex;align-items:center;gap:12px;padding:10px 14px 12px}
+  .topbar .back{color:var(--text);opacity:.85;display:flex}
+  .topbar h3{font-family:"Fraunces",serif;font-weight:600;font-size:20px;margin:0;letter-spacing:-.3px}
+  .canvas{padding:0 10px;max-height:none}
+
+  .hero{
+    display:flex;align-items:center;gap:12px;padding:14px;border-radius:16px;
+    background:linear-gradient(135deg,rgba(76,99,182,.22),rgba(76,99,182,.06));
+    border:1px solid rgba(120,140,220,.18);margin-bottom:12px;
+  }
+  .hero .av{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#7C4A2E,#B85A30);
+    flex:0 0 auto;background-size:cover;background-position:center}
+  .hero .m{flex:1;min-width:0}
+  .hero .m .b{font-weight:700;font-size:15px}
+  .hero .m .e{font-size:12px;color:var(--sub);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .badge{display:inline-flex;align-items:center;gap:4px;margin-top:6px;font-size:10.5px;font-weight:700;
+    color:var(--saffron);border:1px solid rgba(232,168,0,.55);padding:2px 8px;border-radius:999px}
+  .badge .dot{width:5px;height:5px;border-radius:50%;background:var(--saffron)}
+  .hero .cv{color:var(--chev);flex:0 0 auto}
+
+  .plan{border-radius:16px;padding:14px;margin-bottom:6px;
+    background:radial-gradient(120% 130% at 0% 0%,rgba(76,99,182,.22),rgba(29,25,21,.4) 60%),var(--card);
+    border:1px solid var(--line)}
+  .plan .pill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;
+    color:var(--indigo-txt);background:var(--indigo-soft);padding:3px 8px;border-radius:999px}
+  .plan .t{font-weight:700;font-size:16px;margin-top:9px}
+  .plan .s{font-size:12px;color:var(--sub);margin-top:3px}
+
+  .label{font-size:11px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;color:var(--label);margin:18px 6px 8px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+  .card.gap{margin-top:14px}
+
+  .row{display:flex;align-items:center;gap:12px;padding:13px 13px}
+  .row .lead{width:34px;height:34px;border-radius:10px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+    background:var(--chip-bg);color:var(--chip-fg)}
+  .row .lead svg{width:18px;height:18px}
+  .row .bd{flex:1;min-width:0}
+  .row .bd .t{font-size:14px;font-weight:600}
+  .row .bd .s{font-size:11.5px;color:var(--sub);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .val{color:var(--sub);font-size:12.5px;margin-left:auto}
+  .row .cv{color:var(--chev);flex:0 0 auto;margin-left:auto;display:flex}
+  .row .val + .cv{margin-left:8px}
+  .row.danger .lead{background:var(--danger-bg);color:var(--danger)}
+  .row.danger .bd .t{color:var(--danger)}
+  .divider{height:1px;background:var(--line-soft);margin-left:59px}
+
+  .toggle{width:38px;height:22px;border-radius:999px;background:var(--indigo);position:relative;flex:0 0 auto;margin-left:auto}
+  .toggle::after{content:"";position:absolute;top:2px;left:18px;width:18px;height:18px;border-radius:50%;background:#fff}
+  .toggle.off{background:#3A352F}
+  .toggle.off::after{left:2px}
+
+  .callout{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-top:26px;max-width:900px}
+  .callout h4{margin:0 0 10px;font-size:12px;letter-spacing:.8px;text-transform:uppercase;color:var(--label)}
+  .callout ul{margin:0;padding-left:18px;line-height:1.7;color:#CFC9C0;font-size:14px}
+  .callout li b{color:var(--text)}
+  .pros{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px}
+  .pros .col{flex:1;min-width:220px}
+  .pros .col h5{margin:0 0 6px;font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:var(--label)}
+  .pros .col.p h5{color:#7FB58C}.pros .col.c h5{color:var(--danger)}
+  .pros .col ul{padding-left:16px;font-size:13px;line-height:1.6;color:#CFC9C0}
+  .tap{display:inline-block;font-size:11px;font-weight:700;color:var(--indigo-txt);background:var(--indigo-soft);
+    padding:2px 8px;border-radius:6px;margin-left:8px;vertical-align:middle}
+  .footnote{color:var(--sub);font-size:13px;margin-top:8px;max-width:900px;line-height:1.55}
+  .arrow{color:var(--chev);align-self:center;font-size:26px;padding:0 2px}
+  .flowlabel{font-size:11px;color:var(--sub);text-align:center;margin-top:8px;letter-spacing:.3px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Settings — information architecture options</h1>
+  <p class="lede">Same design system, four structures. The goal: a landing screen you can take in at a glance that still has a home for what's coming (Team / Staff, richer notifications). Frequently-flipped preferences stay one tap; low-frequency management drills down.</p>
+
+  <div id="app"></div>
+
+  <div class="callout">
+    <h4>How I'd ship it</h4>
+    <ul>
+      <li><b>Behind your rollout flag</b> — new IA gated by <code>rollout.ts</code> (staging + allowlist first, then a % of users, kill switch on standby). Old screen stays compiled behind the flag so a revert is instant.</li>
+      <li><b>No A/B experiment</b> — Settings has no clean success metric and too little traffic to reach significance. Gradual rollout gives ~90% of the safety at ~5% of the cost.</li>
+      <li><b>Reuses what exists</b> — each drill-down is just another Root/Screen pair in <code>feature/settings/presentation/</code>, new <code>@Serializable</code> routes in the settings nav graph. Rows and section cards are already components (<code>SettingsRow</code>, <code>SettingsSectionCard</code>).</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const I = {
+  invite:'<circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 9-4.2"/><path d="M17 8v6M14 11h6"/>',
+  gift:'<rect x="3.5" y="9" width="17" height="4" rx="1"/><path d="M12 9v11M5 13v7h14v-7"/><path d="M12 9C11 5.5 9 5 8 6s.5 3 4 3zM12 9c1-3.5 3-4 4-3s-.5 3-4 3z"/>',
+  ruler:'<rect x="3" y="7.5" width="18" height="9" rx="1.5"/><path d="M7 7.5v3M11 7.5v4M15 7.5v3M19 7.5v4"/>',
+  theme:'<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17" fill="currentColor" stroke="none"/><path d="M12 3.5a8.5 8.5 0 0 0 0 17z" fill="currentColor" stroke="none"/>',
+  image:'<rect x="3.5" y="4" width="17" height="16" rx="2.5"/><circle cx="9" cy="9.5" r="1.8"/><path d="M20 15l-4.5-4.5L5 20"/>',
+  bell:'<path d="M6 9a6 6 0 0 1 12 0c0 5 2 6.5 2 6.5H4S6 14 6 9"/><path d="M10.3 19a2 2 0 0 0 3.4 0"/>',
+  bell2:'<path d="M6 9a6 6 0 0 1 12 0c0 5 2 6.5 2 6.5H4S6 14 6 9"/><path d="M10.3 19a2 2 0 0 0 3.4 0"/>',
+  account:'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="10" r="2.8"/><path d="M6.5 18a5.8 5.8 0 0 1 11 0"/>',
+  mail:'<rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="M3.5 7.5l8.5 5.5 8.5-5.5"/>',
+  lock:'<rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  logout:'<path d="M9.5 20H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h3.5"/><path d="M15.5 16l4-4-4-4M19.5 12H9.5"/>',
+  help:'<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.6 2.4c-.9.5-1.2 1-1.2 1.9"/><circle cx="12" cy="16.6" r=".6" fill="currentColor" stroke="none"/>',
+  chat:'<path d="M20 15a2 2 0 0 1-2 2H8l-4 3.5V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/>',
+  groups:'<circle cx="9" cy="9" r="2.8"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M15.5 6.5a2.8 2.8 0 0 1 0 5.5M20.5 19a5.5 5.5 0 0 0-3.5-5.1"/>',
+  info:'<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".6" fill="currentColor" stroke="none"/>',
+  shield:'<path d="M12 3.5l7 2.8v4.7c0 4.4-3 7.4-7 8.9-4-1.5-7-4.5-7-8.9V6.3z"/>',
+  doc:'<path d="M14 3.5H7A2 2 0 0 0 5 5.5v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5z"/><path d="M14 3.5v5h5"/>',
+  trash:'<path d="M4 7h16M9.5 7V5.2A1.2 1.2 0 0 1 10.7 4h2.6a1.2 1.2 0 0 1 1.2 1.2V7M6.5 7l1 12.5a1.2 1.2 0 0 0 1.2 1.1h6.6a1.2 1.2 0 0 0 1.2-1.1L18.5 7"/>',
+  bug:'<rect x="8" y="8.5" width="8" height="9.5" rx="4"/><path d="M12 8.5V5.5M9 6.5 7 4.5M15 6.5 17 4.5M8 12.5H4.5M19.5 12.5H16M8 16 5 18M16 16l3 2"/>',
+  giftcard:'<rect x="3.5" y="6" width="17" height="12" rx="2"/><path d="M3.5 10.5h17M8 6c-1-2 1-3 2-2s.5 2-2 2zM8 6h4"/>',
+  tag:'<path d="M4 4h7l9 9-7 7-9-9z"/><circle cx="8" cy="8" r="1.3" fill="currentColor" stroke="none"/>',
+};
+function icon(n){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${I[n]||''}</svg>`;}
+function chev(){return `<span class="cv"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>`;}
+function ext(){return `<span class="cv"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></span>`;}
+function backarrow(){return `<span class="back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></span>`;}
+
+function row(o){
+  let trail = '';
+  if(o.toggle!==undefined) trail = `<span class="toggle${o.toggle?'':' off'}"></span>`;
+  else if(o.val) trail = `<span class="val">${o.val}</span>`+(o.chev?chev():'');
+  else if(o.ext) trail = ext();
+  else if(o.chev!==false) trail = chev();
+  return `<div class="row${o.danger?' danger':''}">
+    <div class="lead">${icon(o.icon)}</div>
+    <div class="bd"><div class="t">${o.t}</div>${o.s?`<div class="s">${o.s}</div>`:''}</div>
+    ${trail}
+  </div>`;
+}
+function card(rows,gap){
+  return `<div class="card${gap?' gap':''}">${rows.map((r,i)=>row(r)+(i<rows.length-1?'<div class="divider"></div>':'')).join('')}</div>`;
+}
+function labeled(lbl,rows){return `<div class="label">${lbl}</div>`+card(rows);}
+
+const hero = (tapHint)=>`<div class="hero">
+  <div class="av"></div>
+  <div class="m"><div class="b">QA Test Workshop</div><div class="e">${tapHint||'fola@gmail.com'}</div>
+    <span class="badge"><span class="dot"></span>Tailor Atelier</span></div>
+  ${chev()}
+</div>`;
+const plan = `<div class="plan"><span class="pill">You're on Tailor Atelier</span>
+  <div class="t">Unlimited customers</div><div class="s">Expires 20 Aug 2026 · 23 days left</div></div>`;
+
+const prefRows = [
+  {icon:'ruler',t:'Measurement units',val:'Inches',chev:false},
+  {icon:'theme',t:'Appearance',val:'Dark',chev:false},
+  {icon:'image',t:'Receipt image style',val:'Dark',chev:false},
+  {icon:'bell',t:'Daily summary email',toggle:true},
+  {icon:'bell2',t:'Daily push reminder',toggle:true},
+];
+
+function phone(cap,desc,title,inner,{back=false,tall=false}={}){
+  return `<div class="phone${tall?' tall':''}">
+    <div class="cap"><span class="nm">${cap}</span><span class="ds">${desc}</span></div>
+    <div class="statusbar"><span>7:05</span><span>&#9679; &#9679; &#9679;</span></div>
+    <div class="topbar">${back?backarrow():''}<h3>${title}</h3></div>
+    <div class="canvas">${inner}</div>
+  </div>`;
+}
+
+/* ---------- BASELINE ---------- */
+const baseline = phone('Today','6 sections · scrolls ~2.5 screens','Settings',
+  hero()+plan+
+  labeled('Business',[
+    {icon:'invite',t:'Invite a tailor',s:'Grow your network'},
+    {icon:'giftcard',t:'Have a referral code?',s:'Enter a code from whoever referred you'},
+  ])+
+  labeled('Preferences',prefRows)+
+  labeled('Account',[
+    {icon:'account',t:'Sign-in method',s:'Email · fola@gmail.com',chev:false},
+    {icon:'mail',t:'Email',s:'fola@gmail.com'},
+    {icon:'lock',t:'Change password'},
+    {icon:'logout',t:'Sign out',chev:false},
+  ])+
+  labeled('Support',[
+    {icon:'help',t:'Help & tutorials',s:'Short videos on how everything works'},
+    {icon:'chat',t:'Contact us on WhatsApp',s:'Get help and support'},
+    {icon:'groups',t:'Join our community',s:'Updates, tips & other tailors'},
+    {icon:'info',t:'About your plan',s:'A note from the founder'},
+  ])+
+  labeled('Legal',[
+    {icon:'shield',t:'Privacy Policy',ext:true},
+    {icon:'doc',t:'Terms of Service',ext:true},
+  ])+
+  card([{icon:'trash',t:'Delete account',danger:true}],true)
+);
+
+/* ---------- OPTION A ---------- */
+const aLanding = phone('Option A','Fits ~1.2 screens','Settings',
+  hero()+plan+
+  labeled('Preferences',prefRows)+
+  labeled('Manage',[
+    {icon:'account',t:'Account & security',s:'Email, password, sign in method'},
+    {icon:'invite',t:'Invite & rewards',s:'Invite tailors, enter a referral code'},
+    {icon:'help',t:'Help & support',s:'Tutorials, contact, community'},
+    {icon:'shield',t:'Legal & about',s:'Privacy, terms, founder’s note'},
+  ])+
+  card([{icon:'trash',t:'Delete account',danger:true}],true),
+  {tall:true}
+);
+const aAccount = phone('↳ drill-down','Account & security','Account',
+  card([
+    {icon:'account',t:'Sign-in method',s:'Email · fola@gmail.com',chev:false},
+    {icon:'mail',t:'Email',s:'fola@gmail.com'},
+    {icon:'lock',t:'Change password'},
+    {icon:'logout',t:'Sign out',chev:false},
+  ]),
+  {back:true}
+);
+const aSupport = phone('↳ drill-down','Help & support','Help & support',
+  card([
+    {icon:'help',t:'Help & tutorials',s:'Short videos on how everything works'},
+    {icon:'chat',t:'Contact us on WhatsApp',s:'Get help and support'},
+    {icon:'groups',t:'Join our community',s:'Updates, tips & other tailors'},
+  ]),
+  {back:true}
+);
+
+/* ---------- OPTION B ---------- */
+const bLanding = phone('Option B','Fits ~1 screen','Settings',
+  hero('Tap to manage account →')+plan+
+  labeled('Preferences',prefRows)+
+  labeled('Manage',[
+    {icon:'invite',t:'Invite & rewards',s:'Invite tailors, enter a referral code'},
+    {icon:'help',t:'Help & support',s:'Tutorials, contact, community'},
+    {icon:'shield',t:'Legal & about',s:'Privacy, terms, founder’s note'},
+  ])+
+  card([{icon:'trash',t:'Delete account',danger:true}],true),
+  {tall:true}
+);
+const bAccount = phone('↳ behind hero','Full account screen','Account',
+  card([
+    {icon:'account',t:'Sign-in method',s:'Email · fola@gmail.com',chev:false},
+    {icon:'mail',t:'Email',s:'fola@gmail.com'},
+    {icon:'lock',t:'Change password'},
+    {icon:'logout',t:'Sign out',chev:false},
+    {icon:'trash',t:'Delete account',danger:true},
+  ]),
+  {back:true}
+);
+
+/* ---------- OPTION C ---------- */
+const cLanding = phone('Option C','Fits ~2 screens','Settings',
+  hero()+plan+
+  labeled('Business',[
+    {icon:'invite',t:'Invite a tailor',s:'Grow your network'},
+    {icon:'giftcard',t:'Have a referral code?',s:'Enter a code from whoever referred you'},
+  ])+
+  labeled('Preferences',prefRows)+
+  labeled('Account',[
+    {icon:'account',t:'Sign-in method',s:'Email · fola@gmail.com',chev:false},
+    {icon:'mail',t:'Email',s:'fola@gmail.com'},
+    {icon:'lock',t:'Change password'},
+    {icon:'logout',t:'Sign out',chev:false},
+  ])+
+  labeled('More',[
+    {icon:'help',t:'Help, about & legal',s:'Tutorials, contact, privacy, terms'},
+  ])+
+  card([{icon:'trash',t:'Delete account',danger:true}],true),
+  {tall:true}
+);
+
+const app = document.getElementById('app');
+app.innerHTML = `
+  <h2 class="sec">Option A — Frequency hybrid <span class="rec-tag">Recommended</span></h2>
+  <p class="sec-note">Preferences stay inline (one tap to flip). Everything else collapses into four category rows. The <b>Manage</b> block is where <b>Team / Staff</b> slots in cleanly when that ships. Landing drops from ~17 rows to ~9.</p>
+  <div class="grid">
+    ${aLanding}
+    <span class="arrow">→</span>
+    <div>${aAccount}<div class="flowlabel">tap “Account &amp; security”</div></div>
+    <div>${aSupport}<div class="flowlabel">tap “Help &amp; support”</div></div>
+  </div>
+  <div class="pros">
+    <div class="col p"><h5>Strengths</h5><ul><li>Shortest scannable landing with room to grow</li><li>Common prefs still one tap</li><li>Obvious slot for Team, richer notifications</li></ul></div>
+    <div class="col c"><h5>Costs</h5><ul><li>3–4 new sub-screens to build</li><li>Account actions now one tap deeper</li></ul></div>
+  </div>
+
+  <h2 class="sec">Option B — Profile-led <span class="alt-tag">Alternative</span></h2>
+  <p class="sec-note">Same as A, but there’s no “Account” row — tapping the <b>profile hero</b> opens the full account screen (delete can live there too). Fewer top-level rows; matches “tap me to manage my account.”</p>
+  <div class="grid">
+    ${bLanding}
+    <span class="arrow">→</span>
+    <div>${bAccount}<div class="flowlabel">tap the profile card</div></div>
+  </div>
+  <div class="pros">
+    <div class="col p"><h5>Strengths</h5><ul><li>Fewest top-level rows</li><li>Natural “profile = account” mental model</li></ul></div>
+    <div class="col c"><h5>Costs</h5><ul><li>Sign-out / password less discoverable (hidden behind hero)</li><li>Hero already opens Edit Profile today — would need to merge or rethink</li></ul></div>
+  </div>
+
+  <h2 class="sec">Option C — Minimal <span class="alt-tag">Cheapest</span></h2>
+  <p class="sec-note">One new screen only: “Help, about &amp; legal” absorbs Support + Legal + founder’s note. Everything else stays put. Least work, but only trims one section and doesn’t prepare for growth.</p>
+  <div class="grid">
+    ${cLanding}
+  </div>
+  <div class="pros">
+    <div class="col p"><h5>Strengths</h5><ul><li>Smallest change, lowest risk</li><li>Nothing familiar moves</li></ul></div>
+    <div class="col c"><h5>Costs</h5><ul><li>Landing still long (~2 screens)</li><li>No home for Team / growth — you’ll be back here soon</li></ul></div>
+  </div>
+
+  <h2 class="sec">For reference — today <span class="alt-tag">Baseline</span></h2>
+  <p class="sec-note">The current single scroll: 6 grouped sections, ~17 rows, roughly two and a half screens tall.</p>
+  <div class="grid">
+    ${baseline}
+  </div>
+`;
+</script>
+</body>
+</html>

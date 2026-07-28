@@ -22,6 +22,7 @@ import com.danzucker.stitchpad.core.domain.model.StyleImageRef
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.model.ownedStoragePaths
+import com.danzucker.stitchpad.core.domain.preferences.ReceiptImagePreferencesStore
 import com.danzucker.stitchpad.core.domain.repository.CustomMeasurementFieldRepository
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
@@ -88,6 +89,7 @@ class OrderDetailViewModel(
     private val activeWorkshopProvider: ActiveWorkshopProvider,
     private val userRepository: UserRepository,
     private val receiptSharer: OrderReceiptSharer,
+    private val receiptImagePreferencesStore: ReceiptImagePreferencesStore,
     private val imageLoader: ImageLoader,
     private val platformContext: PlatformContext,
     private val entitlementsProvider: EntitlementsProvider,
@@ -228,7 +230,9 @@ class OrderDetailViewModel(
                 _state.update { it.copy(showShareSheet = true) }
             OrderDetailAction.OnShareAsImageClick -> {
                 _state.update { it.copy(showShareSheet = false) }
-                shareReceipt(format = "image") { receiptSharer.shareReceiptAsImage(it) }
+                shareReceipt(format = "image") {
+                    receiptSharer.shareReceiptAsImage(it, receiptImagePreferencesStore.getStyle())
+                }
                 _state.update { it.copy(documentTypeChoice = null) }
             }
             OrderDetailAction.OnShareAsPdfClick -> {

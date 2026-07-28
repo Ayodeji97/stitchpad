@@ -16,6 +16,7 @@ sealed interface MeasurementFormAction {
     data object OnSkipClick : MeasurementFormAction
     data object OnNavigateBack : MeasurementFormAction
     data object OnErrorDismiss : MeasurementFormAction
+    data object OnConfirmationDismiss : MeasurementFormAction
 
     // PTSP-12 — custom measurement fields
     data object OnAddCustomFieldClick : MeasurementFormAction

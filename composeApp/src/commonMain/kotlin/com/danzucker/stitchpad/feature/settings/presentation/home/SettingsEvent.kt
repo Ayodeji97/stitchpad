@@ -33,4 +33,9 @@ sealed interface SettingsEvent {
 
     /** Open the WhatsApp community invite (a chat.whatsapp.com link) directly. */
     data class OpenCommunityLink(val url: String) : SettingsEvent
+
+    data object NavigateToAccountSecurity : SettingsEvent
+    data object NavigateToInviteRewards : SettingsEvent
+    data object NavigateToHelpSupport : SettingsEvent
+    data object NavigateToLegalAbout : SettingsEvent
 }

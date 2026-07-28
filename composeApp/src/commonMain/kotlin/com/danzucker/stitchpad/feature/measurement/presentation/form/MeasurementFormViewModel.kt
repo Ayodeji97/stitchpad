@@ -17,6 +17,7 @@ import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.workshopUidOrNull
+import com.danzucker.stitchpad.feature.measurement.presentation.isPersistableMeasurementValue
 import com.danzucker.stitchpad.feature.measurement.presentation.toMeasurementUiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -189,6 +190,9 @@ class MeasurementFormViewModel(
             }
             MeasurementFormAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
+            }
+            MeasurementFormAction.OnConfirmationDismiss -> {
+                _state.update { it.copy(confirmationMessage = null) }
             }
         }
     }
@@ -364,12 +368,7 @@ class MeasurementFormViewModel(
                         // trips them cleanly, even if no definition exists).
                         val allKeys = templateKeys + customKeys + recordedKeys
                         val fieldsAsString = allKeys.associateWith { key ->
-                            val v = measurement.fields[key]
-                            if (v != null) {
-                                if (v == v.toLong().toDouble()) v.toLong().toString() else v.toString()
-                            } else {
-                                ""
-                            }
+                            measurement.fields[key] ?: ""
                         }
                         _state.update {
                             it.copy(
@@ -428,8 +427,8 @@ class MeasurementFormViewModel(
             }
             val isCreate = measurementId == null
             val parsedFields = s.fields
-                .mapValues { it.value.toDoubleOrNull() ?: 0.0 }
-                .filter { it.value > 0.0 }
+                .mapValues { it.value.trim() }
+                .filter { isPersistableMeasurementValue(it.value) }
                 .filterKeys { key ->
                     !isCreate || s.canUseCustomMeasurements || !isCustomOrOrphanKey(key)
                 }
@@ -566,21 +565,10 @@ class MeasurementFormViewModel(
             }
             if (result is Result.Success) {
                 _state.update { current ->
-                    val valueToApply = initialValue.trim()
-                    val shouldSeedInitialValue = shouldSeedInitialCustomValue(
-                        isCreate = isCreate,
-                        value = valueToApply,
-                        currentGender = current.gender,
+                    current.withSavedCustomField(
                         field = field,
-                    )
-                    val updatedFields = if (shouldSeedInitialValue) {
-                        current.fields + (field.id to valueToApply)
-                    } else {
-                        current.fields
-                    }
-                    current.copy(
-                        fields = updatedFields,
-                        customFieldSheet = null,
+                        isCreate = isCreate,
+                        initialValue = initialValue,
                     )
                 }
             } else {
@@ -591,6 +579,44 @@ class MeasurementFormViewModel(
                 }
             }
         }
+    }
+
+    /**
+     * Folds a successfully saved custom field into state: seeds its initial value
+     * when appropriate, closes the sheet, and — on create only — surfaces the
+     * "field added" confirmation snackbar.
+     */
+    private fun MeasurementFormState.withSavedCustomField(
+        field: CustomMeasurementField,
+        isCreate: Boolean,
+        initialValue: String,
+    ): MeasurementFormState {
+        val valueToApply = initialValue.trim()
+        val shouldSeedInitialValue = shouldSeedInitialCustomValue(
+            isCreate = isCreate,
+            value = valueToApply,
+            currentGender = gender,
+            field = field,
+        )
+        val updatedFields = if (shouldSeedInitialValue) {
+            fields + (field.id to valueToApply)
+        } else {
+            fields
+        }
+        return copy(
+            fields = updatedFields,
+            customFieldSheet = null,
+            // Confirm only on create; edits just close the sheet.
+            confirmationMessage = if (isCreate) {
+                customFieldAddedMessage(
+                    label = field.label,
+                    currentGender = gender,
+                    genders = field.genders,
+                )
+            } else {
+                confirmationMessage
+            },
+        )
     }
 
     private fun shouldSeedInitialCustomValue(

@@ -12,7 +12,7 @@ import kotlin.test.assertTrue
 class MeasurementShareFormatterTest {
 
     private fun measurement(
-        fields: Map<String, Double> = mapOf("shoulder_width" to 15.0, "waist" to 31.0, "trouser_waist" to 31.5),
+        fields: Map<String, String> = mapOf("shoulder_width" to "15", "waist" to "31", "trouser_waist" to "31.5"),
         notes: String? = "Loose at the hip.",
         dateTaken: Long = 1_750_000_000_000L,
     ) = Measurement(

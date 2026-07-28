@@ -362,6 +362,9 @@
     <string name="measurement_section_of">%1$d of %2$d</string>
     <string name="measurement_custom_step">Custom measurement</string>
     <string name="measurement_go_to_section">Go to section %1$d</string>
+    <string name="measurement_step_state_completed">completed</string>
+    <string name="measurement_step_state_current">current</string>
+    <string name="measurement_step_state_not_started">not started</string>
     <string name="measurement_previous">Previous</string>
     <string name="measurement_next">Next</string>
     <string name="measurement_add_note">Add a note (optional)</string>
@@ -435,6 +438,9 @@
     <string name="custom_field_sheet_save_with_value">Save field &amp; value</string>
     <string name="custom_field_sheet_save_changes">Save changes</string>
     <string name="custom_field_sheet_cancel">Cancel</string>
+    <string name="custom_field_added">‘%1$s’ added</string>
+    <string name="custom_field_added_female">‘%1$s’ added to your women’s measurements</string>
+    <string name="custom_field_added_male">‘%1$s’ added to your men’s measurements</string>
     <string name="custom_field_delete_content_description">Delete custom field</string>
     <string name="measurement_delete_content_description">Delete measurement</string>
     <string name="measurement_menu_rename">Rename</string>
@@ -1190,6 +1196,8 @@
 
     <!-- Hero card — balance row -->
     <string name="order_detail_balance_due">Balance due</string>
+    <string name="order_detail_paid_amount">Paid %1$s</string>
+    <string name="order_detail_paid_percent">%1$s</string>
 
     <!-- Hero card — priority pills -->
     <string name="order_priority_high_pill">High</string>
@@ -1304,8 +1312,21 @@
     <!-- Settings -->
     <string name="settings_title">Settings</string>
     <string name="settings_back_cd">Back</string>
+    <string name="settings_account_title">Account &amp; security</string>
+    <string name="settings_invite_rewards_title">Invite &amp; rewards</string>
+    <string name="settings_help_support_title">Help &amp; support</string>
+    <string name="settings_legal_about_title">Legal &amp; about</string>
     <string name="settings_section_preferences">Preferences</string>
     <string name="settings_section_account">Account</string>
+    <string name="settings_section_manage">Manage</string>
+    <string name="settings_row_account_security">Account &amp; security</string>
+    <string name="settings_row_account_security_subtitle">Email, password, sign-in method</string>
+    <string name="settings_row_invite_rewards">Invite &amp; rewards</string>
+    <string name="settings_row_invite_rewards_subtitle">Invite tailors, enter a referral code</string>
+    <string name="settings_row_help_support">Help &amp; support</string>
+    <string name="settings_row_help_support_subtitle">Tutorials, contact, community</string>
+    <string name="settings_row_legal_about">Legal &amp; about</string>
+    <string name="settings_row_legal_about_subtitle">Privacy, terms, founder’s note</string>
     <string name="settings_hero_plan_pro">Tailor Pro</string>
     <string name="settings_hero_plan_atelier">Tailor Atelier</string>
     <string name="settings_plan_renews_fmt">Renews %1$s</string>
@@ -1348,6 +1369,9 @@
     <string name="settings_row_reminders">Reminders</string>
     <string name="settings_row_reminders_subtitle">Order due dates &amp; pickups</string>
     <string name="settings_row_appearance">Appearance</string>
+    <string name="settings_row_receipt_image">Receipt image style</string>
+    <string name="settings_receipt_image_light">Light</string>
+    <string name="settings_receipt_image_dark">Dark</string>
     <string name="settings_row_daily_digest">Daily summary email</string>
     <string name="settings_row_daily_push">Daily push reminder</string>
     <string name="settings_theme_system">System default</string>

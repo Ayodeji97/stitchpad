@@ -5,7 +5,6 @@ import com.danzucker.stitchpad.core.sharing.MeasurementShareData
 import com.danzucker.stitchpad.core.sharing.MeasurementShareRow
 import com.danzucker.stitchpad.core.sharing.MeasurementShareSection
 import com.danzucker.stitchpad.feature.measurement.presentation.detail.measurementDetailSections
-import com.danzucker.stitchpad.feature.measurement.presentation.formatMeasurementValue
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -42,7 +41,7 @@ object MeasurementShareFormatter {
                     null -> labels.customSectionTitle
                     else -> labels.sectionTitles[section.titleKey] ?: section.titleKey
                 },
-                rows = section.rows.map { MeasurementShareRow(it.label, formatMeasurementValue(it.value)) },
+                rows = section.rows.map { MeasurementShareRow(it.label, it.value) },
             )
         }
         return MeasurementShareData(

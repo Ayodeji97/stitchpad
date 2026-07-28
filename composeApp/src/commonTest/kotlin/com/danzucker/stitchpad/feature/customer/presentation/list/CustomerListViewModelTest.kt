@@ -81,7 +81,7 @@ class CustomerListViewModelTest {
         id = id,
         customerId = customerId,
         gender = CustomerGender.FEMALE,
-        fields = mapOf("bust_circumference" to 90.0),
+        fields = mapOf("bust_circumference" to "90"),
         unit = MeasurementUnit.INCHES,
         notes = null,
         dateTaken = 0L,

@@ -1,0 +1,244 @@
+<title>Order Hero Card — Variants</title>
+<style>
+  :root{
+    --ink:#14110E; --page:#100E0C; --surface:#1E1C1A; --surface2:#2A2825;
+    --border:#3A3731; --text:#E5E3DF; --text2:#A8A49D; --text3:#7D7970;
+    --primary:#5871B8; --primary-soft:rgba(88,113,184,.16);
+    --success:#5EDBA0; --success-soft:rgba(45,158,107,.18);
+    --error:#E89090; --error-solid:#D93B3B; --warn:#F0AA60;
+    --wa:#25D366;
+    --mono:ui-monospace,"JetBrains Mono","SF Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    --r-lg:20px; --r-md:14px; --r-sm:10px; --r-full:999px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--page);color:var(--text);font-family:var(--sans);
+       -webkit-font-smoothing:antialiased;line-height:1.4;padding:32px 20px 80px}
+  .wrap{max-width:1200px;margin:0 auto}
+  header{max-width:640px;margin:0 auto 40px;text-align:center}
+  header h1{font-size:26px;font-weight:700;letter-spacing:-.02em;margin-bottom:10px}
+  header p{color:var(--text2);font-size:15px}
+  header .data{margin-top:14px;font-size:12.5px;color:var(--text3);
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--r-full);
+    display:inline-block;padding:6px 14px}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+        gap:28px;align-items:start}
+  .col{display:flex;flex-direction:column;gap:14px}
+  .tag{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
+  .tag .dot{width:8px;height:8px;border-radius:50%}
+  .tag.base .dot{background:var(--text3)}
+  .tag.a .dot{background:var(--primary)}
+  .tag.b .dot{background:var(--warn)}
+  .tag.rec .dot{background:var(--success)}
+  .note{font-size:12.5px;color:var(--text2);line-height:1.5;min-height:52px}
+  .note b{color:var(--text)}
+
+  /* ---- phone card ---- */
+  .card{background:var(--surface);border:1px solid var(--border);
+        border-radius:var(--r-lg);padding:16px;display:flex;flex-direction:column;gap:14px}
+  .name-row{display:flex;align-items:center;gap:6px;cursor:pointer}
+  .name{font-size:19px;font-weight:700;letter-spacing:-.01em;flex:1}
+  .chev{color:var(--text2);font-size:18px}
+  .garment{display:flex;align-items:center;gap:6px;color:var(--text2);font-size:12.5px}
+  .garment svg{width:13px;height:13px}
+  .pills{display:flex;gap:6px;margin-top:2px}
+  .pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;
+        padding:3px 10px;border-radius:var(--r-full);
+        background:var(--primary-soft);color:var(--primary)}
+  .pill svg{width:11px;height:11px}
+  .chips{display:flex;gap:10px}
+  .chip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:500;
+        padding:6px 12px;border:1px solid var(--border);border-radius:var(--r-full);
+        color:var(--text)}
+  .chip svg{width:14px;height:14px}
+  .chip.wa{color:var(--wa)} .chip.wa svg{stroke:var(--wa)}
+  .chip svg{stroke:currentColor;fill:none;stroke-width:2}
+
+  .money{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .lbl{font-size:11px;color:var(--text2)}
+  .due{display:inline-flex;align-items:center;gap:5px;color:var(--text2);font-size:12.5px;
+       padding:4px 8px;border-radius:var(--r-full);cursor:pointer}
+  .due svg{width:13px;height:13px}
+  .due .pencil{color:var(--primary)}
+
+  .cta-row{display:flex;gap:10px;margin-top:2px}
+  .btn{flex:1;text-align:center;padding:11px;border-radius:var(--r-md);
+       font-size:14px;font-weight:600;cursor:pointer;border:1px solid transparent}
+  .btn.primary{background:var(--primary);color:#fff}
+  .btn.outline{background:transparent;border-color:var(--border);color:var(--primary)}
+
+  hr.sep{border:0;border-top:1px solid var(--border);margin:0}
+
+  /* baseline scattered money */
+  .base-total{display:flex;justify-content:flex-end;align-items:center;gap:6px;
+    font-size:13px;color:var(--text2)}
+  .base-total .money{font-size:13px;font-weight:600;color:var(--text2)}
+  .base-bal-row{display:flex;justify-content:space-between;align-items:flex-start}
+  .base-bal{display:flex;flex-direction:column;align-items:flex-end;gap:1px}
+  .base-bal .money{font-size:17px;font-weight:600}
+
+  /* unified payment block (A + rec) */
+  .pay{background:var(--surface2);border-radius:var(--r-md);padding:12px 13px;
+       display:flex;flex-direction:column;gap:9px}
+  .pay-top{display:flex;justify-content:space-between;align-items:baseline}
+  .pay-top .k{font-size:12px;color:var(--text2)}
+  .pay-bal{display:flex;flex-direction:column;align-items:flex-end}
+  .pay-bal .money{font-size:20px;font-weight:700}
+  .pay-bal .sub{font-size:11px;color:var(--text3);font-family:var(--mono)}
+  .track{height:6px;border-radius:var(--r-full);background:#3a3731;overflow:hidden}
+  .track > i{display:block;height:100%;border-radius:var(--r-full);background:var(--primary)}
+  .track.zero > i{background:var(--warn);width:3px !important}
+  .pay-foot{display:flex;justify-content:space-between;font-size:11.5px;color:var(--text2);
+    font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+  /* B — money hero band */
+  .hero-money{display:flex;flex-direction:column;gap:8px;
+    padding:2px 0}
+  .hero-money .big{font-family:var(--mono);font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1}
+  .hero-money .cap{font-size:12px;color:var(--text2);font-family:var(--mono)}
+  .hero-row{display:flex;justify-content:space-between;align-items:flex-end}
+  .hero-row .due{padding-left:0}
+
+  footer{max-width:640px;margin:56px auto 0;color:var(--text3);font-size:12.5px;
+    text-align:center;line-height:1.6}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Order hero card — how to improve it</h1>
+    <p>Same order, four treatments. The lever in every one is the <b style="color:var(--text)">money</b>: today it's scattered and shows ₦25,000 twice with no sense of what's been paid.</p>
+    <div class="data">Adaeze Okafor · Agbada · In&nbsp;Progress · Due 29 Jul · ₦0 paid of ₦25,000</div>
+  </header>
+
+  <div class="grid">
+
+    <!-- ============ BASELINE ============ -->
+    <div class="col">
+      <div class="tag base"><span class="dot"></span>Current</div>
+      <div class="note">Total on its own line, then Due + Balance below. Nothing paid, so <b>₦25,000 appears twice</b>, both right-aligned — reads as a repeated number, and there's no paid/deposit signal.</div>
+      <div class="card">
+        <div class="name-row"><span class="name">Adaeze Okafor</span><span class="chev">›</span></div>
+        <div class="garment">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a2 2 0 0 0-1 3.7L3 11v2h18v-2l-8-4.3A2 2 0 0 0 12 3Z"/></svg>
+          Agbada
+        </div>
+        <div class="pills"><span class="pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3l7 7-4 4-7-7z"/><path d="M10 7l-7 7 4 4 7-7"/></svg>In Progress</span></div>
+        <div class="chips">
+          <span class="chip wa"><svg viewBox="0 0 24 24"><path d="M4 20l1.5-4A8 8 0 1 1 9 19z"/></svg>WhatsApp</span>
+          <span class="chip"><svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-3 2a11 11 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>Call</span>
+        </div>
+        <div class="base-total">Total <span class="money">₦25,000</span></div>
+        <div class="base-bal-row">
+          <span class="due">📅 Due 29 Jul <span class="pencil">✎</span></span>
+          <span class="base-bal"><span class="lbl">Balance due</span><span class="money">₦25,000</span></span>
+        </div>
+        <div class="cta-row">
+          <div class="btn primary">Cutting</div>
+          <div class="btn outline">Record Payment</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ A — unified payment block ============ -->
+    <div class="col">
+      <div class="tag a"><span class="dot"></span>A · Unified payment block</div>
+      <div class="note"><b>One money block.</b> Balance is the figure, Total becomes a caption underneath, and a thin bar shows how much is paid. The empty amber bar reads as "no deposit yet — go collect."</div>
+      <div class="card">
+        <div class="name-row"><span class="name">Adaeze Okafor</span><span class="chev">›</span></div>
+        <div class="garment">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a2 2 0 0 0-1 3.7L3 11v2h18v-2l-8-4.3A2 2 0 0 0 12 3Z"/></svg>
+          Agbada
+        </div>
+        <div class="pills"><span class="pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3l7 7-4 4-7-7z"/><path d="M10 7l-7 7 4 4 7-7"/></svg>In Progress</span></div>
+        <div class="chips">
+          <span class="chip wa"><svg viewBox="0 0 24 24"><path d="M4 20l1.5-4A8 8 0 1 1 9 19z"/></svg>WhatsApp</span>
+          <span class="chip"><svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-3 2a11 11 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>Call</span>
+        </div>
+        <div class="pay">
+          <div class="pay-top">
+            <span class="k">📅 Due 29 Jul <span style="color:var(--primary)">✎</span></span>
+            <span class="pay-bal"><span class="lbl">Balance due</span><span class="money">₦25,000</span><span class="sub">of ₦25,000</span></span>
+          </div>
+          <div class="track zero"><i></i></div>
+          <div class="pay-foot"><span>Paid ₦0</span><span>0%</span></div>
+        </div>
+        <div class="cta-row">
+          <div class="btn primary">Cutting</div>
+          <div class="btn outline">Record Payment</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ B — money as hero ============ -->
+    <div class="col">
+      <div class="tag b"><span class="dot"></span>B · Money as hero</div>
+      <div class="note"><b>Balance becomes the anchor</b> — the biggest thing after the name — since "how much is owed" is the actionable number. Total + paid drop to a caption. Boldest, but competes with the name.</div>
+      <div class="card">
+        <div class="name-row"><span class="name">Adaeze Okafor</span><span class="chev">›</span></div>
+        <div class="garment">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a2 2 0 0 0-1 3.7L3 11v2h18v-2l-8-4.3A2 2 0 0 0 12 3Z"/></svg>
+          Agbada
+        </div>
+        <div class="pills"><span class="pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3l7 7-4 4-7-7z"/><path d="M10 7l-7 7 4 4 7-7"/></svg>In Progress</span></div>
+        <hr class="sep">
+        <div class="hero-money">
+          <span class="lbl">Balance due</span>
+          <div class="hero-row">
+            <span class="big" style="color:var(--error)">₦25,000</span>
+            <span class="due" style="padding-right:0">📅 Due 29 Jul <span class="pencil">✎</span></span>
+          </div>
+          <div class="track zero"><i></i></div>
+          <span class="cap">Paid ₦0 · Total ₦25,000</span>
+        </div>
+        <div class="chips">
+          <span class="chip wa"><svg viewBox="0 0 24 24"><path d="M4 20l1.5-4A8 8 0 1 1 9 19z"/></svg>WhatsApp</span>
+          <span class="chip"><svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-3 2a11 11 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>Call</span>
+        </div>
+        <div class="cta-row">
+          <div class="btn primary">Cutting</div>
+          <div class="btn outline">Record Payment</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ REC ============ -->
+    <div class="col">
+      <div class="tag rec"><span class="dot"></span>Recommended · A, tuned</div>
+      <div class="note">Variant A with the bar tinted by state and a partial-payment example so you can see it working. <b>Lowest risk, biggest clarity win</b> — no fight with the name, answers "how much paid" instantly.</div>
+      <div class="card">
+        <div class="name-row"><span class="name">Adaeze Okafor</span><span class="chev">›</span></div>
+        <div class="garment">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a2 2 0 0 0-1 3.7L3 11v2h18v-2l-8-4.3A2 2 0 0 0 12 3Z"/></svg>
+          Agbada · qty 1
+        </div>
+        <div class="pills"><span class="pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3l7 7-4 4-7-7z"/><path d="M10 7l-7 7 4 4 7-7"/></svg>In Progress</span></div>
+        <div class="chips">
+          <span class="chip wa"><svg viewBox="0 0 24 24"><path d="M4 20l1.5-4A8 8 0 1 1 9 19z"/></svg>WhatsApp</span>
+          <span class="chip"><svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-3 2a11 11 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>Call</span>
+        </div>
+        <div class="pay">
+          <div class="pay-top">
+            <span class="k">📅 Due 29 Jul <span style="color:var(--primary)">✎</span></span>
+            <span class="pay-bal"><span class="lbl">Balance due</span><span class="money">₦15,000</span><span class="sub">of ₦25,000</span></span>
+          </div>
+          <div class="track"><i style="width:40%"></i></div>
+          <div class="pay-foot"><span>Paid ₦10,000</span><span>40%</span></div>
+        </div>
+        <div class="cta-row">
+          <div class="btn primary">Cutting</div>
+          <div class="btn outline">Record Payment</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    Colours, radii and pill styles are pulled straight from <b style="color:var(--text2)">DesignTokens.kt</b> (dark theme). Money is set in the mono face (JetBrains Mono in-app). Fonts here approximate — layout and hierarchy are the point.
+  </footer>
+</div>

@@ -14,6 +14,8 @@ import com.danzucker.stitchpad.core.domain.legal.LegalUrls
 import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
+import com.danzucker.stitchpad.core.domain.preferences.ReceiptImagePreferencesStore
+import com.danzucker.stitchpad.core.domain.preferences.ReceiptImageStyle
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreferencesStore
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
@@ -32,7 +34,9 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -56,6 +60,7 @@ private const val TAG = "SettingsVM"
 private data class LocalUiState(
     val measurementUnit: MeasurementUnit = MeasurementUnit.INCHES,
     val themePreference: ThemePreference = ThemePreference.SYSTEM,
+    val receiptImageStyle: ReceiptImageStyle = ReceiptImageStyle.LIGHT,
     val showSignOutDialog: Boolean = false,
     val isSigningOut: Boolean = false,
 )
@@ -68,6 +73,7 @@ class SettingsViewModel(
     private val customerRepository: CustomerRepository,
     private val measurementPreferencesStore: MeasurementPreferencesStore,
     private val themePreferencesStore: ThemePreferencesStore,
+    private val receiptImagePreferencesStore: ReceiptImagePreferencesStore,
     private val smartUsageStore: SmartUsageStore,
     private val smartUsageDocSource: SmartUsageDocSource,
     private val signOutUseCase: SignOutUseCase,
@@ -83,14 +89,39 @@ class SettingsViewModel(
     val events = _events.receiveAsFlow()
 
     /**
+     * The hub-layout flag lives on its own flow, isolated from the main state
+     * combine, because the whole Settings landing switches between the new hub
+     * and the legacy layout on this single boolean. [appConfigRepository.config]
+     * re-emits the [AppConfig.Disabled] sentinel (settingsHubEnabled = false) on
+     * every (re)subscribe and on read errors; filtering it out means a resubscribe
+     * — e.g. returning to Settings after backgrounding past the WhileSubscribed
+     * window — retains the last real flag instead of flashing hub → legacy → hub.
+     * A real config with the flag off is a distinct instance (from
+     * `dto.toAppConfig()`), so it passes the filter and the remote kill switch
+     * still applies. Mirrors the fail-open-flash fix in AppGateViewModel (#251).
+     */
+    private val hubEnabledFlow: StateFlow<Boolean> =
+        appConfigRepository.config
+            .filter { it !== AppConfig.Disabled }
+            .map { it.settingsHubEnabled }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000L),
+                initialValue = false,
+            )
+
+    /**
      * The state flow IS the cold upstream chain (Firestore listeners + UI state)
      * passed through stateIn. WhileSubscribed(5_000L) actually triggers
      * cancellation of the listeners when the screen is gone for >5s and restarts
      * them on return — the previous topology launched the listeners as a
      * sibling coroutine on viewModelScope, which kept them running for the VM's
-     * full lifetime.
+     * full lifetime. [hubEnabledFlow] is combined in separately so the layout
+     * flag survives that resubscribe without flashing.
      */
-    val state = settingsStateFlow().stateIn(
+    val state = combine(settingsStateFlow(), hubEnabledFlow) { settings, hubEnabled ->
+        settings.copy(settingsHubEnabled = hubEnabled)
+    }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),
         initialValue = SettingsState(),
@@ -103,6 +134,7 @@ class SettingsViewModel(
             SettingsAction.OnProfileClick -> emit(SettingsEvent.NavigateToEditProfile)
             SettingsAction.OnMeasurementUnitClick -> toggleMeasurementUnit()
             SettingsAction.OnAppearanceClick -> cycleTheme()
+            SettingsAction.OnReceiptImageStyleClick -> toggleReceiptImageStyle()
             SettingsAction.OnEmailRowClick -> emit(SettingsEvent.NavigateToChangeEmail)
             SettingsAction.OnChangePasswordClick -> emit(SettingsEvent.NavigateToChangePassword)
             SettingsAction.OnReferralCodeClick -> emit(SettingsEvent.NavigateToReferralCode)
@@ -139,6 +171,10 @@ class SettingsViewModel(
                 viewModelScope.launch { communityJoinTracker.trackJoinTapped() }
                 viewModelScope.launch { dismissal.markDismissed() }
             }
+            SettingsAction.OnAccountSecurityClick -> emit(SettingsEvent.NavigateToAccountSecurity)
+            SettingsAction.OnInviteRewardsClick -> emit(SettingsEvent.NavigateToInviteRewards)
+            SettingsAction.OnHelpSupportClick -> emit(SettingsEvent.NavigateToHelpSupport)
+            SettingsAction.OnLegalAboutClick -> emit(SettingsEvent.NavigateToLegalAbout)
         }
     }
 
@@ -154,6 +190,7 @@ class SettingsViewModel(
             it.copy(
                 measurementUnit = measurementPreferencesStore.getUnit(),
                 themePreference = themePreferencesStore.getTheme(),
+                receiptImageStyle = receiptImagePreferencesStore.getStyle(),
             )
         }
 
@@ -249,6 +286,7 @@ class SettingsViewModel(
             welcomeDaysLeft = entitlements.welcomeDaysLeft,
             measurementUnit = ui.measurementUnit,
             themePreference = ui.themePreference,
+            receiptImageStyle = ui.receiptImageStyle,
             dailyDigestEmailEnabled = firestoreUser?.dailyDigestEmailEnabled ?: true,
             dailyPushEnabled = firestoreUser?.dailyPushEnabled ?: true,
             pushReminderSupported = true,
@@ -256,6 +294,9 @@ class SettingsViewModel(
             isSigningOut = ui.isSigningOut,
             communityEnabled = appConfig.communityEnabled,
             communityUrl = appConfig.communityInviteUrl,
+            // settingsHubEnabled is injected by the outer state combine via
+            // [hubEnabledFlow], which filters the Disabled sentinel so the whole
+            // landing layout never flashes on a config resubscribe.
         )
     }
 
@@ -293,6 +334,24 @@ class SettingsViewModel(
                 current.copy(themePreference = nextTheme)
             }
             themePreferencesStore.setTheme(nextTheme)
+        }
+    }
+
+    private fun toggleReceiptImageStyle() {
+        viewModelScope.launch {
+            // Compute `next` inside the atomic `update` so rapid double-taps
+            // advance two steps instead of landing on the same value, mirroring
+            // toggleMeasurementUnit.
+            var next: ReceiptImageStyle = ReceiptImageStyle.LIGHT
+            uiState.update { current ->
+                next = if (current.receiptImageStyle == ReceiptImageStyle.LIGHT) {
+                    ReceiptImageStyle.DARK
+                } else {
+                    ReceiptImageStyle.LIGHT
+                }
+                current.copy(receiptImageStyle = next)
+            }
+            receiptImagePreferencesStore.setStyle(next)
         }
     }
 

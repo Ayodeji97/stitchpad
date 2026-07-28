@@ -33,7 +33,6 @@ import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.feature.measurement.presentation.filledPreviewFields
-import com.danzucker.stitchpad.feature.measurement.presentation.formatMeasurementValue
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import kotlinx.datetime.Instant
@@ -111,7 +110,7 @@ fun OrderMeasurementsPreviewCard(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Text(
-                                    text = "${formatMeasurementValue(field.value)}$unitSuffix",
+                                    text = "${field.value}$unitSuffix",
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     fontFamily = FontFamily.Monospace,
@@ -194,7 +193,7 @@ private fun OrderMeasurementsPreviewCardPopulatedLightPreview() {
                 id = "m1",
                 customerId = "c1",
                 gender = CustomerGender.MALE,
-                fields = mapOf("chest" to 42.0, "trouser_waist" to 34.0, "shirt_length" to 38.0),
+                fields = mapOf("chest" to "42", "trouser_waist" to "34", "shirt_length" to "38"),
                 unit = MeasurementUnit.INCHES,
                 notes = null,
                 dateTaken = 1_743_638_400_000L, // 3 Apr 2025
@@ -217,7 +216,7 @@ private fun OrderMeasurementsPreviewCardPopulatedDarkPreview() {
                 id = "m1",
                 customerId = "c1",
                 gender = CustomerGender.FEMALE,
-                fields = mapOf("bust_circumference" to 36.0, "waist" to 28.0),
+                fields = mapOf("bust_circumference" to "36", "waist" to "28"),
                 unit = MeasurementUnit.INCHES,
                 notes = null,
                 dateTaken = 1_743_638_400_000L, // 3 Apr 2025
