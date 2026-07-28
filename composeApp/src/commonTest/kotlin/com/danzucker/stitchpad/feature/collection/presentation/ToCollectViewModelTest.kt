@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.collection.presentation
 import app.cash.turbine.test
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
+import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
@@ -36,6 +37,7 @@ class ToCollectViewModelTest {
     private lateinit var orderRepository: FakeOrderRepository
     private lateinit var customerRepository: FakeCustomerRepository
     private lateinit var authRepository: FakeAuthRepository
+    private lateinit var userRepository: FakeUserRepository
 
     @BeforeTest
     fun setUp() {
@@ -43,6 +45,7 @@ class ToCollectViewModelTest {
         orderRepository = FakeOrderRepository()
         customerRepository = FakeCustomerRepository()
         authRepository = FakeAuthRepository()
+        userRepository = FakeUserRepository()
         authRepository.currentUser = User(
             id = "u", email = "e@x.com", displayName = "Dan",
             businessName = null, phoneNumber = null, whatsappNumber = null, avatarColorIndex = 0,
@@ -62,7 +65,9 @@ class ToCollectViewModelTest {
     )
 
     private fun TestScope.createViewModel(): ToCollectViewModel {
-        val vm = ToCollectViewModel(orderRepository, customerRepository, authRepository, nowMillis = { NOW })
+        val vm = ToCollectViewModel(
+            orderRepository, customerRepository, authRepository, userRepository, nowMillis = { NOW },
+        )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
     }
@@ -106,7 +111,10 @@ class ToCollectViewModelTest {
 
     @Test
     fun chaseClickEmitsLaunchWhatsAppWithOrderAndCustomer() = runTest {
-        authRepository.currentUser = User(
+        // authRepository.currentUser keeps businessName = null (per setUp) — the signature
+        // must come from the Firestore user doc via UserRepository, not the Auth user,
+        // proving the fix for the bug where businessName is hardcoded null on Auth.
+        userRepository.userFlow.value = User(
             id = "u", email = "e@x.com", displayName = "Dan",
             businessName = "Dan's Tailoring", phoneNumber = null, whatsappNumber = null, avatarColorIndex = 0,
         )

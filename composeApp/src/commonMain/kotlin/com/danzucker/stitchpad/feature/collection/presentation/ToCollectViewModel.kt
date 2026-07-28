@@ -7,6 +7,7 @@ import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
+import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.collection.domain.CollectibleOrder
@@ -28,6 +29,7 @@ class ToCollectViewModel(
     private val orderRepository: OrderRepository,
     private val customerRepository: CustomerRepository,
     private val authRepository: AuthRepository,
+    private val userRepository: UserRepository,
     private val nowMillis: () -> Long = { Clock.System.now().toEpochMilliseconds() },
 ) : ViewModel() {
 
@@ -75,12 +77,18 @@ class ToCollectViewModel(
                 return@launch
             }
             val uid = user.id
-            signature = user.businessName?.takeIf { it.isNotBlank() } ?: user.displayName
+            // Include the Firestore user doc in the combine so the chase signature
+            // reflects the workshop's business name — the Auth user's businessName
+            // is hardcoded null in production (real value only lives in Firestore).
+            // Mirrors DashboardViewModel's loadData() combine.
             combine(
                 orderRepository.observeOrders(uid),
                 customerRepository.observeCustomers(uid),
-            ) { ordersResult, customersResult -> ordersResult to customersResult }
-                .collect { (ordersResult, customersResult) ->
+                userRepository.observeUser(uid).onStart { emit(null) },
+            ) { ordersResult, customersResult, firestoreUser ->
+                Triple(ordersResult, customersResult, firestoreUser)
+            }
+                .collect { (ordersResult, customersResult, firestoreUser) ->
                     val orders = (ordersResult as? Result.Success)?.data
                     val customers = (customersResult as? Result.Success)?.data
                     if (orders == null || customers == null) {
@@ -92,6 +100,9 @@ class ToCollectViewModel(
                         }
                         return@collect
                     }
+                    signature = firestoreUser?.businessName?.takeIf { it.isNotBlank() }
+                        ?: firestoreUser?.displayName?.takeIf { it.isNotBlank() }
+                        ?: ""
                     ordersById = orders.associateBy { it.id }
                     customersById = customers.associateBy { it.id }
                     allCollectibles = CollectionCalculator.collectibles(orders, customersById, nowMillis())
