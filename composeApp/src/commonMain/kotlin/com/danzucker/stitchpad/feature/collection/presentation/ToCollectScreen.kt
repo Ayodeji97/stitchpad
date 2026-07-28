@@ -11,6 +11,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -38,6 +40,7 @@ import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.collection.domain.CollectibleOrder
 import com.danzucker.stitchpad.feature.collection.domain.CollectionFilter
+import com.danzucker.stitchpad.feature.collection.domain.CollectionSort
 import com.danzucker.stitchpad.feature.collection.domain.CollectionSummary
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -56,6 +59,9 @@ fun ToCollectScreen(
                     IconButton(onClick = { onAction(ToCollectAction.OnBackClick) }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
+                },
+                actions = {
+                    SortMenuButton(sort = state.sort, onAction = onAction)
                 },
             )
         },
@@ -100,6 +106,41 @@ private fun SummaryHeader(summary: CollectionSummary) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SortMenuButton(sort: CollectionSort, onAction: (ToCollectAction) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Sort")
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            CollectionSort.entries.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option.sortLabel()) },
+                    leadingIcon = {
+                        if (option == sort) {
+                            Icon(Icons.Filled.Check, contentDescription = null)
+                        }
+                    },
+                    onClick = {
+                        expanded = false
+                        onAction(ToCollectAction.OnSortSelected(option))
+                    },
+                )
+            }
+        }
+    }
+}
+
+// TODO: localize via compose.resources — inline for now, consistent with the rest of this screen.
+private fun CollectionSort.sortLabel(): String = when (this) {
+    CollectionSort.OLDEST_OWED -> "Oldest owed"
+    CollectionSort.BIGGEST_BALANCE -> "Biggest balance"
+    CollectionSort.NEWEST -> "Newest"
+    CollectionSort.CUSTOMER_NAME -> "Customer name"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
