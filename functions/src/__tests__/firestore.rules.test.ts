@@ -682,7 +682,7 @@ describe('activity docs — createdAt frozen once stamped', () => {
 // new owner-client writes aren't default-denied; being isOwner-only they also
 // pre-enforce the staff wall (a non-owner — the future staff member — is denied).
 describe('owner-only /private sub-docs (money + contact wall)', () => {
-  it("owner can write and read a customer's private/contact", async () => {
+  it('owner can write and read the customer private/contact sub-doc', async () => {
     await assertSucceeds(
       setDoc(doc(db('alice'), 'users/alice/customers/c1/private/contact'),
         { phone: '+2348011112222', email: null, address: null }),
@@ -690,7 +690,7 @@ describe('owner-only /private sub-docs (money + contact wall)', () => {
     await assertSucceeds(getDoc(doc(db('alice'), 'users/alice/customers/c1/private/contact')));
   });
 
-  it("owner can write and read an order's private/money", async () => {
+  it('owner can write and read the order private/money sub-doc', async () => {
     await assertSucceeds(
       setDoc(doc(db('alice'), 'users/alice/orders/o1/private/money'),
         { totalPrice: 40000, itemPrices: { i1: 1000 } }),
@@ -698,7 +698,7 @@ describe('owner-only /private sub-docs (money + contact wall)', () => {
     await assertSucceeds(getDoc(doc(db('alice'), 'users/alice/orders/o1/private/money')));
   });
 
-  it("a non-owner cannot read or write another owner's private sub-docs", async () => {
+  it('a non-owner is denied reading or writing both private sub-docs', async () => {
     await assertFails(getDoc(doc(db('bob'), 'users/alice/customers/c1/private/contact')));
     await assertFails(
       setDoc(doc(db('bob'), 'users/alice/customers/c1/private/contact'), { phone: 'x' }),
