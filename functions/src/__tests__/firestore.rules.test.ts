@@ -796,3 +796,40 @@ describe('active staff member access', () => {
     await assertFails(getDoc(doc(staffDb('chidi', 'alice'), 'users/bob/orders/ob1')));
   });
 });
+
+// Owner + Staff backend collections: memberships (owner-read + self-read,
+// Admin-only writes) and staffInvites (bearer codes, never client-accessible).
+describe('staff memberships + invites collections', () => {
+  beforeEach(async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice/memberships/chidi'), {
+        status: 'pending',
+        staffAuthUid: 'chidi',
+      });
+      await setDoc(doc(admin, 'staffInvites/CODE1'), { workshopUid: 'alice', status: 'open' });
+    });
+  });
+
+  it('owner reads their memberships; a staff member reads only their own doc', async () => {
+    await assertSucceeds(getDoc(doc(db('alice'), 'users/alice/memberships/chidi')));
+    await assertSucceeds(getDoc(doc(db('chidi'), 'users/alice/memberships/chidi')));
+    await assertFails(getDoc(doc(db('bob'), 'users/alice/memberships/chidi')));
+  });
+
+  it('denies all client writes to memberships (lifecycle is callable/Admin-only)', async () => {
+    await assertFails(setDoc(doc(db('alice'), 'users/alice/memberships/x'), { status: 'active' }));
+    await assertFails(
+      updateDoc(doc(db('alice'), 'users/alice/memberships/chidi'), { status: 'active' }),
+    );
+    await assertFails(
+      updateDoc(doc(db('chidi'), 'users/alice/memberships/chidi'), { status: 'active' }),
+    );
+    await assertFails(deleteDoc(doc(db('alice'), 'users/alice/memberships/chidi')));
+  });
+
+  it('never lets a client read or write staffInvites (redeem is via callable)', async () => {
+    await assertFails(getDoc(doc(db('alice'), 'staffInvites/CODE1')));
+    await assertFails(getDoc(doc(db('chidi'), 'staffInvites/CODE1')));
+    await assertFails(setDoc(doc(db('mallory'), 'staffInvites/HACK'), { workshopUid: 'mallory' }));
+  });
+});
