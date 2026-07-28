@@ -89,6 +89,7 @@ import com.danzucker.stitchpad.feature.measurement.presentation.form.components.
 import com.danzucker.stitchpad.feature.measurement.presentation.form.components.ConfirmArchiveDialog
 import com.danzucker.stitchpad.feature.measurement.presentation.form.components.rememberSanitizedTextFieldValue
 import com.danzucker.stitchpad.feature.measurement.presentation.isPersistableMeasurementValue
+import com.danzucker.stitchpad.feature.measurement.presentation.measurementSectionTitle
 import com.danzucker.stitchpad.feature.measurement.presentation.sanitizeMeasurementInput
 import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -327,6 +328,12 @@ fun MeasurementFormScreen(
                     ) {
                         if (pageIndex < state.sections.size) {
                             val section = state.sections[pageIndex]
+                            Text(
+                                text = measurementSectionTitle(section.titleKey),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
                             val essentialFields = section.fields.filter { it.isEssential }
                             val extraFields = section.fields.filter { !it.isEssential }
                             val isExpanded =
@@ -566,32 +573,18 @@ private fun SectionProgressRow(
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             sections.forEachIndexed { index, section ->
-                val color = when {
-                    index == currentIndex -> MaterialTheme.colorScheme.primary
-                    // Same persistable predicate as MeasurementFormState.canSave
-                    // so a dot only lights for values that will actually persist.
-                    section.fields.any { f ->
-                        fields[f.key]?.let { isPersistableMeasurementValue(it) } == true
-                    } -> MaterialTheme.colorScheme.primary
-                    // A soft tint of the brand primary so unvisited dots stay
-                    // clearly visible on the light background without the muddy
-                    // look of a neutral gray.
-                    else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                val isCurrent = index == currentIndex
+                // Same persistable predicate as MeasurementFormState.canSave so a dot
+                // only counts as "completed" for values that will actually persist.
+                val isFilled = section.fields.any { f ->
+                    fields[f.key]?.let { isPersistableMeasurementValue(it) } == true
                 }
-                // Tappable to jump to that section, but intentionally NOT wrapped in
-                // minimumInteractiveComponentSize — the 48dp target spread the dots too
-                // far apart. The small target is acceptable here since the Custom pill,
-                // Previous/Next, and swipe are the primary navigation; the dots are a
-                // redundant shortcut. Role + label still expose them to screen readers.
                 val goToSectionLabel = stringResource(Res.string.measurement_go_to_section, index + 1)
-                Box(
-                    modifier = Modifier
-                        .size(10.dp)
-                        .background(color = color, shape = CircleShape)
-                        .clickable(
-                            role = Role.Button,
-                            onClickLabel = goToSectionLabel,
-                        ) { onJumpToSection(index) }
+                SectionDot(
+                    isCurrent = isCurrent,
+                    isFilled = isFilled,
+                    onClickLabel = goToSectionLabel,
+                    onClick = { onJumpToSection(index) },
                 )
             }
             CustomStepPill(
@@ -611,6 +604,66 @@ private fun SectionProgressRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+}
+
+@Composable
+private fun SectionDot(
+    isCurrent: Boolean,
+    isFilled: Boolean,
+    onClickLabel: String,
+    onClick: () -> Unit,
+) {
+    val primary = MaterialTheme.colorScheme.primary
+    val click = Modifier.clickable(role = Role.Button, onClickLabel = onClickLabel, onClick = onClick)
+    when {
+        // Current step = hollow ring + soft halo ("you are here"). Slightly larger
+        // than the plain dots for emphasis. Shows a check inside when also filled.
+        isCurrent -> Box(
+            modifier = Modifier
+                .size(18.dp)
+                .background(primary.copy(alpha = 0.18f), CircleShape)
+                .then(click),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .border(BorderStroke(2.dp, primary), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (isFilled) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = primary,
+                        modifier = Modifier.size(8.dp),
+                    )
+                }
+            }
+        }
+        // Completed (not current) = solid dot with a check.
+        isFilled -> Box(
+            modifier = Modifier
+                .size(14.dp)
+                .background(primary, CircleShape)
+                .then(click),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(9.dp),
+            )
+        }
+        // Not visited = soft tint so unvisited dots stay visible without a muddy gray.
+        else -> Box(
+            modifier = Modifier
+                .size(10.dp)
+                .background(primary.copy(alpha = 0.3f), CircleShape)
+                .then(click),
+        )
     }
 }
 
@@ -1315,6 +1368,25 @@ private fun MeasurementFormScreenCustomStepLockedPreview() {
                 unit = MeasurementUnit.INCHES
             ),
             onAction = {}
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun SectionProgressRowPreview() {
+    StitchPadTheme {
+        SectionProgressRow(
+            sections = BodyProfileTemplate.sectionsFor(CustomerGender.FEMALE),
+            currentIndex = 1, // second section = current (ring); first = completed if filled
+            fields = mapOf(
+                // Fill a field in the first section so it renders the completed check.
+                BodyProfileTemplate.sectionsFor(CustomerGender.FEMALE).first().fields.first().key to "16",
+            ),
+            customLocked = false,
+            customHasData = false,
+            onJumpToSection = {},
         )
     }
 }
