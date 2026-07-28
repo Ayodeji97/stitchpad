@@ -435,6 +435,9 @@
     <string name="custom_field_sheet_save_with_value">Save field &amp; value</string>
     <string name="custom_field_sheet_save_changes">Save changes</string>
     <string name="custom_field_sheet_cancel">Cancel</string>
+    <string name="custom_field_added">‘%1$s’ added</string>
+    <string name="custom_field_added_female">‘%1$s’ added to your women’s measurements</string>
+    <string name="custom_field_added_male">‘%1$s’ added to your men’s measurements</string>
     <string name="custom_field_delete_content_description">Delete custom field</string>
     <string name="measurement_delete_content_description">Delete measurement</string>
     <string name="measurement_menu_rename">Rename</string>

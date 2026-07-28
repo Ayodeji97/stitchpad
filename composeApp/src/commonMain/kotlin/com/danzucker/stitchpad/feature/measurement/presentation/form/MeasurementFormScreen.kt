@@ -162,6 +162,14 @@ fun MeasurementFormRoot(
         }
     }
 
+    val confirmationMessage = state.confirmationMessage?.asString()
+    LaunchedEffect(confirmationMessage) {
+        if (confirmationMessage != null) {
+            snackbarHostState.showSnackbar(confirmationMessage)
+            viewModel.onAction(MeasurementFormAction.OnConfirmationDismiss)
+        }
+    }
+
     MeasurementFormScreen(
         state = state,
         snackbarHostState = snackbarHostState,
