@@ -321,6 +321,14 @@ class DashboardViewModel(
                 firstReadyId?.let { emitEvent(DashboardEvent.NavigateToOrderDetail(it)) }
             }
             FocusVariant.Earn -> {
+                // CollectionOverdue reuses the Earn variant (see focusVariant
+                // mapping) but routes to the To-Collect list instead of the
+                // top NBA — the CTA needs the uiState, not just the variant,
+                // to disambiguate the two sub-cases.
+                if (current.uiState == DashboardUiState.CollectionOverdue) {
+                    emitEvent(DashboardEvent.NavigateToToCollect)
+                    return
+                }
                 val topNba = current.nextBestActions.firstOrNull() ?: return
                 emitEvent(
                     if (topNba.opensWhatsApp) {
@@ -506,7 +514,13 @@ class DashboardViewModel(
                 val collectibles = CollectionCalculator.collectibles(orders, customersById, nowMillis())
                 val collectionSummary = CollectionCalculator.summarize(collectibles)
                 val nextBestActions = NbaCalculator.compute(orders, customersById, today, timeZone)
-                val uiState = FocusResolver.resolveUiState(buckets, nextBestActions, orders, customers)
+                val uiState = FocusResolver.resolveUiState(
+                    buckets,
+                    nextBestActions,
+                    orders,
+                    customers,
+                    collectionOverdueCount = collectionSummary.overdueCount,
+                )
                 val reconnect = ReconnectCalculator.compute(orders, customers, today, timeZone)
                 val focus = FocusResolver.resolveFocus(
                     uiState = uiState,
@@ -515,6 +529,7 @@ class DashboardViewModel(
                     customers = customers,
                     orders = orders,
                     reconnect = reconnect,
+                    collectionOverdueCount = collectionSummary.overdueCount,
                 )
                 val weeklyGoal = WeeklyGoalCalculator.compute(orders, today, goal, timeZone)
                 // "Your customer" card surfaces only on FirstCustomer. Pick the

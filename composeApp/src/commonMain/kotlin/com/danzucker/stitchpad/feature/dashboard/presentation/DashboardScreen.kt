@@ -682,7 +682,8 @@ fun DashboardScreen(
                 DashboardUiState.PipelineSteady,
                 DashboardUiState.NbaActive,
                 DashboardUiState.BusyDay,
-                DashboardUiState.ReadyForPickup -> DashboardContent(
+                DashboardUiState.ReadyForPickup,
+                DashboardUiState.CollectionOverdue -> DashboardContent(
                     state = state,
                     onAction = onAction,
                     onNavigateToTutorial = onNavigateToTutorial,

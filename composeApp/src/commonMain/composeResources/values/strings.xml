@@ -1000,6 +1000,9 @@
     <string name="focus_pickup_title">%1$d orders ready for pickup</string>
     <string name="focus_pickup_supporting">Reach out about pickup or mark delivered</string>
     <string name="focus_pickup_cta">Open %1$s's order</string>
+    <string name="dashboard_focus_collect_headline">Money to collect</string>
+    <string name="dashboard_focus_collect_supporting">%1$d overdue — chase payment today</string>
+    <string name="dashboard_focus_collect_cta">Collect now</string>
 
     <!-- V2 empty-state cards (EmptyIllustrationCard) -->
     <string name="dashboard_nba_empty_title">No suggested moves</string>

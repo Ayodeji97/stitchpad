@@ -11,6 +11,9 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestActi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestActionType
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.ReconnectCandidate
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.dashboard_focus_collect_cta
+import stitchpad.composeapp.generated.resources.dashboard_focus_collect_headline
+import stitchpad.composeapp.generated.resources.dashboard_focus_collect_supporting
 import stitchpad.composeapp.generated.resources.dashboard_nba_cta_collect_deposit
 import stitchpad.composeapp.generated.resources.dashboard_nba_cta_send_reminder
 import stitchpad.composeapp.generated.resources.dashboard_nba_cta_view_order
@@ -71,10 +74,13 @@ object FocusResolver {
 
     /**
      * Priority (first match wins):
-     *   BrandNew → FirstCustomer → BusyDay → ReadyForPickup → NbaActive → PipelineSteady → QuietDay
+     *   BrandNew → FirstCustomer → CollectionOverdue → BusyDay → ReadyForPickup →
+     *   NbaActive → PipelineSteady → QuietDay
      *
-     * `BusyDay` is reserved for genuine urgency (overdue or due-today). A day where
-     * the only triage signal is ready-for-pickup is its own calmer state — see
+     * `CollectionOverdue` outranks `BusyDay` — genuinely overdue money owed is the
+     * top priority once the workshop is past onboarding, ahead of deadline triage.
+     * `BusyDay` is reserved for genuine deadline urgency (overdue or due-today). A day
+     * where the only triage signal is ready-for-pickup is its own calmer state — see
      * [DashboardUiState.ReadyForPickup] for why.
      */
     @Suppress("ReturnCount")
@@ -82,7 +88,8 @@ object FocusResolver {
         buckets: Buckets,
         nextBestActions: List<NextBestAction>,
         orders: List<Order>,
-        customers: List<Customer>
+        customers: List<Customer>,
+        collectionOverdueCount: Int = 0,
     ): DashboardUiState {
         if (orders.isEmpty() && customers.isEmpty()) return DashboardUiState.BrandNew
         if (orders.isEmpty()) return DashboardUiState.FirstCustomer
@@ -92,6 +99,7 @@ object FocusResolver {
         if (orders.size == 1 && orders.first().deadline == null) {
             return DashboardUiState.FirstCustomer
         }
+        if (collectionOverdueCount > 0) return DashboardUiState.CollectionOverdue
         if (buckets.overdue.isNotEmpty() || buckets.dueToday.isNotEmpty()) {
             return DashboardUiState.BusyDay
         }
@@ -121,6 +129,8 @@ object FocusResolver {
         // setup-order sub-case keep working unchanged. Production callers
         // always pass the real list.
         orders: List<Order> = emptyList(),
+        // Default 0 for the same reason — only exercised by CollectionOverdue.
+        collectionOverdueCount: Int = 0,
     ): FocusResolution = when (uiState) {
         DashboardUiState.FirstCustomer -> {
             // Two sub-cases:
@@ -320,6 +330,15 @@ object FocusResolver {
                 }
             )
         }
+        DashboardUiState.CollectionOverdue -> FocusResolution(
+            variant = FocusVariant.Earn,
+            headline = UiText.StringResourceText(Res.string.dashboard_focus_collect_headline),
+            supporting = UiText.StringResourceText(
+                Res.string.dashboard_focus_collect_supporting,
+                arrayOf(collectionOverdueCount)
+            ),
+            ctaLabel = UiText.StringResourceText(Res.string.dashboard_focus_collect_cta)
+        )
         DashboardUiState.BrandNew -> FocusResolution(
             variant = FocusVariant.BrandNew,
             headline = UiText.StringResourceText(Res.string.focus_brand_new_title),
