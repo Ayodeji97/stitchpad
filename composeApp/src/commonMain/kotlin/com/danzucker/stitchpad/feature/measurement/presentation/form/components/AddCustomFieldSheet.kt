@@ -26,7 +26,6 @@ import androidx.compose.ui.text.style.TextAlign
 import com.danzucker.stitchpad.core.domain.model.CustomMeasurementField
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.feature.measurement.presentation.form.CustomFieldDraft
-import com.danzucker.stitchpad.feature.measurement.presentation.form.components.rememberSanitizedTextFieldValue
 import com.danzucker.stitchpad.feature.measurement.presentation.sanitizeMeasurementInput
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import org.jetbrains.compose.resources.stringResource
