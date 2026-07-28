@@ -72,6 +72,7 @@ import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
+import com.danzucker.stitchpad.feature.measurement.presentation.measurementSectionTitle
 import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.JetBrainsMonoFamily
@@ -88,7 +89,6 @@ import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.cd_measurement_detail_back
 import stitchpad.composeapp.generated.resources.cd_measurement_detail_overflow
 import stitchpad.composeapp.generated.resources.cd_measurement_share
-import stitchpad.composeapp.generated.resources.custom_field_section_title
 import stitchpad.composeapp.generated.resources.customer_delete_cancel
 import stitchpad.composeapp.generated.resources.customer_delete_confirm
 import stitchpad.composeapp.generated.resources.measurement_delete_message
@@ -113,13 +113,6 @@ import stitchpad.composeapp.generated.resources.measurement_rename_dialog_title
 import stitchpad.composeapp.generated.resources.measurement_rename_save
 import stitchpad.composeapp.generated.resources.measurement_unit_cm
 import stitchpad.composeapp.generated.resources.measurement_unit_inches
-import stitchpad.composeapp.generated.resources.section_arms
-import stitchpad.composeapp.generated.resources.section_body_lengths
-import stitchpad.composeapp.generated.resources.section_bust
-import stitchpad.composeapp.generated.resources.section_neck_shoulders
-import stitchpad.composeapp.generated.resources.section_trouser
-import stitchpad.composeapp.generated.resources.section_upper_body
-import stitchpad.composeapp.generated.resources.section_waist_hip
 import stitchpad.composeapp.generated.resources.whatsapp_launch_failed
 
 @Composable
@@ -555,17 +548,7 @@ private fun SectionCard(section: MeasurementDetailSection, unit: MeasurementUnit
 }
 
 @Composable
-private fun sectionTitle(titleKey: String?): String = when (titleKey) {
-    "section_upper_body" -> stringResource(Res.string.section_upper_body)
-    "section_body_lengths" -> stringResource(Res.string.section_body_lengths)
-    "section_trouser" -> stringResource(Res.string.section_trouser)
-    "section_neck_shoulders" -> stringResource(Res.string.section_neck_shoulders)
-    "section_bust" -> stringResource(Res.string.section_bust)
-    "section_waist_hip" -> stringResource(Res.string.section_waist_hip)
-    "section_arms" -> stringResource(Res.string.section_arms)
-    null -> stringResource(Res.string.custom_field_section_title)
-    else -> titleKey // future template keys degrade to the raw key rather than crash
-}
+private fun sectionTitle(titleKey: String?): String = measurementSectionTitle(titleKey)
 
 @Composable
 private fun NotesCard(notes: String) {
