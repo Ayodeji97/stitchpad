@@ -42,22 +42,30 @@ describe('approveStaffMemberHandler', () => {
     ).rejects.toMatchObject({ message: 'membership_revoked' });
   });
 
-  it('sets the claim before flipping the doc to active', async () => {
-    // The client refreshes its token when it sees the doc active; setting the
-    // claim first guarantees that refresh returns the claim (no denied reads).
+  it('rolls the claim back if the membership update fails', async () => {
+    // Claim-first, but a claim on a non-active doc would show an active-looking
+    // session with denied reads. If the doc update fails, the claim must be
+    // cleared so we never leave a claim without a matching active doc.
     const { db, store } = makeStaffDb({ 'users/alice/memberships/chidi': { status: 'pending' } });
-    const failingClaims = async () => {
-      throw new Error('claims_backend_down');
-    };
+    const claims = makeClaimsRecorder();
+    // Make the membership doc update fail while get() still succeeds.
+    const realDoc = db.doc('users/alice/memberships/chidi');
+    const failingDb = {
+      ...db,
+      doc: () => ({ ...realDoc, update: async () => { throw new Error('firestore_down'); } }),
+    } as unknown as typeof db;
+
     await expect(
       approveStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), {
-        db,
-        setClaims: failingClaims,
+        db: failingDb,
+        setClaims: claims.setClaims,
         now: () => NOW,
       }),
-    ).rejects.toThrow('claims_backend_down');
-    // Claim set first failed → doc must NOT have been flipped to active.
+    ).rejects.toThrow('firestore_down');
+
+    // Doc never flipped, and the claim was rolled back to null.
     expect(store.get('users/alice/memberships/chidi')).toMatchObject({ status: 'pending' });
+    expect(claims.claims.get('chidi')).toBeNull();
   });
 });
 
