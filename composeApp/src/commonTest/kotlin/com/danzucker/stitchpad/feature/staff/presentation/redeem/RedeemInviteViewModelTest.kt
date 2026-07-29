@@ -29,6 +29,7 @@ class RedeemInviteViewModelTest {
     private lateinit var repo: FakeInviteRedemptionRepository
     private lateinit var prefs: FakeStaffMembershipPrefsStore
     private lateinit var deepLink: PendingDeepLinkHolder
+    private lateinit var authRepo: FakeAuthRepository
 
     @BeforeTest
     fun setup() {
@@ -36,6 +37,7 @@ class RedeemInviteViewModelTest {
         repo = FakeInviteRedemptionRepository()
         prefs = FakeStaffMembershipPrefsStore()
         deepLink = PendingDeepLinkHolder()
+        authRepo = FakeAuthRepository()
     }
 
     @AfterTest
@@ -44,7 +46,7 @@ class RedeemInviteViewModelTest {
     private fun buildViewModel() = RedeemInviteViewModel(
         inviteRedemptionRepository = repo,
         staffMembershipPrefs = prefs,
-        signOutUseCase = SignOutUseCase(FakeAuthRepository(), NoOpRegistrar(), PendingDeepLinkHolder()),
+        signOutUseCase = SignOutUseCase(authRepo, NoOpRegistrar(), PendingDeepLinkHolder()),
         pendingDeepLink = deepLink,
     )
 
@@ -124,5 +126,18 @@ class RedeemInviteViewModelTest {
             assertIs<RedeemInviteEvent.SignedOut>(awaitItem())
         }
         assertEquals(1, prefs.clearCount)
+    }
+
+    @Test
+    fun a_failed_sign_out_does_not_navigate_or_clear_the_stored_uid() = runTest {
+        authRepo.signOutError = com.danzucker.stitchpad.feature.auth.domain.AuthError.UNKNOWN
+        prefs.setWorkshopUid("owner-9")
+        val vm = buildViewModel()
+        vm.events.test {
+            vm.onAction(RedeemInviteAction.OnSignOutClick)
+            expectNoEvents()
+        }
+        assertEquals(0, prefs.clearCount)
+        assertEquals("owner-9", prefs.workshopUid.value)
     }
 }

@@ -84,12 +84,12 @@ class RedeemInviteViewModel(
 
     private fun onSignOut() {
         viewModelScope.launch {
-            // Clear the pending-window uid so the next user on this device can't
-            // inherit it, then sign out. Route out either way (a failed sign-out is
-            // surfaced by the auth layer).
-            staffMembershipPrefs.clear()
-            signOutUseCase()
-            _events.send(RedeemInviteEvent.SignedOut)
+            // Only navigate (and clear the pending-window uid) on a CONFIRMED sign-out —
+            // otherwise we'd leave the app at Welcome while still authenticated.
+            if (signOutUseCase() is Result.Success) {
+                staffMembershipPrefs.clear()
+                _events.send(RedeemInviteEvent.SignedOut)
+            }
         }
     }
 

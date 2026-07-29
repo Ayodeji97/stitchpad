@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.staff.presentation.pending
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
 import com.danzucker.stitchpad.core.domain.session.StaffRole
@@ -84,10 +85,13 @@ class StaffPendingViewModel(
 
     private fun onSignOut() {
         viewModelScope.launch {
-            navigated = true
-            staffMembershipPrefs.clear()
-            signOutUseCase()
-            _events.send(StaffPendingEvent.SignedOut)
+            // Only navigate (and clear the stored uid) on a CONFIRMED sign-out — otherwise
+            // we'd leave the app at Welcome while still authenticated.
+            if (signOutUseCase() is Result.Success) {
+                navigated = true
+                staffMembershipPrefs.clear()
+                _events.send(StaffPendingEvent.SignedOut)
+            }
         }
     }
 }

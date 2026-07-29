@@ -26,6 +26,7 @@ import kotlin.test.assertIs
 class StaffPendingViewModelTest {
 
     private lateinit var prefs: FakeStaffMembershipPrefsStore
+    private lateinit var authRepo: FakeAuthRepository
 
     private fun pending() = WorkshopSession("staff-1", "staff-1", StaffRole.STAFF, MembershipStatus.PENDING)
     private fun active() = WorkshopSession("staff-1", "owner-9", StaffRole.STAFF, MembershipStatus.ACTIVE)
@@ -34,6 +35,7 @@ class StaffPendingViewModelTest {
     fun setup() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         prefs = FakeStaffMembershipPrefsStore(initial = "owner-9")
+        authRepo = FakeAuthRepository()
     }
 
     @AfterTest
@@ -43,7 +45,7 @@ class StaffPendingViewModelTest {
         workshopName = "Ade Fashions",
         activeWorkshopProvider = provider,
         staffMembershipPrefs = prefs,
-        signOutUseCase = SignOutUseCase(FakeAuthRepository(), NoOpRegistrar(), PendingDeepLinkHolder()),
+        signOutUseCase = SignOutUseCase(authRepo, NoOpRegistrar(), PendingDeepLinkHolder()),
     )
 
     private class NoOpRegistrar : PushTokenRegistrar {
@@ -102,5 +104,16 @@ class StaffPendingViewModelTest {
             assertIs<StaffPendingEvent.SignedOut>(awaitItem())
         }
         assertEquals(1, prefs.clearCount)
+    }
+
+    @Test
+    fun a_failed_sign_out_does_not_navigate_or_clear() = runTest {
+        authRepo.signOutError = com.danzucker.stitchpad.feature.auth.domain.AuthError.UNKNOWN
+        val vm = buildViewModel(FakeActiveWorkshopProvider(pending()))
+        vm.events.test {
+            vm.onAction(StaffPendingAction.OnSignOutClick)
+            expectNoEvents()
+        }
+        assertEquals(0, prefs.clearCount)
     }
 }
