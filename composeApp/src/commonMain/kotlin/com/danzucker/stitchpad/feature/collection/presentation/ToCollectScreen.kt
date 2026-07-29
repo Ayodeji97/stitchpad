@@ -248,12 +248,12 @@ private fun CollectibleRow(
         ) {
             Column(Modifier.weight(1f)) {
                 Text(row.customerName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                val unit = if (row.daysOwed == 1) "day" else "days"
-                val owedLabel = if (row.isOverdue) {
-                    "Overdue · owed ${row.daysOwed} $unit"
-                } else {
-                    "owed ${row.daysOwed} $unit"
+                val owedText = when (row.daysOwed) {
+                    0 -> "owed today"
+                    1 -> "owed 1 day"
+                    else -> "owed ${row.daysOwed} days"
                 }
+                val owedLabel = if (row.isOverdue) "Overdue · $owedText" else owedText
                 val owedColor = if (row.isOverdue) {
                     MaterialTheme.colorScheme.error
                 } else {
