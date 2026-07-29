@@ -3,7 +3,7 @@ import { DigestItem, DigestModel, OrderScanDoc } from './types';
 
 const MIN_BALANCE = 1; // ignore sub-naira rounding residue from totalPrice - payments
 
-function balanceRemaining(o: OrderScanDoc): number {
+export function balanceRemaining(o: OrderScanDoc): number {
   const paid = o.payments.length > 0
     ? o.payments.reduce((sum, p) => sum + (p.amount || 0), 0)
     : (o.depositPaid ?? 0);
@@ -14,7 +14,7 @@ function balanceRemaining(o: OrderScanDoc): number {
   return Math.max(0, payable - paid);
 }
 
-function summariseGarments(items: OrderScanDoc['items']): string {
+export function summariseGarments(items: OrderScanDoc['items']): string {
   if (!items || items.length === 0) return 'Order';
   const f = items[0];
   const name = (f.customGarmentName?.trim() || f.garmentType?.trim() || f.description?.trim() || 'Garment');
