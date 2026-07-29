@@ -95,7 +95,13 @@ private suspend fun resolvePostAuthDestination(
     return when {
         session.isActiveStaff -> HomeRoute
         staffPending -> StaffPendingRoute()
-        pendingDeepLink.target.value == DeepLinkTarget.JOIN_WORKSHOP -> RedeemInviteRoute()
+        pendingDeepLink.target.value == DeepLinkTarget.JOIN_WORKSHOP -> {
+            // Clear the target (the code survives for RedeemInviteViewModel to consume)
+            // so it can't linger and bounce the user back to redeem via
+            // PushDeepLinkRedirectEffect once they later reach Home.
+            pendingDeepLink.clear()
+            RedeemInviteRoute()
+        }
         needsWorkshopSetupForCurrentUser(authRepository, resolveNeedsWorkshopSetup) -> WorkshopSetupRoute
         else -> HomeRoute
     }
