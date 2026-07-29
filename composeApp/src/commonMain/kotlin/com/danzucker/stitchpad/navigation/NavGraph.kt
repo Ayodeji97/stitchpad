@@ -398,7 +398,10 @@ fun StitchPadNavHost(
             RedeemInviteRoot(
                 onNavigateToPending = { workshopName ->
                     navController.navigate(StaffPendingRoute(workshopName, fromRedeem = true)) {
-                        popUpTo<RedeemInviteRoute> { inclusive = true }
+                        // Clear the WHOLE back stack (including any Home underneath from an
+                        // in-app invite tap) so a pending staffer can't system-back out of
+                        // the waiting screen into the app while still STAFF/PENDING.
+                        popUpTo(0) { inclusive = true }
                     }
                 },
                 onNavigateBack = { navController.navigateUp() },
