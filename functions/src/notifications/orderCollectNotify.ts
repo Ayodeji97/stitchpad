@@ -83,12 +83,18 @@ export const onOrderCollectible = functions
     try {
       const userSnap = await db.collection('users').doc(uid).get();
       const u = userSnap.data() ?? {};
-      const email = (u.email as string | undefined) ?? '';
+      let email = (u.email as string | undefined) ?? '';
+      if (!email) {
+        // Older/never-updated user docs can have a blank email field; fall back to the
+        // Firebase Auth record (source of truth) so the rollout allowlist gate resolves.
+        email = await admin.auth().getUser(uid).then((r) => r.email ?? '').catch(() => '');
+      }
       const pushEnabled = u.dailyPushEnabled !== undefined
         ? u.dailyPushEnabled !== false
         : u.dailyDigestEmailEnabled !== false;
-      if (!pushEnabled || !isDigestAllowed(uid, email)) {
-        functions.logger.info('onOrderCollectible: push skipped (gated)', { uid, orderId, pushEnabled, allowed: isDigestAllowed(uid, email) });
+      const allowed = isDigestAllowed(uid, email);
+      if (!pushEnabled || !allowed) {
+        functions.logger.info('onOrderCollectible: push skipped (gated)', { uid, orderId, pushEnabled, allowed, emailPresent: !!email });
         return;
       }
 
