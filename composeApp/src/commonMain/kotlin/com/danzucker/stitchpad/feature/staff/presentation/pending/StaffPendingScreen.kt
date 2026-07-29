@@ -73,11 +73,12 @@ private val SuccessGreen = Color(0xFF2D9E6B)
 @Composable
 fun StaffPendingRoot(
     workshopName: String?,
+    fromRedeem: Boolean,
     onNavigateToHome: () -> Unit,
     onNavigateToRedeem: (declined: Boolean) -> Unit,
     onSignedOut: () -> Unit,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
-    viewModel: StaffPendingViewModel = koinViewModel { parametersOf(workshopName.orEmpty()) },
+    viewModel: StaffPendingViewModel = koinViewModel { parametersOf(workshopName.orEmpty(), fromRedeem) },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()

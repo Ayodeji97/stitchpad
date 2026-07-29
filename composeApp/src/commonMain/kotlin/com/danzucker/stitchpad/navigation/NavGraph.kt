@@ -397,7 +397,7 @@ fun StitchPadNavHost(
         composable<RedeemInviteRoute> { entry ->
             RedeemInviteRoot(
                 onNavigateToPending = { workshopName ->
-                    navController.navigate(StaffPendingRoute(workshopName)) {
+                    navController.navigate(StaffPendingRoute(workshopName, fromRedeem = true)) {
                         popUpTo<RedeemInviteRoute> { inclusive = true }
                     }
                 },
@@ -411,8 +411,10 @@ fun StitchPadNavHost(
             )
         }
         composable<StaffPendingRoute> { entry ->
+            val route = entry.toRoute<StaffPendingRoute>()
             StaffPendingRoot(
-                workshopName = entry.toRoute<StaffPendingRoute>().workshopName,
+                workshopName = route.workshopName,
+                fromRedeem = route.fromRedeem,
                 onNavigateToHome = {
                     navController.navigate(HomeRoute) {
                         popUpTo<StaffPendingRoute> { inclusive = true }

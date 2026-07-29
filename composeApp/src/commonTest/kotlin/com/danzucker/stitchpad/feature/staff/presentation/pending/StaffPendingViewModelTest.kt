@@ -44,8 +44,12 @@ class StaffPendingViewModelTest {
     @AfterTest
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun buildViewModel(provider: FakeActiveWorkshopProvider) = StaffPendingViewModel(
+    private fun buildViewModel(
+        provider: FakeActiveWorkshopProvider,
+        fromRedeem: Boolean = false,
+    ) = StaffPendingViewModel(
         workshopName = "Ade Fashions",
+        fromRedeem = fromRedeem,
         activeWorkshopProvider = provider,
         staffMembershipPrefs = prefs,
         inviteRedemptionRepository = repo,
@@ -90,8 +94,8 @@ class StaffPendingViewModelTest {
 
     @Test
     fun a_cold_start_after_decline_routes_back_to_redeem_even_without_seeing_pending() = runTest {
-        // The provider's first emission is already owner-of-self (owner declined
-        // before the app reopened) — the screen must still route back to redeem.
+        // Cold start (fromRedeem = false): the provider's first emission is already
+        // owner-of-self (owner declined before the app reopened) — still route back.
         val vm = buildViewModel(FakeActiveWorkshopProvider(WorkshopSession.ownerOfSelf("staff-1")))
         vm.events.test {
             val event = awaitItem()
@@ -99,6 +103,23 @@ class StaffPendingViewModelTest {
             assertEquals(true, event.declined)
         }
         assertEquals(1, prefs.clearCount)
+    }
+
+    @Test
+    fun a_fresh_redeem_does_not_false_decline_on_the_stale_owner_session() = runTest {
+        // fromRedeem = true: the provider still holds the pre-redeem owner-of-self for
+        // a moment. That must NOT be read as a decline; wait for the provisional
+        // pending, and only then honour a real revert.
+        val provider = FakeActiveWorkshopProvider(WorkshopSession.ownerOfSelf("staff-1"))
+        val vm = buildViewModel(provider, fromRedeem = true)
+        vm.events.test {
+            expectNoEvents() // stale owner-of-self ignored
+            provider.setSession(pending())
+            expectNoEvents() // now waiting
+            provider.setSession(active())
+            assertIs<StaffPendingEvent.NavigateToHome>(awaitItem())
+        }
+        assertEquals(0, prefs.clearCount)
     }
 
     @Test

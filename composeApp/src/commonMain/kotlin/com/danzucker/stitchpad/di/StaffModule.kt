@@ -17,6 +17,8 @@ val staffModule = module {
     single<InviteRedemptionRepository> { CloudFunctionsInviteRedemptionRepository(functions = get()) }
 
     viewModelOf(::RedeemInviteViewModel)
-    // workshopName is a display-only nav arg passed via parametersOf from the Root.
-    viewModel { params -> StaffPendingViewModel(params.get(), get(), get(), get(), get()) }
+    // workshopName (display) + fromRedeem (flag) are nav args passed via parametersOf.
+    viewModel { params ->
+        StaffPendingViewModel(params.get(), params.get(), get(), get(), get(), get())
+    }
 }

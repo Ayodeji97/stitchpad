@@ -46,9 +46,12 @@ data class RedeemInviteRoute(val declined: Boolean = false)
  * Staff onboarding — the waiting screen after redeeming, until the owner approves.
  * Auto-advances to [HomeRoute] the moment the approval claim lands. [workshopName]
  * is passed from the redeem step; null on a cold start straight into the pending state.
+ * [fromRedeem] is true only when reached directly from a successful redeem — the
+ * screen then waits for the session provider to reflect the join before it can treat
+ * a (briefly stale) owner-of-self session as a decline.
  */
 @Serializable
-data class StaffPendingRoute(val workshopName: String? = null)
+data class StaffPendingRoute(val workshopName: String? = null, val fromRedeem: Boolean = false)
 
 @Serializable
 data object HomeRoute
