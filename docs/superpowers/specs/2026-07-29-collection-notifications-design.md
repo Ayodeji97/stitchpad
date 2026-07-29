@@ -161,3 +161,21 @@ lesson: additive, non-breaking only).
 - No duplicate inbox docs between the instant notification and the daily digest.
 - No new Firestore data required beyond an optional additive `isOverdue` flag;
   old clients/docs keep working.
+
+## QA smoke test
+
+1. Mark an unpaid order **In-progress → Ready**. Within seconds an inbox
+   notification appears ("… is ready — ₦X to collect") and, as a push tester,
+   a push arrives. Tapping the notification opens **that order**.
+2. Record a partial payment on an order, then set it **Ready**. The
+   notification still fires (balance remaining > 0). A **fully-paid** order
+   moved to Ready produces **no** notification.
+3. On the same order, move **Ready → Delivered**. **No** second
+   notification/push fires (first-entry only); the inbox shows a single item
+   for that order (deduped id).
+4. Run `debugSendMyDigest` (tester). The summary push opens the **To-collect
+   list**. An order unpaid for **≥ 7 days** is shown as overdue and leads the
+   summary.
+5. Regression: existing OVERDUE / DUE_SOON / gift notifications still render
+   and tap through correctly; old notification docs without `isOverdue` still
+   load without error.
