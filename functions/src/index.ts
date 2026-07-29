@@ -90,3 +90,7 @@ export { setMarketerStatus } from './referral/setMarketerStatus';
 export { dailyOnboardingMetrics, debugRunOnboardingMetrics } from './metrics/dailyOnboardingMetrics';
 export { grantLaunchFreeOnSignup } from './freemium/onUserCreated';
 export { migrateSensitiveFields } from './staff/migrateSensitiveFields';
+export { generateStaffInvite } from './staff/generateStaffInvite';
+export { redeemStaffInvite } from './staff/redeemStaffInvite';
+export { approveStaffMember } from './staff/approveStaffMember';
+export { revokeStaffMember } from './staff/revokeStaffMember';

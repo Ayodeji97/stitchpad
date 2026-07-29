@@ -45,7 +45,14 @@ service cloud.firestore {
     function isActiveMember(uid) {
       return request.auth != null
         && request.auth.token.get('role', '') == 'staff'
-        && request.auth.token.get('workshopUid', '') == uid;
+        && request.auth.token.get('workshopUid', '') == uid
+        // Also require the membership doc to be ACTIVE. The claim alone can't
+        // enforce revocation: a revoked member's already-minted token keeps the
+        // stale claim for up to an hour. Gating on the doc makes revokeStaffMember
+        // (status -> 'revoked') cut access immediately. The claim checks above are
+        // a cheap pre-filter so owners (no claim) never incur this get().
+        && exists(/databases/$(database)/documents/users/$(uid)/memberships/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(uid)/memberships/$(request.auth.uid)).data.status == 'active';
     }
 
     // Read access to a workshop's non-private data: the owner, or an active member.
@@ -344,6 +351,17 @@ service cloud.firestore {
         allow create, delete: if false;
       }
 
+      // ── Staff memberships (Owner + Staff feature) ───────────────────────
+      // The owner (uid) reads all their memberships; a staff member reads ONLY
+      // their own doc (docId == their auth uid) to drive the post-approval token
+      // refresh and the pending screen. All writes are Admin-SDK only — the
+      // generate/redeem/approve/revoke callables own the lifecycle so a client
+      // can never self-approve or edit status/claims.
+      match /memberships/{staffAuthUid} {
+        allow read: if isOwner(uid) || (request.auth != null && request.auth.uid == staffAuthUid);
+        allow write: if false;
+      }
+
       // ── Push notification tokens subcollection ──────────────────────
       // Owner-managed: the device registers/refreshes/removes its own token.
       match /notificationTokens/{token} {
@@ -409,6 +427,14 @@ service cloud.firestore {
     // Reverse index token -> uid, read only by getPublicGiftProfile (Admin SDK) so
     // the users collection stays owner-read-only. Minted by createGiftLink. Hard deny.
     match /giftLinkTokens/{token} {
+      allow read, write: if false;
+    }
+
+    // ── /staffInvites/{code} — Admin-SDK only (Owner + Staff feature) ──────
+    // Bearer invite codes minted by generateStaffInvite and consumed by
+    // redeemStaffInvite (both callables, Admin SDK). Never client-readable: a
+    // code holder redeems via the callable, not by reading the doc. Hard deny.
+    match /staffInvites/{code} {
       allow read, write: if false;
     }
 
