@@ -17,23 +17,29 @@ object WorkshopSessionResolver {
     const val CLAIM_ROLE_STAFF = "staff"
 
     /**
+     * The membership doc never selects which tree is addressable — only the
+     * server-authoritative **claim** does, because Firestore rules key access off
+     * the claim. The doc is used solely to drive the pending/waiting UI and (via
+     * the provider) to trigger a token refresh once approved. So there is no
+     * `membershipWorkshopUid` parameter: an approved-but-claimless staffer is
+     * held on their OWN tree until the claim lands, never on the owner's.
+     *
      * @param authUid the signed-in Firebase uid.
      * @param claimWorkshopUid the `workshopUid` custom claim, if present on the token.
      * @param claimRole the `role` custom claim, if present ([CLAIM_ROLE_STAFF] for staff).
-     * @param membershipWorkshopUid the workshop from the staff member's membership doc, if read.
      * @param membershipStatus the membership lifecycle state from that doc, if read.
      */
     fun resolve(
         authUid: String,
         claimWorkshopUid: String?,
         claimRole: String?,
-        membershipWorkshopUid: String?,
         membershipStatus: MembershipStatus?,
     ): WorkshopSession {
         // Precedence: server-authoritative claim, then the membership-doc fallback
-        // (for the window before an approved token refreshes), then the fail-safe.
+        // (drives the waiting UI before an approved token refreshes), then the
+        // fail-safe.
         return staffFromClaim(authUid, claimWorkshopUid, claimRole)
-            ?: staffFromMembership(authUid, membershipWorkshopUid, membershipStatus)
+            ?: staffFromMembership(authUid, membershipStatus)
             ?: WorkshopSession.ownerOfSelf(authUid)
     }
 
@@ -55,15 +61,15 @@ object WorkshopSessionResolver {
 
     private fun staffFromMembership(
         authUid: String,
-        membershipWorkshopUid: String?,
         membershipStatus: MembershipStatus?,
     ): WorkshopSession? = when (membershipStatus) {
-        MembershipStatus.ACTIVE -> membershipWorkshopUid?.let {
-            WorkshopSession(authUid, it, StaffRole.STAFF, MembershipStatus.ACTIVE)
-        }
-        // Not yet approved: STAFF role so nav routes to the pending screen, but
-        // workshopUid stays owner-of-self so no owner data is addressable yet.
-        MembershipStatus.PENDING ->
+        // PENDING (awaiting approval) and ACTIVE-without-claim (approved, but the
+        // token has not refreshed the claim yet — else staffFromClaim would have
+        // won) BOTH resolve to STAFF/PENDING on the user's OWN tree: nav routes to
+        // the waiting screen and no owner data is addressable (rules would deny it
+        // without the claim). The provider force-refreshes the token on ACTIVE;
+        // once the claim lands, staffFromClaim promotes to the owner's tree.
+        MembershipStatus.PENDING, MembershipStatus.ACTIVE ->
             WorkshopSession(authUid, authUid, StaffRole.STAFF, MembershipStatus.PENDING)
         // REVOKED or absent → no staff session; caller falls back to owner-of-self.
         MembershipStatus.REVOKED, null -> null

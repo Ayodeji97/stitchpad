@@ -3,7 +3,7 @@ package com.danzucker.stitchpad.navigation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.concurrent.Volatile
 
-enum class DeepLinkTarget { INBOX, UPGRADE, CLAIM_GIFT, ORDER, TO_COLLECT }
+enum class DeepLinkTarget { INBOX, UPGRADE, CLAIM_GIFT, ORDER, TO_COLLECT, JOIN_WORKSHOP }
 
 /** Plan to pre-select on the Upgrade screen when arriving via a renewal deep link. */
 data class UpgradePreselect(val tier: String?, val cadence: String?)
@@ -14,6 +14,7 @@ class PendingDeepLinkHolder {
     private var upgradePreselect: UpgradePreselect? = null
     private var claimGiftCode: String? = null
     private var pendingOrderId: String? = null
+    private var joinWorkshopCode: String? = null
 
     // Written from the main thread (App Link intent) AND read/consumed from the
     // coordinator's background scope, so it needs a happens-before edge that the
@@ -24,6 +25,7 @@ class PendingDeepLinkHolder {
     fun set(t: DeepLinkTarget) {
         upgradePreselect = null
         claimGiftCode = null
+        joinWorkshopCode = null
         target.value = t
     }
 
@@ -31,6 +33,7 @@ class PendingDeepLinkHolder {
     fun setUpgrade(tier: String?, cadence: String?) {
         upgradePreselect = UpgradePreselect(tier, cadence)
         claimGiftCode = null
+        joinWorkshopCode = null
         target.value = DeepLinkTarget.UPGRADE
     }
 
@@ -38,6 +41,7 @@ class PendingDeepLinkHolder {
     fun setClaimGift(code: String) {
         upgradePreselect = null
         claimGiftCode = code
+        joinWorkshopCode = null
         target.value = DeepLinkTarget.CLAIM_GIFT
     }
 
@@ -47,6 +51,14 @@ class PendingDeepLinkHolder {
         upgradePreselect = null
         claimGiftCode = null
         target.value = DeepLinkTarget.ORDER
+    }
+
+    /** JOIN_WORKSHOP target carrying the invite code from a staff invite link. */
+    fun setJoinWorkshop(code: String) {
+        upgradePreselect = null
+        claimGiftCode = null
+        joinWorkshopCode = code
+        target.value = DeepLinkTarget.JOIN_WORKSHOP
     }
 
     /**
@@ -79,6 +91,13 @@ class PendingDeepLinkHolder {
 
     /** One-shot read of the ORDER target's order id, consumed by MainRoot. */
     fun consumeOrderId(): String? = pendingOrderId.also { pendingOrderId = null }
+
+    /** One-shot read of the invite code, consumed by RedeemInviteViewModel on init. */
+    fun consumeJoinWorkshopCode(): String? {
+        val c = joinWorkshopCode
+        joinWorkshopCode = null
+        return c
+    }
 
     /** One-shot read of the referral code, consumed by ReferralAttributionCoordinator. */
     fun consumeReferralCode(): String? {

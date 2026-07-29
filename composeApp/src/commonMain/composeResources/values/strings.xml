@@ -1815,4 +1815,37 @@
     <string name="reports_profit_coverage_remaining">Add costs to %1$d more to see your full profit</string>
     <string name="reports_profit_coverage_all">All %1$d orders costed — this is your full profit</string>
     <string name="reports_profit_empty">Add costs to an order to see profit</string>
+
+    <!-- Staff onboarding (Owner + Staff feature) -->
+    <string name="staff_sign_out">Sign out</string>
+    <string name="staff_join_title">Join a workshop</string>
+    <string name="staff_join_subtitle">Enter the invite code your workshop owner shared with you.</string>
+    <string name="staff_join_subtitle_prefilled">We filled in the code from your invite link. Tap join to continue.</string>
+    <string name="staff_join_code_label">Invite code</string>
+    <string name="staff_join_code_helper">8 characters, letters and numbers.</string>
+    <string name="staff_join_code_valid">Code looks good.</string>
+    <string name="staff_join_cta">Join workshop</string>
+    <string name="staff_join_note">Your owner reviews every request. You&apos;ll get in as soon as they approve you.</string>
+    <string name="staff_join_no_code">Don&apos;t have a code? Ask your owner</string>
+
+    <string name="staff_error_invite_invalid">That code is invalid or has expired. Ask your owner for a new one.</string>
+    <string name="staff_error_already_member">You&apos;re already part of this workshop.</string>
+    <string name="staff_error_cannot_join_own">You can&apos;t join your own workshop with this code.</string>
+    <string name="staff_error_seat_cap">This workshop is full. Ask your owner to free up a seat.</string>
+    <string name="staff_error_network">No connection. Check your internet and try again.</string>
+    <string name="staff_error_generic">Something went wrong. Please try again.</string>
+
+    <string name="staff_pending_pill">Awaiting approval</string>
+    <string name="staff_pending_title">You&apos;re almost in</string>
+    <string name="staff_pending_subtitle">Your request has been sent. The owner just needs to approve you and we&apos;ll let you in automatically.</string>
+    <string name="staff_pending_chip_sub">Request sent · owner notified</string>
+    <string name="staff_pending_workshop_fallback">Your workshop</string>
+    <string name="staff_pending_step1_title">Code redeemed</string>
+    <string name="staff_pending_step1_sub">You joined the workshop.</string>
+    <string name="staff_pending_step2_title">Waiting for the owner</string>
+    <string name="staff_pending_step2_sub">They&apos;ve been notified to approve you.</string>
+    <string name="staff_pending_step3_title">Start working</string>
+    <string name="staff_pending_step3_sub">See orders, measurements &amp; advance jobs.</string>
+    <string name="staff_pending_leave">Leave this workshop</string>
+    <string name="staff_pending_declined">Your request wasn&apos;t approved. You can try another code.</string>
 </resources>

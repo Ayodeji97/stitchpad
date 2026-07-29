@@ -8,6 +8,7 @@ import com.danzucker.stitchpad.core.config.domain.model.AppConfig
 import com.danzucker.stitchpad.core.config.domain.repository.AppConfigRepository
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
+import com.danzucker.stitchpad.core.data.staff.FakeStaffMembershipPrefsStore
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
@@ -146,7 +147,7 @@ private fun buildSettingsVm(
         receiptImagePreferencesStore = HubFlagFakeReceiptImagePreferencesStore(),
         smartUsageStore = HubFlagFakeSmartUsageStore(),
         smartUsageDocSource = HubFlagFakeSmartUsageDocSource(),
-        signOutUseCase = SignOutUseCase(authRepo, HubFlagNoOpPushTokenRegistrar(), PendingDeepLinkHolder()),
+        signOutUseCase = SignOutUseCase(authRepo, HubFlagNoOpPushTokenRegistrar(), PendingDeepLinkHolder(), FakeStaffMembershipPrefsStore()),
         pushPermissionController = HubFlagNoOpPushPermissionController(),
         appConfigRepository = appConfig,
         communityJoinTracker = FakeCommunityJoinTracker(),

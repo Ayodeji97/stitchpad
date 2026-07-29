@@ -7,6 +7,7 @@ import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
 import com.danzucker.stitchpad.core.config.domain.model.AppConfig
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
+import com.danzucker.stitchpad.core.data.staff.FakeStaffMembershipPrefsStore
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
@@ -149,7 +150,7 @@ class SettingsCommunityTest {
             receiptImagePreferencesStore = CommunityFakeReceiptImagePreferencesStore(),
             smartUsageStore = CommunityFakeSmartUsageStore(),
             smartUsageDocSource = CommunityFakeSmartUsageDocSource(),
-            signOutUseCase = SignOutUseCase(authRepo, CommunityNoOpPushTokenRegistrar(), PendingDeepLinkHolder()),
+            signOutUseCase = SignOutUseCase(authRepo, CommunityNoOpPushTokenRegistrar(), PendingDeepLinkHolder(), FakeStaffMembershipPrefsStore()),
             pushPermissionController = CommunityNoOpPushPermissionController(),
             appConfigRepository = appConfigRepository,
             communityJoinTracker = communityJoinTracker,

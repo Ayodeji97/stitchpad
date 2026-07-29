@@ -11,13 +11,11 @@ class WorkshopSessionResolverTest {
         authUid: String = "user-self",
         claimWorkshopUid: String? = null,
         claimRole: String? = null,
-        membershipWorkshopUid: String? = null,
         membershipStatus: MembershipStatus? = null,
     ) = WorkshopSessionResolver.resolve(
         authUid = authUid,
         claimWorkshopUid = claimWorkshopUid,
         claimRole = claimRole,
-        membershipWorkshopUid = membershipWorkshopUid,
         membershipStatus = membershipStatus,
     )
 
@@ -49,17 +47,20 @@ class WorkshopSessionResolverTest {
     }
 
     @Test
-    fun active_membership_without_claim_resolves_to_active_staff() {
+    fun active_membership_without_claim_is_held_on_own_tree_not_the_owners() {
         // The fallback window: owner just approved, but the staff token hasn't
-        // refreshed yet, so the claim is absent. The membership doc drives the UI.
+        // refreshed the claim yet. The doc must NOT grant the owner's tree —
+        // rules require the claim, so reads would be denied. Hold as STAFF/PENDING
+        // on the staffer's own tree until the claim lands (claim path promotes).
         val session = resolve(
             authUid = "staff-1",
-            membershipWorkshopUid = "owner-9",
             membershipStatus = MembershipStatus.ACTIVE,
         )
 
-        assertEquals("owner-9", session.workshopUid)
-        assertTrue(session.isActiveStaff)
+        assertEquals("staff-1", session.workshopUid)
+        assertEquals(StaffRole.STAFF, session.role)
+        assertEquals(MembershipStatus.PENDING, session.membershipStatus)
+        assertFalse(session.isActiveStaff)
     }
 
     @Test
@@ -68,7 +69,6 @@ class WorkshopSessionResolverTest {
         // but workshopUid stays owner-of-self so no owner data is addressable yet.
         val session = resolve(
             authUid = "staff-1",
-            membershipWorkshopUid = "owner-9",
             membershipStatus = MembershipStatus.PENDING,
         )
 
@@ -82,7 +82,6 @@ class WorkshopSessionResolverTest {
     fun revoked_membership_reverts_to_owner_of_self() {
         val session = resolve(
             authUid = "staff-1",
-            membershipWorkshopUid = "owner-9",
             membershipStatus = MembershipStatus.REVOKED,
         )
 
@@ -109,10 +108,10 @@ class WorkshopSessionResolverTest {
             authUid = "staff-1",
             claimWorkshopUid = "owner-claim",
             claimRole = WorkshopSessionResolver.CLAIM_ROLE_STAFF,
-            membershipWorkshopUid = "owner-doc",
             membershipStatus = MembershipStatus.ACTIVE,
         )
 
         assertEquals("owner-claim", session.workshopUid)
+        assertTrue(session.isActiveStaff)
     }
 }

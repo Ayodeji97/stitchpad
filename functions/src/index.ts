@@ -95,3 +95,4 @@ export { generateStaffInvite } from './staff/generateStaffInvite';
 export { redeemStaffInvite } from './staff/redeemStaffInvite';
 export { approveStaffMember } from './staff/approveStaffMember';
 export { revokeStaffMember } from './staff/revokeStaffMember';
+export { cancelStaffMembership } from './staff/cancelStaffMembership';
