@@ -129,7 +129,7 @@ function productionDigestIO(apiKey: string): DigestIO {
           tokens: batch,
           notification: { title: payload.title, body: payload.body },
           android: { notification: { channelId: 'daily_reminders' } },
-          data: { target: 'inbox' },
+          data: { target: 'to_collect' },
         });
         res.responses.forEach((r, j) => {
           if (r.success) {

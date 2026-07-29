@@ -1,8 +1,11 @@
 import { pushSummary } from '../../notifications/pushSummary';
 import { DigestModel } from '../../notifications/types';
 
-const item = (customerName: string, garmentSummary: string, extra: Partial<{ deadline: number; amount: number }> = {}) =>
-  ({ orderId: customerName, customerName, garmentSummary, ...extra });
+const item = (
+  customerName: string,
+  garmentSummary: string,
+  extra: Partial<{ deadline: number; amount: number; isOverdue: boolean }> = {},
+) => ({ orderId: customerName, customerName, garmentSummary, ...extra });
 
 const model = (over: Partial<DigestModel> = {}): DigestModel =>
   ({ overdue: [], dueSoon: [], outstanding: [], ...over });
@@ -34,5 +37,15 @@ describe('pushSummary', () => {
   it('falls back to outstanding (owes, formatted naira) when only outstanding', () => {
     expect(pushSummary(model({ outstanding: [item('Ngozi', 'Shirt', { amount: 18000 })] })).body)
       .toBe('Ngozi owes ₦18,000');
+  });
+
+  it('within outstanding, ranks an overdue-to-collect item above a non-overdue one for the lead', () => {
+    const m = model({
+      outstanding: [
+        item('Ngozi', 'Shirt', { amount: 30000 }), // fresh, biggest amount, listed first
+        item('Chidi', 'Kaftan', { amount: 5000, isOverdue: true }),
+      ],
+    });
+    expect(pushSummary(m).body).toBe('Chidi owes ₦5,000 + 1 more need attention');
   });
 });
