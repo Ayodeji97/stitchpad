@@ -20,7 +20,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -30,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.feature.dashboard.presentation.formatNaira
+import com.danzucker.stitchpad.ui.components.celebration.rememberReduceMotionEnabled
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 
@@ -63,14 +63,15 @@ fun YoureOwedCard(
 
     // Periodic "pop + wobble" nudge every ~12s (~8s + slightly stronger when overdue) to
     // draw the eye back to money waiting to be collected: a quick scale-up plus a small
-    // tilt, then settle. Animates via graphicsLayer so nothing recomposes; at rest between
-    // nudges. Reads as a friendly "look here", not an error shake.
+    // tilt, then settle. The animated floats are read INSIDE the graphicsLayer lambda
+    // (deferred) so the card itself never recomposes; disabled under reduce-motion.
+    val reduceMotion = rememberReduceMotionEnabled()
     val overdue = overdueCount > 0
     val cycleMs = if (overdue) OVERDUE_NUDGE_CYCLE_MS else NUDGE_CYCLE_MS
     val scalePeak = if (overdue) OVERDUE_NUDGE_SCALE_PEAK else NUDGE_SCALE_PEAK
     val wobbleDeg = if (overdue) OVERDUE_NUDGE_WOBBLE_DEG else NUDGE_WOBBLE_DEG
     val transition = rememberInfiniteTransition(label = "moneyToCollectNudge")
-    val nudgeScale by transition.animateFloat(
+    val nudgeScale = transition.animateFloat(
         initialValue = 1f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
@@ -84,7 +85,7 @@ fun YoureOwedCard(
         ),
         label = "moneyToCollectScale",
     )
-    val nudgeWobble by transition.animateFloat(
+    val nudgeWobble = transition.animateFloat(
         initialValue = 0f,
         targetValue = 0f,
         animationSpec = infiniteRepeatable(
@@ -107,9 +108,10 @@ fun YoureOwedCard(
         modifier = modifier
             .fillMaxWidth()
             .graphicsLayer {
-                scaleX = nudgeScale
-                scaleY = nudgeScale
-                rotationZ = nudgeWobble
+                val scale = if (reduceMotion) 1f else nudgeScale.value
+                scaleX = scale
+                scaleY = scale
+                rotationZ = if (reduceMotion) 0f else nudgeWobble.value
             }
             .clickable(onClick = onClick)
             .semantics { contentDescription = cd },
