@@ -6,6 +6,7 @@ import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.danzucker.stitchpad.core.domain.session.StaffRole
 import com.danzucker.stitchpad.navigation.CustomerListRoute
 import com.danzucker.stitchpad.navigation.DashboardRoute
 import com.danzucker.stitchpad.navigation.OrderListRoute
@@ -45,5 +46,12 @@ sealed class BottomNavItem(
 
     companion object {
         val all = listOf(Dashboard, Customers, Orders, Reports)
+
+        /** Staff sees the same tabs minus Reports (revenue analytics is owner-only). */
+        private val staff = listOf(Dashboard, Customers, Orders)
+
+        /** The tabs visible for [role] — staff drop Reports; owner sees [all]. */
+        fun forRole(role: StaffRole): List<BottomNavItem> =
+            if (role == StaffRole.STAFF) staff else all
     }
 }
