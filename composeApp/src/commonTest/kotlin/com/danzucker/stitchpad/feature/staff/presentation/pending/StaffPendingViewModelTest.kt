@@ -49,7 +49,7 @@ class StaffPendingViewModelTest {
         activeWorkshopProvider = provider,
         staffMembershipPrefs = prefs,
         inviteRedemptionRepository = repo,
-        signOutUseCase = SignOutUseCase(authRepo, NoOpRegistrar(), PendingDeepLinkHolder()),
+        signOutUseCase = SignOutUseCase(authRepo, NoOpRegistrar(), PendingDeepLinkHolder(), FakeStaffMembershipPrefsStore()),
     )
 
     private class NoOpRegistrar : PushTokenRegistrar {

@@ -46,7 +46,7 @@ class RedeemInviteViewModelTest {
     private fun buildViewModel() = RedeemInviteViewModel(
         inviteRedemptionRepository = repo,
         staffMembershipPrefs = prefs,
-        signOutUseCase = SignOutUseCase(authRepo, NoOpRegistrar(), PendingDeepLinkHolder()),
+        signOutUseCase = SignOutUseCase(authRepo, NoOpRegistrar(), PendingDeepLinkHolder(), FakeStaffMembershipPrefsStore()),
         pendingDeepLink = deepLink,
     )
 

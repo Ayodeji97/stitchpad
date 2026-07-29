@@ -6,6 +6,7 @@ import com.danzucker.stitchpad.core.config.FakeCommunityJoinTracker
 import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
+import com.danzucker.stitchpad.core.data.staff.FakeStaffMembershipPrefsStore
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
@@ -93,7 +94,7 @@ class SettingsRedeemGiftTest {
             receiptImagePreferencesStore = RedeemFakeReceiptImagePreferencesStore(),
             smartUsageStore = RedeemFakeSmartUsageStore(),
             smartUsageDocSource = RedeemFakeSmartUsageDocSource(),
-            signOutUseCase = SignOutUseCase(authRepo, RedeemNoOpPushTokenRegistrar(), PendingDeepLinkHolder()),
+            signOutUseCase = SignOutUseCase(authRepo, RedeemNoOpPushTokenRegistrar(), PendingDeepLinkHolder(), FakeStaffMembershipPrefsStore()),
             pushPermissionController = RedeemNoOpPushPermissionController(),
             appConfigRepository = FakeAppConfigRepository(),
             communityJoinTracker = FakeCommunityJoinTracker(),

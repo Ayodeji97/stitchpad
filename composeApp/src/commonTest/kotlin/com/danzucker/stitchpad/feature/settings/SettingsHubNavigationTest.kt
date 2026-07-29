@@ -7,6 +7,7 @@ import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
 import com.danzucker.stitchpad.core.config.domain.repository.AppConfigRepository
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
+import com.danzucker.stitchpad.core.data.staff.FakeStaffMembershipPrefsStore
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
@@ -127,7 +128,7 @@ private fun buildSettingsVm(
         receiptImagePreferencesStore = HubNavFakeReceiptImagePreferencesStore(),
         smartUsageStore = HubNavFakeSmartUsageStore(),
         smartUsageDocSource = HubNavFakeSmartUsageDocSource(),
-        signOutUseCase = SignOutUseCase(authRepo, HubNavNoOpPushTokenRegistrar(), PendingDeepLinkHolder()),
+        signOutUseCase = SignOutUseCase(authRepo, HubNavNoOpPushTokenRegistrar(), PendingDeepLinkHolder(), FakeStaffMembershipPrefsStore()),
         pushPermissionController = HubNavNoOpPushPermissionController(),
         appConfigRepository = appConfig,
         communityJoinTracker = FakeCommunityJoinTracker(),

@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.auth.domain
 
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.staff.StaffMembershipPrefsStore
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
 import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 import kotlinx.coroutines.withTimeoutOrNull
@@ -28,6 +29,7 @@ class SignOutUseCase(
     private val authRepository: AuthRepository,
     private val pushTokenRegistrar: PushTokenRegistrar,
     private val pendingDeepLink: PendingDeepLinkHolder,
+    private val staffMembershipPrefs: StaffMembershipPrefsStore,
 ) {
     suspend operator fun invoke(): Result<Unit, AuthError> {
         // Owner-authorised token-doc removal must happen before the session is cleared.
@@ -45,6 +47,10 @@ class SignOutUseCase(
             pendingDeepLink.consumeUpgradePreselect()
             pendingDeepLink.consumeClaimGiftCode()
             pendingDeepLink.consumeJoinWorkshopCode()
+            // Clear the staff pending-window uid centrally, so the NEXT user who
+            // signs in on this device never inherits a stale joined-workshop id
+            // (covers the Home/Settings sign-out path, not just the staff screens).
+            staffMembershipPrefs.clear()
             // Backup only on confirmed sign-out: rotate the local FCM token so any doc the
             // step above couldn't delete (offline) gets pruned server-side on the next push.
             withTimeoutOrNull(UNREGISTER_TIMEOUT_MS) { pushTokenRegistrar.invalidateToken() }
