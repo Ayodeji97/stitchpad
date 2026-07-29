@@ -32,17 +32,6 @@ export async function approveStaffMemberHandler(
   }
 
   const ref = deps.db.doc(membershipDocPath(ownerUid, staffAuthUid));
-  const snap = await ref.get();
-  if (!snap.exists) {
-    throw new functions.https.HttpsError('not-found', 'membership_not_found');
-  }
-  const status = (snap.data() as { status?: MembershipStatus }).status;
-  if (status === 'revoked') {
-    // A revoked person must re-redeem an invite (re-consent), not be silently
-    // re-approved.
-    throw new functions.https.HttpsError('failed-precondition', 'membership_revoked');
-  }
-
   const nowMs = deps.now().getTime();
   // Claim first, then doc. The client watches the membership doc and force-
   // refreshes its token when it turns active; setting the claim first guarantees
@@ -52,9 +41,24 @@ export async function approveStaffMemberHandler(
   // the rules still require an active doc, i.e. an active-looking session with
   // denied reads. So if the doc update fails, roll the claim back: we never leave
   // a claim without a matching active membership doc.
+  //
+  // The read-check-write runs in a TRANSACTION with a status precondition so a
+  // concurrent cancelStaffMembership (leave) can't be overwritten after a stale
+  // read — the tx re-reads status and refuses if it turned revoked meanwhile.
   await deps.setClaims(staffAuthUid, { workshopUid: ownerUid, role: STAFF_ROLE });
   try {
-    await ref.update({ status: 'active', approvedAt: nowMs, claimsRefreshAt: nowMs });
+    await deps.db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) {
+        throw new functions.https.HttpsError('not-found', 'membership_not_found');
+      }
+      // A revoked/cancelled member must re-redeem an invite, not be silently
+      // re-approved (and a leave that landed first must not be undone).
+      if ((snap.data() as { status?: MembershipStatus }).status === 'revoked') {
+        throw new functions.https.HttpsError('failed-precondition', 'membership_revoked');
+      }
+      tx.update(ref, { status: 'active', approvedAt: nowMs, claimsRefreshAt: nowMs });
+    });
   } catch (err) {
     await deps.setClaims(staffAuthUid, null);
     throw err;

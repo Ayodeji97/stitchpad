@@ -42,17 +42,16 @@ describe('approveStaffMemberHandler', () => {
     ).rejects.toMatchObject({ message: 'membership_revoked' });
   });
 
-  it('rolls the claim back if the membership update fails', async () => {
+  it('rolls the claim back if the membership transaction fails', async () => {
     // Claim-first, but a claim on a non-active doc would show an active-looking
-    // session with denied reads. If the doc update fails, the claim must be
+    // session with denied reads. If the doc transaction fails, the claim must be
     // cleared so we never leave a claim without a matching active doc.
     const { db, store } = makeStaffDb({ 'users/alice/memberships/chidi': { status: 'pending' } });
     const claims = makeClaimsRecorder();
-    // Make the membership doc update fail while get() still succeeds.
-    const realDoc = db.doc('users/alice/memberships/chidi');
+    // Make the membership transaction fail (e.g. contention / precondition).
     const failingDb = {
       ...db,
-      doc: () => ({ ...realDoc, update: async () => { throw new Error('firestore_down'); } }),
+      runTransaction: async () => { throw new Error('firestore_down'); },
     } as unknown as typeof db;
 
     await expect(

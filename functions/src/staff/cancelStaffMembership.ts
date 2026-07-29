@@ -33,16 +33,20 @@ export async function cancelStaffMembershipHandler(
   }
 
   const ref = deps.db.doc(membershipDocPath(workshopUid, staffAuthUid));
-  const snap = await ref.get();
-  if (!snap.exists) {
-    throw new functions.https.HttpsError('not-found', 'membership_not_found');
-  }
-
   const nowMs = deps.now().getTime();
-  // Doc first (revoked), then clear any claim — same fail-safe ordering as
-  // revokeStaffMember. A pending member has no claim yet; an active member
-  // leaving does, and clearing it removes their access.
-  await ref.update({ status: 'revoked', revokedAt: nowMs, claimsRefreshAt: nowMs });
+  // Doc first (revoked, in a transaction), then clear any claim — same fail-safe
+  // ordering as revokeStaffMember. The transaction serialises against a concurrent
+  // approveStaffMember so the two can't overwrite each other after stale reads
+  // (Firestore retries the loser, which then sees the committed status). A pending
+  // member has no claim yet; an active member leaving does, and clearing it removes
+  // their access.
+  await deps.db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) {
+      throw new functions.https.HttpsError('not-found', 'membership_not_found');
+    }
+    tx.update(ref, { status: 'revoked', revokedAt: nowMs, claimsRefreshAt: nowMs });
+  });
   await deps.setClaims(staffAuthUid, null);
 
   return { workshopUid, status: 'revoked' };
