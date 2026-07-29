@@ -44,6 +44,8 @@ class PendingDeepLinkHolder {
     /** ORDER target carrying the order id from a per-order push notification tap. */
     fun setOrder(orderId: String) {
         pendingOrderId = orderId
+        upgradePreselect = null
+        claimGiftCode = null
         target.value = DeepLinkTarget.ORDER
     }
 
