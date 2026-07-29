@@ -102,6 +102,17 @@ private suspend fun resolvePostAuthDestination(
         activeWorkshopProvider.flow.first { it.authUid == authUid }
     }
     val staffPending = session.role == StaffRole.STAFF && session.membershipStatus == MembershipStatus.PENDING
+
+    // An already-staff (active or pending) user's pending invite link is stale —
+    // they're already in a workshop. Drop the target AND code so it can't linger
+    // and bounce them from Home back to redeem via PushDeepLinkRedirectEffect.
+    if ((session.isActiveStaff || staffPending) &&
+        pendingDeepLink.target.value == DeepLinkTarget.JOIN_WORKSHOP
+    ) {
+        pendingDeepLink.clear()
+        pendingDeepLink.consumeJoinWorkshopCode()
+    }
+
     return when {
         session.isActiveStaff -> HomeRoute
         staffPending -> StaffPendingRoute()
