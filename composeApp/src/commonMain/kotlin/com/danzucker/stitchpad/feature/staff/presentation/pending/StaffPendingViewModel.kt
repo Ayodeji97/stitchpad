@@ -7,7 +7,9 @@ import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
 import com.danzucker.stitchpad.core.domain.session.StaffRole
 import com.danzucker.stitchpad.core.domain.staff.StaffMembershipPrefsStore
+import com.danzucker.stitchpad.core.domain.staff.repository.InviteRedemptionRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
+import com.danzucker.stitchpad.feature.staff.presentation.toUiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,6 +27,7 @@ class StaffPendingViewModel(
     workshopName: String,
     activeWorkshopProvider: ActiveWorkshopProvider,
     private val staffMembershipPrefs: StaffMembershipPrefsStore,
+    private val inviteRedemptionRepository: InviteRedemptionRepository,
     private val signOutUseCase: SignOutUseCase,
 ) : ViewModel() {
 
@@ -75,11 +78,29 @@ class StaffPendingViewModel(
     }
 
     private fun onLeave() {
+        val workshopUid = staffMembershipPrefs.workshopUid.value
+        if (workshopUid == null) {
+            // Nothing recorded to cancel server-side — just go back.
+            navigated = true
+            viewModelScope.launch { _events.send(StaffPendingEvent.NavigateToRedeem(declined = false)) }
+            return
+        }
         viewModelScope.launch {
-            navigated = true // suppress the flow's decline path when prefs clear below.
             _state.update { it.copy(isLeaving = true) }
-            staffMembershipPrefs.clear()
-            _events.send(StaffPendingEvent.NavigateToRedeem(declined = false))
+            // Cancel the membership server-side FIRST; only treat as "left" once the
+            // server has revoked it, so the owner can't later approve a cancelled
+            // request. On failure, stay put and surface the error.
+            when (val result = inviteRedemptionRepository.cancelMembership(workshopUid)) {
+                is Result.Success -> {
+                    navigated = true // suppress the flow's decline path when prefs clear below.
+                    staffMembershipPrefs.clear()
+                    _events.send(StaffPendingEvent.NavigateToRedeem(declined = false))
+                }
+                is Result.Error -> {
+                    _state.update { it.copy(isLeaving = false) }
+                    _events.send(StaffPendingEvent.ShowError(result.error.toUiText()))
+                }
+            }
         }
     }
 

@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.staff.presentation.pending
 
 import app.cash.turbine.test
+import com.danzucker.stitchpad.core.data.staff.FakeInviteRedemptionRepository
 import com.danzucker.stitchpad.core.data.staff.FakeStaffMembershipPrefsStore
 import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
@@ -27,6 +28,7 @@ class StaffPendingViewModelTest {
 
     private lateinit var prefs: FakeStaffMembershipPrefsStore
     private lateinit var authRepo: FakeAuthRepository
+    private lateinit var repo: FakeInviteRedemptionRepository
 
     private fun pending() = WorkshopSession("staff-1", "staff-1", StaffRole.STAFF, MembershipStatus.PENDING)
     private fun active() = WorkshopSession("staff-1", "owner-9", StaffRole.STAFF, MembershipStatus.ACTIVE)
@@ -36,6 +38,7 @@ class StaffPendingViewModelTest {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         prefs = FakeStaffMembershipPrefsStore(initial = "owner-9")
         authRepo = FakeAuthRepository()
+        repo = FakeInviteRedemptionRepository()
     }
 
     @AfterTest
@@ -45,6 +48,7 @@ class StaffPendingViewModelTest {
         workshopName = "Ade Fashions",
         activeWorkshopProvider = provider,
         staffMembershipPrefs = prefs,
+        inviteRedemptionRepository = repo,
         signOutUseCase = SignOutUseCase(authRepo, NoOpRegistrar(), PendingDeepLinkHolder()),
     )
 
@@ -85,7 +89,7 @@ class StaffPendingViewModelTest {
     }
 
     @Test
-    fun leaving_clears_the_stored_uid_and_navigates_to_redeem_without_the_declined_flag() = runTest {
+    fun leaving_cancels_server_side_then_clears_and_navigates_to_redeem() = runTest {
         val vm = buildViewModel(FakeActiveWorkshopProvider(pending()))
         vm.events.test {
             vm.onAction(StaffPendingAction.OnLeaveClick)
@@ -93,7 +97,23 @@ class StaffPendingViewModelTest {
             assertIs<StaffPendingEvent.NavigateToRedeem>(event)
             assertEquals(false, event.declined)
         }
+        assertEquals("owner-9", repo.lastCancelledWorkshopUid)
         assertEquals(1, prefs.clearCount)
+    }
+
+    @Test
+    fun a_failed_leave_keeps_the_membership_and_shows_an_error() = runTest {
+        repo.cancelResult = com.danzucker.stitchpad.core.domain.error.Result.Error(
+            com.danzucker.stitchpad.core.domain.staff.StaffError.NETWORK,
+        )
+        val vm = buildViewModel(FakeActiveWorkshopProvider(pending()))
+        vm.events.test {
+            vm.onAction(StaffPendingAction.OnLeaveClick)
+            assertIs<StaffPendingEvent.ShowError>(awaitItem())
+        }
+        // Server cancel failed → local state preserved so the user stays pending.
+        assertEquals(0, prefs.clearCount)
+        assertEquals("owner-9", prefs.workshopUid.value)
     }
 
     @Test

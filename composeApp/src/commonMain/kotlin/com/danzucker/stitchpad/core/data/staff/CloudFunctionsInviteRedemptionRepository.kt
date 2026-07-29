@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.core.data.staff
 
+import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
 import com.danzucker.stitchpad.core.domain.staff.RedeemedInvite
@@ -24,10 +25,21 @@ internal class CloudFunctionsInviteRedemptionRepository(
                 status = MembershipStatus.fromWire(res.status) ?: MembershipStatus.PENDING,
             )
         }
+
+    override suspend fun cancelMembership(workshopUid: String): EmptyResult<StaffError> =
+        staffCall("cancelStaffMembership") {
+            functions
+                .httpsCallable("cancelStaffMembership")
+                .invoke(CancelRequestDto(workshopUid = workshopUid))
+            Unit
+        }
 }
 
 @Serializable
 private data class RedeemRequestDto(val code: String)
+
+@Serializable
+private data class CancelRequestDto(val workshopUid: String)
 
 @Serializable
 private data class RedeemResponseDto(

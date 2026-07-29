@@ -18,5 +18,5 @@ val staffModule = module {
 
     viewModelOf(::RedeemInviteViewModel)
     // workshopName is a display-only nav arg passed via parametersOf from the Root.
-    viewModel { params -> StaffPendingViewModel(params.get(), get(), get(), get()) }
+    viewModel { params -> StaffPendingViewModel(params.get(), get(), get(), get(), get()) }
 }

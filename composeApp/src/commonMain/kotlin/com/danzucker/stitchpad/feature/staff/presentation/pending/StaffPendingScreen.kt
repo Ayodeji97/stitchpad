@@ -32,6 +32,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -41,10 +42,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.staff.presentation.components.AnimatedHourglass
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -76,12 +80,20 @@ fun StaffPendingRoot(
     viewModel: StaffPendingViewModel = koinViewModel { parametersOf(workshopName.orEmpty()) },
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             StaffPendingEvent.NavigateToHome -> onNavigateToHome()
             is StaffPendingEvent.NavigateToRedeem -> onNavigateToRedeem(event.declined)
             StaffPendingEvent.SignedOut -> onSignedOut()
+            is StaffPendingEvent.ShowError -> scope.launch {
+                val message = when (val text = event.message) {
+                    is UiText.DynamicString -> text.value
+                    is UiText.StringResourceText -> getString(text.id)
+                }
+                snackbarHostState.showSnackbar(message)
+            }
         }
     }
 
