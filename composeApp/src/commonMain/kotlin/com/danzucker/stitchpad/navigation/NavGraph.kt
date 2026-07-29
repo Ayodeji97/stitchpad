@@ -34,6 +34,7 @@ import com.danzucker.stitchpad.feature.onboarding.presentation.welcome.WelcomeRo
 import com.danzucker.stitchpad.feature.onboarding.presentation.workshop.WorkshopSetupRoot
 import com.danzucker.stitchpad.feature.staff.presentation.pending.StaffPendingRoot
 import com.danzucker.stitchpad.feature.staff.presentation.redeem.RedeemInviteRoot
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -90,7 +91,16 @@ private suspend fun resolvePostAuthDestination(
 ): Any {
     if (authRepository.needsEmailVerification(onboardingPreferences)) return EmailVerificationRoute
 
-    val session = activeWorkshopProvider.awaitHydrated()
+    // Wait for a session that belongs to the just-signed-in user. awaitHydrated()
+    // alone can return a stale signed-out/owner-of-self session right after login
+    // (the provider stays "hydrated" across auth changes), which would misroute an
+    // approved/pending staffer into owner setup. Matching on authUid closes that race.
+    val authUid = authRepository.getCurrentUser()?.id
+    val session = if (authUid == null) {
+        activeWorkshopProvider.awaitHydrated()
+    } else {
+        activeWorkshopProvider.flow.first { it.authUid == authUid }
+    }
     val staffPending = session.role == StaffRole.STAFF && session.membershipStatus == MembershipStatus.PENDING
     return when {
         session.isActiveStaff -> HomeRoute
