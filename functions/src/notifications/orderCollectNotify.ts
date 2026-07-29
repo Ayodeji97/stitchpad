@@ -53,6 +53,7 @@ export const onOrderCollectible = functions
     const orderId = context.params.orderId as string;
     const n = collectibleTransition(change.before.data(), change.after.data());
     if (!n) return;
+    functions.logger.info('onOrderCollectible: qualifying transition', { uid, orderId, status: n.status, amount: n.amount });
 
     const db = admin.firestore();
 
@@ -86,11 +87,17 @@ export const onOrderCollectible = functions
       const pushEnabled = u.dailyPushEnabled !== undefined
         ? u.dailyPushEnabled !== false
         : u.dailyDigestEmailEnabled !== false;
-      if (!pushEnabled || !isDigestAllowed(uid, email)) return;
+      if (!pushEnabled || !isDigestAllowed(uid, email)) {
+        functions.logger.info('onOrderCollectible: push skipped (gated)', { uid, orderId, pushEnabled, allowed: isDigestAllowed(uid, email) });
+        return;
+      }
 
       const tokensSnap = await db.collection('users').doc(uid).collection('notificationTokens').get();
       const tokens = tokensSnap.docs.map((d) => d.id);
-      if (tokens.length === 0) return;
+      if (tokens.length === 0) {
+        functions.logger.info('onOrderCollectible: push skipped (no tokens)', { uid, orderId });
+        return;
+      }
 
       const { title, body } = collectPushCopy(n);
       const res = await admin.messaging().sendEachForMulticast({
@@ -98,6 +105,11 @@ export const onOrderCollectible = functions
         notification: { title, body },
         android: { notification: { channelId: 'daily_reminders' } },
         data: { target: 'order', orderId },
+      });
+      functions.logger.info('onOrderCollectible: push sent', {
+        uid, orderId, tokenCount: tokens.length,
+        successCount: res.successCount, failureCount: res.failureCount,
+        failureCodes: res.responses.filter((r) => !r.success).map((r) => r.error?.code),
       });
       const invalid: string[] = [];
       res.responses.forEach((r, i) => {
