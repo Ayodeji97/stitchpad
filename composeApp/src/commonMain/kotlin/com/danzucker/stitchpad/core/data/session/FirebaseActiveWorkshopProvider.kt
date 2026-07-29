@@ -123,9 +123,15 @@ internal class FirebaseActiveWorkshopProvider(
                 if (status == MembershipStatus.ACTIVE) refreshToken()
             }
             .map { status -> resolve(claims, membershipStatus = status) }
-            // Emit the fail-safe default first so awaitHydrated() never hangs
-            // waiting for the first Firestore snapshot.
-            .onStart { emit(WorkshopSession.ownerOfSelf(claims.authUid)) }
+            // Emit a provisional STAFF/PENDING (on the user's OWN tree) first, so
+            // awaitHydrated() never hangs on the first Firestore snapshot AND a
+            // cold-starting pending staffer is restored to the waiting screen rather
+            // than the provisional owner-of-self default. We're only in this flow
+            // because a workshopUid was stored at redeem time, so pending is the
+            // correct assumption until the snapshot confirms active/revoked.
+            .onStart {
+                emit(WorkshopSession(claims.authUid, claims.authUid, StaffRole.STAFF, MembershipStatus.PENDING))
+            }
 
     private fun resolve(
         claims: WorkshopClaims,

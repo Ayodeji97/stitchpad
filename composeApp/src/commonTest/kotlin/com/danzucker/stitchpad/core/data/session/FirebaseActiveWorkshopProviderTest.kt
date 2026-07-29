@@ -5,6 +5,7 @@ import com.danzucker.stitchpad.core.domain.session.StaffRole
 import com.danzucker.stitchpad.core.domain.session.WorkshopClaims
 import com.danzucker.stitchpad.core.domain.session.workshopUidOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
@@ -102,6 +103,26 @@ class FirebaseActiveWorkshopProviderTest {
         // resolve() keeps a pending staffer on their own tree — no owner data
         // is addressable until approval — but with the STAFF/PENDING marker so
         // nav can route to the pending screen.
+        assertEquals(StaffRole.STAFF, session.role)
+        assertEquals(MembershipStatus.PENDING, session.membershipStatus)
+        assertEquals("staff-1", session.workshopUid)
+    }
+
+    @Test
+    fun a_stored_uid_restores_pending_before_the_first_snapshot_arrives() = runTest {
+        // Cold-start regression: with a stored workshopUid but a slow/never-arriving
+        // membership snapshot, awaitHydrated() must return STAFF/PENDING (so the gate
+        // restores the waiting screen), NOT the provisional owner-of-self default.
+        val claims = MutableStateFlow<WorkshopClaims?>(owner("staff-1"))
+        val provider = FirebaseActiveWorkshopProvider(
+            authClaims = claims,
+            scope = backgroundScope,
+            storedWorkshopUid = MutableStateFlow("owner-9"),
+            membershipStatusFlow = { _, _ -> emptyFlow() },
+        )
+
+        val session = provider.awaitHydrated()
+
         assertEquals(StaffRole.STAFF, session.role)
         assertEquals(MembershipStatus.PENDING, session.membershipStatus)
         assertEquals("staff-1", session.workshopUid)
