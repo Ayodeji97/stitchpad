@@ -70,22 +70,25 @@ class StaffPendingViewModelTest {
     }
 
     @Test
-    fun owner_declining_after_pending_navigates_back_to_redeem() = runTest {
+    fun owner_declining_after_pending_navigates_back_to_redeem_with_the_declined_flag() = runTest {
         val provider = FakeActiveWorkshopProvider(pending())
         val vm = buildViewModel(provider)
         vm.events.test {
             provider.setSession(WorkshopSession.ownerOfSelf("staff-1"))
-            assertIs<StaffPendingEvent.ShowMessage>(awaitItem())
-            assertIs<StaffPendingEvent.NavigateToRedeem>(awaitItem())
+            val event = awaitItem()
+            assertIs<StaffPendingEvent.NavigateToRedeem>(event)
+            assertEquals(true, event.declined)
         }
     }
 
     @Test
-    fun leaving_clears_the_stored_uid_and_navigates_to_redeem() = runTest {
+    fun leaving_clears_the_stored_uid_and_navigates_to_redeem_without_the_declined_flag() = runTest {
         val vm = buildViewModel(FakeActiveWorkshopProvider(pending()))
         vm.events.test {
             vm.onAction(StaffPendingAction.OnLeaveClick)
-            assertIs<StaffPendingEvent.NavigateToRedeem>(awaitItem())
+            val event = awaitItem()
+            assertIs<StaffPendingEvent.NavigateToRedeem>(event)
+            assertEquals(false, event.declined)
         }
         assertEquals(1, prefs.clearCount)
     }

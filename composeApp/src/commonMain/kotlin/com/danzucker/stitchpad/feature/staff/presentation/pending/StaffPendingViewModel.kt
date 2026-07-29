@@ -6,7 +6,6 @@ import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
 import com.danzucker.stitchpad.core.domain.session.StaffRole
 import com.danzucker.stitchpad.core.domain.staff.StaffMembershipPrefsStore
-import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,8 +13,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import stitchpad.composeapp.generated.resources.Res
-import stitchpad.composeapp.generated.resources.staff_pending_declined
 
 /**
  * The staff "waiting for approval" screen. Passive: it watches the session and
@@ -55,12 +52,11 @@ class StaffPendingViewModel(
                     session.role == StaffRole.STAFF && session.membershipStatus == MembershipStatus.PENDING ->
                         sawPending = true
                     // Reverted to owner-of-self AFTER being pending = the owner declined/removed us.
+                    // Carry the declined flag to the redeem screen (a snackbar here would be
+                    // lost when this screen is disposed by the navigation) so it can explain why.
                     sawPending && session.isOwner -> {
                         navigated = true
-                        _events.send(
-                            StaffPendingEvent.ShowMessage(UiText.StringResourceText(Res.string.staff_pending_declined)),
-                        )
-                        _events.send(StaffPendingEvent.NavigateToRedeem)
+                        _events.send(StaffPendingEvent.NavigateToRedeem(declined = true))
                     }
                 }
             }
@@ -79,7 +75,7 @@ class StaffPendingViewModel(
             navigated = true // suppress the flow's decline path when prefs clear below.
             _state.update { it.copy(isLeaving = true) }
             staffMembershipPrefs.clear()
-            _events.send(StaffPendingEvent.NavigateToRedeem)
+            _events.send(StaffPendingEvent.NavigateToRedeem(declined = false))
         }
     }
 

@@ -95,7 +95,7 @@ private suspend fun resolvePostAuthDestination(
     return when {
         session.isActiveStaff -> HomeRoute
         staffPending -> StaffPendingRoute()
-        pendingDeepLink.target.value == DeepLinkTarget.JOIN_WORKSHOP -> RedeemInviteRoute
+        pendingDeepLink.target.value == DeepLinkTarget.JOIN_WORKSHOP -> RedeemInviteRoute()
         needsWorkshopSetupForCurrentUser(authRepository, resolveNeedsWorkshopSetup) -> WorkshopSetupRoute
         else -> HomeRoute
     }
@@ -144,7 +144,7 @@ private fun PushDeepLinkRedirectEffect(navController: NavHostController) {
                 navController.currentBackStack.value.any { it.destination.hasRoute<HomeRoute>() }
             if (!onRedeem && pastAuthGate) {
                 pendingDeepLink.clear()
-                navController.navigate(RedeemInviteRoute) { launchSingleTop = true }
+                navController.navigate(RedeemInviteRoute()) { launchSingleTop = true }
             }
             return@LaunchedEffect
         }
@@ -351,7 +351,7 @@ fun StitchPadNavHost(
                 }
             )
         }
-        composable<RedeemInviteRoute> {
+        composable<RedeemInviteRoute> { entry ->
             RedeemInviteRoot(
                 onNavigateToPending = { workshopName ->
                     navController.navigate(StaffPendingRoute(workshopName)) {
@@ -364,6 +364,7 @@ fun StitchPadNavHost(
                         popUpTo(0) { inclusive = true }
                     }
                 },
+                declined = entry.toRoute<RedeemInviteRoute>().declined,
             )
         }
         composable<StaffPendingRoute> { entry ->
@@ -374,8 +375,8 @@ fun StitchPadNavHost(
                         popUpTo<StaffPendingRoute> { inclusive = true }
                     }
                 },
-                onNavigateToRedeem = {
-                    navController.navigate(RedeemInviteRoute) {
+                onNavigateToRedeem = { declined ->
+                    navController.navigate(RedeemInviteRoute(declined)) {
                         popUpTo<StaffPendingRoute> { inclusive = true }
                     }
                 },

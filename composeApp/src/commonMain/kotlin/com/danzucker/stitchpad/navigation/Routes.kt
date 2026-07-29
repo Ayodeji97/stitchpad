@@ -36,9 +36,11 @@ data object WorkshopSetupRoute
  * Staff onboarding — a signed-in user redeems an owner's invite code to join a
  * workshop. Reached from a JOIN_WORKSHOP deep link (code prefilled) or the "join
  * instead" fork on [WorkshopSetupRoute]. On success it routes to [StaffPendingRoute].
+ * [declined] is true when the user landed here because the owner declined/removed
+ * a prior pending request, so the screen can explain why they're back.
  */
 @Serializable
-data object RedeemInviteRoute
+data class RedeemInviteRoute(val declined: Boolean = false)
 
 /**
  * Staff onboarding — the waiting screen after redeeming, until the owner approves.

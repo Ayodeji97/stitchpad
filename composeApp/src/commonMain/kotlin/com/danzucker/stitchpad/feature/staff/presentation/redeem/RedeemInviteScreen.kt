@@ -36,6 +36,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -70,6 +71,7 @@ import stitchpad.composeapp.generated.resources.staff_join_note
 import stitchpad.composeapp.generated.resources.staff_join_subtitle
 import stitchpad.composeapp.generated.resources.staff_join_subtitle_prefilled
 import stitchpad.composeapp.generated.resources.staff_join_title
+import stitchpad.composeapp.generated.resources.staff_pending_declined
 import stitchpad.composeapp.generated.resources.staff_sign_out
 
 @Composable
@@ -77,11 +79,17 @@ fun RedeemInviteRoot(
     onNavigateToPending: (workshopName: String) -> Unit,
     onNavigateBack: () -> Unit,
     onSignedOut: () -> Unit,
+    declined: Boolean = false,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     viewModel: RedeemInviteViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+
+    // Arriving back here because the owner declined a prior request — explain why.
+    LaunchedEffect(Unit) {
+        if (declined) snackbarHostState.showSnackbar(getString(Res.string.staff_pending_declined))
+    }
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
