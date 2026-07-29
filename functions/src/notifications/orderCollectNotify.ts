@@ -57,6 +57,13 @@ export const onOrderCollectible = functions
     const db = admin.firestore();
 
     // 1) In-app inbox doc — ungated, deduped against the daily digest via the same id.
+    // NOTE: isOverdue is pinned false here and stays false for the doc's life. The daily
+    // digest writes the SAME deterministic `${orderId}__TO_COLLECT` id via .create(), and
+    // since this instant write always lands first, the digest's `.create()` hits
+    // ALREADY_EXISTS (swallowed below) and its later, correctly-computed isOverdue never
+    // gets applied — this doc is never updated after creation. A future inbox "overdue"
+    // badge must NOT read notification.isOverdue for TO_COLLECT; recompute from a live
+    // source (e.g. re-run the owedSince/daysOwed check against current order data).
     try {
       await db.collection('users').doc(uid).collection('notifications')
         .doc(`${orderId}__TO_COLLECT`)

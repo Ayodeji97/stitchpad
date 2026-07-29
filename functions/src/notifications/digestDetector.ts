@@ -1,4 +1,4 @@
-import { lagosDayIndex } from './lagosTime';
+import { lagosDayIndex, DAY_MS } from './lagosTime';
 import { DigestItem, DigestModel, OrderScanDoc } from './types';
 
 const OVERDUE_THRESHOLD_DAYS = 7;
@@ -54,7 +54,13 @@ export function digestDetector(orders: OrderScanDoc[], now: number): DigestModel
     if ((o.status === 'READY' || o.status === 'DELIVERED') && o.archivedAt == null) {
       const bal = balanceRemaining(o);
       if (bal > 0) {
-        const daysOwed = today - lagosDayIndex(owedSince(o));
+        // Elapsed full 24h periods since owedSince, NOT a Lagos calendar-day-index delta:
+        // must match the client's CollectionCalculator ((now - owedSince) / MILLIS_PER_DAY,
+        // floored), which is timezone-independent. A calendar-index delta can disagree by up
+        // to a day near a Lagos-midnight boundary, breaking the "digest/push/list agree on
+        // overdue" invariant. The deadline-based overdue/dueSoon buckets above are unaffected
+        // — those correctly use lagosDayIndex (calendar-day deadline semantics).
+        const daysOwed = Math.floor((now - owedSince(o)) / DAY_MS);
         outstanding.push({
           orderId: o.id,
           customerName: o.customerName,
