@@ -93,6 +93,7 @@ class RedeemInviteViewModelTest {
         }
         assertEquals("K7QP3RM9", repo.lastCode)
         assertEquals("owner-9", prefs.workshopUid.value)
+        assertEquals("Ade Fashions", prefs.workshopName.value)
     }
 
     @Test
@@ -119,7 +120,7 @@ class RedeemInviteViewModelTest {
 
     @Test
     fun signing_out_clears_the_stored_uid_and_emits_signed_out() = runTest {
-        prefs.setWorkshopUid("owner-9")
+        prefs.setWorkshop("owner-9", null)
         val vm = buildViewModel()
         vm.events.test {
             vm.onAction(RedeemInviteAction.OnSignOutClick)
@@ -131,7 +132,7 @@ class RedeemInviteViewModelTest {
     @Test
     fun a_failed_sign_out_does_not_navigate_or_clear_the_stored_uid() = runTest {
         authRepo.signOutError = com.danzucker.stitchpad.feature.auth.domain.AuthError.UNKNOWN
-        prefs.setWorkshopUid("owner-9")
+        prefs.setWorkshop("owner-9", null)
         val vm = buildViewModel()
         vm.events.test {
             vm.onAction(RedeemInviteAction.OnSignOutClick)

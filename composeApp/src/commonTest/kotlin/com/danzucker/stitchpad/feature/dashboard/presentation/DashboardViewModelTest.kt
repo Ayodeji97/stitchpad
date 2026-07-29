@@ -30,6 +30,11 @@ import com.danzucker.stitchpad.core.domain.repository.NotificationRepository
 import com.danzucker.stitchpad.core.config.FakeAppConfigRepository
 import com.danzucker.stitchpad.core.config.FakeCommunityJoinTracker
 import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
+import com.danzucker.stitchpad.core.data.staff.FakeStaffMembershipPrefsStore
+import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.MembershipStatus
+import com.danzucker.stitchpad.core.domain.session.StaffRole
+import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.MeasurementsPickerRow
@@ -105,6 +110,8 @@ class DashboardViewModelTest {
     private lateinit var weeklyGoalRepository: FakeWeeklyGoalRepository
     private lateinit var smartUsageStore: FakeSmartUsageStore
     private lateinit var notificationRepository: FakeDashboardNotificationRepository
+    private lateinit var activeWorkshopProvider: FakeActiveWorkshopProvider
+    private lateinit var staffMembershipPrefs: FakeStaffMembershipPrefsStore
 
     private val testTimeZone = TimeZone.UTC
     private val today = LocalDate(2026, 4, 22)
@@ -120,6 +127,8 @@ class DashboardViewModelTest {
         weeklyGoalRepository = FakeWeeklyGoalRepository()
         smartUsageStore = FakeSmartUsageStore()
         notificationRepository = FakeDashboardNotificationRepository()
+        activeWorkshopProvider = FakeActiveWorkshopProvider()
+        staffMembershipPrefs = FakeStaffMembershipPrefsStore()
     }
 
     @AfterTest
@@ -151,9 +160,27 @@ class DashboardViewModelTest {
             appConfigRepository = FakeAppConfigRepository(),
             communityJoinTracker = FakeCommunityJoinTracker(),
             dismissal = CommunityBannerDismissal(FakeOnboardingPreferences()),
+            activeWorkshopProvider = activeWorkshopProvider,
+            staffMembershipPrefs = staffMembershipPrefs,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
+    }
+
+    /** Puts the provider into an active-staff session on the owner's tree. */
+    private suspend fun becomeActiveStaff(
+        workshopUid: String = "owner-uid",
+        workshopName: String? = "Ade Fashions",
+    ) {
+        activeWorkshopProvider.setSession(
+            WorkshopSession(
+                authUid = "staff-uid",
+                workshopUid = workshopUid,
+                role = StaffRole.STAFF,
+                membershipStatus = MembershipStatus.ACTIVE,
+            )
+        )
+        staffMembershipPrefs.setWorkshop(workshopUid, workshopName)
     }
 
     private class FakeSmartUsageStore : com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore {
@@ -294,6 +321,93 @@ class DashboardViewModelTest {
         val vm = createViewModel()
 
         assertNotEquals(DashboardUiState.BrandNew, vm.state.value.uiState)
+    }
+
+    // --- Staff view (Slice 6b) ---
+
+    @Test
+    fun ownerSession_rendersOwnerViewNotStaff() = runTest {
+        signIn()
+        orderRepository.ordersList = listOf(fakeOrder())
+
+        val vm = createViewModel()
+
+        assertTrue(!vm.state.value.isStaff)
+        assertNull(vm.state.value.staffPipeline)
+    }
+
+    @Test
+    fun activeStaffMember_seesMoneyFreeStaffView() = runTest {
+        signIn()
+        becomeActiveStaff(workshopName = "Ade Fashions")
+        orderRepository.ordersList = listOf(
+            // Owner would surface this as outstanding + a "collect" NBA.
+            fakeOrder(
+                id = "ready1",
+                status = OrderStatus.READY,
+                totalPrice = 10_000.0,
+                depositPaid = 5_000.0,
+                balanceRemaining = 5_000.0,
+            ),
+            fakeOrder(
+                id = "late1",
+                status = OrderStatus.IN_PROGRESS,
+                deadline = LocalDate(2026, 4, 20),
+                totalPrice = 8_000.0,
+                balanceRemaining = 8_000.0,
+            ),
+        )
+
+        val vm = createViewModel()
+        val state = vm.state.value
+
+        assertTrue(state.isStaff)
+        assertEquals("Ade Fashions", state.businessName)
+        // Money surfaces are suppressed at the STATE level, not just hidden.
+        assertEquals(0.0, state.outstandingAmount)
+        assertEquals(0, state.outstandingOrderCount)
+        assertTrue(state.nextBestActions.isEmpty())
+        assertNull(state.weeklyGoal)
+        // Per-row order value is stripped too.
+        assertTrue(state.overdue.isNotEmpty())
+        assertTrue(state.overdue.all { it.orderValue == null && it.paymentStatus == null })
+    }
+
+    @Test
+    fun activeStaffMember_populatesPipelineStages() = runTest {
+        signIn()
+        becomeActiveStaff()
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "wip1", status = OrderStatus.IN_PROGRESS, deadline = null),
+            fakeOrder(id = "wip2", status = OrderStatus.IN_PROGRESS, deadline = null),
+            fakeOrder(id = "ready1", status = OrderStatus.READY, deadline = null),
+        )
+
+        val vm = createViewModel()
+        val pipeline = assertNotNull(vm.state.value.staffPipeline)
+
+        // Null sub-status counts as cutting (first stage).
+        assertEquals(2, pipeline.cutting)
+        assertEquals(2, pipeline.inProgressTotal)
+        assertEquals(1, pipeline.ready)
+    }
+
+    @Test
+    fun activeStaffMember_withNoUrgentWork_hasEmptyQueueButPipeline() = runTest {
+        signIn()
+        becomeActiveStaff()
+        // In-progress work with no past/today deadline: nothing overdue or due today.
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "wip1", status = OrderStatus.IN_PROGRESS, deadline = LocalDate(2026, 5, 10)),
+        )
+
+        val vm = createViewModel()
+        val state = vm.state.value
+
+        assertTrue(state.isStaff)
+        assertTrue(state.overdue.isEmpty())
+        assertTrue(state.dueToday.isEmpty())
+        assertEquals(1, assertNotNull(state.staffPipeline).inProgressTotal)
     }
 
     // --- Overdue bucket ---

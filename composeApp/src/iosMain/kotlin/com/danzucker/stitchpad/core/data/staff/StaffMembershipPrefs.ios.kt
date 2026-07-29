@@ -15,17 +15,29 @@ actual class StaffMembershipPrefs : StaffMembershipPrefsStore {
     private val _workshopUid = MutableStateFlow(defaults.stringForKey(KEY_WORKSHOP_UID))
     override val workshopUid: StateFlow<String?> = _workshopUid.asStateFlow()
 
-    override suspend fun setWorkshopUid(uid: String) {
+    private val _workshopName = MutableStateFlow(defaults.stringForKey(KEY_WORKSHOP_NAME))
+    override val workshopName: StateFlow<String?> = _workshopName.asStateFlow()
+
+    override suspend fun setWorkshop(uid: String, name: String?) {
         defaults.setObject(uid, forKey = KEY_WORKSHOP_UID)
+        if (name != null) {
+            defaults.setObject(name, forKey = KEY_WORKSHOP_NAME)
+        } else {
+            defaults.removeObjectForKey(KEY_WORKSHOP_NAME)
+        }
         _workshopUid.value = uid
+        _workshopName.value = name
     }
 
     override suspend fun clear() {
         defaults.removeObjectForKey(KEY_WORKSHOP_UID)
+        defaults.removeObjectForKey(KEY_WORKSHOP_NAME)
         _workshopUid.value = null
+        _workshopName.value = null
     }
 
     private companion object {
         const val KEY_WORKSHOP_UID = "staff_workshop_uid"
+        const val KEY_WORKSHOP_NAME = "staff_workshop_name"
     }
 }

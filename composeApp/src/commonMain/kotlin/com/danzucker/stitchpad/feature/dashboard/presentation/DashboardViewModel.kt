@@ -18,6 +18,8 @@ import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.NotificationRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
+import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.staff.StaffMembershipPrefsStore
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.collection.domain.CollectionCalculator
@@ -25,8 +27,10 @@ import com.danzucker.stitchpad.feature.dashboard.domain.BucketCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.FocusResolver
 import com.danzucker.stitchpad.feature.dashboard.domain.NbaCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.ReconnectCalculator
+import com.danzucker.stitchpad.feature.dashboard.domain.StaffPipelineCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.WeeklyGoalCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.internal.simpleLabel
+import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.CustomerReadyUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FirstOrderSetupUi
@@ -42,11 +46,13 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -86,6 +92,8 @@ class DashboardViewModel(
     private val appConfigRepository: AppConfigRepository,
     private val communityJoinTracker: CommunityJoinTracker,
     private val dismissal: CommunityBannerDismissal,
+    private val activeWorkshopProvider: ActiveWorkshopProvider,
+    private val staffMembershipPrefs: StaffMembershipPrefsStore,
 ) : ViewModel() {
 
     private var hasLoadedInitialData = false
@@ -445,154 +453,228 @@ class DashboardViewModel(
         }
     }
 
-    @Suppress("LongMethod")
     private fun loadData() {
         viewModelScope.launch {
             val authUser = authRepository.getCurrentUser() ?: run {
                 _state.update { it.copy(uiState = DashboardUiState.BrandNew) }
                 return@launch
             }
+            // Identity split: active staff read the OWNER's tree (workshopUid); an
+            // owner reads their own. authUser stays the signed-in identity, so the
+            // greeting name/avatar is always the person actually looking.
+            val session = activeWorkshopProvider.awaitHydrated()
+            val workshopUid = session.workshopUid.takeIf { it.isNotBlank() } ?: run {
+                _state.update { it.copy(uiState = DashboardUiState.BrandNew) }
+                return@launch
+            }
+            val isStaff = session.isActiveStaff
+            if (isStaff) {
+                // Publish staff identity up front so the header renders the staff
+                // variant (name + Staff pill + workshop) while the first snapshot loads.
+                _state.update {
+                    it.copy(isStaff = true, businessName = staffMembershipPrefs.workshopName.value)
+                }
+            }
             // Fire-and-forget: register the device's push token for this user.
             // The merge-write is idempotent so running on every cold start is safe.
             viewModelScope.launch { pushTokenRegistrar.registerForUser(authUser.id) }
-            // Include the Firestore user doc in the combine so logo + workshop name
-            // updates from Edit Profile flow through to the dashboard live, without
-            // needing the ViewModel to be recreated. Falls back to the Auth user
-            // until the Firestore doc arrives (first-signup race) and on every
-            // subsequent emission picks the freshest Firestore snapshot.
+            // Orders/customers are scoped to workshopUid so active staff see the
+            // owner's book; the user doc stays on authUid (the signed-in person's
+            // own profile drives the greeting name + avatar). The Firestore user
+            // doc is in the combine so logo + workshop-name edits flow through live.
             combine(
                 userRepository.observeUser(authUser.id).onStart { emit(null) },
-                orderRepository.observeOrders(authUser.id),
-                customerRepository.observeCustomers(authUser.id),
-                weeklyGoalRepository.observeWeeklyGoal(authUser.id)
+                orderRepository.observeOrders(workshopUid),
+                customerRepository.observeCustomers(workshopUid),
+                goalFlowFor(isStaff, workshopUid),
             ) { firestoreUser, ordersResult, customersResult, goalResult ->
                 UserAndDashboardData(firestoreUser, ordersResult, customersResult, goalResult)
             }.collect { combined ->
-                val ordersResult = combined.ordersResult
-                val customersResult = combined.customersResult
-                val goalResult = combined.goalResult
-                // The editable profile doc doesn't redundantly store email or
-                // displayName, so a wholesale replacement would blank Auth identity
-                // for new signups whose snapshot has arrived. Merge: Auth identity
-                // wins when Firestore lacks the field, Firestore-only fields
-                // (businessName, logo, contact) win when present.
-                val user = combined.firestoreUser?.copy(
-                    email = combined.firestoreUser.email.ifBlank { authUser.email },
-                    displayName = combined.firestoreUser.displayName.ifBlank { authUser.displayName },
-                ) ?: authUser
-                // Apple Sign-In only returns fullName on the very first auth per Apple ID
-                // per app (Apple's privacy model). Re-auths and failed-first-attempts come
-                // back with no name, so displayName ends up blank. Fall back to the email's
-                // local-part split on common separators so the greeting + avatar show
-                // something sensible instead of "?".
-                val nameSource = user.displayName.ifBlank {
-                    user.email.substringBefore('@')
-                        .replace('.', ' ').replace('_', ' ').replace('-', ' ')
-                }
-                val firstName = firstNameOf(nameSource)
-                val workshopName = user.businessName?.takeIf { it.isNotBlank() }
-                val orders = (ordersResult as? Result.Success)?.data ?: emptyList()
-                val customers = (customersResult as? Result.Success)?.data ?: emptyList()
-                // Keep the last successful snapshot: a transient customers fetch error must not
-                // make the Measurements shortcut think the account has no customers (Bugbot, PR #261).
-                if (customersResult is Result.Success) latestCustomers = customersResult.data
-                val goal = (goalResult as? Result.Success)?.data
-                val error = when {
-                    ordersResult is Result.Error -> ordersResult.error.toDashboardUiText()
-                    customersResult is Result.Error -> customersResult.error.toDashboardUiText()
-                    else -> null
-                }
-                // Recomputed on every emission so the greeting rolls morning -> afternoon -> evening
-                // without recreating the ViewModel. A pure ticker would be more accurate but adds a
-                // separate flow and a coroutine; emission-driven recompute is enough for this MVP
-                // because data updates are frequent in the workshop flow.
-                val greeting = computeGreeting()
-                val today = Instant.fromEpochMilliseconds(nowMillis())
-                    .toLocalDateTime(timeZone).date
-                val customersById = customers.associateBy { it.id }
-                val buckets = BucketCalculator.compute(orders, today, timeZone)
-                val collectibles = CollectionCalculator.collectibles(orders, customersById, nowMillis())
-                val collectionSummary = CollectionCalculator.summarize(collectibles)
-                val nextBestActions = NbaCalculator.compute(orders, customersById, today, timeZone)
-                val uiState = FocusResolver.resolveUiState(
-                    buckets,
-                    nextBestActions,
-                    orders,
-                    customers,
-                    collectionOverdueCount = collectionSummary.overdueCount,
-                )
-                val reconnect = ReconnectCalculator.compute(orders, customers, today, timeZone)
-                val focus = FocusResolver.resolveFocus(
-                    uiState = uiState,
-                    buckets = buckets,
-                    nextBestActions = nextBestActions,
-                    customers = customers,
-                    orders = orders,
-                    reconnect = reconnect,
-                    collectionOverdueCount = collectionSummary.overdueCount,
-                )
-                val weeklyGoal = WeeklyGoalCalculator.compute(orders, today, goal, timeZone)
-                // "Your customer" card surfaces only on FirstCustomer. Pick the
-                // most recently added so a user who just created a second
-                // customer sees that one first, not whoever was created earlier.
-                // "Your customer" card is the no-orders-yet celebration —
-                // once an order exists the screen pivots to the Order setup
-                // checklist + order row, so the customer card stops earning
-                // its space.
-                val customerReady = if (
-                    uiState == DashboardUiState.FirstCustomer && orders.isEmpty()
-                ) {
-                    customers.maxByOrNull { it.createdAt }?.let { c ->
-                        val daysSinceAdded = (
-                            (nowMillis() - c.createdAt) /
-                                ONE_DAY_MILLIS
-                            ).toInt().coerceAtLeast(0)
-                        CustomerReadyUi(
-                            customerId = c.id,
-                            name = c.name,
-                            phone = c.phone,
-                            daysSinceAdded = daysSinceAdded,
-                            hasOrders = false,
-                        )
-                    }
+                if (isStaff) {
+                    updateStaffState(authUser, combined)
                 } else {
-                    null
-                }
-                val firstOrderSetup = computeFirstOrderSetup(customers, orders)
-
-                _state.update {
-                    it.copy(
-                        uiState = uiState,
-                        firstName = firstName,
-                        businessName = workshopName,
-                        businessLogoUrl = user.businessLogoUrl,
-                        greeting = greeting,
-                        todayDate = today,
-                        overdue = buckets.overdue,
-                        dueToday = buckets.dueToday,
-                        ready = buckets.ready,
-                        outstandingAmount = collectionSummary.totalOutstanding,
-                        outstandingOrderCount = collectionSummary.orderCount,
-                        outstandingOverdueCount = collectionSummary.overdueCount,
-                        nextBestActions = nextBestActions,
-                        pipelineInProgress = buckets.pipelineInProgress,
-                        pipelineInProgressTotal = buckets.pipelineInProgressTotal,
-                        pipelinePending = buckets.pipelinePending,
-                        pipelinePendingTotal = buckets.pipelinePendingTotal,
-                        focusVariant = focus.variant,
-                        focusHeadline = focus.headline,
-                        focusSupporting = focus.supporting,
-                        focusCtaLabel = focus.ctaLabel,
-                        focusCtaSubtitle = focus.ctaSubtitle,
-                        focusSectionLabel = focus.sectionLabel,
-                        reconnectCandidates = reconnect,
-                        customerReady = customerReady,
-                        firstOrderSetup = firstOrderSetup,
-                        weeklyGoal = weeklyGoal,
-                        errorMessage = error
-                    )
+                    updateOwnerState(authUser, combined)
                 }
             }
+        }
+    }
+
+    /**
+     * Weekly goals are an owner-only concept and live outside the staff read
+     * wall, so a staff read would just be denied — substitute a constant null.
+     */
+    private fun goalFlowFor(
+        isStaff: Boolean,
+        workshopUid: String,
+    ): Flow<Result<WeeklyGoal?, DataError.Network>> =
+        if (isStaff) {
+            flowOf(Result.Success<WeeklyGoal?>(null))
+        } else {
+            weeklyGoalRepository.observeWeeklyGoal(workshopUid)
+        }
+
+    /**
+     * Merge the Firestore profile doc over the Auth identity: Auth identity wins
+     * when Firestore lacks the field, Firestore-only fields (businessName, logo)
+     * win when present. The editable profile doc doesn't redundantly store email
+     * or displayName, so a wholesale replacement would blank identity for a new
+     * signup whose snapshot has just arrived.
+     */
+    private fun resolveUser(authUser: User, firestoreUser: User?): User =
+        firestoreUser?.copy(
+            email = firestoreUser.email.ifBlank { authUser.email },
+            displayName = firestoreUser.displayName.ifBlank { authUser.displayName },
+        ) ?: authUser
+
+    /**
+     * Apple Sign-In only returns fullName on the very first auth per Apple ID,
+     * so displayName can be blank; fall back to the email local-part split on
+     * common separators so the greeting + avatar show something sensible.
+     */
+    private fun firstNameFor(user: User): String {
+        val nameSource = user.displayName.ifBlank {
+            user.email.substringBefore('@')
+                .replace('.', ' ').replace('_', ' ').replace('-', ' ')
+        }
+        return firstNameOf(nameSource)
+    }
+
+    /**
+     * Money-free STAFF dashboard: throughput counts + advance queue + pipeline.
+     * Deliberately populates none of the money/owner surfaces (outstanding,
+     * nextBestActions, weeklyGoal, focus, reconnect, banners) — they stay at
+     * their defaults, so the staff view is money-free at the STATE level, not
+     * merely hidden in the composable.
+     */
+    private fun updateStaffState(authUser: User, combined: UserAndDashboardData) {
+        val ordersResult = combined.ordersResult
+        val orders = (ordersResult as? Result.Success)?.data ?: emptyList()
+        val today = Instant.fromEpochMilliseconds(nowMillis())
+            .toLocalDateTime(timeZone).date
+        val buckets = BucketCalculator.compute(orders, today, timeZone)
+        val user = resolveUser(authUser, combined.firestoreUser)
+        _state.update {
+            it.copy(
+                isStaff = true,
+                firstName = firstNameFor(user),
+                // Owner's workshop name comes from redeem-time prefs — staff can't
+                // read the owner user doc, so it never comes from Firestore here.
+                businessName = staffMembershipPrefs.workshopName.value,
+                businessLogoUrl = null,
+                greeting = computeGreeting(),
+                todayDate = today,
+                // Strip per-row money so the staff STATE carries no order value.
+                overdue = buckets.overdue.map { row -> row.moneyFree() },
+                dueToday = buckets.dueToday.map { row -> row.moneyFree() },
+                staffPipeline = StaffPipelineCalculator.compute(orders),
+                errorMessage = (ordersResult as? Result.Error)?.error?.toDashboardUiText(),
+            )
+        }
+    }
+
+    @Suppress("LongMethod")
+    private fun updateOwnerState(authUser: User, combined: UserAndDashboardData) {
+        val ordersResult = combined.ordersResult
+        val customersResult = combined.customersResult
+        val goalResult = combined.goalResult
+        val user = resolveUser(authUser, combined.firestoreUser)
+        val firstName = firstNameFor(user)
+        val workshopName = user.businessName?.takeIf { it.isNotBlank() }
+        val orders = (ordersResult as? Result.Success)?.data ?: emptyList()
+        val customers = (customersResult as? Result.Success)?.data ?: emptyList()
+        // Keep the last successful snapshot: a transient customers fetch error must not
+        // make the Measurements shortcut think the account has no customers (Bugbot, PR #261).
+        if (customersResult is Result.Success) latestCustomers = customersResult.data
+        val goal = (goalResult as? Result.Success)?.data
+        val error = when {
+            ordersResult is Result.Error -> ordersResult.error.toDashboardUiText()
+            customersResult is Result.Error -> customersResult.error.toDashboardUiText()
+            else -> null
+        }
+        // Recomputed on every emission so the greeting rolls morning -> afternoon -> evening
+        // without recreating the ViewModel — emission-driven recompute is enough for this MVP.
+        val greeting = computeGreeting()
+        val today = Instant.fromEpochMilliseconds(nowMillis())
+            .toLocalDateTime(timeZone).date
+        val customersById = customers.associateBy { it.id }
+        val buckets = BucketCalculator.compute(orders, today, timeZone)
+        val collectibles = CollectionCalculator.collectibles(orders, customersById, nowMillis())
+        val collectionSummary = CollectionCalculator.summarize(collectibles)
+        val nextBestActions = NbaCalculator.compute(orders, customersById, today, timeZone)
+        val uiState = FocusResolver.resolveUiState(
+            buckets,
+            nextBestActions,
+            orders,
+            customers,
+            collectionOverdueCount = collectionSummary.overdueCount,
+        )
+        val reconnect = ReconnectCalculator.compute(orders, customers, today, timeZone)
+        val focus = FocusResolver.resolveFocus(
+            uiState = uiState,
+            buckets = buckets,
+            nextBestActions = nextBestActions,
+            customers = customers,
+            orders = orders,
+            reconnect = reconnect,
+            collectionOverdueCount = collectionSummary.overdueCount,
+        )
+        val weeklyGoal = WeeklyGoalCalculator.compute(orders, today, goal, timeZone)
+        // "Your customer" card surfaces only on FirstCustomer. Pick the most
+        // recently added so a user who just created a second customer sees that
+        // one first. Once an order exists the screen pivots to the Order setup
+        // checklist + order row, so the customer card stops earning its space.
+        val customerReady = if (
+            uiState == DashboardUiState.FirstCustomer && orders.isEmpty()
+        ) {
+            customers.maxByOrNull { it.createdAt }?.let { c ->
+                val daysSinceAdded = (
+                    (nowMillis() - c.createdAt) /
+                        ONE_DAY_MILLIS
+                    ).toInt().coerceAtLeast(0)
+                CustomerReadyUi(
+                    customerId = c.id,
+                    name = c.name,
+                    phone = c.phone,
+                    daysSinceAdded = daysSinceAdded,
+                    hasOrders = false,
+                )
+            }
+        } else {
+            null
+        }
+        val firstOrderSetup = computeFirstOrderSetup(customers, orders)
+
+        _state.update {
+            it.copy(
+                uiState = uiState,
+                firstName = firstName,
+                businessName = workshopName,
+                businessLogoUrl = user.businessLogoUrl,
+                greeting = greeting,
+                todayDate = today,
+                overdue = buckets.overdue,
+                dueToday = buckets.dueToday,
+                ready = buckets.ready,
+                outstandingAmount = collectionSummary.totalOutstanding,
+                outstandingOrderCount = collectionSummary.orderCount,
+                outstandingOverdueCount = collectionSummary.overdueCount,
+                nextBestActions = nextBestActions,
+                pipelineInProgress = buckets.pipelineInProgress,
+                pipelineInProgressTotal = buckets.pipelineInProgressTotal,
+                pipelinePending = buckets.pipelinePending,
+                pipelinePendingTotal = buckets.pipelinePendingTotal,
+                focusVariant = focus.variant,
+                focusHeadline = focus.headline,
+                focusSupporting = focus.supporting,
+                focusCtaLabel = focus.ctaLabel,
+                focusCtaSubtitle = focus.ctaSubtitle,
+                focusSectionLabel = focus.sectionLabel,
+                reconnectCandidates = reconnect,
+                customerReady = customerReady,
+                firstOrderSetup = firstOrderSetup,
+                weeklyGoal = weeklyGoal,
+                errorMessage = error
+            )
         }
     }
 
@@ -653,3 +735,11 @@ private data class UserAndDashboardData(
     val customersResult: Result<List<Customer>, DataError.Network>,
     val goalResult: Result<WeeklyGoal?, DataError.Network>,
 )
+
+/**
+ * Drops the optional money fields from a triage row for the staff view, so the
+ * staff dashboard STATE never carries order value or payment status — the wall
+ * holds at the state level, not just in the composable.
+ */
+private fun DashboardOrderRow.moneyFree(): DashboardOrderRow =
+    copy(orderValue = null, paymentStatus = null)

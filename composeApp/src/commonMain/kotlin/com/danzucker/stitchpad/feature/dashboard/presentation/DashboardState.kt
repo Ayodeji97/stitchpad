@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.dashboard.presentation
 
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.feature.dashboard.domain.StaffPipelineCounts
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.CustomerReadyUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
@@ -25,6 +26,15 @@ data class DashboardState(
     val businessLogoUrl: String? = null,
     val greeting: Greeting = Greeting.MORNING,
     val todayDate: LocalDate? = null,
+    // Owner + Staff: true when the signed-in user is an ACTIVE staff member.
+    // Flips the whole dashboard to the money-free staff work view (a distinct
+    // top-level render branch), set from the ActiveWorkshopProvider session as
+    // soon as it resolves so the header never flashes the owner layout.
+    val isStaff: Boolean = false,
+    // Staff-only production-stage counts (money-free) for the pipeline strip and
+    // the "In progress" tile. Null until the staff dashboard's first data load
+    // completes — doubles as the staff loading sentinel (isStaff && null = spinner).
+    val staffPipeline: StaffPipelineCounts? = null,
     val overdue: List<DashboardOrderRow> = emptyList(),
     val dueToday: List<DashboardOrderRow> = emptyList(),
     val ready: List<DashboardOrderRow> = emptyList(),
