@@ -41,6 +41,16 @@ describe('cancelStaffMembershipHandler', () => {
     expect(d._claims.get('chidi')).toBeNull();
   });
 
+  it('deletes the owner staff-pending notification on cancel', async () => {
+    const { db, store } = makeStaffDb({
+      'users/alice/memberships/chidi': { status: 'pending' },
+      'users/alice/notifications/staff_pending__chidi': { type: 'STAFF_PENDING', isRead: false },
+    });
+    await cancelStaffMembershipHandler({ workshopUid: 'alice' }, authedCtx('chidi'), deps(db));
+
+    expect(store.has('users/alice/notifications/staff_pending__chidi')).toBe(false);
+  });
+
   it('uses the caller uid as the membership doc id (cannot cancel another member)', async () => {
     // Only chidi's own doc under alice exists; calling as chidi targets that doc.
     const { db, store } = makeStaffDb({

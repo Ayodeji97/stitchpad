@@ -49,6 +49,15 @@ export async function cancelStaffMembershipHandler(
   });
   await deps.setClaims(staffAuthUid, null);
 
+  // Delete the owner's deterministic "staff pending" notification (best-effort).
+  // redeemStaffInvite dedups on this id, so leaving it behind would suppress the
+  // notification for a later re-redeem by the same staffer.
+  try {
+    await deps.db.doc(`users/${workshopUid}/notifications/staff_pending__${staffAuthUid}`).delete();
+  } catch {
+    // Best-effort: a missing/failed delete must not fail the leave.
+  }
+
   return { workshopUid, status: 'revoked' };
 }
 
