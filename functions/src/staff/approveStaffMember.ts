@@ -44,11 +44,14 @@ export async function approveStaffMemberHandler(
   }
 
   const nowMs = deps.now().getTime();
-  // Doc first, then claim. If setClaims fails after the doc is active, the member
-  // shows active but rules still deny (no claim) — fail-safe: no access without
-  // the server-authoritative claim.
-  await ref.update({ status: 'active', approvedAt: nowMs, claimsRefreshAt: nowMs });
+  // Claim first, then doc. The client watches the membership doc and force-
+  // refreshes its token when it turns active; setting the claim first guarantees
+  // that refresh returns the claim, so the app promotes to the owner's tree
+  // without a denied-read window or a refresh loop. Still fail-safe: if the doc
+  // update fails after, the claim alone grants nothing because isActiveMember
+  // also requires status == 'active'.
   await deps.setClaims(staffAuthUid, { workshopUid: ownerUid, role: STAFF_ROLE });
+  await ref.update({ status: 'active', approvedAt: nowMs, claimsRefreshAt: nowMs });
 
   return { staffAuthUid, status: 'active' };
 }

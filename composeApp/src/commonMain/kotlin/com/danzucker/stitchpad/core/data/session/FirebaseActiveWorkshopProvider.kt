@@ -90,7 +90,7 @@ internal class FirebaseActiveWorkshopProvider(
 
     private fun resolvedFlow(claims: WorkshopClaims, storedWs: String?): Flow<WorkshopSession> {
         // (1) Server-authoritative staff claim → active staff; no doc read needed.
-        val fromClaim = resolve(claims, membershipWorkshopUid = null, membershipStatus = null)
+        val fromClaim = resolve(claims, membershipStatus = null)
         if (fromClaim.role == StaffRole.STAFF) return flowOf(fromClaim)
 
         // (2) No staff claim: a real owner, or a staff member in the pending
@@ -106,30 +106,34 @@ internal class FirebaseActiveWorkshopProvider(
 
     /**
      * Watches the staffer's membership doc during the pending window and, once
-     * approved, forces a token refresh so the claim path takes over.
+     * the doc flips to active, forces a token refresh so the claim path takes
+     * over. Crucially it does NOT itself switch to the owner's tree from the doc
+     * — [WorkshopSessionResolver] holds an approved-but-claimless staffer on their
+     * own tree, so no owner read is attempted before the claim (which the rules
+     * require) is actually on the token.
      */
     private fun pendingWindowFlow(claims: WorkshopClaims, storedWs: String): Flow<WorkshopSession> =
         membershipStatusFlow(storedWs, claims.authUid)
-            .map { status -> resolve(claims, membershipWorkshopUid = storedWs, membershipStatus = status) }
-            .onEach { session ->
-                // Approved: the claim isn't on the current token yet. Force a
-                // refresh so idTokenChanged re-emits with the staff claim and
-                // the claim path above takes over as the authority.
-                if (session.isActiveStaff) refreshToken()
+            .onEach { status ->
+                // Approved on the server: force a token refresh so idTokenChanged
+                // re-emits with the staff claim and the claim path promotes to the
+                // owner's tree. approveStaffMember sets the claim BEFORE flipping
+                // the doc to active, so a refresh triggered here reliably returns
+                // the claim (no denied-read window, no refresh loop).
+                if (status == MembershipStatus.ACTIVE) refreshToken()
             }
+            .map { status -> resolve(claims, membershipStatus = status) }
             // Emit the fail-safe default first so awaitHydrated() never hangs
             // waiting for the first Firestore snapshot.
             .onStart { emit(WorkshopSession.ownerOfSelf(claims.authUid)) }
 
     private fun resolve(
         claims: WorkshopClaims,
-        membershipWorkshopUid: String?,
         membershipStatus: MembershipStatus?,
     ): WorkshopSession = WorkshopSessionResolver.resolve(
         authUid = claims.authUid,
         claimWorkshopUid = claims.workshopUid,
         claimRole = claims.role,
-        membershipWorkshopUid = membershipWorkshopUid,
         membershipStatus = membershipStatus,
     )
 

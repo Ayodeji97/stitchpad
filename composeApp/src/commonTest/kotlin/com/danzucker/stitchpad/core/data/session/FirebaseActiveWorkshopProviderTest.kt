@@ -10,6 +10,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -107,7 +108,7 @@ class FirebaseActiveWorkshopProviderTest {
     }
 
     @Test
-    fun an_active_membership_doc_before_the_claim_lands_flips_to_active_and_refreshes_token() =
+    fun an_active_membership_doc_forces_a_refresh_but_holds_until_the_claim_lands() =
         runTest {
             val claims = MutableStateFlow<WorkshopClaims?>(owner("staff-1"))
             val membership = MutableStateFlow<MembershipStatus?>(MembershipStatus.PENDING)
@@ -117,19 +118,28 @@ class FirebaseActiveWorkshopProviderTest {
                 scope = backgroundScope,
                 storedWorkshopUid = MutableStateFlow("owner-9"),
                 membershipStatusFlow = { _, _ -> membership },
+                // A real refresh would re-emit authClaims with the staff claim;
+                // simulate that below by setting `claims` after the refresh count.
                 refreshToken = { refreshes++ },
             )
             assertEquals(MembershipStatus.PENDING, provider.awaitHydrated().membershipStatus)
 
-            // Owner approves: membership doc flips to active before the token
-            // refreshes. The fallback path resolves active staff immediately and
-            // forces a token refresh so the claim path can take over.
+            // Owner approves: doc flips to active before the token carries the
+            // claim. The provider forces a refresh but must NOT expose the owner's
+            // tree yet — reads would be denied without the claim. It holds PENDING.
             membership.value = MembershipStatus.ACTIVE
+            runCurrent()
+
+            assertTrue(refreshes >= 1)
+            assertFalse(provider.current().isActiveStaff)
+            assertEquals("staff-1", provider.current().workshopUid)
+
+            // The forced refresh lands the staff claim on the token → promote.
+            claims.value = staff("staff-1", "owner-9")
             runCurrent()
 
             assertTrue(provider.current().isActiveStaff)
             assertEquals("owner-9", provider.current().workshopUid)
-            assertTrue(refreshes >= 1)
         }
 
     @Test

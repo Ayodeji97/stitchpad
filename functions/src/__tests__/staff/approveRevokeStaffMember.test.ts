@@ -41,6 +41,24 @@ describe('approveStaffMemberHandler', () => {
       approveStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), deps(db)),
     ).rejects.toMatchObject({ message: 'membership_revoked' });
   });
+
+  it('sets the claim before flipping the doc to active', async () => {
+    // The client refreshes its token when it sees the doc active; setting the
+    // claim first guarantees that refresh returns the claim (no denied reads).
+    const { db, store } = makeStaffDb({ 'users/alice/memberships/chidi': { status: 'pending' } });
+    const failingClaims = async () => {
+      throw new Error('claims_backend_down');
+    };
+    await expect(
+      approveStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), {
+        db,
+        setClaims: failingClaims,
+        now: () => NOW,
+      }),
+    ).rejects.toThrow('claims_backend_down');
+    // Claim set first failed → doc must NOT have been flipped to active.
+    expect(store.get('users/alice/memberships/chidi')).toMatchObject({ status: 'pending' });
+  });
 });
 
 describe('revokeStaffMemberHandler', () => {
