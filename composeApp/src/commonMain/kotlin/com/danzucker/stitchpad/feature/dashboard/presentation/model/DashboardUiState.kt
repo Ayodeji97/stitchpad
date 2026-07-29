@@ -7,7 +7,8 @@ package com.danzucker.stitchpad.feature.dashboard.presentation.model
  * both `BrandNew` and `BusyDay` simultaneously, which the boolean version allowed.
  *
  * Resolution priority (first match wins, see [DashboardViewModel.resolveUiState]):
- *   Loading → BrandNew → FirstCustomer → BusyDay → ReadyForPickup → NbaActive → PipelineSteady → QuietDay
+ *   Loading → BrandNew → FirstCustomer → CollectionOverdue → BusyDay → ReadyForPickup →
+ *   NbaActive → PipelineSteady → QuietDay
  *
  * Data needed for rendering (orders, customers, pipeline, NBA, weeklyGoal, …) lives
  * on [DashboardState] alongside this. Sections render conditionally based on the
@@ -78,6 +79,16 @@ sealed interface DashboardUiState {
      * times within the visible viewport.
      */
     data object ReadyForPickup : DashboardUiState
+
+    /**
+     * At least one collectible is overdue (overdueCount > 0 on the dashboard's
+     * collection summary) and no genuine deadline urgency ([BusyDay]) is active.
+     * Escalates collecting money above the calmer earn-opportunity framing since
+     * overdue money owed is a more pressing concern than a general NBA suggestion.
+     * Renders [IllustratedFocusCard] (Earn variant) with a collection-specific
+     * headline/CTA that routes to the To-Collect list.
+     */
+    data object CollectionOverdue : DashboardUiState
 }
 
 /**
@@ -93,5 +104,6 @@ val DashboardUiState.focusVariant: FocusVariant?
         DashboardUiState.NbaActive -> FocusVariant.Earn
         DashboardUiState.BusyDay -> FocusVariant.Focus
         DashboardUiState.ReadyForPickup -> FocusVariant.Pickup
+        DashboardUiState.CollectionOverdue -> FocusVariant.Earn
         DashboardUiState.Loading, DashboardUiState.BrandNew -> null
     }

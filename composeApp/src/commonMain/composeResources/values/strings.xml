@@ -928,6 +928,7 @@
     <string name="dashboard_whatsapp_collect_overdue">Hi %1$s, your %2$s order is now %3$dd past its delivery date. Outstanding balance: ₦%4$s. — %5$s</string>
     <!-- Shown when whatsAppLauncher.launch returns false — WhatsApp not installed, URL rejected, etc. -->
     <string name="dashboard_whatsapp_launch_failed">Couldn&apos;t open WhatsApp. Make sure it&apos;s installed and try again.</string>
+    <string name="to_collect_chase_no_contact">Couldn&apos;t send a reminder — this customer&apos;s contact details are missing.</string>
     <!-- Order detail launcher failure strings -->
     <string name="order_detail_whatsapp_launch_failed">Couldn&apos;t open WhatsApp. Make sure it&apos;s installed and try again.</string>
     <string name="order_detail_dialer_launch_failed">Couldn&apos;t open the dialer.</string>
@@ -1000,6 +1001,9 @@
     <string name="focus_pickup_title">%1$d orders ready for pickup</string>
     <string name="focus_pickup_supporting">Reach out about pickup or mark delivered</string>
     <string name="focus_pickup_cta">Open %1$s's order</string>
+    <string name="dashboard_focus_collect_headline">Money to collect</string>
+    <string name="dashboard_focus_collect_supporting">%1$d overdue — chase payment today</string>
+    <string name="dashboard_focus_collect_cta">Collect now</string>
 
     <!-- V2 empty-state cards (EmptyIllustrationCard) -->
     <string name="dashboard_nba_empty_title">No suggested moves</string>
@@ -1229,6 +1233,10 @@
     <string name="whatsapp_message_customer_greeting">Hi %1$s, hope you&apos;re keeping well! Just checking in from the workshop.</string>
     <!-- Shown when WhatsApp can&apos;t be opened from the customer screens -->
     <string name="whatsapp_launch_failed">Couldn&apos;t open WhatsApp. Make sure it&apos;s installed and try again.</string>
+
+    <!-- To collect "Chase" WhatsApp templates — balance-aware payment reminders (%1$s = first name, %2$s = amount, %3$s = signature) -->
+    <string name="whatsapp_collect_message_ready">Hi %1$s, your order is ready for collection. Kindly complete the outstanding balance of ₦%2$s when you can. Thank you! %3$s</string>
+    <string name="whatsapp_collect_message_delivered">Hi %1$s, a friendly reminder that you have an outstanding balance of ₦%2$s. Kindly complete the payment when you can. Thank you! %3$s</string>
 
     <!-- Login redesign additions -->
     <string name="login_subtitle">Sign in to manage your orders, customers, and payments.</string>

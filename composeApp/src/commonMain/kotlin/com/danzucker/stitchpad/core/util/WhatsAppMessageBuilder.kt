@@ -3,8 +3,11 @@ package com.danzucker.stitchpad.core.util
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.sharing.formatPrice
 import org.jetbrains.compose.resources.getString
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.whatsapp_collect_message_delivered
+import stitchpad.composeapp.generated.resources.whatsapp_collect_message_ready
 import stitchpad.composeapp.generated.resources.whatsapp_message_customer_greeting
 import stitchpad.composeapp.generated.resources.whatsapp_message_delivered
 import stitchpad.composeapp.generated.resources.whatsapp_message_in_progress
@@ -27,6 +30,18 @@ object WhatsAppMessageBuilder {
     // than from a specific order.
     suspend fun buildForCustomer(customer: Customer): String =
         getString(Res.string.whatsapp_message_customer_greeting, customer.firstName())
+
+    // "To collect" chase — the flagship action of the collection screen, so unlike
+    // buildForOrder this MUST reference the outstanding balance regardless of order
+    // status. Tone differs slightly for READY (about to hand over) vs everything
+    // else, i.e. DELIVERED (already handed over), but the balance appears in both.
+    suspend fun buildForCollection(order: Order, customer: Customer, signature: String): String {
+        val resource = when (order.status) {
+            OrderStatus.READY -> Res.string.whatsapp_collect_message_ready
+            else -> Res.string.whatsapp_collect_message_delivered
+        }
+        return getString(resource, customer.firstName(), formatPrice(order.balanceRemaining), signature)
+    }
 
     private fun Customer.firstName(): String =
         name.substringBefore(' ').ifBlank { name }

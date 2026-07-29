@@ -129,6 +129,9 @@ data object ReferralCodeRoute
 data object DeleteAccountRoute
 
 @Serializable
+data object ToCollectRoute
+
+@Serializable
 data object ReportsRoute
 
 @Serializable

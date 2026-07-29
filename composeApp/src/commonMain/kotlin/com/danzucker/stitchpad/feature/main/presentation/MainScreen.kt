@@ -32,6 +32,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.danzucker.stitchpad.feature.collection.presentation.ToCollectRoot
 import com.danzucker.stitchpad.feature.customer.presentation.detail.CustomerDetailRoot
 import com.danzucker.stitchpad.feature.customer.presentation.form.CustomerFormRoot
 import com.danzucker.stitchpad.feature.customer.presentation.list.CustomerListRoot
@@ -100,6 +101,7 @@ import com.danzucker.stitchpad.navigation.ShareGiftLinkRoute
 import com.danzucker.stitchpad.navigation.StyleFoldersRoute
 import com.danzucker.stitchpad.navigation.StyleFormRoute
 import com.danzucker.stitchpad.navigation.StyleGalleryRoute
+import com.danzucker.stitchpad.navigation.ToCollectRoute
 import com.danzucker.stitchpad.navigation.TutorialPlayerRoute
 import com.danzucker.stitchpad.navigation.UpgradeRoute
 import org.jetbrains.compose.resources.stringResource
@@ -510,6 +512,7 @@ private fun MainNavGraph(
                         launchSingleTop = true
                     }
                 },
+                onNavigateToToCollect = { navController.navigate(ToCollectRoute) },
                 onNavigateToOrderForm = {
                     navController.navigate(OrderFormRoute())
                 },
@@ -567,6 +570,12 @@ private fun MainNavGraph(
                 onNavigateToAddMeasurementForCustomer = { customerId ->
                     navController.navigate(MeasurementFormRoute(customerId = customerId))
                 },
+            )
+        }
+        composable<ToCollectRoute> {
+            ToCollectRoot(
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToOrderDetail = { orderId -> navController.navigate(OrderDetailRoute(orderId = orderId)) },
             )
         }
         composable<AddCustomerFirstRoute> {

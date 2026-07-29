@@ -20,6 +20,7 @@ import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
+import com.danzucker.stitchpad.feature.collection.domain.CollectionCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.BucketCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.FocusResolver
 import com.danzucker.stitchpad.feature.dashboard.domain.NbaCalculator
@@ -207,7 +208,7 @@ class DashboardViewModel(
                 }
             )
             DashboardAction.OnSeeAllClick -> emitEvent(DashboardEvent.NavigateToOrders)
-            DashboardAction.OnOutstandingClick -> emitEvent(DashboardEvent.NavigateToOrders)
+            DashboardAction.OnOutstandingClick -> emitEvent(DashboardEvent.NavigateToToCollect)
             DashboardAction.OnViewAllOrdersClick -> emitEvent(DashboardEvent.NavigateToOrders)
             DashboardAction.OnViewPipelineInProgressClick -> emitEvent(DashboardEvent.NavigateToOrders)
             DashboardAction.OnViewPipelineNotStartedClick -> emitEvent(DashboardEvent.NavigateToOrders)
@@ -320,6 +321,14 @@ class DashboardViewModel(
                 firstReadyId?.let { emitEvent(DashboardEvent.NavigateToOrderDetail(it)) }
             }
             FocusVariant.Earn -> {
+                // CollectionOverdue reuses the Earn variant (see focusVariant
+                // mapping) but routes to the To-Collect list instead of the
+                // top NBA — the CTA needs the uiState, not just the variant,
+                // to disambiguate the two sub-cases.
+                if (current.uiState == DashboardUiState.CollectionOverdue) {
+                    emitEvent(DashboardEvent.NavigateToToCollect)
+                    return
+                }
                 val topNba = current.nextBestActions.firstOrNull() ?: return
                 emitEvent(
                     if (topNba.opensWhatsApp) {
@@ -502,8 +511,16 @@ class DashboardViewModel(
                     .toLocalDateTime(timeZone).date
                 val customersById = customers.associateBy { it.id }
                 val buckets = BucketCalculator.compute(orders, today, timeZone)
+                val collectibles = CollectionCalculator.collectibles(orders, customersById, nowMillis())
+                val collectionSummary = CollectionCalculator.summarize(collectibles)
                 val nextBestActions = NbaCalculator.compute(orders, customersById, today, timeZone)
-                val uiState = FocusResolver.resolveUiState(buckets, nextBestActions, orders, customers)
+                val uiState = FocusResolver.resolveUiState(
+                    buckets,
+                    nextBestActions,
+                    orders,
+                    customers,
+                    collectionOverdueCount = collectionSummary.overdueCount,
+                )
                 val reconnect = ReconnectCalculator.compute(orders, customers, today, timeZone)
                 val focus = FocusResolver.resolveFocus(
                     uiState = uiState,
@@ -512,6 +529,7 @@ class DashboardViewModel(
                     customers = customers,
                     orders = orders,
                     reconnect = reconnect,
+                    collectionOverdueCount = collectionSummary.overdueCount,
                 )
                 val weeklyGoal = WeeklyGoalCalculator.compute(orders, today, goal, timeZone)
                 // "Your customer" card surfaces only on FirstCustomer. Pick the
@@ -553,8 +571,9 @@ class DashboardViewModel(
                         overdue = buckets.overdue,
                         dueToday = buckets.dueToday,
                         ready = buckets.ready,
-                        outstandingAmount = buckets.outstandingAmount,
-                        outstandingOrderCount = buckets.outstandingOrderCount,
+                        outstandingAmount = collectionSummary.totalOutstanding,
+                        outstandingOrderCount = collectionSummary.orderCount,
+                        outstandingOverdueCount = collectionSummary.overdueCount,
                         nextBestActions = nextBestActions,
                         pipelineInProgress = buckets.pipelineInProgress,
                         pipelineInProgressTotal = buckets.pipelineInProgressTotal,

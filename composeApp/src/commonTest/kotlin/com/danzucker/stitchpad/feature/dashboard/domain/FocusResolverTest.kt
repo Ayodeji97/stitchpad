@@ -125,6 +125,47 @@ class FocusResolverTest {
     }
 
     @Test
+    fun escalatesToCollectionOverdueWhenOverdueCollectiblesExist() {
+        val state = FocusResolver.resolveUiState(
+            buckets = emptyBuckets,
+            nextBestActions = emptyList(),
+            orders = listOf(order()),
+            customers = listOf(customer()),
+            collectionOverdueCount = 2,
+        )
+        assertEquals(DashboardUiState.CollectionOverdue, state)
+    }
+
+    @Test
+    fun collectionOverdueTakesPriorityOverBusyDay() {
+        // Overdue money owed outranks a due-today/overdue deadline once the
+        // workshop is past onboarding — see the priority note on resolveUiState.
+        val state = FocusResolver.resolveUiState(
+            buckets = emptyBuckets.copy(overdue = listOf(row())),
+            nextBestActions = emptyList(),
+            orders = listOf(order()),
+            customers = listOf(customer()),
+            collectionOverdueCount = 1,
+        )
+        assertEquals(DashboardUiState.CollectionOverdue, state)
+    }
+
+    @Test
+    fun collectionOverdueFocusUsesEarnVariant() {
+        val focus = FocusResolver.resolveFocus(
+            uiState = DashboardUiState.CollectionOverdue,
+            buckets = emptyBuckets,
+            nextBestActions = emptyList(),
+            customers = listOf(customer()),
+            reconnect = emptyList(),
+            collectionOverdueCount = 3,
+        )
+        assertEquals(FocusVariant.Earn, focus.variant)
+        assertNotNull(focus.supporting)
+        assertNotNull(focus.ctaLabel)
+    }
+
+    @Test
     fun nextBestActionsWithoutTriageResolvesToNbaActive() {
         val state = FocusResolver.resolveUiState(
             buckets = emptyBuckets,

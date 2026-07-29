@@ -83,6 +83,7 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupSt
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupStepKey
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupStepStatus
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.TodayWorkCard
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.YoureOwedCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FirstOrderSetupUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
@@ -272,6 +273,7 @@ internal fun firstOrderChecklistSteps(setup: FirstOrderSetupUi): List<SetupStep>
 fun DashboardRoot(
     onNavigateToOrderDetail: (String) -> Unit,
     onNavigateToOrders: () -> Unit,
+    onNavigateToToCollect: () -> Unit,
     onNavigateToOrderForm: () -> Unit,
     onNavigateToEditOrder: (String) -> Unit,
     onNavigateToCustomerForm: () -> Unit,
@@ -328,6 +330,7 @@ fun DashboardRoot(
             whatsAppLauncher = whatsAppLauncher,
             onNavigateToOrderDetail = onNavigateToOrderDetail,
             onNavigateToOrders = onNavigateToOrders,
+            onNavigateToToCollect = onNavigateToToCollect,
             onNavigateToOrderForm = onNavigateToOrderForm,
             onNavigateToEditOrder = onNavigateToEditOrder,
             onNavigateToCustomerForm = onNavigateToCustomerForm,
@@ -468,6 +471,7 @@ private fun handleDashboardEvent(
     whatsAppLauncher: WhatsAppLauncher,
     onNavigateToOrderDetail: (String) -> Unit,
     onNavigateToOrders: () -> Unit,
+    onNavigateToToCollect: () -> Unit,
     onNavigateToOrderForm: () -> Unit,
     onNavigateToEditOrder: (String) -> Unit,
     onNavigateToCustomerForm: () -> Unit,
@@ -486,6 +490,7 @@ private fun handleDashboardEvent(
     when (event) {
         is DashboardEvent.NavigateToOrderDetail -> onNavigateToOrderDetail(event.orderId)
         DashboardEvent.NavigateToOrders -> onNavigateToOrders()
+        DashboardEvent.NavigateToToCollect -> onNavigateToToCollect()
         DashboardEvent.NavigateToOrderForm -> onNavigateToOrderForm()
         is DashboardEvent.NavigateToEditOrder -> onNavigateToEditOrder(event.orderId)
         DashboardEvent.NavigateToCustomerForm -> onNavigateToCustomerForm()
@@ -677,7 +682,8 @@ fun DashboardScreen(
                 DashboardUiState.PipelineSteady,
                 DashboardUiState.NbaActive,
                 DashboardUiState.BusyDay,
-                DashboardUiState.ReadyForPickup -> DashboardContent(
+                DashboardUiState.ReadyForPickup,
+                DashboardUiState.CollectionOverdue -> DashboardContent(
                     state = state,
                     onAction = onAction,
                     onNavigateToTutorial = onNavigateToTutorial,
@@ -768,6 +774,17 @@ private fun DashboardContent(
                 ctaSubtitle = state.focusCtaSubtitle?.asString(),
                 sectionLabel = state.focusSectionLabel?.asString(),
                 onClick = { onAction(DashboardAction.OnFocusCtaClick) },
+            )
+        }
+
+        // 2b. "You're owed" — money to collect on Ready/Delivered orders with a
+        // balance (sourced from CollectionCalculator). Taps into the To-Collect list.
+        if (state.outstandingOrderCount > 0) {
+            YoureOwedCard(
+                amount = state.outstandingAmount,
+                orderCount = state.outstandingOrderCount,
+                overdueCount = state.outstandingOverdueCount,
+                onClick = { onAction(DashboardAction.OnOutstandingClick) },
             )
         }
 

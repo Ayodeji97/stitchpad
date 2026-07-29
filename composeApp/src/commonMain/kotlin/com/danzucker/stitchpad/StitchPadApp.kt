@@ -32,6 +32,7 @@ import com.danzucker.stitchpad.di.smartPresentationModule
 import com.danzucker.stitchpad.di.staffModule
 import com.danzucker.stitchpad.di.styleDataModule
 import com.danzucker.stitchpad.di.stylePresentationModule
+import com.danzucker.stitchpad.di.toCollectPresentationModule
 import com.danzucker.stitchpad.di.tutorialsModule
 import org.koin.core.context.startKoin
 import org.koin.dsl.KoinAppDeclaration
@@ -69,6 +70,7 @@ fun initKoin(platformConfig: KoinAppDeclaration = {}) {
             freemiumModule,
             giftModule,
             referralModule,
+            toCollectPresentationModule,
             tutorialsModule,
             platformModule
         )
