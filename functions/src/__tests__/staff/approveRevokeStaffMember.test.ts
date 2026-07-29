@@ -35,11 +35,14 @@ describe('approveStaffMemberHandler', () => {
     expect(d._claims.get('chidi')).toEqual({ workshopUid: 'alice', role: 'staff' });
   });
 
-  it('refuses to re-approve a revoked membership (must re-invite)', async () => {
+  it('refuses to re-approve a revoked membership without minting a claim', async () => {
     const { db } = makeStaffDb({ 'users/alice/memberships/chidi': { status: 'revoked' } });
+    const d = deps(db);
     await expect(
-      approveStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), deps(db)),
+      approveStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), d),
     ).rejects.toMatchObject({ message: 'membership_revoked' });
+    // Rejected before any claim was issued (no active-looking session left behind).
+    expect(d._claims.has('chidi')).toBe(false);
   });
 
   it('rolls the claim back if the membership transaction fails', async () => {
