@@ -132,8 +132,9 @@ class ToCollectViewModel(
     private fun onChaseClick(orderId: String) {
         val order = ordersById[orderId] ?: return
         val customer = customersById[order.customerId]
-        if (customer == null) {
-            // Orphaned delivered order — its customer was deleted. Don't no-op silently.
+        if (customer == null || customer.phone.isBlank()) {
+            // No usable contact: an orphaned delivered order (customer deleted) or a
+            // customer with no phone. Don't no-op silently or open WhatsApp's generic picker.
             viewModelScope.launch { _events.send(ToCollectEvent.ChaseUnavailable) }
             return
         }

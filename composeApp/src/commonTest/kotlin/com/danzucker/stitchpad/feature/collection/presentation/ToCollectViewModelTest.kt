@@ -146,4 +146,17 @@ class ToCollectViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
     }
+
+    @Test
+    fun chaseClickOnCustomerWithBlankPhoneEmitsChaseUnavailable() = runTest {
+        // Customer exists but has no phone — chasing must warn, not open WhatsApp's picker.
+        customerRepository.customersList = listOf(Customer(id = "c1", userId = "u", name = "Ada Obi", phone = ""))
+        orderRepository.ordersList = listOf(order("o1", OrderStatus.DELIVERED, 5_000.0, owedDaysAgo = 1))
+        val vm = createViewModel()
+        vm.events.test {
+            vm.onAction(ToCollectAction.OnChaseClick("o1"))
+            assertEquals(ToCollectEvent.ChaseUnavailable, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 }
