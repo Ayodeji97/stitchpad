@@ -4,8 +4,12 @@ import { DigestItem, DigestModel, OrderScanDoc } from './types';
 const OVERDUE_THRESHOLD_DAYS = 7;
 
 export function balanceRemaining(o: OrderScanDoc): number {
-  const paid = o.payments.length > 0
-    ? o.payments.reduce((sum, p) => sum + (p.amount || 0), 0)
+  // Legacy Firestore docs (pre-payments-array) can have `payments` entirely absent — normalize
+  // to [] so a missing field doesn't throw on `.length`/`.reduce` and instead falls back to
+  // depositPaid, mirroring dailyDigest.mapOrder's normalization.
+  const payments = o.payments ?? [];
+  const paid = payments.length > 0
+    ? payments.reduce((sum, p) => sum + (p.amount || 0), 0)
     : (o.depositPaid ?? 0);
   // Mirror the client: payable = subtotal minus the whole-order discount, floored at 0,
   // then balance = payable minus what's been paid. Ignoring the discount here would

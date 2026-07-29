@@ -30,6 +30,19 @@ describe('collectibleTransition', () => {
     expect(collectibleTransition(order({ status: 'IN_PROGRESS' }),
       order({ status: 'IN_PROGRESS', totalPrice: 9000 }))).toBeNull();
   });
+  it('does NOT throw and returns the correct balance on a legacy doc with no `payments` field', () => {
+    const before = order({ status: 'IN_PROGRESS' });
+    const after = order({ status: 'READY', totalPrice: 10000, depositPaid: 4000 });
+    delete after.payments; // legacy doc: field absent entirely, not just an empty array
+    expect(after.payments).toBeUndefined();
+    let n: ReturnType<typeof collectibleTransition> = null;
+    expect(() => {
+      n = collectibleTransition(before, after);
+    }).not.toThrow();
+    expect(n).not.toBeNull();
+    expect(n!.amount).toBe(6000); // totalPrice(10000) - depositPaid(4000)
+    expect(n!.status).toBe('READY');
+  });
   it('push copy names the garment, state, and amount', () => {
     const copy = collectPushCopy({ customerName: 'Ada Obi', garmentSummary: 'Agbada', amount: 8500, status: 'READY' });
     expect(copy.body).toContain('Agbada');

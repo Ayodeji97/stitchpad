@@ -7,6 +7,7 @@ import androidx.core.app.NotificationManagerCompat
 import com.danzucker.stitchpad.MainActivity
 import com.danzucker.stitchpad.R
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
+import com.danzucker.stitchpad.navigation.PushTargetParser
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import kotlinx.coroutines.runBlocking
@@ -43,9 +44,18 @@ class StitchPadMessagingService : FirebaseMessagingService(), KoinComponent {
             if (orderId != null) putExtra(PUSH_ORDER_ID_EXTRA, orderId)
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
+        // Per-order pushes (target == "order") must not collapse into one another or into the
+        // daily summary: derive a stable id from the orderId and use it for BOTH the
+        // notification id and the PendingIntent request code, so distinct orders get distinct
+        // notifications + tap targets. Non-order pushes (inbox / to_collect summary)
+        // intentionally keep sharing the one daily-reminder id/request-code — a daily summary
+        // is meant to collapse to a single notification.
+        val perOrderId = orderId?.takeIf { target == PushTargetParser.TARGET_ORDER }?.hashCode()
+        val requestCode = perOrderId ?: 0
+        val notificationId = perOrderId ?: DAILY_REMINDER_NOTIFICATION_ID
         val pending = PendingIntent.getActivity(
             this,
-            0,
+            requestCode,
             tapIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
@@ -57,7 +67,7 @@ class StitchPadMessagingService : FirebaseMessagingService(), KoinComponent {
             .setContentIntent(pending)
             .build()
         try {
-            NotificationManagerCompat.from(this).notify(DAILY_REMINDER_NOTIFICATION_ID, built)
+            NotificationManagerCompat.from(this).notify(notificationId, built)
         } catch (_: SecurityException) {
             // POST_NOTIFICATIONS revoked between the areNotificationsEnabled() check and notify().
         }
