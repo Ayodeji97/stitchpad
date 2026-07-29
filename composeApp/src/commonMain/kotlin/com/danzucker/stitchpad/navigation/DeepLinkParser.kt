@@ -24,6 +24,9 @@ object DeepLinkParser {
     private const val REFERRAL_CUSTOM_SCHEME_BASE = "stitchpad://r"
     private val referralUniversalLinkBase = "https://$UNIVERSAL_LINK_HOST/r"
 
+    private const val JOIN_CUSTOM_SCHEME_BASE = "stitchpad://join"
+    private val joinUniversalLinkBase = "https://$UNIVERSAL_LINK_HOST/join"
+
     // Referral codes are uppercase over the Crockford-ish alphabet (see the server's
     // asCode in recordAttribution.ts). Normalize + constrain here too so a manually
     // typed code is cleaned before it ever hits the wire.
@@ -55,6 +58,21 @@ object DeepLinkParser {
             return null
         }
         return parseQuery(url)["code"]?.takeIf { it.isNotEmpty() }
+    }
+
+    /**
+     * Returns the staff invite code when [url] is a join-workshop deep link
+     * (https://link.getstitchpad.com/join?code= from the invite link, or the
+     * stitchpad://join?code= custom scheme), normalized over the code charset, or
+     * null when it is not a join link / carries no valid code.
+     */
+    fun parseStaffInvite(url: String?): String? {
+        if (url == null ||
+            (!isExactRoute(url, JOIN_CUSTOM_SCHEME_BASE) && !isExactRoute(url, joinUniversalLinkBase))
+        ) {
+            return null
+        }
+        return normalizeReferralCode(parseQuery(url)["code"])
     }
 
     /**

@@ -44,6 +44,7 @@ class SignOutUseCase(
             pendingDeepLink.clear()
             pendingDeepLink.consumeUpgradePreselect()
             pendingDeepLink.consumeClaimGiftCode()
+            pendingDeepLink.consumeJoinWorkshopCode()
             // Backup only on confirmed sign-out: rotate the local FCM token so any doc the
             // step above couldn't delete (offline) gets pruned server-side on the next push.
             withTimeoutOrNull(UNREGISTER_TIMEOUT_MS) { pushTokenRegistrar.invalidateToken() }

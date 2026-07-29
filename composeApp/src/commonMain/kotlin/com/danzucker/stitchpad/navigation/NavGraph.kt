@@ -11,9 +11,13 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.toRoute
 import com.danzucker.stitchpad.core.analytics.domain.Analytics
 import com.danzucker.stitchpad.core.debug.isDebugBuild
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
+import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.MembershipStatus
+import com.danzucker.stitchpad.core.domain.session.StaffRole
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.auth.presentation.forgotpassword.ForgotPasswordRoot
@@ -28,6 +32,8 @@ import com.danzucker.stitchpad.feature.onboarding.presentation.OnboardingRoot
 import com.danzucker.stitchpad.feature.onboarding.presentation.SplashRoot
 import com.danzucker.stitchpad.feature.onboarding.presentation.welcome.WelcomeRoot
 import com.danzucker.stitchpad.feature.onboarding.presentation.workshop.WorkshopSetupRoot
+import com.danzucker.stitchpad.feature.staff.presentation.pending.StaffPendingRoot
+import com.danzucker.stitchpad.feature.staff.presentation.redeem.RedeemInviteRoot
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -65,6 +71,37 @@ private suspend fun needsWorkshopSetupForCurrentUser(
 }
 
 /**
+ * The single post-authentication destination ladder, shared by the Splash, Login
+ * and Email-verification gates so the staff branches can't drift between them.
+ * Precedence:
+ *  1. Email verification (applies to everyone).
+ *  2. Approved staff  → Home (they skip workshop setup — the tree isn't theirs).
+ *  3. Pending staff   → the waiting screen.
+ *  4. A JOIN_WORKSHOP deep link → the redeem screen (code prefilled).
+ *  5. Owner needing workshop setup → setup; otherwise Home.
+ * Returns a route object for [NavHostController.navigate].
+ */
+private suspend fun resolvePostAuthDestination(
+    authRepository: AuthRepository,
+    onboardingPreferences: OnboardingPreferences,
+    resolveNeedsWorkshopSetup: ResolveNeedsWorkshopSetup,
+    activeWorkshopProvider: ActiveWorkshopProvider,
+    pendingDeepLink: PendingDeepLinkHolder,
+): Any {
+    if (authRepository.needsEmailVerification(onboardingPreferences)) return EmailVerificationRoute
+
+    val session = activeWorkshopProvider.awaitHydrated()
+    val staffPending = session.role == StaffRole.STAFF && session.membershipStatus == MembershipStatus.PENDING
+    return when {
+        session.isActiveStaff -> HomeRoute
+        staffPending -> StaffPendingRoute()
+        pendingDeepLink.target.value == DeepLinkTarget.JOIN_WORKSHOP -> RedeemInviteRoute
+        needsWorkshopSetupForCurrentUser(authRepository, resolveNeedsWorkshopSetup) -> WorkshopSetupRoute
+        else -> HomeRoute
+    }
+}
+
+/**
  * Outer-nav handler for a pending push-tap deep link. The inbox route lives in MainRoot's
  * INNER nav, so if a tap arrives while the user is on a non-Home OUTER route (e.g. the
  * debug menu) MainRoot isn't composed to consume it — bring the app back to Home first
@@ -94,6 +131,9 @@ private fun PushDeepLinkRedirectEffect(navController: NavHostController) {
             }
             return@LaunchedEffect
         }
+        // JOIN_WORKSHOP routing is owned by the post-auth gate (resolvePostAuthDestination),
+        // which sends the staffer to the redeem screen — don't force-Home it here.
+        if (pendingDeepLinkTarget == DeepLinkTarget.JOIN_WORKSHOP) return@LaunchedEffect
         val onHome = currentEntry?.destination?.hasRoute<HomeRoute>() == true
         val homeInBackStack = navController.currentBackStack.value.any {
             it.destination.hasRoute<HomeRoute>()
@@ -133,6 +173,8 @@ fun StitchPadNavHost(
 ) {
     val authRepository: AuthRepository = koinInject()
     val userRepository: UserRepository = koinInject()
+    val activeWorkshopProvider: ActiveWorkshopProvider = koinInject()
+    val pendingDeepLink: PendingDeepLinkHolder = koinInject()
     val resolveNeedsWorkshopSetup = remember(onboardingPreferences, userRepository) {
         ResolveNeedsWorkshopSetup(onboardingPreferences, userRepository)
     }
@@ -153,13 +195,13 @@ fun StitchPadNavHost(
                         val destination = when {
                             !hasSeenOnboarding -> OnboardingRoute
                             !authRepository.isLoggedIn -> WelcomeRoute
-                            authRepository.needsEmailVerification(onboardingPreferences) ->
-                                EmailVerificationRoute
-                            needsWorkshopSetupForCurrentUser(
+                            else -> resolvePostAuthDestination(
                                 authRepository,
+                                onboardingPreferences,
                                 resolveNeedsWorkshopSetup,
-                            ) -> WorkshopSetupRoute
-                            else -> HomeRoute
+                                activeWorkshopProvider,
+                                pendingDeepLink,
+                            )
                         }
                         navController.navigate(destination) {
                             popUpTo(SplashRoute) { inclusive = true }
@@ -200,15 +242,13 @@ fun StitchPadNavHost(
                 onNavigateToForgotPassword = { navController.navigate(ForgotPasswordRoute) },
                 onNavigateToHome = {
                     scope.launch {
-                        val destination = when {
-                            authRepository.needsEmailVerification(onboardingPreferences) ->
-                                EmailVerificationRoute
-                            needsWorkshopSetupForCurrentUser(
-                                authRepository,
-                                resolveNeedsWorkshopSetup,
-                            ) -> WorkshopSetupRoute
-                            else -> HomeRoute
-                        }
+                        val destination = resolvePostAuthDestination(
+                            authRepository,
+                            onboardingPreferences,
+                            resolveNeedsWorkshopSetup,
+                            activeWorkshopProvider,
+                            pendingDeepLink,
+                        )
                         navController.navigate(destination) {
                             // Welcome is the base of the logged-out stack — clear it on success.
                             popUpTo(WelcomeRoute) { inclusive = true }
@@ -249,16 +289,13 @@ fun StitchPadNavHost(
             EmailVerificationRoot(
                 onVerified = {
                     scope.launch {
-                        val destination = if (
-                            needsWorkshopSetupForCurrentUser(
-                                authRepository,
-                                resolveNeedsWorkshopSetup,
-                            )
-                        ) {
-                            WorkshopSetupRoute
-                        } else {
-                            HomeRoute
-                        }
+                        val destination = resolvePostAuthDestination(
+                            authRepository,
+                            onboardingPreferences,
+                            resolveNeedsWorkshopSetup,
+                            activeWorkshopProvider,
+                            pendingDeepLink,
+                        )
                         navController.navigate(destination) {
                             popUpTo(EmailVerificationRoute) { inclusive = true }
                         }
@@ -285,6 +322,41 @@ fun StitchPadNavHost(
                         popUpTo<WorkshopSetupRoute> { inclusive = true }
                     }
                 }
+            )
+        }
+        composable<RedeemInviteRoute> {
+            RedeemInviteRoot(
+                onNavigateToPending = { workshopName ->
+                    navController.navigate(StaffPendingRoute(workshopName)) {
+                        popUpTo<RedeemInviteRoute> { inclusive = true }
+                    }
+                },
+                onNavigateBack = { navController.navigateUp() },
+                onSignedOut = {
+                    navController.navigate(WelcomeRoute) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
+            )
+        }
+        composable<StaffPendingRoute> { entry ->
+            StaffPendingRoot(
+                workshopName = entry.toRoute<StaffPendingRoute>().workshopName,
+                onNavigateToHome = {
+                    navController.navigate(HomeRoute) {
+                        popUpTo<StaffPendingRoute> { inclusive = true }
+                    }
+                },
+                onNavigateToRedeem = {
+                    navController.navigate(RedeemInviteRoute) {
+                        popUpTo<StaffPendingRoute> { inclusive = true }
+                    }
+                },
+                onSignedOut = {
+                    navController.navigate(WelcomeRoute) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
             )
         }
         composable<HomeRoute> {

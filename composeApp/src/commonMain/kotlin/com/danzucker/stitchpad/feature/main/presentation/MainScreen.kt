@@ -149,6 +149,10 @@ fun MainRoot(
                     launchSingleTop = true
                 }
             }
+            // A staff invite link is handled by the pre-Home gate
+            // (resolvePostAuthDestination). If one somehow lingers once Home is
+            // reached (e.g. an already-active user tapped it), just drop it.
+            DeepLinkTarget.JOIN_WORKSHOP -> pendingDeepLink.clear()
             null -> Unit
         }
     }

@@ -32,6 +32,22 @@ data object EmailVerificationRoute
 @Serializable
 data object WorkshopSetupRoute
 
+/**
+ * Staff onboarding — a signed-in user redeems an owner's invite code to join a
+ * workshop. Reached from a JOIN_WORKSHOP deep link (code prefilled) or the "join
+ * instead" fork on [WorkshopSetupRoute]. On success it routes to [StaffPendingRoute].
+ */
+@Serializable
+data object RedeemInviteRoute
+
+/**
+ * Staff onboarding — the waiting screen after redeeming, until the owner approves.
+ * Auto-advances to [HomeRoute] the moment the approval claim lands. [workshopName]
+ * is passed from the redeem step; null on a cold start straight into the pending state.
+ */
+@Serializable
+data class StaffPendingRoute(val workshopName: String? = null)
+
 @Serializable
 data object HomeRoute
 

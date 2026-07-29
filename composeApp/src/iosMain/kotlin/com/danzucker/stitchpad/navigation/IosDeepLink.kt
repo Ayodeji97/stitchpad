@@ -26,6 +26,11 @@ fun handleIosDeepLink(url: String): Boolean {
         holder.setClaimGift(claimCode)
         return true
     }
+    val joinCode = DeepLinkParser.parseStaffInvite(url)
+    if (joinCode != null) {
+        holder.setJoinWorkshop(joinCode)
+        return true
+    }
     // Referral App Link (/r/<code>). Silent capture — no navigation target; the
     // coordinator submits after the user authenticates.
     val referralCode = DeepLinkParser.parseReferral(url)
