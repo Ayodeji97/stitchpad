@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.auth.domain
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.User
+import com.danzucker.stitchpad.core.domain.session.WorkshopClaims
 
 @Suppress("TooManyFunctions")
 interface AuthRepository {
@@ -28,6 +29,20 @@ interface AuthRepository {
     suspend fun deleteAccount(): EmptyResult<AuthError>
     suspend fun getCurrentUser(): User?
     val isLoggedIn: Boolean
+
+    /**
+     * The signed-in user's staff custom claims (workshopUid/role) read from the
+     * ID token, or null when signed out. On error, returns claims with null
+     * workshopUid/role (fail-safe → owner-of-self).
+     */
+    suspend fun getWorkshopClaims(): WorkshopClaims?
+
+    /**
+     * Force an ID-token refresh so custom claims set server-side (e.g. right
+     * after an owner approves a staff member) land on the token immediately
+     * instead of waiting up to an hour for the natural refresh.
+     */
+    suspend fun forceRefreshIdToken(): EmptyResult<AuthError>
 
     suspend fun getSignInProvider(): SignInProvider
     suspend fun reauthenticateWithPassword(password: String): EmptyResult<AuthError>

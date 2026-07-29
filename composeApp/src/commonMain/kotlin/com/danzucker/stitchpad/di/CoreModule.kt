@@ -7,6 +7,7 @@ import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.offline.OfflineUploadOutbox
 import com.danzucker.stitchpad.core.offline.OfflineWriteDispatcher
 import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
+import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.auth.FirebaseAuth
 import dev.gitlive.firebase.auth.auth
@@ -58,8 +59,12 @@ val coreModule = module {
         )
     }
     single<ActiveWorkshopProvider> {
+        val authRepository = get<AuthRepository>()
         FirebaseActiveWorkshopProvider(
-            authUserIds = get<FirebaseAuth>().authStateChanged.map { it?.uid },
+            // idTokenChanged (not authStateChanged) so a claim change — e.g. an
+            // owner approving a staff member, once the token refreshes — re-emits
+            // and re-resolves the session. Reuses the repo's claim reader.
+            authClaims = get<FirebaseAuth>().idTokenChanged.map { authRepository.getWorkshopClaims() },
             scope = get<CoroutineScope>(qualifier = named("workshopSessionAppScope")),
         )
     }
