@@ -41,6 +41,32 @@ describe('approveStaffMemberHandler', () => {
       approveStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), deps(db)),
     ).rejects.toMatchObject({ message: 'membership_revoked' });
   });
+
+  it('rolls the claim back if the membership update fails', async () => {
+    // Claim-first, but a claim on a non-active doc would show an active-looking
+    // session with denied reads. If the doc update fails, the claim must be
+    // cleared so we never leave a claim without a matching active doc.
+    const { db, store } = makeStaffDb({ 'users/alice/memberships/chidi': { status: 'pending' } });
+    const claims = makeClaimsRecorder();
+    // Make the membership doc update fail while get() still succeeds.
+    const realDoc = db.doc('users/alice/memberships/chidi');
+    const failingDb = {
+      ...db,
+      doc: () => ({ ...realDoc, update: async () => { throw new Error('firestore_down'); } }),
+    } as unknown as typeof db;
+
+    await expect(
+      approveStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), {
+        db: failingDb,
+        setClaims: claims.setClaims,
+        now: () => NOW,
+      }),
+    ).rejects.toThrow('firestore_down');
+
+    // Doc never flipped, and the claim was rolled back to null.
+    expect(store.get('users/alice/memberships/chidi')).toMatchObject({ status: 'pending' });
+    expect(claims.claims.get('chidi')).toBeNull();
+  });
 });
 
 describe('revokeStaffMemberHandler', () => {
