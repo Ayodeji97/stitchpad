@@ -33,11 +33,15 @@ export async function revokeStaffMemberHandler(
   }
 
   const nowMs = deps.now().getTime();
-  // Claim first, then doc. Clearing the claim immediately cuts rules access; if
-  // the doc update fails after, the member has no claim (denied) but a stale
-  // active doc — still fail-safe: no access.
-  await deps.setClaims(staffAuthUid, null);
+  // Doc first, then claim. isActiveMember requires BOTH a staff claim AND an
+  // active membership doc, and setCustomUserClaims does NOT refresh an
+  // already-minted token — so it is the doc flip to revoked that cuts access
+  // immediately for a member still holding a stale active token. Flip the doc
+  // first: if clearing the claim fails after, the revoked doc already denies
+  // access. (Claim-first would leave a stale token with claim + active doc =
+  // continued access until token expiry if the doc update failed.)
   await ref.update({ status: 'revoked', revokedAt: nowMs, claimsRefreshAt: nowMs });
+  await deps.setClaims(staffAuthUid, null);
 
   return { staffAuthUid, status: 'revoked' };
 }

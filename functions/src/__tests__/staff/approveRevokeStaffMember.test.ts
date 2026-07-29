@@ -63,4 +63,21 @@ describe('revokeStaffMemberHandler', () => {
       revokeStaffMemberHandler({ staffAuthUid: 'ghost' }, authedCtx('alice'), deps(db)),
     ).rejects.toMatchObject({ code: 'not-found' });
   });
+
+  it('flips the membership doc to revoked before clearing the claim', async () => {
+    // If setClaims fails, the doc must already be revoked so the rules
+    // (which require an active doc) cut access even on a stale claimed token.
+    const { db, store } = makeStaffDb({ 'users/alice/memberships/chidi': { status: 'active' } });
+    const failingClaims = async () => {
+      throw new Error('claims_backend_down');
+    };
+    await expect(
+      revokeStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), {
+        db,
+        setClaims: failingClaims,
+        now: () => NOW,
+      }),
+    ).rejects.toThrow('claims_backend_down');
+    expect(store.get('users/alice/memberships/chidi')).toMatchObject({ status: 'revoked' });
+  });
 });
