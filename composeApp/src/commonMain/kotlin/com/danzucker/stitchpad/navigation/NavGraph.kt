@@ -148,9 +148,16 @@ private fun PushDeepLinkRedirectEffect(navController: NavHostController) {
             val onRedeem = currentEntry?.destination?.hasRoute<RedeemInviteRoute>() == true
             val pastAuthGate = currentEntry?.destination?.hasRoute<WorkshopSetupRoute>() == true ||
                 navController.currentBackStack.value.any { it.destination.hasRoute<HomeRoute>() }
-            if (!onRedeem && pastAuthGate) {
+            if (onRedeem || pastAuthGate) {
                 pendingDeepLink.clear()
-                navController.navigate(RedeemInviteRoute()) { launchSingleTop = true }
+                // Replace any existing redeem entry so a FRESH RedeemInviteViewModel
+                // consumes the newly-tapped code (the VM reads the holder only on
+                // init) — otherwise a tap while already on the blank redeem screen
+                // would be dropped. Mirrors the RedeemGift deep-link handling.
+                navController.navigate(RedeemInviteRoute()) {
+                    launchSingleTop = true
+                    popUpTo<RedeemInviteRoute> { inclusive = true }
+                }
             }
             return@LaunchedEffect
         }
