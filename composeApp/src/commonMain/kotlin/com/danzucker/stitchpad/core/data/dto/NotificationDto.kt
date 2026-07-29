@@ -16,4 +16,5 @@ data class NotificationDto(
     val gifterName: String? = null,
     val isRead: Boolean = false,
     val createdAt: Long = 0L,
+    val isOverdue: Boolean = false,
 )

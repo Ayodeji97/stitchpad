@@ -3,7 +3,7 @@ package com.danzucker.stitchpad.navigation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.concurrent.Volatile
 
-enum class DeepLinkTarget { INBOX, UPGRADE, CLAIM_GIFT, JOIN_WORKSHOP }
+enum class DeepLinkTarget { INBOX, UPGRADE, CLAIM_GIFT, ORDER, TO_COLLECT, JOIN_WORKSHOP }
 
 /** Plan to pre-select on the Upgrade screen when arriving via a renewal deep link. */
 data class UpgradePreselect(val tier: String?, val cadence: String?)
@@ -13,6 +13,7 @@ class PendingDeepLinkHolder {
     val target = MutableStateFlow<DeepLinkTarget?>(null)
     private var upgradePreselect: UpgradePreselect? = null
     private var claimGiftCode: String? = null
+    private var pendingOrderId: String? = null
     private var joinWorkshopCode: String? = null
 
     // Written from the main thread (App Link intent) AND read/consumed from the
@@ -42,6 +43,14 @@ class PendingDeepLinkHolder {
         claimGiftCode = code
         joinWorkshopCode = null
         target.value = DeepLinkTarget.CLAIM_GIFT
+    }
+
+    /** ORDER target carrying the order id from a per-order push notification tap. */
+    fun setOrder(orderId: String) {
+        pendingOrderId = orderId
+        upgradePreselect = null
+        claimGiftCode = null
+        target.value = DeepLinkTarget.ORDER
     }
 
     /** JOIN_WORKSHOP target carrying the invite code from a staff invite link. */
@@ -79,6 +88,9 @@ class PendingDeepLinkHolder {
         claimGiftCode = null
         return c
     }
+
+    /** One-shot read of the ORDER target's order id, consumed by MainRoot. */
+    fun consumeOrderId(): String? = pendingOrderId.also { pendingOrderId = null }
 
     /** One-shot read of the invite code, consumed by RedeemInviteViewModel on init. */
     fun consumeJoinWorkshopCode(): String? {

@@ -16,4 +16,5 @@ fun NotificationDto.toNotification(docId: String): Notification = Notification(
     gifterName = gifterName,
     isRead = isRead,
     createdAt = createdAt,
+    isOverdue = isOverdue,
 )

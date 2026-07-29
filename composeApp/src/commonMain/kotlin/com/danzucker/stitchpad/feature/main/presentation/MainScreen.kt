@@ -150,6 +150,19 @@ fun MainRoot(
                     launchSingleTop = true
                 }
             }
+            // Per-order push notification tap (target: order, Task 2).
+            DeepLinkTarget.ORDER -> {
+                val orderId = pendingDeepLink.consumeOrderId()
+                pendingDeepLink.clear()
+                if (orderId != null) {
+                    innerNavController.navigate(OrderDetailRoute(orderId = orderId)) { launchSingleTop = true }
+                }
+            }
+            // Daily summary push notification tap (target: to_collect, Task 5).
+            DeepLinkTarget.TO_COLLECT -> {
+                pendingDeepLink.clear()
+                innerNavController.navigate(ToCollectRoute) { launchSingleTop = true }
+            }
             // A staff invite is owned entirely by the OUTER nav: the pre-Home gate,
             // or (once Home is reached) PushDeepLinkRedirectEffect, which navigates
             // to RedeemInviteRoute. Do NOT consume it here — clearing it would race

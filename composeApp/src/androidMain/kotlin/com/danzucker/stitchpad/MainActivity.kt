@@ -7,11 +7,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.danzucker.stitchpad.feature.auth.data.CurrentActivityHolder
+import com.danzucker.stitchpad.feature.notification.push.PUSH_ORDER_ID_EXTRA
 import com.danzucker.stitchpad.feature.notification.push.PUSH_TARGET_EXTRA
-import com.danzucker.stitchpad.feature.notification.push.PUSH_TARGET_INBOX
 import com.danzucker.stitchpad.navigation.DeepLinkParser
 import com.danzucker.stitchpad.navigation.DeepLinkTarget
 import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
+import com.danzucker.stitchpad.navigation.PushTargetParser
 import org.koin.android.ext.android.inject
 
 class MainActivity : ComponentActivity() {
@@ -44,13 +45,7 @@ class MainActivity : ComponentActivity() {
 
     private fun handlePushIntent(intent: Intent?) {
         intent ?: return
-        if (intent.getStringExtra(PUSH_TARGET_EXTRA) == PUSH_TARGET_INBOX) {
-            pendingDeepLink.set(DeepLinkTarget.INBOX)
-            // Consume the extra so a later recreate (e.g. rotation) doesn't re-fire the
-            // deep link and yank the user back to the inbox.
-            intent.removeExtra(PUSH_TARGET_EXTRA)
-            setIntent(intent)
-        }
+        handlePushTapExtras(intent)
         // Renewal-reminder email "Renew" button. Accepts both the https App Link
         // (https://link.getstitchpad.com/upgrade?tier=&cadence=, the form the email uses)
         // and the legacy custom scheme (stitchpad://upgrade?...), via the shared parser.
@@ -104,5 +99,29 @@ class MainActivity : ComponentActivity() {
             intent.data = null
             setIntent(intent)
         }
+    }
+
+    /**
+     * Dispatches a push notification tap carrying `target`/`orderId` extras (set by
+     * StitchPadMessagingService on the tap PendingIntent) via the shared [PushTargetParser].
+     */
+    private fun handlePushTapExtras(intent: Intent) {
+        val targetExtra = intent.getStringExtra(PUSH_TARGET_EXTRA) ?: return
+        val data = buildMap {
+            put(PushTargetParser.TARGET_KEY, targetExtra)
+            intent.getStringExtra(PUSH_ORDER_ID_EXTRA)?.let { put(PushTargetParser.ORDER_ID_KEY, it) }
+        }
+        val parsed = PushTargetParser.parse(data)
+        when (parsed?.target) {
+            DeepLinkTarget.ORDER -> parsed.orderId?.let { pendingDeepLink.setOrder(it) }
+            DeepLinkTarget.TO_COLLECT -> pendingDeepLink.set(DeepLinkTarget.TO_COLLECT)
+            DeepLinkTarget.INBOX -> pendingDeepLink.set(DeepLinkTarget.INBOX)
+            DeepLinkTarget.UPGRADE, DeepLinkTarget.CLAIM_GIFT, DeepLinkTarget.JOIN_WORKSHOP, null -> Unit
+        }
+        // Consume the extras so a later recreate (e.g. rotation) doesn't re-fire the
+        // deep link and yank the user back to it.
+        intent.removeExtra(PUSH_TARGET_EXTRA)
+        intent.removeExtra(PUSH_ORDER_ID_EXTRA)
+        setIntent(intent)
     }
 }

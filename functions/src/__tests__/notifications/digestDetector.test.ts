@@ -67,12 +67,43 @@ describe('digestDetector', () => {
     expect(m.outstanding.length).toBe(0);
   });
 
-  it('excludes in-progress balances and sub-naira residue from outstanding', () => {
+  it('excludes in-progress balances from outstanding regardless of amount owed', () => {
     const m = digestDetector([
       order({ status: 'IN_PROGRESS', totalPrice: 9000, payments: [{ amount: 1000 }] }),
-      order({ status: 'DELIVERED', totalPrice: 5000, payments: [{ amount: 4999.7 }] }),
     ], NOW);
     expect(m.outstanding.length).toBe(0);
+  });
+
+  it('includes a sub-₦1 balance (matches client > 0 floor)', () => {
+    const m = digestDetector([order({ status: 'READY', totalPrice: 1000, payments: [{ amount: 999.5 }] })], NOW);
+    expect(m.outstanding.length).toBe(1);
+  });
+
+  it('flags outstanding overdue at 7 Lagos-days since ready, not at 6', () => {
+    const READY = (daysAgo: number) => order({
+      status: 'READY', totalPrice: 5000, payments: [],
+      statusHistory: [{ status: 'READY', changedAt: NOW - daysAgo * DAY }],
+    });
+    const m = digestDetector([READY(6), READY(7)], NOW);
+    const byOverdue = m.outstanding.map((o) => o.isOverdue);
+    expect(byOverdue).toContain(true);   // the 7-day one
+    expect(byOverdue).toContain(false);  // the 6-day one
+  });
+
+  it('uses elapsed 24h periods, not a Lagos calendar-day-index delta, for collection overdue', () => {
+    // This discriminates elapsed-24h (client-matching) math from a calendar-index delta:
+    // an order that became READY just under 7 full days ago must NOT be overdue, while one
+    // that became READY exactly 7 full days ago must be. A calendar-day-index delta could
+    // flip these near a Lagos-midnight boundary.
+    const readyAt = (id: string, agoMs: number) => order({
+      id, status: 'READY', totalPrice: 5000, payments: [],
+      statusHistory: [{ status: 'READY', changedAt: NOW - agoMs }],
+    });
+    const m = digestDetector([readyAt('under', 7 * DAY - 1), readyAt('exact', 7 * DAY)], NOW);
+    const under = m.outstanding.find((o) => o.orderId === 'under');
+    const exact = m.outstanding.find((o) => o.orderId === 'exact');
+    expect(under?.isOverdue).toBe(false);
+    expect(exact?.isOverdue).toBe(true);
   });
 
   it('returns all 8 overdue orders without capping', () => {

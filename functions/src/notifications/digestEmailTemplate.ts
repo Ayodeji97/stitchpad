@@ -36,7 +36,12 @@ export function buildDigestEmail(model: DigestModel, tailorName: string): { subj
   const sections: { title: string; items: DigestItem[]; total: number; line: (i: DigestItem) => string }[] = [
     { title: 'Overdue', items: model.overdue.slice(0, CAP), total: model.overdue.length, line: (i) => `${i.customerName} · ${i.garmentSummary}` },
     { title: 'Due soon', items: model.dueSoon.slice(0, CAP), total: model.dueSoon.length, line: (i) => `${i.customerName} · ${i.garmentSummary}` },
-    { title: 'To collect', items: model.outstanding.slice(0, CAP), total: model.outstanding.length, line: (i) => `${i.customerName} · ${i.garmentSummary} — ${naira(i.amount || 0)}` },
+    {
+      title: 'To collect',
+      items: model.outstanding.slice(0, CAP),
+      total: model.outstanding.length,
+      line: (i) => `${i.customerName} · ${i.garmentSummary} — ${naira(i.amount || 0)}${i.isOverdue ? ' (overdue)' : ''}`,
+    },
   ];
 
   const htmlSections = sections.filter((s) => s.total > 0).map((s) => {

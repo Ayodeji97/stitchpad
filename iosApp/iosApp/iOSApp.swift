@@ -159,8 +159,17 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         let userInfo = response.notification.request.content.userInfo
-        if let target = userInfo["target"] as? String, target == "inbox" {
+        switch userInfo["target"] as? String {
+        case "inbox":
             IosPushBridgeKt.iosOnPushInboxTap()
+        case "order":
+            if let orderId = userInfo["orderId"] as? String {
+                IosPushBridgeKt.iosOnPushOrderTap(orderId: orderId)
+            }
+        case "to_collect":
+            IosPushBridgeKt.iosOnPushToCollectTap()
+        default:
+            break
         }
         completionHandler()
     }

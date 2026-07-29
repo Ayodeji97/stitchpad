@@ -18,4 +18,6 @@ data class Notification(
     val gifterName: String? = null,
     val isRead: Boolean = false,
     val createdAt: Long = 0L,
+    /** True when a TO_COLLECT item is >= 7 days since Ready/Delivered; false otherwise. */
+    val isOverdue: Boolean = false,
 )

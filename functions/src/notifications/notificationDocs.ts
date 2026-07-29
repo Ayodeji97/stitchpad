@@ -10,6 +10,7 @@ export interface NotificationDocData {
   garmentSummary: string;
   amount: number | null;   // set for TO_COLLECT
   deadline: number | null; // set for OVERDUE / DUE_SOON
+  isOverdue: boolean;      // TO_COLLECT: money owed >= 7 days since Ready/Delivered; false for OVERDUE/DUE_SOON
 }
 
 export interface NotificationDocSpec {
@@ -27,6 +28,7 @@ function toSpec(item: DigestItem, type: NotificationType): NotificationDocSpec {
       garmentSummary: item.garmentSummary,
       amount: item.amount ?? null,
       deadline: item.deadline ?? null,
+      isOverdue: item.isOverdue ?? false,
     },
   };
 }

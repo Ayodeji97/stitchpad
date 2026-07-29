@@ -1,11 +1,15 @@
-import { lagosDayIndex } from './lagosTime';
+import { lagosDayIndex, DAY_MS } from './lagosTime';
 import { DigestItem, DigestModel, OrderScanDoc } from './types';
 
-const MIN_BALANCE = 1; // ignore sub-naira rounding residue from totalPrice - payments
+const OVERDUE_THRESHOLD_DAYS = 7;
 
-function balanceRemaining(o: OrderScanDoc): number {
-  const paid = o.payments.length > 0
-    ? o.payments.reduce((sum, p) => sum + (p.amount || 0), 0)
+export function balanceRemaining(o: OrderScanDoc): number {
+  // Legacy Firestore docs (pre-payments-array) can have `payments` entirely absent — normalize
+  // to [] so a missing field doesn't throw on `.length`/`.reduce` and instead falls back to
+  // depositPaid, mirroring dailyDigest.mapOrder's normalization.
+  const payments = o.payments ?? [];
+  const paid = payments.length > 0
+    ? payments.reduce((sum, p) => sum + (p.amount || 0), 0)
     : (o.depositPaid ?? 0);
   // Mirror the client: payable = subtotal minus the whole-order discount, floored at 0,
   // then balance = payable minus what's been paid. Ignoring the discount here would
@@ -14,7 +18,16 @@ function balanceRemaining(o: OrderScanDoc): number {
   return Math.max(0, payable - paid);
 }
 
-function summariseGarments(items: OrderScanDoc['items']): string {
+/** The moment the garment first became collectible (Ready or Delivered); mirrors the client's CollectionCalculator.owedSince. */
+export function owedSince(o: OrderScanDoc): number {
+  const changes = (o.statusHistory ?? [])
+    .filter((c) => c.status === 'READY' || c.status === 'DELIVERED')
+    .map((c) => c.changedAt);
+  if (changes.length > 0) return Math.min(...changes);
+  return o.updatedAt ?? o.createdAt ?? 0;
+}
+
+export function summariseGarments(items: OrderScanDoc['items']): string {
   if (!items || items.length === 0) return 'Order';
   const f = items[0];
   const name = (f.customGarmentName?.trim() || f.garmentType?.trim() || f.description?.trim() || 'Garment');
@@ -44,8 +57,21 @@ export function digestDetector(orders: OrderScanDoc[], now: number): DigestModel
     // Outstanding draws from READY (open) and DELIVERED (not open); excludes archived.
     if ((o.status === 'READY' || o.status === 'DELIVERED') && o.archivedAt == null) {
       const bal = balanceRemaining(o);
-      if (bal >= MIN_BALANCE) {
-        outstanding.push({ orderId: o.id, customerName: o.customerName, garmentSummary: summariseGarments(o.items), amount: Math.round(bal) });
+      if (bal > 0) {
+        // Elapsed full 24h periods since owedSince, NOT a Lagos calendar-day-index delta:
+        // must match the client's CollectionCalculator ((now - owedSince) / MILLIS_PER_DAY,
+        // floored), which is timezone-independent. A calendar-index delta can disagree by up
+        // to a day near a Lagos-midnight boundary, breaking the "digest/push/list agree on
+        // overdue" invariant. The deadline-based overdue/dueSoon buckets above are unaffected
+        // — those correctly use lagosDayIndex (calendar-day deadline semantics).
+        const daysOwed = Math.floor((now - owedSince(o)) / DAY_MS);
+        outstanding.push({
+          orderId: o.id,
+          customerName: o.customerName,
+          garmentSummary: summariseGarments(o.items),
+          amount: Math.round(bal),
+          isOverdue: daysOwed >= OVERDUE_THRESHOLD_DAYS,
+        });
       }
     }
   }

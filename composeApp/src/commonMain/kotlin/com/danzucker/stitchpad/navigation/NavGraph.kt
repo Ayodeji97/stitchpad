@@ -134,10 +134,12 @@ private suspend fun resolvePostAuthDestination(
  * debug menu) MainRoot isn't composed to consume it — bring the app back to Home first
  * (MainRoot then routes to the inbox). Only when Home is ALREADY in the back stack (the
  * user has cleared the splash / email-verification / workshop-setup gates), so a tap can
- * never bypass those gates. When signed out, a push INBOX link is dropped so it can't
- * auto-navigate the next session's user to the inbox without a fresh tap; an UPGRADE
- * email-link target is preserved across login (the account owner asked to renew and
- * must sign in to do so) and consumed once Home is reached.
+ * never bypass those gates. When signed out, a push INBOX, ORDER, or TO_COLLECT link is
+ * dropped so it can't auto-navigate the next session's (possibly different) user to the
+ * prior user's inbox/order without a fresh tap — a stale ORDER carries a prior user's
+ * orderId and could route a different account to an order that fails under their
+ * permissions. An UPGRADE email-link target is preserved across login (the account owner
+ * asked to renew and must sign in to do so) and consumed once Home is reached.
  */
 @Composable
 private fun PushDeepLinkRedirectEffect(navController: NavHostController) {
@@ -154,7 +156,10 @@ private fun PushDeepLinkRedirectEffect(navController: NavHostController) {
             // link is preserved across login: the user must sign in (or sign up) to
             // upgrade / claim, which is exactly the gift flow for a brand-new tailor.
             // Once Home is reached, MainRoot consumes it.
-            if (pendingDeepLinkTarget == DeepLinkTarget.INBOX) {
+            if (pendingDeepLinkTarget == DeepLinkTarget.INBOX ||
+                pendingDeepLinkTarget == DeepLinkTarget.ORDER ||
+                pendingDeepLinkTarget == DeepLinkTarget.TO_COLLECT
+            ) {
                 pendingDeepLink.clear()
             }
             return@LaunchedEffect
