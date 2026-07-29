@@ -52,10 +52,13 @@ class StaffPendingViewModel(
                     session.role == StaffRole.STAFF && session.membershipStatus == MembershipStatus.PENDING ->
                         sawPending = true
                     // Reverted to owner-of-self AFTER being pending = the owner declined/removed us.
-                    // Carry the declined flag to the redeem screen (a snackbar here would be
-                    // lost when this screen is disposed by the navigation) so it can explain why.
+                    // Clear the stored workshopUid so a later cold start doesn't re-enter the
+                    // pending window for the declined workshop. Carry the declined flag to the
+                    // redeem screen (a snackbar here would be lost when this screen is disposed
+                    // by the navigation) so it can explain why.
                     sawPending && session.isOwner -> {
                         navigated = true
+                        staffMembershipPrefs.clear()
                         _events.send(StaffPendingEvent.NavigateToRedeem(declined = true))
                     }
                 }

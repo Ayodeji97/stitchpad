@@ -79,6 +79,7 @@ class StaffPendingViewModelTest {
             assertIs<StaffPendingEvent.NavigateToRedeem>(event)
             assertEquals(true, event.declined)
         }
+        assertEquals(1, prefs.clearCount)
     }
 
     @Test
