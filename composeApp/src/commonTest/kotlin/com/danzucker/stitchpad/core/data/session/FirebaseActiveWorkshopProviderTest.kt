@@ -4,7 +4,6 @@ import com.danzucker.stitchpad.core.domain.session.MembershipStatus
 import com.danzucker.stitchpad.core.domain.session.StaffRole
 import com.danzucker.stitchpad.core.domain.session.WorkshopClaims
 import com.danzucker.stitchpad.core.domain.session.workshopUidOrNull
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -94,7 +93,7 @@ class FirebaseActiveWorkshopProviderTest {
         val provider = FirebaseActiveWorkshopProvider(
             authClaims = claims,
             scope = backgroundScope,
-            storedWorkshopUid = { "owner-9" },
+            storedWorkshopUid = MutableStateFlow("owner-9"),
             membershipStatusFlow = { _, _ -> membership },
         )
 
@@ -116,7 +115,7 @@ class FirebaseActiveWorkshopProviderTest {
             val provider = FirebaseActiveWorkshopProvider(
                 authClaims = claims,
                 scope = backgroundScope,
-                storedWorkshopUid = { "owner-9" },
+                storedWorkshopUid = MutableStateFlow("owner-9"),
                 membershipStatusFlow = { _, _ -> membership },
                 refreshToken = { refreshes++ },
             )
@@ -140,7 +139,7 @@ class FirebaseActiveWorkshopProviderTest {
         val provider = FirebaseActiveWorkshopProvider(
             authClaims = claims,
             scope = backgroundScope,
-            storedWorkshopUid = { "owner-9" },
+            storedWorkshopUid = MutableStateFlow("owner-9"),
             membershipStatusFlow = { _, _ -> membership },
         )
 
@@ -158,7 +157,7 @@ class FirebaseActiveWorkshopProviderTest {
         val provider = FirebaseActiveWorkshopProvider(
             authClaims = claims,
             scope = backgroundScope,
-            storedWorkshopUid = { null },
+            storedWorkshopUid = MutableStateFlow(null),
             membershipStatusFlow = { _, _ -> watched = true; MutableStateFlow(null) },
         )
 
@@ -167,5 +166,29 @@ class FirebaseActiveWorkshopProviderTest {
         assertTrue(session.isOwner)
         assertEquals("user-9", session.workshopUid)
         assertTrue(!watched)
+    }
+
+    @Test
+    fun saving_the_workshop_uid_after_hydration_enters_the_pending_window() = runTest {
+        // Regression (codex P1): redeeming an invite writes the workshopUid with
+        // NO auth-token change. The provider must observe the stored uid
+        // reactively, or it would stay owner-of-self until an app restart.
+        val claims = MutableStateFlow<WorkshopClaims?>(owner("staff-1"))
+        val storedWs = MutableStateFlow<String?>(null)
+        val membership = MutableStateFlow<MembershipStatus?>(MembershipStatus.PENDING)
+        val provider = FirebaseActiveWorkshopProvider(
+            authClaims = claims,
+            scope = backgroundScope,
+            storedWorkshopUid = storedWs,
+            membershipStatusFlow = { _, _ -> membership },
+        )
+        assertTrue(provider.awaitHydrated().isOwner)
+
+        // Redeem persists the workshopUid — no token change.
+        storedWs.value = "owner-9"
+        runCurrent()
+
+        assertEquals(StaffRole.STAFF, provider.current().role)
+        assertEquals(MembershipStatus.PENDING, provider.current().membershipStatus)
     }
 }

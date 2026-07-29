@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -48,7 +49,7 @@ import kotlinx.coroutines.launch
 internal class FirebaseActiveWorkshopProvider(
     authClaims: Flow<WorkshopClaims?>,
     scope: CoroutineScope,
-    private val storedWorkshopUid: suspend () -> String? = { null },
+    storedWorkshopUid: Flow<String?> = flowOf(null),
     private val membershipStatusFlow: (workshopUid: String, authUid: String) -> Flow<MembershipStatus?> =
         { _, _ -> flowOf(null) },
     private val refreshToken: suspend () -> Unit = {},
@@ -61,9 +62,15 @@ internal class FirebaseActiveWorkshopProvider(
 
     init {
         scope.launch {
-            authClaims
-                .distinctUntilChanged()
-                .flatMapLatest { claims -> sessionFlow(claims) }
+            // Combine (not just map over authClaims): the stored workshopUid is
+            // written at redeem time WITHOUT any auth-token change, so the
+            // provider must observe it reactively — otherwise it would only enter
+            // the pending window on the next idTokenChanged (i.e. app restart).
+            combine(
+                authClaims.distinctUntilChanged(),
+                storedWorkshopUid.distinctUntilChanged(),
+            ) { claims, storedWs -> claims to storedWs }
+                .flatMapLatest { (claims, storedWs) -> sessionFlow(claims, storedWs) }
                 .collect { session ->
                     // Write `_flow` before flipping `_hydrated` so a racing
                     // awaitHydrated() reads the real value, not the default.
@@ -73,15 +80,15 @@ internal class FirebaseActiveWorkshopProvider(
         }
     }
 
-    private suspend fun sessionFlow(claims: WorkshopClaims?): Flow<WorkshopSession> {
+    private fun sessionFlow(claims: WorkshopClaims?, storedWs: String?): Flow<WorkshopSession> {
         // Signed-out is a RESOLVED state — emitting it marks hydrated so
         // awaitHydrated()/workshopUidOrNull() return immediately instead of
         // suspending forever.
         if (claims == null) return flowOf(WorkshopSession.signedOut())
-        return resolvedFlow(claims)
+        return resolvedFlow(claims, storedWs)
     }
 
-    private suspend fun resolvedFlow(claims: WorkshopClaims): Flow<WorkshopSession> {
+    private fun resolvedFlow(claims: WorkshopClaims, storedWs: String?): Flow<WorkshopSession> {
         // (1) Server-authoritative staff claim → active staff; no doc read needed.
         val fromClaim = resolve(claims, membershipWorkshopUid = null, membershipStatus = null)
         if (fromClaim.role == StaffRole.STAFF) return flowOf(fromClaim)
@@ -90,7 +97,6 @@ internal class FirebaseActiveWorkshopProvider(
         // window whose claim has not been minted yet. Only the latter recorded a
         // workshopUid at redeem time — watch that membership doc to drive the
         // pending→active transition. Guard against a stale self-uid.
-        val storedWs = storedWorkshopUid()
         return if (storedWs == null || storedWs == claims.authUid) {
             flowOf(WorkshopSession.ownerOfSelf(claims.authUid))
         } else {

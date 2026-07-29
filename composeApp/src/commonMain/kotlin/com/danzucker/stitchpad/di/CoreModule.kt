@@ -82,7 +82,9 @@ val coreModule = module {
             scope = get<CoroutineScope>(qualifier = named("workshopSessionAppScope")),
             // The workshopUid the staffer recorded at redeem time; drives the
             // pending-window membership watch before the approval claim lands.
-            storedWorkshopUid = { membershipPrefs.getWorkshopUid() },
+            // A flow (not a one-shot read) so redeeming — which writes prefs with
+            // no token change — re-resolves the session immediately.
+            storedWorkshopUid = membershipPrefs.workshopUid,
             membershipStatusFlow = { workshopUid, authUid ->
                 firestore.collection("users").document(workshopUid)
                     .collection("memberships").document(authUid).snapshots
