@@ -149,6 +149,11 @@ fun MainRoot(
                     launchSingleTop = true
                 }
             }
+            // A staff invite is owned entirely by the OUTER nav: the pre-Home gate,
+            // or (once Home is reached) PushDeepLinkRedirectEffect, which navigates
+            // to RedeemInviteRoute. Do NOT consume it here — clearing it would race
+            // that effect and turn the invite tap into a no-op.
+            DeepLinkTarget.JOIN_WORKSHOP -> Unit
             null -> Unit
         }
     }

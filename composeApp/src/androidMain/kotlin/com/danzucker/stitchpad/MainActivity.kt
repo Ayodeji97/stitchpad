@@ -79,6 +79,19 @@ class MainActivity : ComponentActivity() {
             intent.data = null
             setIntent(intent)
         }
+        // Staff invite link (https://link.getstitchpad.com/join?code=, also the
+        // stitchpad://join?code= custom scheme), via the shared parser.
+        val joinCode = if (intent.action == Intent.ACTION_VIEW) {
+            DeepLinkParser.parseStaffInvite(intent.dataString)
+        } else {
+            null
+        }
+        if (joinCode != null) {
+            pendingDeepLink.setJoinWorkshop(joinCode)
+            // Consume so a recreate (e.g. rotation) doesn't re-fire the deep link.
+            intent.data = null
+            setIntent(intent)
+        }
         // Referral App Link (https://link.getstitchpad.com/r/&lt;code&gt;, also stitchpad://r).
         // Silent capture — no navigation target; the coordinator submits after signup.
         val referralCode = if (intent.action == Intent.ACTION_VIEW) {

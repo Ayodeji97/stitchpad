@@ -4,6 +4,10 @@ import com.danzucker.stitchpad.core.data.staff.CloudFunctionsInviteRedemptionRep
 import com.danzucker.stitchpad.core.data.staff.CloudFunctionsStaffRepository
 import com.danzucker.stitchpad.core.domain.staff.repository.InviteRedemptionRepository
 import com.danzucker.stitchpad.core.domain.staff.repository.StaffRepository
+import com.danzucker.stitchpad.feature.staff.presentation.pending.StaffPendingViewModel
+import com.danzucker.stitchpad.feature.staff.presentation.redeem.RedeemInviteViewModel
+import org.koin.core.module.dsl.viewModel
+import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 
 // Owner + Staff client repositories. FirebaseFunctions is provided by
@@ -11,4 +15,10 @@ import org.koin.dsl.module
 val staffModule = module {
     single<StaffRepository> { CloudFunctionsStaffRepository(functions = get(), firestore = get()) }
     single<InviteRedemptionRepository> { CloudFunctionsInviteRedemptionRepository(functions = get()) }
+
+    viewModelOf(::RedeemInviteViewModel)
+    // workshopName (display) + fromRedeem (flag) are nav args passed via parametersOf.
+    viewModel { params ->
+        StaffPendingViewModel(params.get(), params.get(), get(), get(), get(), get())
+    }
 }

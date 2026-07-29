@@ -122,7 +122,11 @@ class FakeAuthRepository : AuthRepository {
 
     override suspend fun isEmailVerified(): Boolean = isEmailVerifiedValue
 
+    /** When set, [signOut] returns this error instead of succeeding (default: success). */
+    var signOutError: AuthError? = null
+
     override suspend fun signOut(): Result<Unit, AuthError> {
+        signOutError?.let { return Result.Error(it) }
         currentUser = null
         return Result.Success(Unit)
     }

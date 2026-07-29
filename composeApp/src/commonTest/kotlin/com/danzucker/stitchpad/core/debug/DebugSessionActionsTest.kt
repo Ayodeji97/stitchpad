@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.core.debug
 
+import com.danzucker.stitchpad.core.data.staff.FakeStaffMembershipPrefsStore
 import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 
 import com.danzucker.stitchpad.core.domain.model.User
@@ -31,7 +32,7 @@ class DebugSessionActionsTest {
         sessionActions = DebugSessionActions(
             authRepository = authRepository,
             onboardingPreferences = onboardingPreferences,
-            signOutUseCase = SignOutUseCase(authRepository, NoOpPushTokenRegistrar(), PendingDeepLinkHolder()),
+            signOutUseCase = SignOutUseCase(authRepository, NoOpPushTokenRegistrar(), PendingDeepLinkHolder(), FakeStaffMembershipPrefsStore()),
             communityBannerDismissal = CommunityBannerDismissal(FakeOnboardingPreferences()),
         )
     }

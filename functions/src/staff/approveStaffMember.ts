@@ -32,14 +32,15 @@ export async function approveStaffMemberHandler(
   }
 
   const ref = deps.db.doc(membershipDocPath(ownerUid, staffAuthUid));
-  const snap = await ref.get();
-  if (!snap.exists) {
+
+  // Pre-validate BEFORE minting any claim, so an obviously-invalid request (missing
+  // or already-revoked membership) is rejected without ever issuing a staff claim.
+  const preSnap = await ref.get();
+  if (!preSnap.exists) {
     throw new functions.https.HttpsError('not-found', 'membership_not_found');
   }
-  const status = (snap.data() as { status?: MembershipStatus }).status;
-  if (status === 'revoked') {
-    // A revoked person must re-redeem an invite (re-consent), not be silently
-    // re-approved.
+  if ((preSnap.data() as { status?: MembershipStatus }).status === 'revoked') {
+    // A revoked/cancelled member must re-redeem an invite, not be silently re-approved.
     throw new functions.https.HttpsError('failed-precondition', 'membership_revoked');
   }
 
@@ -52,9 +53,23 @@ export async function approveStaffMemberHandler(
   // the rules still require an active doc, i.e. an active-looking session with
   // denied reads. So if the doc update fails, roll the claim back: we never leave
   // a claim without a matching active membership doc.
+  //
+  // The set-active runs in a TRANSACTION that RE-CHECKS status, so a
+  // cancelStaffMembership (leave) that landed between the pre-read and here can't be
+  // overwritten — the tx refuses if the doc turned revoked meanwhile, and the claim
+  // is rolled back.
   await deps.setClaims(staffAuthUid, { workshopUid: ownerUid, role: STAFF_ROLE });
   try {
-    await ref.update({ status: 'active', approvedAt: nowMs, claimsRefreshAt: nowMs });
+    await deps.db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) {
+        throw new functions.https.HttpsError('not-found', 'membership_not_found');
+      }
+      if ((snap.data() as { status?: MembershipStatus }).status === 'revoked') {
+        throw new functions.https.HttpsError('failed-precondition', 'membership_revoked');
+      }
+      tx.update(ref, { status: 'active', approvedAt: nowMs, claimsRefreshAt: nowMs });
+    });
   } catch (err) {
     await deps.setClaims(staffAuthUid, null);
     throw err;
