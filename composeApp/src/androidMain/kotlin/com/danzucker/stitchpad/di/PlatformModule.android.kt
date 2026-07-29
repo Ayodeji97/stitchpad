@@ -4,9 +4,11 @@ import coil3.imageLoader
 import com.danzucker.stitchpad.BuildConfig
 import com.danzucker.stitchpad.core.data.preferences.ReceiptImagePreferences
 import com.danzucker.stitchpad.core.data.preferences.ThemePreferences
+import com.danzucker.stitchpad.core.data.staff.StaffMembershipPrefs
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
 import com.danzucker.stitchpad.core.domain.preferences.ReceiptImagePreferencesStore
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreferencesStore
+import com.danzucker.stitchpad.core.domain.staff.StaffMembershipPrefsStore
 import com.danzucker.stitchpad.core.media.AndroidImageCompressor
 import com.danzucker.stitchpad.core.media.ImageCompressor
 import com.danzucker.stitchpad.core.offline.OfflinePhotoStore
@@ -53,6 +55,7 @@ actual val platformModule: Module = module {
     single { MeasurementPreferences(androidContext()) } bind MeasurementPreferencesStore::class
     single { ThemePreferences(androidContext()) } bind ThemePreferencesStore::class
     single { ReceiptImagePreferences(androidContext()) } bind ReceiptImagePreferencesStore::class
+    single { StaffMembershipPrefs(androidContext()) } bind StaffMembershipPrefsStore::class
     single { OfflinePhotoStore(androidContext()) }
     single { TutorialVideoCache(androidContext()) }
     single<ImageCompressor> { AndroidImageCompressor() }

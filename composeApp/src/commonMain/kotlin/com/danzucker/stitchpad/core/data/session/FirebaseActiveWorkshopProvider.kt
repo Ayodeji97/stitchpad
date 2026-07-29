@@ -1,16 +1,24 @@
 package com.danzucker.stitchpad.core.data.session
 
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.MembershipStatus
+import com.danzucker.stitchpad.core.domain.session.StaffRole
 import com.danzucker.stitchpad.core.domain.session.WorkshopClaims
 import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import com.danzucker.stitchpad.core.domain.session.WorkshopSessionResolver
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 
 /**
@@ -20,19 +28,30 @@ import kotlinx.coroutines.launch
  * owner approving a staff member, once the token refreshes) re-resolves the
  * session automatically.
  *
- * An owner has no claims → [WorkshopSessionResolver] falls through to
- * owner-of-self. A staff member's claims (role='staff', workshopUid=<owner>)
- * resolve to an active-staff session on the owner's tree. The membership-doc
- * fallback (for the pending window before the token refreshes) is wired by the
- * staff-onboarding slice; here the claim is the source of truth.
+ * Two resolution paths, in precedence order:
+ *  1. **Claim** (server-authoritative): a staff token (role='staff',
+ *     workshopUid=<owner>) resolves to an active-staff session on the owner's
+ *     tree. An owner has no claims → falls through.
+ *  2. **Membership-doc fallback** for the *pending window* — after a staffer
+ *     redeems an invite but before approval mints a claim, there is no claim to
+ *     read. Using the workshopUid recorded at redeem time ([storedWorkshopUid]),
+ *     the provider watches that membership doc ([membershipStatusFlow]) so the
+ *     session reflects PENDING → ACTIVE the moment the owner approves. On ACTIVE
+ *     it calls [refreshToken] to force the claim onto the token, after which
+ *     path (1) becomes the authority. No stored workshopUid → owner-of-self.
  *
  * Resets to [WorkshopSession.signedOut] on sign-out. Writes `_flow` before
  * flipping `_hydrated` so a racing [awaitHydrated] reads the real value, not the
  * default — mirroring [com.danzucker.stitchpad.core.data.entitlement.UserDocEntitlementsProvider].
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 internal class FirebaseActiveWorkshopProvider(
     authClaims: Flow<WorkshopClaims?>,
     scope: CoroutineScope,
+    private val storedWorkshopUid: suspend () -> String? = { null },
+    private val membershipStatusFlow: (workshopUid: String, authUid: String) -> Flow<MembershipStatus?> =
+        { _, _ -> flowOf(null) },
+    private val refreshToken: suspend () -> Unit = {},
 ) : ActiveWorkshopProvider {
 
     private val _flow = MutableStateFlow(WorkshopSession.signedOut())
@@ -44,27 +63,69 @@ internal class FirebaseActiveWorkshopProvider(
         scope.launch {
             authClaims
                 .distinctUntilChanged()
-                .collect { claims ->
-                    if (claims == null) {
-                        // Signed-out is a RESOLVED state — mark hydrated so
-                        // awaitHydrated()/workshopUidOrNull() return null immediately
-                        // instead of suspending forever. Only the pre-first-emission
-                        // startup state stays unhydrated (initial `_hydrated = false`).
-                        _flow.value = WorkshopSession.signedOut()
-                        _hydrated.value = true
-                    } else {
-                        _flow.value = WorkshopSessionResolver.resolve(
-                            authUid = claims.authUid,
-                            claimWorkshopUid = claims.workshopUid,
-                            claimRole = claims.role,
-                            membershipWorkshopUid = null,
-                            membershipStatus = null,
-                        )
-                        _hydrated.value = true
-                    }
+                .flatMapLatest { claims -> sessionFlow(claims) }
+                .collect { session ->
+                    // Write `_flow` before flipping `_hydrated` so a racing
+                    // awaitHydrated() reads the real value, not the default.
+                    _flow.value = session
+                    _hydrated.value = true
                 }
         }
     }
+
+    private suspend fun sessionFlow(claims: WorkshopClaims?): Flow<WorkshopSession> {
+        // Signed-out is a RESOLVED state — emitting it marks hydrated so
+        // awaitHydrated()/workshopUidOrNull() return immediately instead of
+        // suspending forever.
+        if (claims == null) return flowOf(WorkshopSession.signedOut())
+        return resolvedFlow(claims)
+    }
+
+    private suspend fun resolvedFlow(claims: WorkshopClaims): Flow<WorkshopSession> {
+        // (1) Server-authoritative staff claim → active staff; no doc read needed.
+        val fromClaim = resolve(claims, membershipWorkshopUid = null, membershipStatus = null)
+        if (fromClaim.role == StaffRole.STAFF) return flowOf(fromClaim)
+
+        // (2) No staff claim: a real owner, or a staff member in the pending
+        // window whose claim has not been minted yet. Only the latter recorded a
+        // workshopUid at redeem time — watch that membership doc to drive the
+        // pending→active transition. Guard against a stale self-uid.
+        val storedWs = storedWorkshopUid()
+        return if (storedWs == null || storedWs == claims.authUid) {
+            flowOf(WorkshopSession.ownerOfSelf(claims.authUid))
+        } else {
+            pendingWindowFlow(claims, storedWs)
+        }
+    }
+
+    /**
+     * Watches the staffer's membership doc during the pending window and, once
+     * approved, forces a token refresh so the claim path takes over.
+     */
+    private fun pendingWindowFlow(claims: WorkshopClaims, storedWs: String): Flow<WorkshopSession> =
+        membershipStatusFlow(storedWs, claims.authUid)
+            .map { status -> resolve(claims, membershipWorkshopUid = storedWs, membershipStatus = status) }
+            .onEach { session ->
+                // Approved: the claim isn't on the current token yet. Force a
+                // refresh so idTokenChanged re-emits with the staff claim and
+                // the claim path above takes over as the authority.
+                if (session.isActiveStaff) refreshToken()
+            }
+            // Emit the fail-safe default first so awaitHydrated() never hangs
+            // waiting for the first Firestore snapshot.
+            .onStart { emit(WorkshopSession.ownerOfSelf(claims.authUid)) }
+
+    private fun resolve(
+        claims: WorkshopClaims,
+        membershipWorkshopUid: String?,
+        membershipStatus: MembershipStatus?,
+    ): WorkshopSession = WorkshopSessionResolver.resolve(
+        authUid = claims.authUid,
+        claimWorkshopUid = claims.workshopUid,
+        claimRole = claims.role,
+        membershipWorkshopUid = membershipWorkshopUid,
+        membershipStatus = membershipStatus,
+    )
 
     override fun current(): WorkshopSession = _flow.value
 
