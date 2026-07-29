@@ -42,7 +42,7 @@ fun YoureOwedCard(
 ) {
     val overdueSuffix = if (overdueCount > 0) " · $overdueCount overdue" else ""
     val subtitle = "across $orderCount orders$overdueSuffix"
-    val cd = "You're owed ₦${formatNaira(amount)}, $subtitle"
+    val cd = "Money to collect: ₦${formatNaira(amount)}, $subtitle"
     Surface(
         shape = RoundedCornerShape(DesignTokens.radiusLg),
         color = MaterialTheme.colorScheme.surface,
@@ -58,7 +58,7 @@ fun YoureOwedCard(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "You're owed",
+                    text = "Money to collect",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.secondary,
                 )

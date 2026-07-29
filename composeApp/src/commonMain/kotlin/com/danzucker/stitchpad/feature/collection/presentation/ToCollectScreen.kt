@@ -107,7 +107,7 @@ fun ToCollectScreen(
 @Composable
 private fun SummaryHeader(summary: CollectionSummary) {
     Column(Modifier.fillMaxWidth().padding(DesignTokens.space4)) {
-        Text("You're owed", style = MaterialTheme.typography.labelMedium)
+        Text("Money to collect", style = MaterialTheme.typography.labelMedium)
         Text(
             "₦${formatPrice(summary.totalOutstanding)}",
             style = MaterialTheme.typography.headlineSmall,
