@@ -32,6 +32,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.feature.collection.presentation.ToCollectRoot
 import com.danzucker.stitchpad.feature.customer.presentation.detail.CustomerDetailRoot
 import com.danzucker.stitchpad.feature.customer.presentation.form.CustomerFormRoot
@@ -158,7 +159,12 @@ fun MainRoot(
         }
     }
 
-    val showBottomBar = BottomNavItem.all.any { item ->
+    // Role-aware tabs: staff see Dashboard/Customers/Orders (no Reports).
+    val activeWorkshopProvider: ActiveWorkshopProvider = koinInject()
+    val session by activeWorkshopProvider.flow.collectAsStateWithLifecycle()
+    val tabs = BottomNavItem.forRole(session.role)
+
+    val showBottomBar = tabs.any { item ->
         currentDestination?.hasRoute(item.route::class) == true
     } || currentDestination?.hasRoute<CustomerDetailRoute>() == true
 
@@ -178,7 +184,7 @@ fun MainRoot(
                         containerColor = MaterialTheme.colorScheme.surface,
                         tonalElevation = 0.dp
                     ) {
-                        BottomNavItem.all.forEach { item ->
+                        tabs.forEach { item ->
                             val selected = currentDestination?.hasRoute(item.route::class) == true
                             NavigationBarItem(
                                 selected = selected,
@@ -619,15 +625,29 @@ private fun MainNavGraph(
             )
         }
         composable<ReportsRoute> {
-            ReportsRoot(
-                onNavigateToCustomerDetail = { customerId ->
-                    navController.navigate(CustomerDetailRoute(customerId = customerId))
-                },
-                onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
-                onNavigateToTutorial = { tutorialId ->
-                    navController.navigate(TutorialPlayerRoute(tutorialId = tutorialId))
-                },
-            )
+            // Reports (revenue analytics) is owner-only. The staff tab bar already
+            // hides it; this guard also redirects a staff member who reaches the
+            // route another way (deep link / restored state) back to the dashboard.
+            val reportsSession by koinInject<ActiveWorkshopProvider>().flow
+                .collectAsStateWithLifecycle()
+            if (reportsSession.isActiveStaff) {
+                LaunchedEffect(Unit) {
+                    navController.navigate(DashboardRoute) {
+                        popUpTo(ReportsRoute) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            } else {
+                ReportsRoot(
+                    onNavigateToCustomerDetail = { customerId ->
+                        navController.navigate(CustomerDetailRoute(customerId = customerId))
+                    },
+                    onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
+                    onNavigateToTutorial = { tutorialId ->
+                        navController.navigate(TutorialPlayerRoute(tutorialId = tutorialId))
+                    },
+                )
+            }
         }
         composable<GoalSetupRoute> {
             GoalSetupRoot(
