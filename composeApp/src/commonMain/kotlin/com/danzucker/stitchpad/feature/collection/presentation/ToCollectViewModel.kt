@@ -131,7 +131,12 @@ class ToCollectViewModel(
 
     private fun onChaseClick(orderId: String) {
         val order = ordersById[orderId] ?: return
-        val customer = customersById[order.customerId] ?: return
+        val customer = customersById[order.customerId]
+        if (customer == null) {
+            // Orphaned delivered order — its customer was deleted. Don't no-op silently.
+            viewModelScope.launch { _events.send(ToCollectEvent.ChaseUnavailable) }
+            return
+        }
         viewModelScope.launch { _events.send(ToCollectEvent.LaunchWhatsApp(order, customer, signature)) }
     }
 }

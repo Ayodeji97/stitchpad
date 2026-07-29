@@ -7,4 +7,7 @@ sealed interface ToCollectEvent {
     data object NavigateBack : ToCollectEvent
     data class NavigateToOrderDetail(val orderId: String) : ToCollectEvent
     data class LaunchWhatsApp(val order: Order, val customer: Customer, val signature: String) : ToCollectEvent
+
+    /** Chase tapped on a collectible order whose customer record is gone (orphaned delivered order). */
+    data object ChaseUnavailable : ToCollectEvent
 }

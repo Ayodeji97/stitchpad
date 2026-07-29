@@ -131,4 +131,19 @@ class ToCollectViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
     }
+
+    @Test
+    fun chaseClickOnOrphanedOrderEmitsChaseUnavailable() = runTest {
+        // Customer deleted but the delivered unpaid order remains (orphaned) — the
+        // row still renders with a Chase button, so the tap must surface feedback,
+        // not silently no-op.
+        customerRepository.customersList = emptyList()
+        orderRepository.ordersList = listOf(order("o1", OrderStatus.DELIVERED, 5_000.0, owedDaysAgo = 1))
+        val vm = createViewModel()
+        vm.events.test {
+            vm.onAction(ToCollectAction.OnChaseClick("o1"))
+            assertEquals(ToCollectEvent.ChaseUnavailable, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 }

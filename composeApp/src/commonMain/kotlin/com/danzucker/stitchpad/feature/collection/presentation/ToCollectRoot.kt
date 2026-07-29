@@ -15,6 +15,7 @@ import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.dashboard_whatsapp_launch_failed
+import stitchpad.composeapp.generated.resources.to_collect_chase_no_contact
 
 @Composable
 fun ToCollectRoot(
@@ -41,6 +42,9 @@ fun ToCollectRoot(
                 if (!launched) {
                     snackbarHostState.showSnackbar(getString(Res.string.dashboard_whatsapp_launch_failed))
                 }
+            }
+            ToCollectEvent.ChaseUnavailable -> scope.launch {
+                snackbarHostState.showSnackbar(getString(Res.string.to_collect_chase_no_contact))
             }
         }
     }
