@@ -149,6 +149,19 @@ fun MainRoot(
                     launchSingleTop = true
                 }
             }
+            // Per-order push notification tap (target: order, Task 2).
+            DeepLinkTarget.ORDER -> {
+                val orderId = pendingDeepLink.consumeOrderId()
+                pendingDeepLink.clear()
+                if (orderId != null) {
+                    innerNavController.navigate(OrderDetailRoute(orderId = orderId)) { launchSingleTop = true }
+                }
+            }
+            // Daily summary push notification tap (target: to_collect, Task 5).
+            DeepLinkTarget.TO_COLLECT -> {
+                pendingDeepLink.clear()
+                innerNavController.navigate(ToCollectRoute) { launchSingleTop = true }
+            }
             null -> Unit
         }
     }

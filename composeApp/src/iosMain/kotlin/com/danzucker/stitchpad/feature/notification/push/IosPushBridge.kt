@@ -36,3 +36,24 @@ fun iosOnPushInboxTap() {
         KoinPlatform.getKoin().get<PendingDeepLinkHolder>().set(DeepLinkTarget.INBOX)
     }.onFailure { AppLogger.w { "iosOnPushInboxTap failed: ${it.message}" } }
 }
+
+/**
+ * Called by Swift (UNUserNotificationCenter delegate) when the user taps a per-order push
+ * notification (target: order, Task 2). Sets the pending ORDER deep link; MainRoot consumes it.
+ */
+fun iosOnPushOrderTap(orderId: String) {
+    runCatching {
+        KoinPlatform.getKoin().get<PendingDeepLinkHolder>().setOrder(orderId)
+    }.onFailure { AppLogger.w { "iosOnPushOrderTap failed: ${it.message}" } }
+}
+
+/**
+ * Called by Swift (UNUserNotificationCenter delegate) when the user taps the daily summary push
+ * targeting the To-collect list (target: to_collect, Task 5). Sets the pending TO_COLLECT deep
+ * link; MainRoot consumes it.
+ */
+fun iosOnPushToCollectTap() {
+    runCatching {
+        KoinPlatform.getKoin().get<PendingDeepLinkHolder>().set(DeepLinkTarget.TO_COLLECT)
+    }.onFailure { AppLogger.w { "iosOnPushToCollectTap failed: ${it.message}" } }
+}

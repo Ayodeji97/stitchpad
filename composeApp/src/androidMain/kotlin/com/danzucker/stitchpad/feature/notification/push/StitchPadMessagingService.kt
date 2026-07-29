@@ -15,6 +15,9 @@ import org.koin.core.component.inject
 
 const val PUSH_TARGET_EXTRA = "target"
 const val PUSH_TARGET_INBOX = "inbox"
+const val PUSH_TARGET_ORDER = "order"
+const val PUSH_TARGET_TO_COLLECT = "to_collect"
+const val PUSH_ORDER_ID_EXTRA = "orderId"
 private const val DAILY_REMINDER_NOTIFICATION_ID = 2001
 
 class StitchPadMessagingService : FirebaseMessagingService(), KoinComponent {
@@ -36,8 +39,10 @@ class StitchPadMessagingService : FirebaseMessagingService(), KoinComponent {
         val notification = message.notification ?: return
         if (!NotificationManagerCompat.from(this).areNotificationsEnabled()) return
         val target = message.data[PUSH_TARGET_EXTRA] ?: PUSH_TARGET_INBOX
+        val orderId = message.data[PUSH_ORDER_ID_EXTRA]
         val tapIntent = Intent(this, MainActivity::class.java).apply {
             putExtra(PUSH_TARGET_EXTRA, target)
+            if (orderId != null) putExtra(PUSH_ORDER_ID_EXTRA, orderId)
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         val pending = PendingIntent.getActivity(
