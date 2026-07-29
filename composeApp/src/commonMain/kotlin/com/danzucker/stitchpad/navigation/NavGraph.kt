@@ -131,9 +131,23 @@ private fun PushDeepLinkRedirectEffect(navController: NavHostController) {
             }
             return@LaunchedEffect
         }
-        // JOIN_WORKSHOP routing is owned by the post-auth gate (resolvePostAuthDestination),
-        // which sends the staffer to the redeem screen — don't force-Home it here.
-        if (pendingDeepLinkTarget == DeepLinkTarget.JOIN_WORKSHOP) return@LaunchedEffect
+        // A staff invite normally routes via the post-auth gate during the
+        // Login/Splash/Verify transition (landing directly on RedeemInviteRoute).
+        // This is the backstop for an already-signed-in user who taps an invite
+        // while settled past the auth gates (e.g. on WorkshopSetup, or with Home
+        // in the back stack) — the gate won't re-run for them. We only act past
+        // the auth gates so an unverified user is never routed around email
+        // verification.
+        if (pendingDeepLinkTarget == DeepLinkTarget.JOIN_WORKSHOP) {
+            val onRedeem = currentEntry?.destination?.hasRoute<RedeemInviteRoute>() == true
+            val pastAuthGate = currentEntry?.destination?.hasRoute<WorkshopSetupRoute>() == true ||
+                navController.currentBackStack.value.any { it.destination.hasRoute<HomeRoute>() }
+            if (!onRedeem && pastAuthGate) {
+                pendingDeepLink.clear()
+                navController.navigate(RedeemInviteRoute) { launchSingleTop = true }
+            }
+            return@LaunchedEffect
+        }
         val onHome = currentEntry?.destination?.hasRoute<HomeRoute>() == true
         val homeInBackStack = navController.currentBackStack.value.any {
             it.destination.hasRoute<HomeRoute>()
@@ -263,6 +277,7 @@ fun StitchPadNavHost(
             )
         }
         composable<SignUpRoute> {
+            val scope = rememberCoroutineScope()
             SignUpRoot(
                 // "Log in" link: always land on Login above Welcome, whether the user
                 // arrived via Welcome -> SignUp or Welcome -> Login -> SignUp.
@@ -272,9 +287,21 @@ fun StitchPadNavHost(
                         popUpTo(WelcomeRoute) { inclusive = false }
                     }
                 },
+                // SSO success (Google/Apple — no email-verification step). Route
+                // through the shared resolver so an invite recipient lands on the
+                // redeem screen instead of owner workshop setup.
                 onNavigateToHome = {
-                    navController.navigate(WorkshopSetupRoute) {
-                        popUpTo(WelcomeRoute) { inclusive = true }
+                    scope.launch {
+                        val destination = resolvePostAuthDestination(
+                            authRepository,
+                            onboardingPreferences,
+                            resolveNeedsWorkshopSetup,
+                            activeWorkshopProvider,
+                            pendingDeepLink,
+                        )
+                        navController.navigate(destination) {
+                            popUpTo(WelcomeRoute) { inclusive = true }
+                        }
                     }
                 },
                 onNavigateToEmailVerification = {
