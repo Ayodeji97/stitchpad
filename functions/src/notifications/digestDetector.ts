@@ -1,7 +1,7 @@
 import { lagosDayIndex } from './lagosTime';
 import { DigestItem, DigestModel, OrderScanDoc } from './types';
 
-const MIN_BALANCE = 1; // ignore sub-naira rounding residue from totalPrice - payments
+const OVERDUE_THRESHOLD_DAYS = 7;
 
 export function balanceRemaining(o: OrderScanDoc): number {
   const paid = o.payments.length > 0
@@ -12,6 +12,15 @@ export function balanceRemaining(o: OrderScanDoc): number {
   // tell the customer they still owe the pre-discount amount.
   const payable = Math.max(0, o.totalPrice - (o.discount ?? 0));
   return Math.max(0, payable - paid);
+}
+
+/** The moment the garment first became collectible (Ready or Delivered); mirrors the client's CollectionCalculator.owedSince. */
+export function owedSince(o: OrderScanDoc): number {
+  const changes = (o.statusHistory ?? [])
+    .filter((c) => c.status === 'READY' || c.status === 'DELIVERED')
+    .map((c) => c.changedAt);
+  if (changes.length > 0) return Math.min(...changes);
+  return o.updatedAt ?? o.createdAt ?? 0;
 }
 
 export function summariseGarments(items: OrderScanDoc['items']): string {
@@ -44,8 +53,15 @@ export function digestDetector(orders: OrderScanDoc[], now: number): DigestModel
     // Outstanding draws from READY (open) and DELIVERED (not open); excludes archived.
     if ((o.status === 'READY' || o.status === 'DELIVERED') && o.archivedAt == null) {
       const bal = balanceRemaining(o);
-      if (bal >= MIN_BALANCE) {
-        outstanding.push({ orderId: o.id, customerName: o.customerName, garmentSummary: summariseGarments(o.items), amount: Math.round(bal) });
+      if (bal > 0) {
+        const daysOwed = today - lagosDayIndex(owedSince(o));
+        outstanding.push({
+          orderId: o.id,
+          customerName: o.customerName,
+          garmentSummary: summariseGarments(o.items),
+          amount: Math.round(bal),
+          isOverdue: daysOwed >= OVERDUE_THRESHOLD_DAYS,
+        });
       }
     }
   }

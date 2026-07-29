@@ -13,6 +13,9 @@ export interface OrderScanDoc {
   payments: { amount: number }[];
   depositPaid?: number; // legacy deposit field; only meaningful when payments is empty
   items: { garmentType?: string; customGarmentName?: string; description?: string }[];
+  statusHistory?: { status: string; changedAt: number }[];
+  updatedAt?: number;
+  createdAt?: number;
 }
 
 export interface DigestItem {
@@ -21,6 +24,7 @@ export interface DigestItem {
   garmentSummary: string;
   deadline?: number; // present for dueSoon / overdue
   amount?: number;   // present for outstanding (naira)
+  isOverdue?: boolean; // TO_COLLECT: money owed >= 7 days since Ready/Delivered
 }
 
 export interface DigestModel {

@@ -33,6 +33,11 @@ function mapOrder(id: string, d: DocumentData): OrderScanDoc {
     items: Array.isArray(d.items) ? d.items.map((i: any) => ({
       garmentType: i?.garmentType, customGarmentName: i?.customGarmentName, description: i?.description,
     })) : [],
+    statusHistory: Array.isArray(d.statusHistory)
+      ? d.statusHistory.map((c: any) => ({ status: c?.status ?? '', changedAt: Number(c?.changedAt) || 0 }))
+      : [],
+    updatedAt: typeof d.updatedAt === 'number' ? d.updatedAt : undefined,
+    createdAt: typeof d.createdAt === 'number' ? d.createdAt : undefined,
   };
 }
 

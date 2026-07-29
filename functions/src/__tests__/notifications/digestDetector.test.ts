@@ -67,12 +67,27 @@ describe('digestDetector', () => {
     expect(m.outstanding.length).toBe(0);
   });
 
-  it('excludes in-progress balances and sub-naira residue from outstanding', () => {
+  it('excludes in-progress balances from outstanding regardless of amount owed', () => {
     const m = digestDetector([
       order({ status: 'IN_PROGRESS', totalPrice: 9000, payments: [{ amount: 1000 }] }),
-      order({ status: 'DELIVERED', totalPrice: 5000, payments: [{ amount: 4999.7 }] }),
     ], NOW);
     expect(m.outstanding.length).toBe(0);
+  });
+
+  it('includes a sub-₦1 balance (matches client > 0 floor)', () => {
+    const m = digestDetector([order({ status: 'READY', totalPrice: 1000, payments: [{ amount: 999.5 }] })], NOW);
+    expect(m.outstanding.length).toBe(1);
+  });
+
+  it('flags outstanding overdue at 7 Lagos-days since ready, not at 6', () => {
+    const READY = (daysAgo: number) => order({
+      status: 'READY', totalPrice: 5000, payments: [],
+      statusHistory: [{ status: 'READY', changedAt: NOW - daysAgo * DAY }],
+    });
+    const m = digestDetector([READY(6), READY(7)], NOW);
+    const byOverdue = m.outstanding.map((o) => o.isOverdue);
+    expect(byOverdue).toContain(true);   // the 7-day one
+    expect(byOverdue).toContain(false);  // the 6-day one
   });
 
   it('returns all 8 overdue orders without capping', () => {
