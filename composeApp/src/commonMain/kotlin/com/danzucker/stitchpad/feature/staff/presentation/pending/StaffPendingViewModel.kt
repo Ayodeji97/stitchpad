@@ -4,8 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
-import com.danzucker.stitchpad.core.domain.session.MembershipStatus
-import com.danzucker.stitchpad.core.domain.session.StaffRole
 import com.danzucker.stitchpad.core.domain.staff.StaffMembershipPrefsStore
 import com.danzucker.stitchpad.core.domain.staff.repository.InviteRedemptionRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
@@ -40,7 +38,6 @@ class StaffPendingViewModel(
     // One-shot navigation guard: once we route away, ignore further session churn
     // (e.g. our own prefs.clear() on leave flipping the session to owner-of-self).
     private var navigated = false
-    private var sawPending = false
 
     init {
         viewModelScope.launch {
@@ -52,19 +49,19 @@ class StaffPendingViewModel(
                         navigated = true
                         _events.send(StaffPendingEvent.NavigateToHome)
                     }
-                    // Still waiting.
-                    session.role == StaffRole.STAFF && session.membershipStatus == MembershipStatus.PENDING ->
-                        sawPending = true
-                    // Reverted to owner-of-self AFTER being pending = the owner declined/removed us.
-                    // Clear the stored workshopUid so a later cold start doesn't re-enter the
-                    // pending window for the declined workshop. Carry the declined flag to the
-                    // redeem screen (a snackbar here would be lost when this screen is disposed
-                    // by the navigation) so it can explain why.
-                    sawPending && session.isOwner -> {
+                    // Reverted to owner-of-self = the owner declined/removed us. On this
+                    // screen the provider's provisional value is STAFF/PENDING (a stored
+                    // workshopUid got us here), so owner-of-self only appears when the
+                    // membership doc is revoked/absent — including a cold start after a
+                    // decline, where the VM may see owner-of-self as its first emission.
+                    // Clear the stale uid and route back to redeem with the declined flag
+                    // (a snackbar here would be lost when this screen is disposed).
+                    session.isOwner -> {
                         navigated = true
                         staffMembershipPrefs.clear()
                         _events.send(StaffPendingEvent.NavigateToRedeem(declined = true))
                     }
+                    // else: STAFF/PENDING — keep waiting.
                 }
             }
         }

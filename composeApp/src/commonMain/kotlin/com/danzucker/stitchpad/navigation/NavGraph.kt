@@ -143,6 +143,7 @@ private suspend fun resolvePostAuthDestination(
 private fun PushDeepLinkRedirectEffect(navController: NavHostController) {
     val authRepository: AuthRepository = koinInject()
     val pendingDeepLink: PendingDeepLinkHolder = koinInject()
+    val activeWorkshopProvider: ActiveWorkshopProvider = koinInject()
     val pendingDeepLinkTarget by pendingDeepLink.target.collectAsStateWithLifecycle()
     val currentEntry by navController.currentBackStackEntryAsState()
     LaunchedEffect(pendingDeepLinkTarget, currentEntry) {
@@ -166,6 +167,14 @@ private fun PushDeepLinkRedirectEffect(navController: NavHostController) {
         // the auth gates so an unverified user is never routed around email
         // verification.
         if (pendingDeepLinkTarget == DeepLinkTarget.JOIN_WORKSHOP) {
+            // An already-staff user (active or pending) can't join another workshop —
+            // drop the stale invite instead of routing them to redeem (where it would
+            // create a second pending request). Mirrors the post-auth gate's guard.
+            if (activeWorkshopProvider.current().role == StaffRole.STAFF) {
+                pendingDeepLink.clear()
+                pendingDeepLink.consumeJoinWorkshopCode()
+                return@LaunchedEffect
+            }
             val onRedeem = currentEntry?.destination?.hasRoute<RedeemInviteRoute>() == true
             val pastAuthGate = currentEntry?.destination?.hasRoute<WorkshopSetupRoute>() == true ||
                 navController.currentBackStack.value.any { it.destination.hasRoute<HomeRoute>() }

@@ -89,6 +89,19 @@ class StaffPendingViewModelTest {
     }
 
     @Test
+    fun a_cold_start_after_decline_routes_back_to_redeem_even_without_seeing_pending() = runTest {
+        // The provider's first emission is already owner-of-self (owner declined
+        // before the app reopened) — the screen must still route back to redeem.
+        val vm = buildViewModel(FakeActiveWorkshopProvider(WorkshopSession.ownerOfSelf("staff-1")))
+        vm.events.test {
+            val event = awaitItem()
+            assertIs<StaffPendingEvent.NavigateToRedeem>(event)
+            assertEquals(true, event.declined)
+        }
+        assertEquals(1, prefs.clearCount)
+    }
+
+    @Test
     fun leaving_cancels_server_side_then_clears_and_navigates_to_redeem() = runTest {
         val vm = buildViewModel(FakeActiveWorkshopProvider(pending()))
         vm.events.test {
