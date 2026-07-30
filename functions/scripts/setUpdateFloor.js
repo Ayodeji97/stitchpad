@@ -64,15 +64,18 @@ async function main() {
   });
 
   // Warn if the update screen would have no button / copy — an easy mistake that
-  // shows a blocking screen with no way forward.
-  if (androidFloor !== null && !before.updateUrlAndroid) {
-    console.warn('WARN: updateUrlAndroid is unset — the Android update button will be hidden.');
+  // shows a blocking screen with no way forward. Treat whitespace-only as unset:
+  // the client's AppGate runs blankToNull() on these, so "   " hides the button /
+  // falls back to default copy exactly as a missing value would.
+  const isBlank = (s) => typeof s !== 'string' || s.trim() === '';
+  if (androidFloor !== null && isBlank(before.updateUrlAndroid)) {
+    console.warn('WARN: updateUrlAndroid is unset/blank — the Android update button will be hidden.');
   }
-  if (iosFloor !== null && !before.updateUrlIos) {
-    console.warn('WARN: updateUrlIos is unset — the iOS update button will be hidden.');
+  if (iosFloor !== null && isBlank(before.updateUrlIos)) {
+    console.warn('WARN: updateUrlIos is unset/blank — the iOS update button will be hidden.');
   }
-  if ((androidFloor !== null || iosFloor !== null) && !before.forceUpdateMessage) {
-    console.warn('WARN: forceUpdateMessage is unset — the screen shows default copy only.');
+  if ((androidFloor !== null || iosFloor !== null) && isBlank(before.forceUpdateMessage)) {
+    console.warn('WARN: forceUpdateMessage is unset/blank — the screen shows default copy only.');
   }
 
   if (!commit) {
