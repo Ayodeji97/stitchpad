@@ -504,6 +504,10 @@ private fun SettingsLandingLegacy(
  * security sub-screen, not here, so this layout never dispatches
  * [SettingsAction.OnSignOutRowClick].
  */
+// Owner/staff role gating + gifting flags add several conditional rows; the
+// landing is a flat list of sections, not branching logic. Same treatment as
+// SettingsLandingLegacy above.
+@Suppress("CyclomaticComplexMethod")
 @Composable
 private fun SettingsLandingHub(
     state: SettingsState,
