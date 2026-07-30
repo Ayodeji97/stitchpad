@@ -61,11 +61,10 @@ class FirebaseCustomerRepository(
 
     private val cachedActiveCustomerCounts = MutableStateFlow<Map<String, Int>>(emptyMap())
 
-    // Owner-only contact sub-doc (Owner + Staff feature). During the dual-write
-    // window the base customer doc still carries phone/email/address for old app
-    // versions and the owner app keeps reading them from there; this sub-doc is
-    // written in parallel so a later slice can flip reads here and Firestore rules
-    // can deny staff access to a customer's reachable identity.
+    // Owner-only contact sub-doc (Owner + Staff feature). The owner reads contact
+    // from here (Slice 8a); Firestore rules deny staff. During the dual-write window
+    // the base customer doc still carries phone/email/address too, so a legacy/seeded
+    // customer without this sub-doc falls back to the base (see [Customer.withContact]).
     private fun contactDoc(userId: String, customerId: String) =
         firestore.collection("users").document(userId)
             .collection("customers").document(customerId)

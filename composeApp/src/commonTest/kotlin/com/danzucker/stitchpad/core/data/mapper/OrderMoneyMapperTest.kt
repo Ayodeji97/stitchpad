@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.core.data.mapper
 
+import com.danzucker.stitchpad.core.data.dto.OrderMoneyDto
 import com.danzucker.stitchpad.core.domain.model.CostCategory
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
@@ -139,6 +140,22 @@ class OrderMoneyMapperTest {
         assertEquals(3_000.0, merged.costs.first().amount)
         assertEquals(1_000.0, merged.items.first { it.id == "i1" }.price)
         assertEquals(2_500.0, merged.items.first { it.id == "i2" }.price)
+    }
+
+    @Test
+    fun withMoney_ignores_an_incomplete_sub_doc_missing_ownerId_and_falls_back_to_base() {
+        // A partial money mirror (from recordPayment/updateCosts before a full write)
+        // or a pre-8a Slice-2 doc has money-ish fields but NO ownerId stamp. Trusting
+        // it would zero out the real base money — the ownerId sentinel must reject it.
+        val base = order(
+            items = listOf(item("i1", 1_500.0)),
+            totalPrice = 9_000.0,
+            discount = 500.0,
+            payments = listOf(Payment("p1", 3_000.0, PaymentMethod.OTHER, PaymentType.DEPOSIT, 1L, null)),
+        )
+        val incomplete = OrderMoneyDto(ownerId = "", payments = emptyList(), totalPrice = 0.0)
+
+        assertEquals(base, base.withMoney(incomplete))
     }
 
     @Test

@@ -406,10 +406,12 @@ class FirebaseOrderRepository(
             )
             // Mirror the payment append to the money sub-doc. merge=true so it
             // create-or-updates even for orders whose money doc isn't backfilled yet.
-            orderMoneyDoc(userId, orderId).set(
-                mapOf("payments" to paymentsArrayUnion, "ownerId" to userId, "orderId" to orderId),
-                merge = true,
-            )
+            // Partial mirror: payments only. Deliberately does NOT stamp ownerId — that
+            // is the completeness sentinel (see Order.withMoney). Stamping it here would
+            // make an incomplete doc (created when no full mirror has run yet for a
+            // legacy order) look authoritative and zero out totalPrice/discount/costs on
+            // read. The full write (create/update) or the backfill owns the ownerId stamp.
+            orderMoneyDoc(userId, orderId).set(mapOf("payments" to paymentsArrayUnion), merge = true)
         }
         if (!accepted) {
             return Result.Error(DataError.Network.UNKNOWN)
@@ -478,10 +480,9 @@ class FirebaseOrderRepository(
             )
             // Mirror costs to the money sub-doc (create-safe). Same "no updatedAt"
             // invariant as the base write — the sub-doc has no updatedAt field.
-            orderMoneyDoc(userId, orderId).set(
-                orderCostsWriteFields(costs) + mapOf("ownerId" to userId, "orderId" to orderId),
-                merge = true,
-            )
+            // Partial mirror: costs only. No ownerId stamp — same completeness-sentinel
+            // reasoning as recordPayment above (see Order.withMoney).
+            orderMoneyDoc(userId, orderId).set(orderCostsWriteFields(costs), merge = true)
         }
         if (!accepted) {
             return Result.Error(DataError.Network.UNKNOWN)

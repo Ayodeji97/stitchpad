@@ -21,13 +21,15 @@ fun Customer.toCustomerContactDto(ownerId: String): CustomerContactDto = Custome
 )
 
 /**
- * Slice 8a: fold the owner-only contact sub-doc back onto a base [Customer]. When
- * present it is the source of truth for phone/email/address; a null [contact] — a
- * legacy/seeded customer not yet backfilled — falls back to the base doc's
- * contact during the dual-write window.
+ * Slice 8a: fold the owner-only contact sub-doc back onto a base [Customer]. When a
+ * COMPLETE sub-doc is present it is the source of truth for phone/email/address.
+ *
+ * `ownerId` is the completeness sentinel (same as [Order.withMoney]): stamped only
+ * by a full write or the backfill. An absent, unstamped (pre-8a), or incomplete
+ * sub-doc falls back to the base doc's contact during the dual-write window.
  */
 fun Customer.withContact(contact: CustomerContactDto?): Customer {
-    if (contact == null) return this
+    if (contact == null || contact.ownerId.isBlank()) return this
     return copy(
         phone = contact.phone,
         email = contact.email,

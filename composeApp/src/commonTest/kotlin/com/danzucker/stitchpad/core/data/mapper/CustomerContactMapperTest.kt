@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.core.data.mapper
 
+import com.danzucker.stitchpad.core.data.dto.CustomerContactDto
 import com.danzucker.stitchpad.core.domain.model.Customer
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -55,6 +56,15 @@ class CustomerContactMapperTest {
         val base = customer(phone = "+234800", email = "a@b.c", address = "Lagos")
 
         assertEquals(base, base.withContact(null))
+    }
+
+    @Test
+    fun withContact_ignores_an_incomplete_sub_doc_missing_ownerId_and_falls_back_to_base() {
+        val base = customer(phone = "+234800", email = "a@b.c", address = "Lagos")
+        // A pre-8a contact doc: has contact but no ownerId stamp -> must be ignored.
+        val incomplete = CustomerContactDto(ownerId = "", phone = "+999")
+
+        assertEquals(base, base.withContact(incomplete))
     }
 
     @Test

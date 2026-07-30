@@ -10,11 +10,10 @@ import kotlinx.serialization.Serializable
  * order lives here so Firestore rules can deny staff read access to it while
  * still letting them read the base order doc (garment, status, measurements).
  *
- * During the dual-write window (Slice 2) the base [OrderDto] still carries these
- * same money fields for backward compatibility with older app versions; the
- * owner app keeps reading them from the base doc. This sub-doc is written in
- * parallel so a later slice can flip reads here and strip the base fields once a
- * minimum-app-version floor is in place.
+ * During the dual-write window the base [OrderDto] still carries these same money
+ * fields for backward compatibility with older app versions. Slice 8a flipped the
+ * owner's read onto this sub-doc (see [ownerId]); the base fields stay until a later
+ * slice strips them once a minimum-app-version floor is in place.
  *
  * [itemPrices] relocates the per-item `price` that today lives inside the base
  * doc's `items[]`, keyed by order-item id, so the base items can eventually drop
