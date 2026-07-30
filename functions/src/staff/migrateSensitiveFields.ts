@@ -36,8 +36,16 @@ export interface MigrateSensitiveFieldsDeps {
  * Owner-only contact payload derived from a base customer doc. Mirrors the
  * client `CustomerContactDto` defaults (phone "", email/address null).
  */
-export function buildContactDoc(customer: admin.firestore.DocumentData): Record<string, unknown> {
+export function buildContactDoc(
+  customer: admin.firestore.DocumentData,
+  ownerId: string,
+  customerId: string,
+): Record<string, unknown> {
   return {
+    // Slice 8a: ownerId scopes the owner's collectionGroup("private") read;
+    // customerId joins the result back onto the base customer.
+    ownerId,
+    customerId,
     phone: typeof customer.phone === 'string' ? customer.phone : '',
     email: customer.email ?? null,
     address: customer.address ?? null,
@@ -48,7 +56,11 @@ export function buildContactDoc(customer: admin.firestore.DocumentData): Record<
  * Owner-only money payload derived from a base order doc. Mirrors the client
  * `OrderMoneyDto`; `itemPrices` relocates each item's `price` keyed by item id.
  */
-export function buildMoneyDoc(order: admin.firestore.DocumentData): Record<string, unknown> {
+export function buildMoneyDoc(
+  order: admin.firestore.DocumentData,
+  ownerId: string,
+  orderId: string,
+): Record<string, unknown> {
   const items: admin.firestore.DocumentData[] = Array.isArray(order.items) ? order.items : [];
   const itemPrices: Record<string, number> = {};
   for (const item of items) {
@@ -57,6 +69,10 @@ export function buildMoneyDoc(order: admin.firestore.DocumentData): Record<strin
     }
   }
   return {
+    // Slice 8a: ownerId scopes the owner's collectionGroup("private") read;
+    // orderId joins the result back onto the base order.
+    ownerId,
+    orderId,
     totalPrice: typeof order.totalPrice === 'number' ? order.totalPrice : 0,
     discount: typeof order.discount === 'number' ? order.discount : 0,
     discountReason: order.discountReason ?? null,
@@ -117,7 +133,7 @@ export async function migrateSensitiveFieldsHandler(
       const customersSnap = await deps.db.collection(`users/${uid}/customers`).get();
       const contactWrites = customersSnap.docs.map((d) => ({
         ref: deps.db.doc(`users/${uid}/customers/${d.id}/private/contact`),
-        data: buildContactDoc(d.data()),
+        data: buildContactDoc(d.data(), uid, d.id),
       }));
       customersWritten += contactWrites.length;
       if (!dryRun) {
@@ -127,7 +143,7 @@ export async function migrateSensitiveFieldsHandler(
       const ordersSnap = await deps.db.collection(`users/${uid}/orders`).get();
       const moneyWrites = ordersSnap.docs.map((d) => ({
         ref: deps.db.doc(`users/${uid}/orders/${d.id}/private/money`),
-        data: buildMoneyDoc(d.data()),
+        data: buildMoneyDoc(d.data(), uid, d.id),
       }));
       ordersWritten += moneyWrites.length;
       if (!dryRun) {

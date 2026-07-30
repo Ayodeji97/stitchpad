@@ -66,6 +66,13 @@
         { "queryScope": "COLLECTION_GROUP", "order": "ASCENDING" },
         { "queryScope": "COLLECTION", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "private",
+      "fieldPath": "ownerId",
+      "indexes": [
+        { "queryScope": "COLLECTION_GROUP", "order": "ASCENDING" }
+      ]
     }
   ]
 }

@@ -51,8 +51,12 @@ const ctx = (isAdmin?: boolean): functions.https.CallableContext =>
   ({ auth: { uid: 'a', token: isAdmin ? { admin: true } : {} } } as unknown as functions.https.CallableContext);
 
 describe('buildContactDoc', () => {
-  it('maps phone/email/address', () => {
-    expect(buildContactDoc({ phone: '+2348011112222', email: 'a@b.co', address: '12 Marina' })).toEqual({
+  it('maps phone/email/address and stamps ownerId + customerId', () => {
+    expect(
+      buildContactDoc({ phone: '+2348011112222', email: 'a@b.co', address: '12 Marina' }, 'owner-1', 'c1'),
+    ).toEqual({
+      ownerId: 'owner-1',
+      customerId: 'c1',
       phone: '+2348011112222',
       email: 'a@b.co',
       address: '12 Marina',
@@ -60,21 +64,33 @@ describe('buildContactDoc', () => {
   });
 
   it('defaults missing phone to empty and email/address to null', () => {
-    expect(buildContactDoc({})).toEqual({ phone: '', email: null, address: null });
+    expect(buildContactDoc({}, 'owner-1', 'c1')).toEqual({
+      ownerId: 'owner-1',
+      customerId: 'c1',
+      phone: '',
+      email: null,
+      address: null,
+    });
   });
 });
 
 describe('buildMoneyDoc', () => {
-  it('maps money fields and relocates item prices by id', () => {
-    const money = buildMoneyDoc({
-      totalPrice: 40000,
-      discount: 5000,
-      discountReason: 'loyal',
-      payments: [{ id: 'p1', amount: 10000 }],
-      costs: [{ category: 'FABRIC', amount: 3000 }],
-      items: [{ id: 'i1', price: 1000 }, { id: 'i2', price: 2500 }],
-    });
+  it('maps money fields, relocates item prices, and stamps ownerId + orderId', () => {
+    const money = buildMoneyDoc(
+      {
+        totalPrice: 40000,
+        discount: 5000,
+        discountReason: 'loyal',
+        payments: [{ id: 'p1', amount: 10000 }],
+        costs: [{ category: 'FABRIC', amount: 3000 }],
+        items: [{ id: 'i1', price: 1000 }, { id: 'i2', price: 2500 }],
+      },
+      'owner-1',
+      'o1',
+    );
     expect(money).toEqual({
+      ownerId: 'owner-1',
+      orderId: 'o1',
       totalPrice: 40000,
       discount: 5000,
       discountReason: 'loyal',
@@ -85,7 +101,9 @@ describe('buildMoneyDoc', () => {
   });
 
   it('defaults missing money to zero/empty', () => {
-    expect(buildMoneyDoc({})).toEqual({
+    expect(buildMoneyDoc({}, 'owner-1', 'o1')).toEqual({
+      ownerId: 'owner-1',
+      orderId: 'o1',
       totalPrice: 0,
       discount: 0,
       discountReason: null,

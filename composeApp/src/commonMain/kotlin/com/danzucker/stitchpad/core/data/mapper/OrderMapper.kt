@@ -122,8 +122,14 @@ fun Order.toOrderDto(): OrderDto {
  * Carries the full money set — `{ totalPrice, discount, discountReason, payments,
  * costs, itemPrices }` — every [Order] money getter derives from. `itemPrices`
  * relocates each item's `price` keyed by item id (see [OrderMoneyDto]).
+ *
+ * [ownerId] is the workshop owner's uid; it (plus [Order.id] as `orderId`) lets
+ * the owner read money for the whole list via one `collectionGroup("private")`
+ * query — see [withMoney].
  */
-fun Order.toOrderMoneyDto(): OrderMoneyDto = OrderMoneyDto(
+fun Order.toOrderMoneyDto(ownerId: String): OrderMoneyDto = OrderMoneyDto(
+    ownerId = ownerId,
+    orderId = id,
     totalPrice = totalPrice,
     discount = discount,
     discountReason = discountReason,
@@ -131,6 +137,28 @@ fun Order.toOrderMoneyDto(): OrderMoneyDto = OrderMoneyDto(
     costs = costs.map { it.toOrderCostDto() },
     itemPrices = items.associate { it.id to it.price },
 )
+
+/**
+ * Slice 8a: fold the owner-only money sub-doc back onto a base [Order]. The owner
+ * reads money from `/private/money` instead of the base doc; when the sub-doc is
+ * present it is the source of truth for every money field (and each item's
+ * `price` is restored from [OrderMoneyDto.itemPrices] by item id). A null [money]
+ * — a legacy/seeded order whose sub-doc has not been backfilled yet — falls back
+ * to whatever money the base doc already carries during the dual-write window.
+ */
+fun Order.withMoney(money: OrderMoneyDto?): Order {
+    if (money == null) return this
+    return copy(
+        totalPrice = money.totalPrice,
+        discount = money.discount,
+        discountReason = money.discountReason,
+        payments = money.payments.map { it.toPayment() },
+        costs = money.costs.map { it.toOrderCost() },
+        items = items.map { item ->
+            money.itemPrices[item.id]?.let { item.copy(price = it) } ?: item
+        },
+    )
+}
 
 fun PaymentDto.toPayment(): Payment = Payment(
     id = id,

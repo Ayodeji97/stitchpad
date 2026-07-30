@@ -20,6 +20,12 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class CustomerContactDto(
+    // Slice 8a: [ownerId] (the workshop owner's uid) lets the owner read contact
+    // for the whole list in one `collectionGroup("private")` query filtered by
+    // `ownerId == uid`; [customerId] carries the parent id so results join back
+    // onto each customer without walking the document's parent chain.
+    val ownerId: String = "",
+    val customerId: String = "",
     val phone: String = "",
     val email: String? = null,
     val address: String? = null,

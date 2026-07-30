@@ -8,15 +8,18 @@ import {
 } from '@firebase/rules-unit-testing';
 import {
   collection,
+  collectionGroup,
   deleteDoc,
   deleteField,
   doc,
   getDoc,
   getDocs,
+  query,
   serverTimestamp,
   setDoc,
   Timestamp,
   updateDoc,
+  where,
 } from 'firebase/firestore';
 
 /**
@@ -872,5 +875,57 @@ describe('staff memberships + invites collections', () => {
     await assertFails(getDoc(doc(db('alice'), 'staffInvites/CODE1')));
     await assertFails(getDoc(doc(db('chidi'), 'staffInvites/CODE1')));
     await assertFails(setDoc(doc(db('mallory'), 'staffInvites/HACK'), { workshopUid: 'mallory' }));
+  });
+});
+
+// Slice 8a: the owner reads money (orders) + contact (customers) for whole LISTS
+// via one collectionGroup("private") query scoped by the `ownerId` field. A bare
+// path-scoped rule can't authorize a collection-group query (rules-are-not-filters),
+// so the query MUST be `where('ownerId','==', uid)` and the rule scopes on ownerId.
+describe('Slice 8a: owner collectionGroup(private) read', () => {
+  beforeEach(async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice/orders/o1/private/money'), {
+        ownerId: 'alice', orderId: 'o1', totalPrice: 5000,
+      });
+      await setDoc(doc(admin, 'users/alice/customers/c1/private/contact'), {
+        ownerId: 'alice', customerId: 'c1', phone: '+234',
+      });
+      // A different owner's private docs must never leak into alice's query.
+      await setDoc(doc(admin, 'users/bob/orders/ob1/private/money'), {
+        ownerId: 'bob', orderId: 'ob1', totalPrice: 9000,
+      });
+    });
+  });
+
+  it('allows an owner collectionGroup(private) query filtered by their own ownerId', async () => {
+    await assertSucceeds(
+      getDocs(query(collectionGroup(db('alice'), 'private'), where('ownerId', '==', 'alice'))),
+    );
+  });
+
+  it('returns ONLY the owner own private docs (money + contact), never another owner', async () => {
+    const snap = await getDocs(
+      query(collectionGroup(db('alice'), 'private'), where('ownerId', '==', 'alice')),
+    );
+    const paths = snap.docs.map((d) => d.ref.path);
+    expect(paths).toHaveLength(2);
+    expect(paths.every((p) => p.startsWith('users/alice/'))).toBe(true);
+  });
+
+  it('rejects a collectionGroup(private) query NOT scoped by ownerId', async () => {
+    await assertFails(getDocs(collectionGroup(db('alice'), 'private')));
+  });
+
+  it('rejects reading another owner private docs by filtering on their ownerId', async () => {
+    await assertFails(
+      getDocs(query(collectionGroup(db('alice'), 'private'), where('ownerId', '==', 'bob'))),
+    );
+  });
+
+  it('the collection-group rule does not open a direct staff read of the wall', async () => {
+    // mallory is a stranger; the money/contact wall must still deny direct reads.
+    await assertFails(getDoc(doc(db('mallory'), 'users/alice/orders/o1/private/money')));
+    await assertFails(getDoc(doc(db('mallory'), 'users/alice/customers/c1/private/contact')));
   });
 });

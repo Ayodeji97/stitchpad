@@ -22,6 +22,13 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class OrderMoneyDto(
+    // Slice 8a: [ownerId] is the workshop owner's uid. It lets the owner read
+    // money for the whole list in one `collectionGroup("private")` query filtered
+    // by `ownerId == uid` (a nested-path rule can't authorize a collection-group
+    // query). [orderId] carries the parent order id so those results can be joined
+    // back onto each order without walking the document's parent chain.
+    val ownerId: String = "",
+    val orderId: String = "",
     val totalPrice: Double = 0.0,
     val discount: Double = 0.0,
     val discountReason: String? = null,

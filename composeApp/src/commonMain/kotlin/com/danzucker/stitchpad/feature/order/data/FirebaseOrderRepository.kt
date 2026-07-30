@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.order.data
 
 import com.danzucker.stitchpad.core.data.decodeDocOrLog
 import com.danzucker.stitchpad.core.data.dto.OrderCostDto
+import com.danzucker.stitchpad.core.data.dto.OrderMoneyDto
 import com.danzucker.stitchpad.core.data.dto.PaymentDto
 import com.danzucker.stitchpad.core.data.dto.StatusChangeDto
 import com.danzucker.stitchpad.core.data.mapper.toOrder
@@ -9,6 +10,7 @@ import com.danzucker.stitchpad.core.data.mapper.toOrderCostDto
 import com.danzucker.stitchpad.core.data.mapper.toOrderDto
 import com.danzucker.stitchpad.core.data.mapper.toOrderMoneyDto
 import com.danzucker.stitchpad.core.data.mapper.toPaymentDto
+import com.danzucker.stitchpad.core.data.mapper.withMoney
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
@@ -31,6 +33,7 @@ import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
@@ -131,12 +134,52 @@ class FirebaseOrderRepository(
     private fun ordersCollection(userId: String) =
         firestore.collection("users").document(userId).collection("orders")
 
-    // Owner-only money sub-doc (Owner + Staff feature). During the dual-write
-    // window the base order doc still carries money for old app versions and the
-    // owner app keeps reading it from there; this sub-doc is written in parallel
-    // so a later slice can flip reads here and Firestore rules can deny staff.
+    // Owner-only money sub-doc (Owner + Staff feature). The owner reads money from
+    // here (Slice 8a); staff are denied by Firestore rules. During the dual-write
+    // window the base order doc still carries money too, so a legacy/seeded order
+    // without this sub-doc falls back to the base (see [Order.withMoney]).
     private fun orderMoneyDoc(userId: String, orderId: String) =
         ordersCollection(userId).document(orderId).collection("private").document("money")
+
+    // Slice 8a: one collection-group read of every money sub-doc the owner owns,
+    // keyed by order id, so the LIST can join money without an N+1 per-order read.
+    // Scoped by the `ownerId` field (a nested-path rule can't authorize a
+    // collection-group query). If this read fails (e.g. the collection-group index
+    // is still propagating), degrade to an empty map so orders fall back to base
+    // money — never break the owner's money display over a sub-doc read.
+    private fun moneyByOrderId(userId: String): Flow<Map<String, OrderMoneyDto>> =
+        firestore.collectionGroup("private")
+            .where { "ownerId" equalTo userId }
+            .snapshots()
+            .map { snapshot ->
+                snapshot.documents
+                    .filter { it.id == "money" }
+                    .mapNotNull { doc -> decodeDocOrLog(tag = TAG, docId = doc.id) { doc.data<OrderMoneyDto>() } }
+                    .associateBy { it.orderId }
+            }
+            .catch { throwable ->
+                AppLogger.e(tag = TAG, throwable = throwable) {
+                    "observeOrders money collection-group failed; falling back to base money"
+                }
+                emit(emptyMap())
+            }
+
+    private fun orderMoneyFlow(userId: String, orderId: String): Flow<OrderMoneyDto?> =
+        orderMoneyDoc(userId, orderId)
+            .snapshots
+            .map { snapshot ->
+                if (snapshot.exists) {
+                    decodeDocOrLog(tag = TAG, docId = orderId) { snapshot.data<OrderMoneyDto>() }
+                } else {
+                    null
+                }
+            }
+            .catch { throwable ->
+                AppLogger.e(tag = TAG, throwable = throwable) {
+                    "observeOrder money sub-doc failed orderId=$orderId; falling back to base money"
+                }
+                emit(null)
+            }
 
     private fun fabricStoragePath(userId: String, orderId: String, itemId: String): String =
         "users/$userId/orders/$orderId/fabrics/$itemId.jpg"
@@ -207,13 +250,12 @@ class FirebaseOrderRepository(
     }
 
     override fun observeOrders(userId: String): Flow<Result<List<Order>, DataError.Network>> =
-        ordersCollection(userId)
-            .snapshots()
-            .map { snapshot ->
-                val orders = snapshot.documents.toOrders(userId)
-                    .filter { it.archivedAt == null }
-                Result.Success(orders) as Result<List<Order>, DataError.Network>
-            }
+        combine(ordersCollection(userId).snapshots(), moneyByOrderId(userId)) { snapshot, money ->
+            val orders = snapshot.documents.toOrders(userId)
+                .filter { it.archivedAt == null }
+                .map { it.withMoney(money[it.id]) }
+            Result.Success(orders) as Result<List<Order>, DataError.Network>
+        }
             .catch { throwable ->
                 AppLogger.e(tag = TAG, throwable = throwable) { "observeOrders failed" }
                 emit(Result.Error(DataError.Network.UNKNOWN))
@@ -222,14 +264,13 @@ class FirebaseOrderRepository(
     override fun observeArchivedOrders(
         userId: String,
     ): Flow<Result<List<Order>, DataError.Network>> =
-        ordersCollection(userId)
-            .snapshots()
-            .map { snapshot ->
-                val archived = snapshot.documents.toOrders(userId)
-                    .filter { it.archivedAt != null }
-                    .sortedByDescending { it.archivedAt }
-                Result.Success(archived) as Result<List<Order>, DataError.Network>
-            }
+        combine(ordersCollection(userId).snapshots(), moneyByOrderId(userId)) { snapshot, money ->
+            val archived = snapshot.documents.toOrders(userId)
+                .filter { it.archivedAt != null }
+                .sortedByDescending { it.archivedAt }
+                .map { it.withMoney(money[it.id]) }
+            Result.Success(archived) as Result<List<Order>, DataError.Network>
+        }
             .catch { throwable ->
                 AppLogger.e(tag = TAG, throwable = throwable) { "observeArchivedOrders failed" }
                 emit(Result.Error(DataError.Network.UNKNOWN))
@@ -239,16 +280,19 @@ class FirebaseOrderRepository(
         userId: String,
         orderId: String
     ): Flow<Result<Order, DataError.Network>> =
-        ordersCollection(userId).document(orderId)
-            .snapshots
-            .map { snapshot ->
-                if (!snapshot.exists) {
-                    Result.Error(DataError.Network.NOT_FOUND) as Result<Order, DataError.Network>
-                } else {
-                    val dto = snapshot.data<com.danzucker.stitchpad.core.data.dto.OrderDto>()
-                    Result.Success(dto.toOrder(userId).withLocalPendingImages()) as Result<Order, DataError.Network>
-                }
+        combine(
+            ordersCollection(userId).document(orderId).snapshots,
+            orderMoneyFlow(userId, orderId),
+        ) { snapshot, money ->
+            if (!snapshot.exists) {
+                Result.Error(DataError.Network.NOT_FOUND) as Result<Order, DataError.Network>
+            } else {
+                val dto = snapshot.data<com.danzucker.stitchpad.core.data.dto.OrderDto>()
+                Result.Success(
+                    dto.toOrder(userId).withLocalPendingImages().withMoney(money),
+                ) as Result<Order, DataError.Network>
             }
+        }
             .catch { throwable ->
                 AppLogger.e(tag = TAG, throwable = throwable) { "observeOrder failed orderId=$orderId" }
                 emit(Result.Error(DataError.Network.UNKNOWN))
@@ -262,7 +306,13 @@ class FirebaseOrderRepository(
             val doc = ordersCollection(userId).document(orderId).get()
             if (!doc.exists) return Result.Error(DataError.Network.NOT_FOUND)
             val dto = doc.data<com.danzucker.stitchpad.core.data.dto.OrderDto>()
-            Result.Success(dto.toOrder(userId).withLocalPendingImages())
+            // Prefer the owner-only money sub-doc; fall back to the base doc's money
+            // when it's missing (legacy/seeded order) or the read fails.
+            val money = runCatching {
+                val moneyDoc = orderMoneyDoc(userId, orderId).get()
+                if (moneyDoc.exists) moneyDoc.data<OrderMoneyDto>() else null
+            }.getOrNull()
+            Result.Success(dto.toOrder(userId).withLocalPendingImages().withMoney(money))
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "getOrder failed orderId=$orderId" }
             Result.Error(DataError.Network.UNKNOWN)
@@ -282,7 +332,8 @@ class FirebaseOrderRepository(
         val accepted = offlineWrites.enqueue("createOrder orderId=${docRef.id}") {
             docRef.set(dto)
             docRef.set(mapOf("serverCreatedAt" to FieldValue.serverTimestamp), merge = true)
-            orderMoneyDoc(userId, docRef.id).set(order.toOrderMoneyDto())
+            // orderId comes from docRef (order.id may be blank for a new order).
+            orderMoneyDoc(userId, docRef.id).set(order.toOrderMoneyDto(userId).copy(orderId = docRef.id))
         }
         if (!accepted) {
             return Result.Error(DataError.Network.UNKNOWN)
@@ -304,7 +355,7 @@ class FirebaseOrderRepository(
             ordersCollection(userId).document(order.id)
                 .set(order.withCompletedUploadPatches().toOrderDto(), merge = true)
             // Full-money mirror; order carries the current money so a replace is correct.
-            orderMoneyDoc(userId, order.id).set(order.toOrderMoneyDto())
+            orderMoneyDoc(userId, order.id).set(order.toOrderMoneyDto(userId))
         }
         if (!accepted) {
             return Result.Error(DataError.Network.UNKNOWN)
@@ -355,7 +406,10 @@ class FirebaseOrderRepository(
             )
             // Mirror the payment append to the money sub-doc. merge=true so it
             // create-or-updates even for orders whose money doc isn't backfilled yet.
-            orderMoneyDoc(userId, orderId).set(mapOf("payments" to paymentsArrayUnion), merge = true)
+            orderMoneyDoc(userId, orderId).set(
+                mapOf("payments" to paymentsArrayUnion, "ownerId" to userId, "orderId" to orderId),
+                merge = true,
+            )
         }
         if (!accepted) {
             return Result.Error(DataError.Network.UNKNOWN)
@@ -424,7 +478,10 @@ class FirebaseOrderRepository(
             )
             // Mirror costs to the money sub-doc (create-safe). Same "no updatedAt"
             // invariant as the base write — the sub-doc has no updatedAt field.
-            orderMoneyDoc(userId, orderId).set(orderCostsWriteFields(costs), merge = true)
+            orderMoneyDoc(userId, orderId).set(
+                orderCostsWriteFields(costs) + mapOf("ownerId" to userId, "orderId" to orderId),
+                merge = true,
+            )
         }
         if (!accepted) {
             return Result.Error(DataError.Network.UNKNOWN)
