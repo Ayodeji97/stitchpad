@@ -17,8 +17,19 @@ import kotlinx.coroutines.flow.StateFlow
  * custom claim, so a cleared/reinstalled store self-heals for an active member.
  */
 interface StaffMembershipPrefsStore {
-    /** Current stored workshopUid, plus an emission on every [setWorkshopUid]/[clear]. */
+    /** Current stored workshopUid, plus an emission on every [setWorkshop]/[clear]. */
     val workshopUid: StateFlow<String?>
-    suspend fun setWorkshopUid(uid: String)
+
+    /**
+     * The joined workshop's display name (learned at redeem time), for the staff
+     * dashboard header's identity chip. Null when unknown — e.g. an active member
+     * who reinstalled, where workshopUid then comes from the custom claim but the
+     * name only self-heals on a re-redeem. Purely cosmetic: a null just omits the
+     * workshop name from the header.
+     */
+    val workshopName: StateFlow<String?>
+
+    /** Persists the joined workshopUid + display name together; emits on both flows. */
+    suspend fun setWorkshop(uid: String, name: String?)
     suspend fun clear()
 }

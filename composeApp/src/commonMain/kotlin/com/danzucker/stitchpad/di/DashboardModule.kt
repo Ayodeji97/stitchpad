@@ -20,6 +20,8 @@ val dashboardPresentationModule = module {
             appConfigRepository = get(),
             communityJoinTracker = get(),
             dismissal = get(),
+            activeWorkshopProvider = get(),
+            staffMembershipPrefs = get(),
         )
     }
 }

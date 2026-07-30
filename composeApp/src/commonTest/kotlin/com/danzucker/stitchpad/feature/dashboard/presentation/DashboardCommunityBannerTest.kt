@@ -9,7 +9,9 @@ import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeMeasurementRepository
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
 import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
+import com.danzucker.stitchpad.core.data.staff.FakeStaffMembershipPrefsStore
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
+import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.model.Notification
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
@@ -108,6 +110,8 @@ class DashboardCommunityBannerTest {
             appConfigRepository = appConfig,
             communityJoinTracker = communityJoinTracker,
             dismissal = dismissal,
+            activeWorkshopProvider = FakeActiveWorkshopProvider(),
+            staffMembershipPrefs = FakeStaffMembershipPrefsStore(),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm

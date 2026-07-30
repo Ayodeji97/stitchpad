@@ -65,8 +65,9 @@ class RedeemInviteViewModel(
             when (val result = inviteRedemptionRepository.redeem(code)) {
                 is Result.Success -> {
                     // Open the pending window: the provider watches this workshop's
-                    // membership doc until the approval claim lands.
-                    staffMembershipPrefs.setWorkshopUid(result.data.workshopUid)
+                    // membership doc until the approval claim lands. The name rides
+                    // along for the staff dashboard header once approved.
+                    staffMembershipPrefs.setWorkshop(result.data.workshopUid, result.data.workshopName)
                     _events.send(RedeemInviteEvent.NavigateToPending(result.data.workshopName))
                 }
 

@@ -82,6 +82,7 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupCh
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupStep
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupStepKey
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupStepStatus
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.StaffDashboardContent
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.TodayWorkCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.YoureOwedCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
@@ -575,7 +576,11 @@ fun DashboardScreen(
     // Order form requires an existing customer; surfacing the FAB there would route the user
     // into a dead end. Loading is suppressed too so the FAB doesn't briefly flash before the
     // first state emission resolves.
-    val showFab = state.uiState != DashboardUiState.BrandNew &&
+    // Staff have no create-order path (owner-only), so the speed-dial FAB never
+    // shows on the staff dashboard — hence the isStaff guard alongside the
+    // brand-new/loading suppressions.
+    val showFab = !state.isStaff &&
+        state.uiState != DashboardUiState.BrandNew &&
         state.uiState != DashboardUiState.Loading
     var isFabExpanded by rememberSaveable { mutableStateOf(false) }
     val collapseFab: () -> Unit = { isFabExpanded = false }
@@ -657,39 +662,49 @@ fun DashboardScreen(
                 .padding(innerPadding),
         ) {
             val contentModifier = Modifier.fillMaxSize()
-            when (state.uiState) {
-                // Render the header (with the Inspiration + notifications icons) above
-                // the spinner so those entry points stay reachable while loading.
-                DashboardUiState.Loading -> Column(
-                    modifier = contentModifier.padding(horizontal = DesignTokens.space4),
-                ) {
-                    Spacer(Modifier.height(DesignTokens.space4))
-                    DashboardHeader(
-                        firstName = state.firstName,
-                        businessLogoUrl = state.businessLogoUrl,
-                        greeting = state.greeting,
-                        todayDate = state.todayDate,
-                        unreadNotificationCount = state.unreadNotificationCount,
-                        onAvatarClick = { onAction(DashboardAction.OnSettingsClick) },
-                        onNotificationsClick = { onAction(DashboardAction.OnNotificationsClick) },
-                        onInspirationClick = { onAction(DashboardAction.OnInspirationClick) },
-                    )
-                    LoadingState(modifier = Modifier.fillMaxSize())
-                }
-                DashboardUiState.BrandNew,
-                DashboardUiState.FirstCustomer,
-                DashboardUiState.QuietDay,
-                DashboardUiState.PipelineSteady,
-                DashboardUiState.NbaActive,
-                DashboardUiState.BusyDay,
-                DashboardUiState.ReadyForPickup,
-                DashboardUiState.CollectionOverdue -> DashboardContent(
+            if (state.isStaff) {
+                // Active staff get a distinct money-free work view — never the
+                // owner variants below. Its own loading is driven by staffPipeline.
+                StaffDashboardContent(
                     state = state,
                     onAction = onAction,
-                    onNavigateToTutorial = onNavigateToTutorial,
                     modifier = contentModifier,
-                    bottomPadding = if (showFab) FAB_BOTTOM_PADDING else NO_FAB_BOTTOM_PADDING,
                 )
+            } else {
+                when (state.uiState) {
+                    // Render the header (with the Inspiration + notifications icons) above
+                    // the spinner so those entry points stay reachable while loading.
+                    DashboardUiState.Loading -> Column(
+                        modifier = contentModifier.padding(horizontal = DesignTokens.space4),
+                    ) {
+                        Spacer(Modifier.height(DesignTokens.space4))
+                        DashboardHeader(
+                            firstName = state.firstName,
+                            businessLogoUrl = state.businessLogoUrl,
+                            greeting = state.greeting,
+                            todayDate = state.todayDate,
+                            unreadNotificationCount = state.unreadNotificationCount,
+                            onAvatarClick = { onAction(DashboardAction.OnSettingsClick) },
+                            onNotificationsClick = { onAction(DashboardAction.OnNotificationsClick) },
+                            onInspirationClick = { onAction(DashboardAction.OnInspirationClick) },
+                        )
+                        LoadingState(modifier = Modifier.fillMaxSize())
+                    }
+                    DashboardUiState.BrandNew,
+                    DashboardUiState.FirstCustomer,
+                    DashboardUiState.QuietDay,
+                    DashboardUiState.PipelineSteady,
+                    DashboardUiState.NbaActive,
+                    DashboardUiState.BusyDay,
+                    DashboardUiState.ReadyForPickup,
+                    DashboardUiState.CollectionOverdue -> DashboardContent(
+                        state = state,
+                        onAction = onAction,
+                        onNavigateToTutorial = onNavigateToTutorial,
+                        modifier = contentModifier,
+                        bottomPadding = if (showFab) FAB_BOTTOM_PADDING else NO_FAB_BOTTOM_PADDING,
+                    )
+                }
             }
 
             // Backdrop scrim — sits inside the Scaffold content lambda. Scaffold draws its

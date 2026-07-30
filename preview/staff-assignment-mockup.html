@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StitchPad — Order Assignment + Team (concept)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+  <style>
+    :root {
+      --indigo50:#EAEEF8; --indigo100:#D1D9EE; --indigo200:#9CB0DD; --indigo300:#7388BF;
+      --indigo400:#5871B8; --indigo500:#2C3E7C; --indigo700:#1E2B5C; --indigo900:#121B3B;
+      --sienna300:#D9885F; --sienna500:#B85A30; --sienna700:#8E4524;
+      --saffron:#E8A800; --teal:#2D9E6B; --plum:#7A4E8C; --amber:#C48A16;
+      --paper:#FAF6EC; --ink:#14110E;
+      --n0:#FFFFFF; --n50:#F9F9F8; --n100:#F2F1EF; --n200:#E5E3DF; --n300:#C9C6C0;
+      --n400:#A8A49D; --n500:#7D7970; --n600:#57534C; --n700:#3A3731; --n800:#252320; --n900:#121110;
+      --suc:#2D9E6B; --err:#D93B3B;
+      --font-display:'Fraunces', serif; --font-body:'Manrope', sans-serif; --font-mono:'JetBrains Mono', monospace;
+      --dt:150ms;
+      --bg:var(--paper); --surf:var(--n0); --on-surf:var(--n900); --on-surf2:var(--n600); --on-surf3:var(--n400);
+      --bdr:var(--n200); --bdr2:var(--n100); --primary:var(--indigo500); --brand-accent:var(--indigo500);
+      --status-col:var(--n900);
+    }
+    .dark {
+      --bg:var(--ink); --surf:#211D18; --on-surf:#EDE7DC; --on-surf2:#B4ADA0; --on-surf3:#837D72;
+      --bdr:#3A342C; --bdr2:#2A251F; --primary:var(--indigo400); --brand-accent:var(--indigo200);
+      --status-col:#EDE7DC;
+    }
+    *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+    html, body { height:100%; font-family:var(--font-body); }
+    body { background:#0f0e0d; display:flex; flex-direction:column; align-items:center; min-height:100vh; padding:32px 16px 80px; gap:24px; }
+    .page-header { text-align:center; max-width:920px; }
+    .page-header .crumb { display:inline-flex; align-items:center; gap:10px; color:rgba(255,255,255,.55); font-size:12px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; }
+    .page-header .crumb .logo { font-family:var(--font-display); font-size:22px; font-weight:600; color:var(--indigo200); text-transform:none; }
+    .page-header h1 { color:#fff; font-family:var(--font-display); font-size:26px; font-weight:600; margin-top:14px; }
+    .page-header p { color:rgba(255,255,255,.65); font-size:14px; line-height:1.6; margin-top:10px; max-width:760px; margin-inline:auto; }
+    .page-header p strong { color:var(--indigo200); }
+    .nav-row { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+    .screen-btn { padding:9px 16px; border-radius:999px; font-size:12.5px; font-weight:600; cursor:pointer; border:1.5px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05); color:rgba(255,255,255,.6); transition:all var(--dt); }
+    .screen-btn:hover { background:rgba(255,255,255,.1); color:#fff; }
+    .screen-btn.active { background:var(--indigo400); color:#fff; border-color:var(--indigo300); }
+    .phones-row { display:flex; gap:48px; flex-wrap:wrap; justify-content:center; align-items:flex-start; margin-top:8px; }
+    .phone { display:flex; flex-direction:column; align-items:center; gap:14px; }
+    .phone-mode-label { font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; }
+    .phone-mode-label.light-label { color:rgba(255,220,140,.55); }
+    .phone-mode-label.dark-label { color:rgba(156,176,221,.6); }
+    .phone-shell { width:375px; height:812px; border-radius:50px; padding:11px; position:relative; overflow:hidden; box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 28px 76px rgba(0,0,0,.6); }
+    .phone-shell.light-shell { background:var(--n800); }
+    .phone-shell.dark-shell { background:#0a0908; }
+    .phone-shell::before { content:''; position:absolute; top:14px; left:50%; transform:translateX(-50%); width:120px; height:34px; background:#080807; border-radius:999px; z-index:10; }
+    .phone-screen { width:100%; height:100%; border-radius:38px; background:var(--bg); overflow:hidden; position:relative; display:flex; flex-direction:column; color:var(--on-surf); }
+    .status-bar { height:48px; padding:14px 22px 0; display:flex; align-items:flex-end; justify-content:space-between; flex-shrink:0; }
+    .status-time { font-size:15px; font-weight:600; color:var(--status-col); }
+    .status-icons { display:flex; gap:5px; align-items:center; }
+    .status-icons .material-icons-round { font-size:15px; color:var(--on-surf2); }
+    .topbar { display:flex; align-items:center; justify-content:space-between; padding:4px 12px 0; }
+    .icon-btn { width:40px; height:40px; border-radius:999px; border:none; background:transparent; display:flex; align-items:center; justify-content:center; color:var(--on-surf2); }
+    .body-scroll { flex:1; overflow-y:auto; scrollbar-width:none; padding:8px 20px 90px; }
+    .body-scroll::-webkit-scrollbar { display:none; }
+
+    /* avatars */
+    .av { border-radius:999px; display:flex; align-items:center; justify-content:center; color:#fff; font-family:var(--font-body); font-weight:700; flex-shrink:0; }
+    .av.sienna { background:linear-gradient(155deg,var(--sienna300),var(--sienna500)); }
+    .av.indigo { background:linear-gradient(155deg,var(--indigo400),var(--indigo700)); }
+    .av.teal { background:linear-gradient(155deg,#5fd0a0,var(--teal)); }
+    .av.plum { background:linear-gradient(155deg,#a877bd,var(--plum)); }
+    .av.amber { background:linear-gradient(155deg,#e6b95a,var(--amber)); }
+    .av.ghost { background:var(--bdr2); color:var(--on-surf3); border:1.5px dashed var(--bdr); }
+
+    /* section title */
+    .sec-head { display:flex; align-items:center; justify-content:space-between; margin:22px 2px 12px; }
+    .sec-head .title { font-size:15px; font-weight:700; color:var(--on-surf); }
+    .sec-head .link { font-size:12.5px; font-weight:600; color:var(--brand-accent); }
+
+    /* order header */
+    .order-head { margin-top:12px; }
+    .order-head .oh-title { font-family:var(--font-display); font-size:24px; font-weight:600; }
+    .order-head .oh-sub { font-size:13.5px; color:var(--on-surf2); margin-top:3px; }
+
+    /* Assigned-to card */
+    .assign-card { display:flex; align-items:center; gap:12px; background:var(--surf); border:1px solid var(--bdr); border-radius:16px; padding:12px 14px; margin-top:18px; }
+    .assign-card .lbl { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--on-surf3); }
+    .assign-card .who { font-size:15px; font-weight:700; color:var(--on-surf); margin-top:2px; }
+    .assign-card .who .you { font-size:11px; font-weight:700; color:var(--primary); background:var(--indigo50); padding:1px 6px; border-radius:999px; margin-left:6px; }
+    .dark .assign-card .who .you { background:rgba(88,113,184,.18); color:var(--indigo200); }
+    .assign-card .change { margin-left:auto; font-size:12.5px; font-weight:700; color:var(--brand-accent); border:1px solid var(--bdr); padding:7px 12px; border-radius:999px; }
+    .assign-card.unassigned .who { color:var(--on-surf3); font-weight:600; }
+
+    /* status timeline (compact) */
+    .status-card { background:var(--surf); border:1px solid var(--bdr); border-radius:16px; padding:16px; margin-top:14px; }
+    .status-row { display:flex; align-items:center; gap:10px; }
+    .status-row .chip { padding:5px 12px; border-radius:999px; font-size:12px; font-weight:700; background:var(--indigo50); color:var(--primary); }
+    .dark .status-row .chip { background:rgba(88,113,184,.18); color:var(--indigo200); }
+    .status-row .step { font-size:13px; color:var(--on-surf2); }
+    .advance-btn { margin-top:14px; width:100%; height:50px; border-radius:14px; background:var(--indigo700); color:#fff; border:none; font-size:15px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px; }
+    .dark .advance-btn { background:var(--indigo400); }
+
+    /* order list row */
+    .work-row { display:flex; align-items:center; gap:12px; background:var(--surf); border:1px solid var(--bdr); border-radius:16px; padding:12px 14px; margin-bottom:10px; }
+    .work-row .thumb { width:46px; height:46px; border-radius:12px; background:linear-gradient(135deg,#6b5842,#8a7355); flex-shrink:0; }
+    .work-row .wr-main { flex:1; min-width:0; }
+    .work-row .wr-title { font-size:14.5px; font-weight:700; }
+    .work-row .wr-sub { font-size:12.5px; color:var(--on-surf2); margin-top:3px; display:flex; align-items:center; gap:6px; }
+    .assignee-chip { display:inline-flex; align-items:center; gap:5px; }
+    .assignee-chip .av { width:18px; height:18px; font-size:9px; }
+    .assignee-chip.none { color:var(--on-surf3); }
+    .status-chip { padding:4px 10px; border-radius:999px; font-size:10.5px; font-weight:700; white-space:nowrap; }
+    .status-chip.sew { background:var(--indigo50); color:var(--primary); } .dark .status-chip.sew { background:rgba(88,113,184,.18); color:var(--indigo200); }
+    .status-chip.cut { background:rgba(232,168,0,.16); color:#9E7200; } .dark .status-chip.cut { color:var(--saffron); }
+
+    /* assign sheet */
+    .scrim { position:absolute; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:flex-end; }
+    .sheet { width:100%; background:var(--bg); border-radius:26px 26px 0 0; padding:10px 0 24px; max-height:82%; display:flex; flex-direction:column; }
+    .sheet .grab { width:40px; height:5px; border-radius:999px; background:var(--bdr); margin:6px auto 8px; }
+    .sheet h3 { font-family:var(--font-display); font-size:20px; font-weight:600; padding:6px 22px 4px; }
+    .sheet .sub { font-size:12.5px; color:var(--on-surf2); padding:0 22px 10px; }
+    .sheet-scroll { overflow-y:auto; scrollbar-width:none; padding:4px 12px; }
+    .sheet-scroll::-webkit-scrollbar { display:none; }
+    .assignee-opt { display:flex; align-items:center; gap:12px; padding:11px 12px; border-radius:14px; }
+    .assignee-opt:active, .assignee-opt.sel { background:var(--indigo50); }
+    .dark .assignee-opt.sel { background:rgba(88,113,184,.14); }
+    .assignee-opt .av { width:40px; height:40px; font-size:15px; }
+    .assignee-opt .ao-main { flex:1; }
+    .assignee-opt .ao-name { font-size:15px; font-weight:700; color:var(--on-surf); }
+    .assignee-opt .ao-role { font-size:11.5px; color:var(--on-surf2); margin-top:1px; }
+    .assignee-opt .ao-name .you { font-size:10.5px; font-weight:700; color:var(--primary); background:var(--indigo50); padding:1px 6px; border-radius:999px; margin-left:6px; }
+    .dark .assignee-opt .ao-name .you { background:rgba(88,113,184,.2); color:var(--indigo200); }
+    .assignee-opt .check { color:var(--primary); }
+    .dark .assignee-opt .check { color:var(--indigo200); }
+    .claim-btn { margin:2px 12px 8px; height:48px; border-radius:14px; background:var(--indigo700); color:#fff; border:none; font-size:14.5px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px; width:calc(100% - 24px); }
+    .dark .claim-btn { background:var(--indigo400); }
+    .sheet .divider { height:1px; background:var(--bdr); margin:6px 22px; }
+
+    /* dashboard */
+    .greet-row { display:flex; align-items:center; justify-content:space-between; padding-top:8px; }
+    .greet h2 { font-family:var(--font-display); font-size:23px; font-weight:600; }
+    .greet .sub { font-size:13px; color:var(--on-surf2); margin-top:2px; display:flex; align-items:center; gap:6px; }
+    .staff-pill { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px; background:var(--indigo50); color:var(--primary); font-size:10.5px; font-weight:700; text-transform:uppercase; }
+    .dark .staff-pill { background:rgba(88,113,184,.16); color:var(--indigo200); }
+    .mywork-row { display:flex; align-items:center; gap:12px; background:var(--surf); border:1px solid var(--primary); border-radius:16px; padding:12px 14px; margin-bottom:10px; }
+    .dark .mywork-row { border-color:var(--indigo400); }
+    .mywork-row .thumb { width:44px; height:44px; border-radius:11px; background:linear-gradient(135deg,#6b5842,#8a7355); flex-shrink:0; }
+    .badge-me { font-size:10px; font-weight:700; color:var(--primary); background:var(--indigo50); padding:2px 7px; border-radius:999px; }
+    .dark .badge-me { background:rgba(88,113,184,.18); color:var(--indigo200); }
+
+    .tabbar { position:absolute; bottom:0; left:0; right:0; height:70px; background:var(--surf); border-top:1px solid var(--bdr); display:flex; align-items:flex-start; padding-top:10px; }
+    .tab { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; color:var(--on-surf3); }
+    .tab.active { color:var(--primary); } .dark .tab.active { color:var(--indigo200); }
+    .tab .material-icons-round { font-size:23px; } .tab span { font-size:10.5px; font-weight:600; }
+
+    .screen { display:none; flex-direction:column; height:100%; position:relative; }
+    .screen.active { display:flex; }
+
+    .why { max-width:920px; margin:32px auto 0; padding:28px; border:1px solid rgba(156,176,221,.22); border-radius:24px; background:linear-gradient(135deg, rgba(88,113,184,.1), rgba(88,113,184,.02)); }
+    .why h3 { color:var(--indigo200); font-family:var(--font-display); font-size:17px; margin-bottom:12px; font-weight:600; }
+    .why ul { color:rgba(255,255,255,.74); font-size:13.5px; line-height:1.7; list-style:none; display:flex; flex-direction:column; gap:8px; }
+    .why strong { color:#fff; } .why code { background:rgba(255,255,255,.08); padding:2px 6px; border-radius:4px; font-family:var(--font-mono); font-size:12px; }
+  </style>
+</head>
+<body>
+<header class="page-header">
+  <div class="crumb"><span class="logo">StitchPad</span><span>·</span><span>Order assignment + team · concept</span></div>
+  <h1>Who's working on what</h1>
+  <p>
+    Assign a whole order to a <strong>team member</strong> — chosen from a roster the owner/admin keeps, which
+    includes the app accounts <em>and</em> name-only workers (like Paul) who have no login. Owner and the staff
+    admin can both assign, or <strong>claim a job for themselves</strong>. The assignee shows on the order and
+    every card; the staff dashboard leads with <strong>"Assigned to me."</strong>
+  </p>
+</header>
+
+<nav class="nav-row">
+  <button class="screen-btn active" data-screen="order">Order · assigned</button>
+  <button class="screen-btn" data-screen="sheet">Assign sheet</button>
+  <button class="screen-btn" data-screen="list">Orders · who's on it</button>
+  <button class="screen-btn" data-screen="dash">Dashboard · my work</button>
+</nav>
+
+<div class="phones-row">
+  <div class="phone">
+    <div class="phone-mode-label light-label">☀ Light Mode</div>
+    <div class="phone-shell light-shell"><div class="phone-screen" id="root-light">
+
+      <!-- ══ ORDER (assigned) ══ -->
+      <div class="screen active" data-key="order">
+        <div class="status-bar"><span class="status-time">9:41</span><div class="status-icons"><span class="material-icons-round">signal_cellular_alt</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></div></div>
+        <div class="topbar"><button class="icon-btn"><span class="material-icons-round">arrow_back</span></button><button class="icon-btn"><span class="material-icons-round">more_vert</span></button></div>
+        <div class="body-scroll">
+          <div class="order-head">
+            <div class="oh-title">Agbada</div>
+            <div class="oh-sub">Chidi Okafor · Order #142 · due in 3 days</div>
+          </div>
+          <div class="assign-card">
+            <div class="av sienna" style="width:44px;height:44px;font-size:17px;">P</div>
+            <div>
+              <div class="lbl">Assigned to</div>
+              <div class="who">Paul</div>
+            </div>
+            <div class="change">Change</div>
+          </div>
+          <div class="status-card">
+            <div class="status-row"><span class="chip">Cutting</span><span class="step">Step 1 of 4 · started today</span></div>
+            <button class="advance-btn">Advance to Sewing <span class="material-icons-round" style="font-size:18px;">arrow_forward</span></button>
+          </div>
+          <div class="sec-head"><span class="title">Garment &amp; measurements</span></div>
+          <div class="status-card" style="color:var(--on-surf3);font-size:13px;">Measurements, style photos, notes… (staff can view)</div>
+        </div>
+      </div>
+
+      <!-- ══ ASSIGN SHEET ══ -->
+      <div class="screen" data-key="sheet">
+        <div class="status-bar"><span class="status-time">9:41</span><div class="status-icons"><span class="material-icons-round">signal_cellular_alt</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></div></div>
+        <div style="flex:1;"></div>
+        <div class="scrim">
+          <div class="sheet">
+            <div class="grab"></div>
+            <h3>Assign this order</h3>
+            <div class="sub">Agbada · Chidi Okafor · #142</div>
+            <button class="claim-btn"><span class="material-icons-round" style="font-size:18px;">back_hand</span> Claim it — I'll handle this</button>
+            <div class="divider"></div>
+            <div class="sheet-scroll">
+              <div class="assignee-opt">
+                <div class="av indigo">A</div>
+                <div class="ao-main"><div class="ao-name">Ade Ogunbanjo</div><div class="ao-role">Owner</div></div>
+              </div>
+              <div class="assignee-opt">
+                <div class="av teal">G</div>
+                <div class="ao-main"><div class="ao-name">Gabby <span class="you">You</span></div><div class="ao-role">Staff · admin</div></div>
+              </div>
+              <div class="assignee-opt sel">
+                <div class="av sienna">P</div>
+                <div class="ao-main"><div class="ao-name">Paul</div><div class="ao-role">Team member</div></div>
+                <span class="material-icons-round check">check_circle</span>
+              </div>
+              <div class="assignee-opt">
+                <div class="av plum">T</div>
+                <div class="ao-main"><div class="ao-name">Tunde</div><div class="ao-role">Team member</div></div>
+              </div>
+              <div class="assignee-opt">
+                <div class="av amber">B</div>
+                <div class="ao-main"><div class="ao-name">Blessing</div><div class="ao-role">Team member</div></div>
+              </div>
+              <div class="divider"></div>
+              <div class="assignee-opt">
+                <div class="av ghost"><span class="material-icons-round">person_add</span></div>
+                <div class="ao-main"><div class="ao-name" style="color:var(--brand-accent);">Add a teammate</div><div class="ao-role">Name only — no login needed</div></div>
+              </div>
+              <div class="assignee-opt">
+                <div class="av ghost"><span class="material-icons-round">do_not_disturb_on</span></div>
+                <div class="ao-main"><div class="ao-name" style="color:var(--on-surf2);">Unassign</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ ORDER LIST (who's on it) ══ -->
+      <div class="screen" data-key="list">
+        <div class="status-bar"><span class="status-time">9:41</span><div class="status-icons"><span class="material-icons-round">signal_cellular_alt</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></div></div>
+        <div class="body-scroll">
+          <div class="order-head"><div class="oh-title" style="font-size:22px;">Orders</div></div>
+          <div class="sec-head"><span class="title">In production</span><span class="link">Filter</span></div>
+          <div class="work-row">
+            <div class="thumb"></div>
+            <div class="wr-main"><div class="wr-title">Agbada — Chidi O.</div>
+              <div class="wr-sub"><span class="assignee-chip"><span class="av sienna">P</span> Paul</span> · due in 3d</div></div>
+            <span class="status-chip cut">Cutting</span>
+          </div>
+          <div class="work-row">
+            <div class="thumb"></div>
+            <div class="wr-main"><div class="wr-title">Kaftan — Amaka N.</div>
+              <div class="wr-sub"><span class="assignee-chip"><span class="av teal">G</span> Gabby (You)</span> · due today</div></div>
+            <span class="status-chip sew">Sewing</span>
+          </div>
+          <div class="work-row">
+            <div class="thumb"></div>
+            <div class="wr-main"><div class="wr-title">Gown — Bola A.</div>
+              <div class="wr-sub"><span class="assignee-chip none"><span class="av ghost" style="width:18px;height:18px;"><span class="material-icons-round" style="font-size:11px;">person</span></span> Unassigned</span> · due in 5d</div></div>
+            <span class="status-chip cut">Cutting</span>
+          </div>
+          <div class="work-row">
+            <div class="thumb"></div>
+            <div class="wr-main"><div class="wr-title">Suit — Emeka O.</div>
+              <div class="wr-sub"><span class="assignee-chip"><span class="av plum">T</span> Tunde</span> · due in 6d</div></div>
+            <span class="status-chip sew">Sewing</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ DASHBOARD (my work) ══ -->
+      <div class="screen" data-key="dash">
+        <div class="status-bar"><span class="status-time">9:41</span><div class="status-icons"><span class="material-icons-round">signal_cellular_alt</span><span class="material-icons-round">wifi</span><span class="material-icons-round">battery_full</span></div></div>
+        <div class="body-scroll">
+          <div class="greet-row">
+            <div class="greet"><h2>Hi, Gabby</h2><div class="sub"><span class="staff-pill"><span class="material-icons-round" style="font-size:12px;">badge</span> Staff</span> Ade Fashions</div></div>
+            <div class="av teal" style="width:44px;height:44px;font-size:18px;">G</div>
+          </div>
+          <div class="sec-head"><span class="title">Assigned to me</span><span class="link">3</span></div>
+          <div class="mywork-row">
+            <div class="thumb"></div>
+            <div class="wr-main"><div class="wr-title">Kaftan — Amaka N.</div>
+              <div class="wr-sub" style="color:var(--sienna500);font-weight:600;">Due today · Sewing</div></div>
+            <span class="badge-me">Mine</span>
+          </div>
+          <div class="mywork-row">
+            <div class="thumb"></div>
+            <div class="wr-main"><div class="wr-title">Buba &amp; Iro — Ngozi</div>
+              <div class="wr-sub">Due in 2d · Fitting</div></div>
+            <span class="badge-me">Mine</span>
+          </div>
+          <div class="sec-head"><span class="title">Unassigned</span><span class="link">Grab a job</span></div>
+          <div class="work-row" style="margin-bottom:10px;">
+            <div class="thumb"></div>
+            <div class="wr-main"><div class="wr-title">Gown — Bola A.</div><div class="wr-sub">Due in 5d · Cutting</div></div>
+            <span class="status-chip cut">Claim</span>
+          </div>
+        </div>
+        <div class="tabbar">
+          <div class="tab active"><span class="material-icons-round">dashboard</span><span>Dashboard</span></div>
+          <div class="tab"><span class="material-icons-round">people</span><span>Customers</span></div>
+          <div class="tab"><span class="material-icons-round">shopping_bag</span><span>Orders</span></div>
+        </div>
+      </div>
+
+    </div></div>
+  </div>
+  <div class="phone">
+    <div class="phone-mode-label dark-label">🌙 Dark Mode</div>
+    <div class="phone-shell dark-shell"><div class="phone-screen dark" id="root-dark"></div></div>
+  </div>
+</div>
+
+<section class="why">
+  <h3>The model (how it hangs together)</h3>
+  <ul>
+    <li>· <strong>Team roster</strong> — a new list under the workshop (<code>users/{workshopUid}/team/{memberId}</code>): the owner + staff account(s) auto-appear, plus <strong>name-only members</strong> (Paul, Tunde…) the owner/admin adds. No login needed to be assignable.</li>
+    <li>· <strong>Assignment = one field on the order</strong> (<code>assignedMemberId</code> + denormalised name/colour for display). Whole-order for now; per-garment/stage can layer on later.</li>
+    <li>· <strong>Who can assign</strong> — owner AND the staff admin (write the assignee, like they already write status). "Claim it" just assigns to yourself.</li>
+    <li>· <strong>Not sensitive</strong> — assignee isn't money or contact, so it lives on the base order doc and both roles read/write it; no change to the money/contact wall.</li>
+    <li>· <strong>Live status</strong> — assignee + production stage together answer "who's on it, and where." Cards show the assignee avatar; the order detail shows an Assign row.</li>
+    <li>· <strong>Dashboard</strong> — "Assigned to me" for app users (owner/staff); a name-only member like Paul has no dashboard, they just appear as the assignee.</li>
+    <li>· <strong>Slice</strong> — its own slice after the shell (roster CRUD + assign field + rules + the assign UI + dashboard "My work"); 6b's dashboard is being designed to make room for the "Assigned to me" section.</li>
+  </ul>
+</section>
+
+<script>
+  function buildDark() {
+    const l = document.getElementById('root-light'); const d = document.getElementById('root-dark');
+    const clone = l.cloneNode(true); clone.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+    d.innerHTML = ''; Array.from(clone.childNodes).forEach(n => d.appendChild(n));
+  }
+  function applyScreen(root, key) { root.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.dataset.key === key)); }
+  function showScreen(key) { applyScreen(document.getElementById('root-light'), key); applyScreen(document.getElementById('root-dark'), key); document.querySelectorAll('.screen-btn').forEach(b => b.classList.toggle('active', b.dataset.screen === key)); }
+  document.querySelectorAll('.screen-btn').forEach(b => b.addEventListener('click', () => showScreen(b.dataset.screen)));
+  buildDark();
+</script>
+</body>
+</html>

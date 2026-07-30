@@ -894,6 +894,19 @@
     <string name="dashboard_pipeline_deposit_due">Deposit due</string>
     <string name="dashboard_pipeline_deposit_paid">Deposit paid</string>
     <string name="dashboard_pipeline_paid">Paid</string>
+
+    <!-- Staff dashboard (Slice 6b) — money-free work view -->
+    <string name="dashboard_staff_greeting">Hi, %1$s</string>
+    <string name="dashboard_staff_badge">Staff</string>
+    <string name="dashboard_staff_tile_overdue">Overdue</string>
+    <string name="dashboard_staff_tile_due_today">Due today</string>
+    <string name="dashboard_staff_tile_in_progress">In progress</string>
+    <string name="dashboard_staff_needs_attention">Needs attention</string>
+    <string name="dashboard_staff_all_orders">All orders</string>
+    <string name="dashboard_staff_pipeline">Pipeline</string>
+    <string name="dashboard_staff_stage_ready">Ready</string>
+    <string name="dashboard_staff_empty_title">All caught up</string>
+    <string name="dashboard_staff_empty_body">Nothing overdue or due today. Keep the pipeline moving. Tap Orders to advance a job.</string>
     <!-- Workshop summary row — collapsed single-line replacement for the
          two-bucket Work Pipeline section -->
     <string name="dashboard_workshop_summary_title">In the workshop</string>
