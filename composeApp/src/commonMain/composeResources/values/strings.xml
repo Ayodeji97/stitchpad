@@ -69,7 +69,9 @@
     <string name="workshop_business_name_placeholder">e.g. Ade Fashions</string>
     <string name="workshop_continue_button">Continue</string>
     <string name="workshop_skip">Skip for now</string>
-    <string name="workshop_join_instead">Joining a workshop as staff? Enter an invite code</string>
+    <string name="workshop_join_card_title">Invited to join a workshop?</string>
+    <string name="workshop_join_card_subtitle">Enter the code your owner shared.</string>
+    <string name="workshop_join_card_cta">Enter code</string>
 
     <!-- Splash -->
     <string name="splash_tagline">Your tailor's notebook</string>

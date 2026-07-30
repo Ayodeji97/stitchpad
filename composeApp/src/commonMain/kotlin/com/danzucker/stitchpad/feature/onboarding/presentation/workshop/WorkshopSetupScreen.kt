@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.onboarding.presentation.workshop
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,11 +18,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.Chat
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.PhotoCamera
@@ -30,6 +33,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -88,7 +92,9 @@ import stitchpad.composeapp.generated.resources.workshop_business_name_helper
 import stitchpad.composeapp.generated.resources.workshop_business_name_label
 import stitchpad.composeapp.generated.resources.workshop_business_name_placeholder
 import stitchpad.composeapp.generated.resources.workshop_continue_button
-import stitchpad.composeapp.generated.resources.workshop_join_instead
+import stitchpad.composeapp.generated.resources.workshop_join_card_cta
+import stitchpad.composeapp.generated.resources.workshop_join_card_subtitle
+import stitchpad.composeapp.generated.resources.workshop_join_card_title
 import stitchpad.composeapp.generated.resources.workshop_logo_finishing
 import stitchpad.composeapp.generated.resources.workshop_logo_label
 import stitchpad.composeapp.generated.resources.workshop_logo_optional
@@ -197,6 +203,12 @@ fun WorkshopSetupScreen(
                     ),
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Center,
+                )
+
+                // 2b. "Joining as staff?" fork (Slice 7) — a prominent, above-the-fold
+                // card so an invited staff member finds it without scrolling.
+                JoinWorkshopCard(
+                    onClick = { onAction(WorkshopSetupAction.OnJoinWorkshopClick) },
                 )
 
                 // 3. Business name field
@@ -424,21 +436,6 @@ fun WorkshopSetupScreen(
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = LocalStitchPadColors.current.brandAccent,
-                        ),
-                    )
-                }
-
-                // 8. "Joining as staff?" fork (Slice 7) — go to the invite-code redeem screen.
-                TextButton(
-                    onClick = { onAction(WorkshopSetupAction.OnJoinWorkshopClick) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        text = stringResource(Res.string.workshop_join_instead),
-                        style = TextStyle(
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         ),
                     )
                 }
@@ -673,5 +670,68 @@ private fun WorkshopSetupScreenFilledPreview() {
             onAction = {},
             onLaunchPicker = {},
         )
+    }
+}
+
+/**
+ * Slice 7 fork: a prominent, above-the-fold entry on WorkshopSetup so an invited
+ * staff member finds "enter an invite code" without scrolling past the owner form.
+ * Owners glance past this one compact card and fill the form as before.
+ */
+@Composable
+private fun JoinWorkshopCard(onClick: () -> Unit) {
+    val accent = LocalStitchPadColors.current.brandAccent
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = accent.copy(alpha = 0.10f),
+        border = BorderStroke(1.dp, accent.copy(alpha = 0.5f)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 20.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(accent.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Groups,
+                    contentDescription = null,
+                    tint = accent,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(Res.string.workshop_join_card_title),
+                    style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = stringResource(Res.string.workshop_join_card_subtitle),
+                    style = TextStyle(fontSize = 12.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                text = stringResource(Res.string.workshop_join_card_cta),
+                style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Bold),
+                color = accent,
+            )
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = accent,
+                modifier = Modifier.size(18.dp),
+            )
+        }
     }
 }
