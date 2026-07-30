@@ -196,7 +196,11 @@ fun TeamScreen(
                 .padding(horizontal = DesignTokens.space5),
         ) {
             if (state.isEmpty) {
-                EmptyTeam(seatCap = state.seatCap, onAction = onAction)
+                EmptyTeam(
+                    seatCap = state.seatCap,
+                    isGeneratingInvite = state.isGeneratingInvite,
+                    onAction = onAction,
+                )
             } else {
                 SeatCard(state = state)
                 InviteButton(state = state, onAction = onAction)
@@ -481,7 +485,7 @@ private fun Avatar(name: String, seed: String) {
 }
 
 @Composable
-private fun EmptyTeam(seatCap: Int, onAction: (TeamAction) -> Unit) {
+private fun EmptyTeam(seatCap: Int, isGeneratingInvite: Boolean, onAction: (TeamAction) -> Unit) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -524,6 +528,7 @@ private fun EmptyTeam(seatCap: Int, onAction: (TeamAction) -> Unit) {
         StitchPadButton(
             text = stringResource(Res.string.team_invite_first_cta),
             onClick = { onAction(TeamAction.OnInviteClick) },
+            isLoading = isGeneratingInvite,
             leadingIcon = Icons.Outlined.PersonAdd,
             modifier = Modifier
                 .fillMaxWidth()

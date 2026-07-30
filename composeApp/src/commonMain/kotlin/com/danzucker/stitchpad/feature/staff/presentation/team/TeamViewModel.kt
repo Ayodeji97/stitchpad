@@ -87,7 +87,9 @@ class TeamViewModel(
     }
 
     private fun onInvite() {
-        if (!_state.value.canInvite) return
+        // Guard re-entrancy: a second tap while a request is in flight would mint a
+        // second invite code (codex). Covers both the empty-state and populated CTAs.
+        if (!_state.value.canInvite || _state.value.isGeneratingInvite) return
         _state.update { it.copy(isGeneratingInvite = true) }
         viewModelScope.launch {
             when (val result = staffRepository.generateInvite()) {
