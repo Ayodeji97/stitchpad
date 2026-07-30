@@ -35,6 +35,14 @@ data class CustomerDetailState(
      * "edit existing vs create new" sheet so tailors stop creating accidental duplicates.
      */
     val showAddMeasurementSheet: Boolean = false,
+    /**
+     * Slice 6c: true when the signed-in user is an ACTIVE STAFF member of this
+     * workshop (not the owner). Staff may VIEW a customer (name, gender, orders,
+     * measurements) but must never see or trigger contact details — the header
+     * phone text and the WhatsApp/Call chips are hidden when this is true, and the
+     * contact action handlers early-return in the ViewModel as defense-in-depth.
+     */
+    val isActiveStaff: Boolean = false,
 ) {
     /**
      * True when the loaded customer is in the LOCKED slot state. Drives the read-only

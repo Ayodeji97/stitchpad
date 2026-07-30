@@ -177,6 +177,7 @@ fun OrderListRoot(
 private val orderRowTextInset = DesignTokens.space4 + OrderRowAvatarSize + DesignTokens.space3
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@Suppress("CyclomaticComplexMethod")
 @Composable
 fun OrderListScreen(
     state: OrderListState,
@@ -199,28 +200,34 @@ fun OrderListScreen(
                     titleContentColor = MaterialTheme.colorScheme.onSurface
                 ),
                 actions = {
-                    ProfitToggleAction(
-                        showProfit = state.showProfit,
-                        onToggle = { onAction(OrderListAction.OnToggleShowProfit) },
-                    )
+                    // Profit is money — hidden entirely for active staff (Slice 6c).
+                    if (!state.isActiveStaff) {
+                        ProfitToggleAction(
+                            showProfit = state.showProfit,
+                            onToggle = { onAction(OrderListAction.OnToggleShowProfit) },
+                        )
+                    }
                 },
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { onAction(OrderListAction.OnAddOrderClick) },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.shadow(
-                    elevation = 12.dp,
-                    shape = RoundedCornerShape(16.dp),
-                    spotColor = MaterialTheme.colorScheme.primary
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = stringResource(Res.string.order_fab_cd)
-                )
+            // Slice 6c: staff can't create orders — hide the new-order FAB.
+            if (!state.isActiveStaff) {
+                FloatingActionButton(
+                    onClick = { onAction(OrderListAction.OnAddOrderClick) },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.shadow(
+                        elevation = 12.dp,
+                        shape = RoundedCornerShape(16.dp),
+                        spotColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = stringResource(Res.string.order_fab_cd)
+                    )
+                }
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -300,6 +307,7 @@ fun OrderListScreen(
                                         order = order,
                                         now = now,
                                         showProfit = state.showProfit,
+                                        isActiveStaff = state.isActiveStaff,
                                         onClick = { onAction(OrderListAction.OnOrderClick(order)) },
                                         onDelete = { onAction(OrderListAction.OnDeleteOrderClick(order)) }
                                     )
@@ -315,6 +323,7 @@ fun OrderListScreen(
                                     order = order,
                                     now = now,
                                     showProfit = state.showProfit,
+                                    isActiveStaff = state.isActiveStaff,
                                     onClick = { onAction(OrderListAction.OnOrderClick(order)) },
                                     onDelete = { onAction(OrderListAction.OnDeleteOrderClick(order)) }
                                 )
@@ -651,6 +660,7 @@ private fun SwipeableOrderItem(
     order: Order,
     now: Long,
     showProfit: Boolean,
+    isActiveStaff: Boolean = false,
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -665,7 +675,8 @@ private fun SwipeableOrderItem(
     LaunchedEffect(dismissState) {
         snapshotFlow { dismissState.currentValue }
             .collect { value ->
-                if (value == SwipeToDismissBoxValue.EndToStart) {
+                // Slice 6c: staff can't delete orders — ignore any settled swipe.
+                if (value == SwipeToDismissBoxValue.EndToStart && !isActiveStaff) {
                     currentOnDelete()
                     dismissState.reset()
                 }
@@ -675,6 +686,8 @@ private fun SwipeableOrderItem(
     SwipeToDismissBox(
         state = dismissState,
         enableDismissFromStartToEnd = false,
+        // Slice 6c: swipe-to-delete is disabled for active staff (read-only).
+        enableDismissFromEndToStart = !isActiveStaff,
         backgroundContent = {
             Box(
                 contentAlignment = Alignment.CenterEnd,
@@ -696,13 +709,25 @@ private fun SwipeableOrderItem(
             color = MaterialTheme.colorScheme.surface,
             modifier = Modifier.fillMaxWidth()
         ) {
-            OrderListItem(order = order, now = now, showProfit = showProfit, onClick = onClick)
+            OrderListItem(
+                order = order,
+                now = now,
+                showProfit = showProfit,
+                isActiveStaff = isActiveStaff,
+                onClick = onClick,
+            )
         }
     }
 }
 
 @Composable
-private fun OrderListItem(order: Order, now: Long, showProfit: Boolean, onClick: () -> Unit) {
+private fun OrderListItem(
+    order: Order,
+    now: Long,
+    showProfit: Boolean,
+    isActiveStaff: Boolean = false,
+    onClick: () -> Unit,
+) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
@@ -747,20 +772,24 @@ private fun OrderListItem(order: Order, now: Long, showProfit: Boolean, onClick:
             DeadlineLine(deadline = order.deadline, now = now, status = order.status)
         }
 
-        Column(horizontalAlignment = Alignment.End) {
-            StrikethroughPrice(
-                grossPrice = order.totalPrice,
-                netPrice = order.payableTotal,
-                discount = order.discount,
-                netStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                netColor = MaterialTheme.colorScheme.onSurface,
-                stacked = true,
-            )
-            Spacer(Modifier.height(2.dp))
-            PaymentStatusText(depositPaid = order.depositPaid, amountOwed = order.payableTotal)
-            if (showProfit && order.hasCosts) {
+        // Money column — price, payment status, and profit. Hidden entirely for
+        // active staff (Slice 6c): they see garment / customer / status / date only.
+        if (!isActiveStaff) {
+            Column(horizontalAlignment = Alignment.End) {
+                StrikethroughPrice(
+                    grossPrice = order.totalPrice,
+                    netPrice = order.payableTotal,
+                    discount = order.discount,
+                    netStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                    netColor = MaterialTheme.colorScheme.onSurface,
+                    stacked = true,
+                )
                 Spacer(Modifier.height(2.dp))
-                OrderRowProfit(profit = order.profit)
+                PaymentStatusText(depositPaid = order.depositPaid, amountOwed = order.payableTotal)
+                if (showProfit && order.hasCosts) {
+                    Spacer(Modifier.height(2.dp))
+                    OrderRowProfit(profit = order.profit)
+                }
             }
         }
     }

@@ -69,10 +69,22 @@ class CustomerDetailViewModel(
             initialValue = CustomerDetailState()
         )
 
-    @Suppress("CyclomaticComplexMethod", "LongMethod")
+    init {
+        // Slice 6c: reflect active-staff into state so the screen hides all contact
+        // UI (phone text + WhatsApp/Call chips) and the contact handlers early-return.
+        viewModelScope.launch {
+            activeWorkshopProvider.flow.collect { session ->
+                _state.update { it.copy(isActiveStaff = session.isActiveStaff) }
+            }
+        }
+    }
+
+    @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount")
     fun onAction(action: CustomerDetailAction) {
         when (action) {
             CustomerDetailAction.OnEditCustomerClick -> {
+                // Slice 6c: staff can't edit a customer (contact) — the view is read-only.
+                if (_state.value.isActiveStaff) return
                 withCustomerId {
                     viewModelScope.launch {
                         _events.send(CustomerDetailEvent.NavigateToEditCustomer(it))
@@ -80,6 +92,8 @@ class CustomerDetailViewModel(
                 }
             }
             CustomerDetailAction.OnAddMeasurementClick -> {
+                // Slice 6c: staff view measurements read-only — no create.
+                if (_state.value.isActiveStaff) return
                 // Existing measurements → offer edit-vs-create so tailors stop making
                 // duplicates. Empty list → straight to a blank new form (no needless sheet).
                 if (_state.value.measurements.isNotEmpty()) {
@@ -93,6 +107,7 @@ class CustomerDetailViewModel(
                 }
             }
             CustomerDetailAction.OnCreateNewMeasurementClick -> {
+                if (_state.value.isActiveStaff) return
                 _state.update { it.copy(showAddMeasurementSheet = false) }
                 withCustomerId {
                     viewModelScope.launch {
@@ -118,6 +133,8 @@ class CustomerDetailViewModel(
                 _state.update { it.copy(showOverflowMenu = false) }
             }
             CustomerDetailAction.OnDeleteCustomerClick -> {
+                // Slice 6c: staff can't delete a customer (read-only). Defense-in-depth.
+                if (_state.value.isActiveStaff) return
                 // The dialog only renders when customer != null, so don't arm it
                 // before the customer has loaded — otherwise the flag sticks true
                 // with no visible dialog and no dismiss path (Bugbot #147). Just
@@ -130,7 +147,13 @@ class CustomerDetailViewModel(
                     )
                 }
             }
-            CustomerDetailAction.OnConfirmDeleteCustomer -> deleteCustomer()
+            CustomerDetailAction.OnConfirmDeleteCustomer -> {
+                // Slice 6c: guard the confirm/execute too — a cold-start race could arm
+                // the dialog before isActiveStaff resolves; without this the confirm
+                // would still fire the delete after the flag flips.
+                if (_state.value.isActiveStaff) return
+                deleteCustomer()
+            }
             CustomerDetailAction.OnDismissDeleteCustomerDialog -> {
                 _state.update {
                     it.copy(showDeleteCustomerDialog = false, customerDeleteActiveOrderCount = 0)
@@ -138,6 +161,9 @@ class CustomerDetailViewModel(
             }
             CustomerDetailAction.OnMessageWhatsAppClick -> messageOnWhatsApp()
             CustomerDetailAction.OnCallClick -> {
+                // Slice 6c: staff must never trigger a customer contact action.
+                // Defense-in-depth alongside the screen hiding the Call chip.
+                if (_state.value.isActiveStaff) return
                 val phone = _state.value.customer?.phone?.takeIf { it.isNotBlank() } ?: return
                 viewModelScope.launch { _events.send(CustomerDetailEvent.LaunchDialer(phone)) }
             }
@@ -163,8 +189,10 @@ class CustomerDetailViewModel(
     // PTSP-33: build a generic greeting and launch WhatsApp. No sheet to dismiss
     // here (chips live in the screen body), so no UIKit-timing delay is needed.
     private fun messageOnWhatsApp() {
-        val customer = _state.value.customer ?: return
-        if (customer.phone.isBlank()) return
+        // Slice 6c: staff must never trigger a customer contact action.
+        // Defense-in-depth alongside the screen hiding the WhatsApp chip.
+        if (_state.value.isActiveStaff) return
+        val customer = _state.value.customer?.takeIf { it.phone.isNotBlank() } ?: return
         viewModelScope.launch {
             val message = WhatsAppMessageBuilder.buildForCustomer(customer)
             _events.send(CustomerDetailEvent.LaunchWhatsApp(customer.phone, message))

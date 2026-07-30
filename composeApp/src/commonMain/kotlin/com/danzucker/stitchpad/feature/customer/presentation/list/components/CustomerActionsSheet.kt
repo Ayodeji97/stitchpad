@@ -61,6 +61,8 @@ fun CustomerActionsSheet(
     onNewOrder: (String) -> Unit,
     onDelete: (Customer) -> Unit,
     onDismiss: () -> Unit,
+    showContact: Boolean = true,
+    canMutate: Boolean = true,
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -68,6 +70,8 @@ fun CustomerActionsSheet(
     ) {
         CustomerActionsSheetContent(
             customer = customer,
+            showContact = showContact,
+            canMutate = canMutate,
             onView = onView,
             onMessageWhatsApp = onMessageWhatsApp,
             onEdit = onEdit,
@@ -93,6 +97,8 @@ private fun CustomerActionsSheetContent(
     onNewMeasurement: (String) -> Unit,
     onNewOrder: (String) -> Unit,
     onDelete: (Customer) -> Unit,
+    showContact: Boolean = true,
+    canMutate: Boolean = true,
 ) {
     Column(
         modifier = Modifier
@@ -101,6 +107,7 @@ private fun CustomerActionsSheetContent(
     ) {
         SheetHeader(
             customer = customer,
+            showContact = showContact,
             onClick = { onView(customer.id) },
         )
         HorizontalDivider(
@@ -110,39 +117,44 @@ private fun CustomerActionsSheetContent(
         Spacer(Modifier.height(DesignTokens.space2))
         // PTSP-32: message the customer on WhatsApp — only when we have a number
         // to send to. Communication action sits first, above the edit/create rows.
-        if (customer.phone.isNotBlank()) {
+        // Slice 6c: staff never see the WhatsApp action (contact-free).
+        if (showContact && customer.phone.isNotBlank()) {
             ActionRow(
                 icon = Icons.AutoMirrored.Filled.Chat,
                 label = stringResource(Res.string.customer_actions_message_whatsapp),
                 onClick = { onMessageWhatsApp(customer) },
             )
         }
-        ActionRow(
-            icon = Icons.Default.Edit,
-            label = stringResource(Res.string.customer_actions_edit),
-            onClick = { onEdit(customer.id) },
-        )
+        // View measurements is read-only — always available. Slice 6c: the
+        // create/edit/delete rows are hidden for staff (canMutate = false).
         ActionRow(
             icon = Icons.Default.Visibility,
             label = stringResource(Res.string.customer_actions_view_measurements),
             onClick = { onViewMeasurements(customer.id) },
         )
-        ActionRow(
-            icon = Icons.Default.Straighten,
-            label = stringResource(Res.string.customer_actions_new_measurement),
-            onClick = { onNewMeasurement(customer.id) },
-        )
-        ActionRow(
-            icon = Icons.AutoMirrored.Filled.Assignment,
-            label = stringResource(Res.string.customer_actions_new_order),
-            onClick = { onNewOrder(customer.id) },
-        )
-        ActionRow(
-            icon = Icons.Default.Delete,
-            label = stringResource(Res.string.customer_actions_delete),
-            tint = MaterialTheme.colorScheme.error,
-            onClick = { onDelete(customer) },
-        )
+        if (canMutate) {
+            ActionRow(
+                icon = Icons.Default.Edit,
+                label = stringResource(Res.string.customer_actions_edit),
+                onClick = { onEdit(customer.id) },
+            )
+            ActionRow(
+                icon = Icons.Default.Straighten,
+                label = stringResource(Res.string.customer_actions_new_measurement),
+                onClick = { onNewMeasurement(customer.id) },
+            )
+            ActionRow(
+                icon = Icons.AutoMirrored.Filled.Assignment,
+                label = stringResource(Res.string.customer_actions_new_order),
+                onClick = { onNewOrder(customer.id) },
+            )
+            ActionRow(
+                icon = Icons.Default.Delete,
+                label = stringResource(Res.string.customer_actions_delete),
+                tint = MaterialTheme.colorScheme.error,
+                onClick = { onDelete(customer) },
+            )
+        }
     }
 }
 
@@ -150,6 +162,7 @@ private fun CustomerActionsSheetContent(
 private fun SheetHeader(
     customer: Customer,
     onClick: () -> Unit,
+    showContact: Boolean = true,
 ) {
     val viewCd = stringResource(Res.string.cd_customer_actions_view, customer.name)
     Row(
@@ -174,7 +187,8 @@ private fun SheetHeader(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (customer.phone.isNotBlank()) {
+            // Slice 6c: staff see the header contact-free — phone hidden entirely.
+            if (showContact && customer.phone.isNotBlank()) {
                 Spacer(Modifier.height(2.dp))
                 Text(
                     text = customer.phone,

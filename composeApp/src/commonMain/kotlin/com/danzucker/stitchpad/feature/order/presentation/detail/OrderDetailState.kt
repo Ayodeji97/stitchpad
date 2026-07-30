@@ -22,6 +22,14 @@ data class OrderDetailState(
     val measurement: Measurement? = null,
     val styles: Map<String, Style> = emptyMap(),
     val isLoading: Boolean = true,
+    /**
+     * True when the signed-in user is an approved staff member (Slice 6c). Staff
+     * may view garment / status / dates / measurements / customer name and advance
+     * production, but every money (price, balance, discount, costs, payments,
+     * receipts) and customer-contact (call, WhatsApp, reminder, add-phone) affordance
+     * is hidden. The VM also guards the matching actions — see [OrderDetailAction.isStaffRestricted].
+     */
+    val isActiveStaff: Boolean = false,
 
     val showMeasurementPickerSheet: Boolean = false,
     val availableMeasurements: List<Measurement> = emptyList(),

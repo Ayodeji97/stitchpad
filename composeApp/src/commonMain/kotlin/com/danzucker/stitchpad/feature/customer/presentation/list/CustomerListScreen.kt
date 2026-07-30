@@ -174,6 +174,7 @@ fun CustomerListRoot(
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("CyclomaticComplexMethod")
 @Composable
 fun CustomerListScreen(
     state: CustomerListState,
@@ -198,10 +199,13 @@ fun CustomerListScreen(
             )
         },
         floatingActionButton = {
-            StitchPadFab(
-                onClick = { onAction(CustomerListAction.OnAddCustomerClick) },
-                contentDescription = stringResource(Res.string.customer_fab_cd)
-            )
+            // Slice 6c: staff can't create customers — hide the new-customer FAB.
+            if (!state.isActiveStaff) {
+                StitchPadFab(
+                    onClick = { onAction(CustomerListAction.OnAddCustomerClick) },
+                    contentDescription = stringResource(Res.string.customer_fab_cd)
+                )
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background
@@ -248,6 +252,10 @@ fun CustomerListScreen(
                         items(items = state.customers, key = { it.id }) { customer ->
                             SwipeableCustomerItem(
                                 customer = customer,
+                                // Slice 6c: staff see rows contact-free (no phone) and
+                                // can't swipe-to-delete (read-only).
+                                showPhone = !state.isActiveStaff,
+                                isActiveStaff = state.isActiveStaff,
                                 onClick = { onAction(CustomerListAction.OnCustomerClick(customer)) },
                                 onDelete = { onAction(CustomerListAction.OnDeleteCustomerClick(customer)) },
                                 onOverflowClick = { onAction(CustomerListAction.OnOverflowClick(customer)) },
@@ -337,6 +345,10 @@ fun CustomerListScreen(
         if (customer != null) {
             CustomerActionsSheet(
                 customer = customer,
+                // Slice 6c: staff see the sheet contact-free (no phone, no WhatsApp)
+                // and read-only (no edit / new measurement / new order / delete).
+                showContact = !state.isActiveStaff,
+                canMutate = !state.isActiveStaff,
                 onView = { id -> onAction(CustomerListAction.OnViewCustomerFromSheet(id)) },
                 onMessageWhatsApp = { c -> onAction(CustomerListAction.OnMessageWhatsApp(c)) },
                 onEdit = { id -> onAction(CustomerListAction.OnEditCustomerFromRow(id)) },
@@ -650,10 +662,13 @@ private fun SwipeableCustomerItem(
     onClick: () -> Unit,
     onDelete: () -> Unit,
     onOverflowClick: () -> Unit,
+    showPhone: Boolean = true,
+    isActiveStaff: Boolean = false,
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.EndToStart) {
+            // Slice 6c: staff can't delete customers — ignore the delete swipe.
+            if (value == SwipeToDismissBoxValue.EndToStart && !isActiveStaff) {
                 onDelete()
                 false
             } else {
@@ -665,6 +680,8 @@ private fun SwipeableCustomerItem(
     SwipeToDismissBox(
         state = dismissState,
         enableDismissFromStartToEnd = false,
+        // Slice 6c: swipe-to-delete is disabled for active staff (read-only).
+        enableDismissFromEndToStart = !isActiveStaff,
         backgroundContent = {
             Box(
                 contentAlignment = Alignment.CenterEnd,
@@ -688,7 +705,12 @@ private fun SwipeableCustomerItem(
             color = MaterialTheme.colorScheme.surface,
             modifier = Modifier.fillMaxWidth()
         ) {
-            CustomerListItem(customer = customer, onClick = onClick, onOverflowClick = onOverflowClick)
+            CustomerListItem(
+                customer = customer,
+                onClick = onClick,
+                onOverflowClick = onOverflowClick,
+                showPhone = showPhone,
+            )
         }
     }
 }
@@ -698,6 +720,7 @@ private fun CustomerListItem(
     customer: Customer,
     onClick: () -> Unit,
     onOverflowClick: () -> Unit,
+    showPhone: Boolean = true,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -723,12 +746,15 @@ private fun CustomerListItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Spacer(Modifier.height(2.dp))
-            Text(
-                text = customer.phone,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            // Slice 6c: staff see rows contact-free — phone hidden entirely.
+            if (showPhone) {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = customer.phone,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
 
         IconButton(onClick = onOverflowClick) {

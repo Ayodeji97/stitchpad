@@ -8,6 +8,12 @@ data class OrderListState(
     val orders: List<Order> = emptyList(),
     val statusFilter: OrderStatus? = null,
     val showProfit: Boolean = false,
+    /**
+     * True when the signed-in user is an approved staff member (Slice 6c). Staff
+     * may view garment / status / dates / customer name but never money, so every
+     * price / payment-status / profit affordance on the list is hidden.
+     */
+    val isActiveStaff: Boolean = false,
     /** When true, [orders] holds archived orders (Restore affordance) instead of the active list. */
     val showArchived: Boolean = false,
     val isLoading: Boolean = true,

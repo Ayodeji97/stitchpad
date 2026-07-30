@@ -66,7 +66,17 @@ class CustomerListViewModel(
             initialValue = CustomerListState()
         )
 
-    @Suppress("CyclomaticComplexMethod", "LongMethod")
+    init {
+        // Slice 6c: reflect active-staff into state so rows/sheet hide contact
+        // (phone + WhatsApp) and the WhatsApp handler early-returns.
+        viewModelScope.launch {
+            activeWorkshopProvider.flow.collect { session ->
+                _state.update { it.copy(isActiveStaff = session.isActiveStaff) }
+            }
+        }
+    }
+
+    @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount")
     fun onAction(action: CustomerListAction) {
         when (action) {
             is CustomerListAction.OnSearchQueryChange -> {
@@ -84,11 +94,17 @@ class CustomerListViewModel(
                 }
             }
             CustomerListAction.OnAddCustomerClick -> {
+                // Slice 6c: staff can't create customers. Defense-in-depth — the FAB
+                // is hidden, and the empty-state add button no-ops here.
+                if (_state.value.isActiveStaff) return
                 viewModelScope.launch {
                     _events.send(CustomerListEvent.NavigateToAddCustomer)
                 }
             }
             is CustomerListAction.OnDeleteCustomerClick -> {
+                // Slice 6c: staff can't delete customers. Defense-in-depth — the
+                // sheet hides the Delete row (canMutate = false).
+                if (_state.value.isActiveStaff) return
                 val activeCount = activeOrderCountByCustomerId[action.customer.id] ?: 0
                 _state.update {
                     it.copy(
@@ -102,7 +118,12 @@ class CustomerListViewModel(
                     )
                 }
             }
-            CustomerListAction.OnConfirmDelete -> deleteCustomer()
+            CustomerListAction.OnConfirmDelete -> {
+                // Slice 6c: guard the confirm/execute too (cold-start race — see
+                // OnDeleteCustomerClick). Server rules also deny staff delete.
+                if (_state.value.isActiveStaff) return
+                deleteCustomer()
+            }
             CustomerListAction.OnDismissDeleteDialog -> {
                 _state.update {
                     it.copy(
@@ -151,13 +172,18 @@ class CustomerListViewModel(
                 navigateFromSheet { CustomerListEvent.NavigateToCustomerDetail(action.customerId) }
             }
             is CustomerListAction.OnEditCustomerFromRow -> {
+                // Slice 6c: staff can't edit customers / create measurements or orders.
+                // Defense-in-depth — the sheet hides these rows (canMutate = false).
+                if (_state.value.isActiveStaff) return
                 navigateFromSheet { CustomerListEvent.NavigateToEditCustomer(action.customerId) }
             }
             is CustomerListAction.OnAddMeasurementFromRow -> {
+                if (_state.value.isActiveStaff) return
                 navigateFromSheet { CustomerListEvent.NavigateToAddMeasurement(action.customerId) }
             }
             is CustomerListAction.OnViewMeasurementsFromRow -> viewMeasurementsFromSheet(action.customerId)
             is CustomerListAction.OnNewOrderFromRow -> {
+                if (_state.value.isActiveStaff) return
                 navigateFromSheet { CustomerListEvent.NavigateToOrderForm(action.customerId) }
             }
             is CustomerListAction.OnMessageWhatsApp -> messageOnWhatsApp(action.customer)
@@ -168,6 +194,9 @@ class CustomerListViewModel(
     // navigateFromSheet uses — WhatsApp launch is openURL on iOS) emit the launch
     // event with a generic customer greeting. Guarded on a usable number.
     private fun messageOnWhatsApp(customer: Customer) {
+        // Slice 6c: staff must never trigger a customer contact action.
+        // Defense-in-depth alongside the sheet hiding the WhatsApp row.
+        if (_state.value.isActiveStaff) return
         if (customer.phone.isBlank()) return
         _state.update { it.copy(actionsSheetForId = null) }
         viewModelScope.launch {
