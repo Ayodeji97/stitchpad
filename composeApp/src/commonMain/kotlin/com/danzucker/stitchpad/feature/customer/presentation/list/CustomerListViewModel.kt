@@ -229,11 +229,24 @@ class CustomerListViewModel(
                         }
                     }
                     is Result.Error -> {
-                        _state.update {
-                            it.copy(
-                                isLoading = false,
-                                errorMessage = result.error.toCustomerUiText()
-                            )
+                        _state.update { state ->
+                            // Active staff have no customers-LIST access until the base
+                            // docs are stripped (Slice 8): the contact wall denies the
+                            // collection read. Treat that denial as an empty list, not an
+                            // error, so staff see the empty state instead of "something
+                            // went wrong". Owners still surface real errors.
+                            if (state.isActiveStaff) {
+                                allCustomers = emptyList()
+                                allLockedCustomers = emptyList()
+                                state.copy(
+                                    isLoading = false,
+                                    customers = emptyList(),
+                                    lockedCustomers = emptyList(),
+                                    errorMessage = null,
+                                )
+                            } else {
+                                state.copy(isLoading = false, errorMessage = result.error.toCustomerUiText())
+                            }
                         }
                     }
                 }
