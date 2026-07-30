@@ -2,6 +2,11 @@ package com.danzucker.stitchpad.feature.order.presentation.list
 
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
+import com.danzucker.stitchpad.core.domain.model.GarmentType
+import com.danzucker.stitchpad.core.domain.model.Order
+import com.danzucker.stitchpad.core.domain.model.OrderItem
+import com.danzucker.stitchpad.core.domain.model.OrderPriority
+import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
 import com.danzucker.stitchpad.core.domain.session.StaffRole
@@ -101,4 +106,39 @@ class OrderListStaffTest {
 
         assertTrue(vm.state.value.showProfit)
     }
+
+    @Test
+    fun onDeleteOrderClick_forStaff_doesNotArmDeleteDialog() = runTest {
+        setStaffSession()
+        val vm = createViewModel()
+
+        vm.onAction(OrderListAction.OnDeleteOrderClick(sampleOrder()))
+
+        assertFalse(vm.state.value.showDeleteDialog)
+    }
+
+    @Test
+    fun onDeleteOrderClick_forOwner_armsDeleteDialog() = runTest {
+        val vm = createViewModel()
+
+        vm.onAction(OrderListAction.OnDeleteOrderClick(sampleOrder()))
+
+        assertTrue(vm.state.value.showDeleteDialog)
+    }
+
+    private fun sampleOrder(): Order = Order(
+        id = "o1",
+        userId = "o",
+        customerId = "c1",
+        customerName = "Ada",
+        items = listOf(OrderItem(id = "i1", garmentType = GarmentType.AGBADA, description = "", price = 0.0)),
+        status = OrderStatus.PENDING,
+        priority = OrderPriority.NORMAL,
+        statusHistory = emptyList(),
+        totalPrice = 0.0,
+        deadline = null,
+        notes = null,
+        createdAt = 0L,
+        updatedAt = 0L,
+    )
 }

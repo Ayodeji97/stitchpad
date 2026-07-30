@@ -76,7 +76,7 @@ class CustomerListViewModel(
         }
     }
 
-    @Suppress("CyclomaticComplexMethod", "LongMethod")
+    @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount")
     fun onAction(action: CustomerListAction) {
         when (action) {
             is CustomerListAction.OnSearchQueryChange -> {
@@ -102,6 +102,9 @@ class CustomerListViewModel(
                 }
             }
             is CustomerListAction.OnDeleteCustomerClick -> {
+                // Slice 6c: staff can't delete customers. Defense-in-depth — the
+                // sheet hides the Delete row (canMutate = false).
+                if (_state.value.isActiveStaff) return
                 val activeCount = activeOrderCountByCustomerId[action.customer.id] ?: 0
                 _state.update {
                     it.copy(
@@ -164,13 +167,18 @@ class CustomerListViewModel(
                 navigateFromSheet { CustomerListEvent.NavigateToCustomerDetail(action.customerId) }
             }
             is CustomerListAction.OnEditCustomerFromRow -> {
+                // Slice 6c: staff can't edit customers / create measurements or orders.
+                // Defense-in-depth — the sheet hides these rows (canMutate = false).
+                if (_state.value.isActiveStaff) return
                 navigateFromSheet { CustomerListEvent.NavigateToEditCustomer(action.customerId) }
             }
             is CustomerListAction.OnAddMeasurementFromRow -> {
+                if (_state.value.isActiveStaff) return
                 navigateFromSheet { CustomerListEvent.NavigateToAddMeasurement(action.customerId) }
             }
             is CustomerListAction.OnViewMeasurementsFromRow -> viewMeasurementsFromSheet(action.customerId)
             is CustomerListAction.OnNewOrderFromRow -> {
+                if (_state.value.isActiveStaff) return
                 navigateFromSheet { CustomerListEvent.NavigateToOrderForm(action.customerId) }
             }
             is CustomerListAction.OnMessageWhatsApp -> messageOnWhatsApp(action.customer)

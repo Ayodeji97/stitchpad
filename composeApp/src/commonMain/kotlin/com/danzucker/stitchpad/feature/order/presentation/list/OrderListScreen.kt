@@ -675,7 +675,8 @@ private fun SwipeableOrderItem(
     LaunchedEffect(dismissState) {
         snapshotFlow { dismissState.currentValue }
             .collect { value ->
-                if (value == SwipeToDismissBoxValue.EndToStart) {
+                // Slice 6c: staff can't delete orders — ignore any settled swipe.
+                if (value == SwipeToDismissBoxValue.EndToStart && !isActiveStaff) {
                     currentOnDelete()
                     dismissState.reset()
                 }
@@ -685,6 +686,8 @@ private fun SwipeableOrderItem(
     SwipeToDismissBox(
         state = dismissState,
         enableDismissFromStartToEnd = false,
+        // Slice 6c: swipe-to-delete is disabled for active staff (read-only).
+        enableDismissFromEndToStart = !isActiveStaff,
         backgroundContent = {
             Box(
                 contentAlignment = Alignment.CenterEnd,

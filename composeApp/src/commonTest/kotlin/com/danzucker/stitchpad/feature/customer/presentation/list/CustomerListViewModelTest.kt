@@ -32,6 +32,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -178,6 +179,26 @@ class CustomerListViewModelTest {
             runCurrent()
             expectNoEvents()
         }
+    }
+
+    @Test
+    fun staff_rowMutations_emitNoNavigationAndDoNotArmDelete() = runTest {
+        customerRepository.customersList = listOf(fakeCustomer())
+        activeWorkshopProvider.setSession(activeStaffSession)
+        val vm = createViewModel()
+        assertTrue(vm.state.value.isActiveStaff)
+
+        vm.events.test {
+            vm.onAction(CustomerListAction.OnEditCustomerFromRow("c1"))
+            vm.onAction(CustomerListAction.OnNewOrderFromRow("c1"))
+            vm.onAction(CustomerListAction.OnAddMeasurementFromRow("c1"))
+            vm.onAction(CustomerListAction.OnDeleteCustomerClick(fakeCustomer()))
+            advanceTimeBy(451)
+            runCurrent()
+            expectNoEvents()
+        }
+        // Delete never armed the confirm dialog.
+        assertFalse(vm.state.value.showDeleteDialog)
     }
 
     private class FakeFreemiumRepository : FreemiumRepository {

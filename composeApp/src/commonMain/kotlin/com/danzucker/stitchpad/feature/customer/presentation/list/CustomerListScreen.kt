@@ -343,8 +343,10 @@ fun CustomerListScreen(
         if (customer != null) {
             CustomerActionsSheet(
                 customer = customer,
-                // Slice 6c: staff see the sheet contact-free (no phone, no WhatsApp).
+                // Slice 6c: staff see the sheet contact-free (no phone, no WhatsApp)
+                // and read-only (no edit / new measurement / new order / delete).
                 showContact = !state.isActiveStaff,
+                canMutate = !state.isActiveStaff,
                 onView = { id -> onAction(CustomerListAction.OnViewCustomerFromSheet(id)) },
                 onMessageWhatsApp = { c -> onAction(CustomerListAction.OnMessageWhatsApp(c)) },
                 onEdit = { id -> onAction(CustomerListAction.OnEditCustomerFromRow(id)) },

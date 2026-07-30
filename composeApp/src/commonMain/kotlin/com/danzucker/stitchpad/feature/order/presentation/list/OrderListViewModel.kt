@@ -53,6 +53,7 @@ class OrderListViewModel(
             initialValue = OrderListState()
         )
 
+    @Suppress("CyclomaticComplexMethod", "ReturnCount")
     fun onAction(action: OrderListAction) {
         when (action) {
             is OrderListAction.OnStatusFilterChange -> {
@@ -88,9 +89,15 @@ class OrderListViewModel(
                 }
             }
             is OrderListAction.OnDeleteOrderClick -> {
+                // Slice 6c: staff can't delete orders. Defense-in-depth — swipe-to-delete
+                // is disabled in the UI, and this arms the confirm dialog.
+                if (_state.value.isActiveStaff) return
                 _state.update { it.copy(showDeleteDialog = true, orderToDelete = action.order) }
             }
-            OrderListAction.OnConfirmDelete -> deleteOrder()
+            OrderListAction.OnConfirmDelete -> {
+                if (_state.value.isActiveStaff) return
+                deleteOrder()
+            }
             OrderListAction.OnDismissDeleteDialog -> {
                 _state.update { it.copy(showDeleteDialog = false, orderToDelete = null) }
             }

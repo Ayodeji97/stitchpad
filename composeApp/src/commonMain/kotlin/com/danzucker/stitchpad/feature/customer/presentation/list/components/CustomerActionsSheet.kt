@@ -62,6 +62,7 @@ fun CustomerActionsSheet(
     onDelete: (Customer) -> Unit,
     onDismiss: () -> Unit,
     showContact: Boolean = true,
+    canMutate: Boolean = true,
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -70,6 +71,7 @@ fun CustomerActionsSheet(
         CustomerActionsSheetContent(
             customer = customer,
             showContact = showContact,
+            canMutate = canMutate,
             onView = onView,
             onMessageWhatsApp = onMessageWhatsApp,
             onEdit = onEdit,
@@ -96,6 +98,7 @@ private fun CustomerActionsSheetContent(
     onNewOrder: (String) -> Unit,
     onDelete: (Customer) -> Unit,
     showContact: Boolean = true,
+    canMutate: Boolean = true,
 ) {
     Column(
         modifier = Modifier
@@ -122,32 +125,36 @@ private fun CustomerActionsSheetContent(
                 onClick = { onMessageWhatsApp(customer) },
             )
         }
-        ActionRow(
-            icon = Icons.Default.Edit,
-            label = stringResource(Res.string.customer_actions_edit),
-            onClick = { onEdit(customer.id) },
-        )
+        // View measurements is read-only — always available. Slice 6c: the
+        // create/edit/delete rows are hidden for staff (canMutate = false).
         ActionRow(
             icon = Icons.Default.Visibility,
             label = stringResource(Res.string.customer_actions_view_measurements),
             onClick = { onViewMeasurements(customer.id) },
         )
-        ActionRow(
-            icon = Icons.Default.Straighten,
-            label = stringResource(Res.string.customer_actions_new_measurement),
-            onClick = { onNewMeasurement(customer.id) },
-        )
-        ActionRow(
-            icon = Icons.AutoMirrored.Filled.Assignment,
-            label = stringResource(Res.string.customer_actions_new_order),
-            onClick = { onNewOrder(customer.id) },
-        )
-        ActionRow(
-            icon = Icons.Default.Delete,
-            label = stringResource(Res.string.customer_actions_delete),
-            tint = MaterialTheme.colorScheme.error,
-            onClick = { onDelete(customer) },
-        )
+        if (canMutate) {
+            ActionRow(
+                icon = Icons.Default.Edit,
+                label = stringResource(Res.string.customer_actions_edit),
+                onClick = { onEdit(customer.id) },
+            )
+            ActionRow(
+                icon = Icons.Default.Straighten,
+                label = stringResource(Res.string.customer_actions_new_measurement),
+                onClick = { onNewMeasurement(customer.id) },
+            )
+            ActionRow(
+                icon = Icons.AutoMirrored.Filled.Assignment,
+                label = stringResource(Res.string.customer_actions_new_order),
+                onClick = { onNewOrder(customer.id) },
+            )
+            ActionRow(
+                icon = Icons.Default.Delete,
+                label = stringResource(Res.string.customer_actions_delete),
+                tint = MaterialTheme.colorScheme.error,
+                onClick = { onDelete(customer) },
+            )
+        }
     }
 }
 
