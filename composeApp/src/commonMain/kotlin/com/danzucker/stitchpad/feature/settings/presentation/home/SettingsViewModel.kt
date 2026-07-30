@@ -439,9 +439,19 @@ class SettingsViewModel(
             uiState.update { it.copy(isLeavingWorkshop = true, showLeaveWorkshopDialog = false) }
             when (val result = inviteRedemptionRepository.cancelMembership(workshopUid)) {
                 is Result.Success -> {
-                    // signOutUseCase already clears the staff membership prefs.
-                    signOutUseCase()
-                    emit(SettingsEvent.NavigateToLoginAfterSignOut)
+                    // signOutUseCase already clears the staff membership prefs. Guard the
+                    // nav on its Result (like signOut()): if sign-out fails we must NOT
+                    // route to Welcome while the session is still active — stay put and
+                    // surface the error so the user can retry. The membership is already
+                    // revoked server-side, so a retry via the normal Sign out row is safe.
+                    when (val signOut = signOutUseCase()) {
+                        is Result.Success -> emit(SettingsEvent.NavigateToLoginAfterSignOut)
+                        is Result.Error -> {
+                            AppLogger.e(tag = TAG) { "leaveWorkshop signOut failed error=${signOut.error}" }
+                            uiState.update { it.copy(isLeavingWorkshop = false) }
+                            emit(SettingsEvent.ShowSnackbar(signOut.error.toUiText()))
+                        }
+                    }
                 }
                 is Result.Error -> {
                     uiState.update { it.copy(isLeavingWorkshop = false) }
