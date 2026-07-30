@@ -93,14 +93,18 @@ fun SettingsLegalAboutScreen(
                     onClick = { onAction(SettingsAction.OnTermsClick) },
                     trailing = { SettingsRowExternalIcon() },
                 )
-                SettingsRowDivider()
-                SettingsRow(
-                    icon = Icons.Outlined.Info,
-                    label = stringResource(Res.string.settings_row_founders_note),
-                    subtitle = stringResource(Res.string.settings_row_founders_note_subtitle),
-                    onClick = { onAction(SettingsAction.OnFoundersNoteClick) },
-                    trailing = { SettingsRowChevron() },
-                )
+                // Slice 6d: "About your plan / founder note" is owner plan+billing
+                // content — hidden for active staff (they have no plan).
+                if (!state.isActiveStaff) {
+                    SettingsRowDivider()
+                    SettingsRow(
+                        icon = Icons.Outlined.Info,
+                        label = stringResource(Res.string.settings_row_founders_note),
+                        subtitle = stringResource(Res.string.settings_row_founders_note_subtitle),
+                        onClick = { onAction(SettingsAction.OnFoundersNoteClick) },
+                        trailing = { SettingsRowChevron() },
+                    )
+                }
             }
             Spacer(Modifier.height(DesignTokens.space5))
         }
