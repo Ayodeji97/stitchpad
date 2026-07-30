@@ -30,4 +30,9 @@ sealed interface SettingsAction {
     data object OnInviteRewardsClick : SettingsAction
     data object OnHelpSupportClick : SettingsAction
     data object OnLegalAboutClick : SettingsAction
+
+    // Staff-only: leave the owner's workshop (destructive, confirmed via dialog).
+    data object OnLeaveWorkshopClick : SettingsAction
+    data object OnConfirmLeaveWorkshop : SettingsAction
+    data object OnDismissLeaveWorkshopDialog : SettingsAction
 }
