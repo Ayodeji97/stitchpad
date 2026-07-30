@@ -118,7 +118,12 @@ class CustomerListViewModel(
                     )
                 }
             }
-            CustomerListAction.OnConfirmDelete -> deleteCustomer()
+            CustomerListAction.OnConfirmDelete -> {
+                // Slice 6c: guard the confirm/execute too (cold-start race — see
+                // OnDeleteCustomerClick). Server rules also deny staff delete.
+                if (_state.value.isActiveStaff) return
+                deleteCustomer()
+            }
             CustomerListAction.OnDismissDeleteDialog -> {
                 _state.update {
                     it.copy(

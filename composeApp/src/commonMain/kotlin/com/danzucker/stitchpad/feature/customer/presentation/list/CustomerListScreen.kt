@@ -252,8 +252,10 @@ fun CustomerListScreen(
                         items(items = state.customers, key = { it.id }) { customer ->
                             SwipeableCustomerItem(
                                 customer = customer,
-                                // Slice 6c: staff see rows contact-free (no phone).
+                                // Slice 6c: staff see rows contact-free (no phone) and
+                                // can't swipe-to-delete (read-only).
                                 showPhone = !state.isActiveStaff,
+                                isActiveStaff = state.isActiveStaff,
                                 onClick = { onAction(CustomerListAction.OnCustomerClick(customer)) },
                                 onDelete = { onAction(CustomerListAction.OnDeleteCustomerClick(customer)) },
                                 onOverflowClick = { onAction(CustomerListAction.OnOverflowClick(customer)) },
@@ -661,10 +663,12 @@ private fun SwipeableCustomerItem(
     onDelete: () -> Unit,
     onOverflowClick: () -> Unit,
     showPhone: Boolean = true,
+    isActiveStaff: Boolean = false,
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.EndToStart) {
+            // Slice 6c: staff can't delete customers — ignore the delete swipe.
+            if (value == SwipeToDismissBoxValue.EndToStart && !isActiveStaff) {
                 onDelete()
                 false
             } else {
@@ -676,6 +680,8 @@ private fun SwipeableCustomerItem(
     SwipeToDismissBox(
         state = dismissState,
         enableDismissFromStartToEnd = false,
+        // Slice 6c: swipe-to-delete is disabled for active staff (read-only).
+        enableDismissFromEndToStart = !isActiveStaff,
         backgroundContent = {
             Box(
                 contentAlignment = Alignment.CenterEnd,

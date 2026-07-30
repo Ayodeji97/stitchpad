@@ -193,6 +193,8 @@ class CustomerListViewModelTest {
             vm.onAction(CustomerListAction.OnNewOrderFromRow("c1"))
             vm.onAction(CustomerListAction.OnAddMeasurementFromRow("c1"))
             vm.onAction(CustomerListAction.OnDeleteCustomerClick(fakeCustomer()))
+            // The confirm/execute is guarded too (cold-start race).
+            vm.onAction(CustomerListAction.OnConfirmDelete)
             advanceTimeBy(451)
             runCurrent()
             expectNoEvents()

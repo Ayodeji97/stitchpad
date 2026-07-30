@@ -119,8 +119,11 @@ sealed interface OrderDetailAction {
  * touching money — prices, payments, costs, receipts/sharing — or customer contact —
  * call, WhatsApp, payment reminder, add-phone. [OrderDetailViewModel.onAction] early-returns
  * on these when the session is active-staff, so no state mutates and no event fires even
- * if a stray tap reaches the VM. Status advance, notes, styles, measurements, deadline,
- * delete/archive and plain sheet-dismisses are intentionally NOT restricted.
+ * if a stray tap reaches the VM. Also restricted: create/edit/duplicate and the
+ * destructive delete/archive (both the arm-dialog AND confirm/execute actions — a
+ * cold-start race can briefly show the affordance before isActiveStaff resolves, so
+ * the confirm must be guarded too). NOT restricted: status advance, notes, styles,
+ * measurements, deadline, and plain sheet/dialog dismisses.
  */
 @Suppress("CyclomaticComplexMethod")
 internal fun OrderDetailAction.isStaffRestricted(): Boolean = when (this) {
@@ -153,11 +156,15 @@ internal fun OrderDetailAction.isStaffRestricted(): Boolean = when (this) {
     OrderDetailAction.OnSendReminderClick,
     OrderDetailAction.OnAddPhoneClick,
     // Create / edit / destroy — staff can't create or edit orders; edit and
-    // duplicate open the order form (which shows and edits money).
+    // duplicate open the order form (which shows and edits money). Guard BOTH the
+    // arm-dialog and the confirm/execute actions (cold-start race could otherwise
+    // let a confirm through after the dialog was armed pre-hydration).
     OrderDetailAction.OnEditClick,
     OrderDetailAction.OnDuplicateClick,
     OrderDetailAction.OnArchiveClick,
+    OrderDetailAction.OnConfirmArchive,
     OrderDetailAction.OnDeleteClick,
+    OrderDetailAction.OnConfirmDelete,
     -> true
 
     else -> false

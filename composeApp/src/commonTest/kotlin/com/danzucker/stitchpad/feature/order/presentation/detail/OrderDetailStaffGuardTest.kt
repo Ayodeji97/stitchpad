@@ -82,6 +82,14 @@ class OrderDetailStaffGuardTest {
             OrderDetailAction.OnCallClick,
             OrderDetailAction.OnSendReminderClick,
             OrderDetailAction.OnAddPhoneClick,
+            // Create / edit / destroy — both arm AND confirm/execute must be guarded
+            // (a cold-start race can arm the dialog before isActiveStaff resolves).
+            OrderDetailAction.OnEditClick,
+            OrderDetailAction.OnDuplicateClick,
+            OrderDetailAction.OnArchiveClick,
+            OrderDetailAction.OnConfirmArchive,
+            OrderDetailAction.OnDeleteClick,
+            OrderDetailAction.OnConfirmDelete,
         )
         restricted.forEach {
             assertTrue(it.isStaffRestricted(), "$it must be staff-restricted")

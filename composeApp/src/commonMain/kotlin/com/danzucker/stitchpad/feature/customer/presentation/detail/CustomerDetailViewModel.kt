@@ -147,7 +147,13 @@ class CustomerDetailViewModel(
                     )
                 }
             }
-            CustomerDetailAction.OnConfirmDeleteCustomer -> deleteCustomer()
+            CustomerDetailAction.OnConfirmDeleteCustomer -> {
+                // Slice 6c: guard the confirm/execute too — a cold-start race could arm
+                // the dialog before isActiveStaff resolves; without this the confirm
+                // would still fire the delete after the flag flips.
+                if (_state.value.isActiveStaff) return
+                deleteCustomer()
+            }
             CustomerDetailAction.OnDismissDeleteCustomerDialog -> {
                 _state.update {
                     it.copy(showDeleteCustomerDialog = false, customerDeleteActiveOrderCount = 0)
