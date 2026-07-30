@@ -66,6 +66,16 @@ class CustomerListViewModel(
             initialValue = CustomerListState()
         )
 
+    init {
+        // Slice 6c: reflect active-staff into state so rows/sheet hide contact
+        // (phone + WhatsApp) and the WhatsApp handler early-returns.
+        viewModelScope.launch {
+            activeWorkshopProvider.flow.collect { session ->
+                _state.update { it.copy(isActiveStaff = session.isActiveStaff) }
+            }
+        }
+    }
+
     @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun onAction(action: CustomerListAction) {
         when (action) {
@@ -84,6 +94,9 @@ class CustomerListViewModel(
                 }
             }
             CustomerListAction.OnAddCustomerClick -> {
+                // Slice 6c: staff can't create customers. Defense-in-depth — the FAB
+                // is hidden, and the empty-state add button no-ops here.
+                if (_state.value.isActiveStaff) return
                 viewModelScope.launch {
                     _events.send(CustomerListEvent.NavigateToAddCustomer)
                 }
@@ -168,6 +181,9 @@ class CustomerListViewModel(
     // navigateFromSheet uses — WhatsApp launch is openURL on iOS) emit the launch
     // event with a generic customer greeting. Guarded on a usable number.
     private fun messageOnWhatsApp(customer: Customer) {
+        // Slice 6c: staff must never trigger a customer contact action.
+        // Defense-in-depth alongside the sheet hiding the WhatsApp row.
+        if (_state.value.isActiveStaff) return
         if (customer.phone.isBlank()) return
         _state.update { it.copy(actionsSheetForId = null) }
         viewModelScope.launch {

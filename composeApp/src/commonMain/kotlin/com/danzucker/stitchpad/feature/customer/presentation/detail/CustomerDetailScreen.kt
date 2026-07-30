@@ -216,8 +216,9 @@ fun CustomerDetailScreen(
                     // Edit, FAB, and per-measurement swipe-to-delete are gated when the customer
                     // is in the LOCKED slot state (per V1.0 design spec decision #2 — locked
                     // surfaces are read-only). Upgrade unlocks; the Upgrade CTA inside the body
-                    // is the user's path forward.
-                    if (!state.isLocked) {
+                    // is the user's path forward. Slice 6c: also gated for active staff —
+                    // editing a customer edits contact, and the view stays read-only for staff.
+                    if (!state.isLocked && !state.isActiveStaff) {
                         CustomerDetailTopBarActions(state = state, onAction = onAction)
                     }
                 },
@@ -230,7 +231,8 @@ fun CustomerDetailScreen(
         floatingActionButton = {
             // Gate on measurementsLoaded so "+" can't decide edit-vs-create on a
             // not-yet-loaded (stale empty) measurements list during cold start.
-            if (!state.isLocked && state.measurementsLoaded) {
+            // Slice 6c: hidden for active staff — the customer view is read-only.
+            if (!state.isLocked && !state.isActiveStaff && state.measurementsLoaded) {
                 StitchPadFab(
                     onClick = { onAction(CustomerDetailAction.OnAddMeasurementClick) },
                     contentDescription = stringResource(Res.string.fab_add_measurement),
@@ -271,13 +273,17 @@ fun CustomerDetailScreen(
                     item {
                         CustomerHeaderSection(
                             customer = state.customer,
-                            // Locked customers are read-only; contact chips only for active.
-                            onMessageWhatsApp = if (state.isLocked) {
+                            // Slice 6c: staff see the customer contact-free — hide the
+                            // phone text entirely (not just the chips).
+                            showContact = !state.isActiveStaff,
+                            // Locked customers are read-only; staff never contact.
+                            // Contact chips only for an active, non-staff viewer.
+                            onMessageWhatsApp = if (state.isLocked || state.isActiveStaff) {
                                 null
                             } else {
                                 { onAction(CustomerDetailAction.OnMessageWhatsAppClick) }
                             },
-                            onCall = if (state.isLocked) {
+                            onCall = if (state.isLocked || state.isActiveStaff) {
                                 null
                             } else {
                                 { onAction(CustomerDetailAction.OnCallClick) }
@@ -532,6 +538,7 @@ private fun DeleteCustomerDialog(
 @Composable
 private fun CustomerHeaderSection(
     customer: Customer?,
+    showContact: Boolean = true,
     onMessageWhatsApp: (() -> Unit)? = null,
     onCall: (() -> Unit)? = null,
 ) {
@@ -549,7 +556,9 @@ private fun CustomerHeaderSection(
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
         )
-        if (customer?.phone?.isNotBlank() == true) {
+        // Slice 6c: the entire contact block (phone text + WhatsApp/Call chips) is
+        // suppressed for staff — they see the customer name/measurements only.
+        if (showContact && customer?.phone?.isNotBlank() == true) {
             Spacer(Modifier.height(DesignTokens.space1))
             Text(
                 text = customer.phone,

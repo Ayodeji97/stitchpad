@@ -328,33 +328,41 @@ fun OrderDetailScreen(
                 },
                 actions = {
                     if (state.order != null) {
-                        IconButton(onClick = { onAction(OrderDetailAction.OnShareClick) }) {
-                            Icon(
-                                imageVector = Icons.Default.Share,
-                                contentDescription = stringResource(Res.string.order_detail_share),
-                            )
-                        }
-                        IconButton(onClick = { onAction(OrderDetailAction.OnEditClick) }) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = stringResource(Res.string.cd_edit_order),
-                            )
-                        }
-                        Box {
-                            IconButton(onClick = { onAction(OrderDetailAction.OnOverflowMenuToggle) }) {
+                        // Sharing produces a money receipt — hidden for active staff (Slice 6c).
+                        if (!state.isActiveStaff) {
+                            IconButton(onClick = { onAction(OrderDetailAction.OnShareClick) }) {
                                 Icon(
-                                    imageVector = Icons.Default.MoreVert,
-                                    contentDescription = stringResource(Res.string.order_detail_more),
+                                    imageVector = Icons.Default.Share,
+                                    contentDescription = stringResource(Res.string.order_detail_share),
                                 )
                             }
-                            OrderDetailOverflowMenu(
-                                expanded = state.showOverflowMenu,
-                                showArchive = state.order.status != OrderStatus.DELIVERED,
-                                onDismiss = { onAction(OrderDetailAction.OnOverflowMenuToggle) },
-                                onDuplicateClick = { onAction(OrderDetailAction.OnDuplicateClick) },
-                                onArchiveClick = { onAction(OrderDetailAction.OnArchiveClick) },
-                                onDeleteClick = { onAction(OrderDetailAction.OnDeleteClick) },
-                            )
+                        }
+                        // Slice 6c: staff can't create/edit/duplicate/delete orders —
+                        // hide the edit pencil and the overflow (duplicate/archive/delete).
+                        // Those routes open the order form, which shows and edits money.
+                        if (!state.isActiveStaff) {
+                            IconButton(onClick = { onAction(OrderDetailAction.OnEditClick) }) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = stringResource(Res.string.cd_edit_order),
+                                )
+                            }
+                            Box {
+                                IconButton(onClick = { onAction(OrderDetailAction.OnOverflowMenuToggle) }) {
+                                    Icon(
+                                        imageVector = Icons.Default.MoreVert,
+                                        contentDescription = stringResource(Res.string.order_detail_more),
+                                    )
+                                }
+                                OrderDetailOverflowMenu(
+                                    expanded = state.showOverflowMenu,
+                                    showArchive = state.order.status != OrderStatus.DELIVERED,
+                                    onDismiss = { onAction(OrderDetailAction.OnOverflowMenuToggle) },
+                                    onDuplicateClick = { onAction(OrderDetailAction.OnDuplicateClick) },
+                                    onArchiveClick = { onAction(OrderDetailAction.OnArchiveClick) },
+                                    onDeleteClick = { onAction(OrderDetailAction.OnDeleteClick) },
+                                )
+                            }
                         }
                     }
                 },
@@ -551,7 +559,10 @@ fun OrderDetailScreen(
         )
     }
 
-    // Balance-owed warning when moving to Ready / Delivered with money still owed
+    // Balance-owed warning when moving to Ready / Delivered with money still owed.
+    // Never shown to active staff (Slice 6c): the VM's requiresBalanceWarning() returns
+    // false for staff, so showBalanceWarningDialog is never armed for them — that is the
+    // single enforcement point (keeps this render condition simple and money-free).
     if (state.showBalanceWarningDialog &&
         state.order != null &&
         state.selectedNewStatus != null
@@ -1159,6 +1170,7 @@ private fun OrderDetailContent(
                 balanceRemaining = order.balanceRemaining,
                 discount = order.discount,
                 cta = cta,
+                isActiveStaff = state.isActiveStaff,
                 phone = state.customer?.phone,
                 onPrimaryCta = { handlePrimaryCta(cta.primary, onAction) },
                 onSecondaryCta = { handleSecondaryCta(cta.secondary, onAction) },
@@ -1169,16 +1181,19 @@ private fun OrderDetailContent(
                 onCustomerClick = { onAction(OrderDetailAction.OnCustomerClick) },
             )
         }
-        item {
-            OrderCostsCard(
-                costs = order.costs,
-                totalCost = order.totalCost,
-                profit = order.profit,
-                profitMargin = order.profitMargin,
-                isExpanded = state.isCostsExpanded,
-                onToggleExpanded = { onAction(OrderDetailAction.OnCostsExpandToggle) },
-                onEditClick = { onAction(OrderDetailAction.OnEditCostsClick) },
-            )
+        // Costs / profit is money — hidden for active staff (Slice 6c).
+        if (!state.isActiveStaff) {
+            item {
+                OrderCostsCard(
+                    costs = order.costs,
+                    totalCost = order.totalCost,
+                    profit = order.profit,
+                    profitMargin = order.profitMargin,
+                    isExpanded = state.isCostsExpanded,
+                    onToggleExpanded = { onAction(OrderDetailAction.OnCostsExpandToggle) },
+                    onEditClick = { onAction(OrderDetailAction.OnEditCostsClick) },
+                )
+            }
         }
         item {
             OrderGarmentDetailsCard(
@@ -1196,15 +1211,18 @@ private fun OrderDetailContent(
                 onAddFabricNameClick = { onAction(OrderDetailAction.OnAddFabricNameClick) },
             )
         }
-        item {
-            OrderPaymentCard(
-                totalPrice = order.totalPrice,
-                discount = order.discount,
-                payments = order.payments,
-                isExpanded = state.isPaymentHistoryExpanded,
-                onToggleExpanded = { onAction(OrderDetailAction.OnPaymentHistoryToggle) },
-                onRecordPaymentClick = { onAction(OrderDetailAction.OnRecordPaymentClick) },
-            )
+        // Payment total / history + record-payment is money — hidden for active staff (Slice 6c).
+        if (!state.isActiveStaff) {
+            item {
+                OrderPaymentCard(
+                    totalPrice = order.totalPrice,
+                    discount = order.discount,
+                    payments = order.payments,
+                    isExpanded = state.isPaymentHistoryExpanded,
+                    onToggleExpanded = { onAction(OrderDetailAction.OnPaymentHistoryToggle) },
+                    onRecordPaymentClick = { onAction(OrderDetailAction.OnRecordPaymentClick) },
+                )
+            }
         }
         item {
             OrderProductionTimeline(

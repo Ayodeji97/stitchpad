@@ -128,6 +128,9 @@ fun OrderHeroCard(
     onAddPhoneClick: () -> Unit,
     onCustomerClick: () -> Unit,
     modifier: Modifier = Modifier,
+    // Slice 6c: active staff see garment / customer / status / deadline only — the
+    // money block, reach-out chips and money/contact CTAs are suppressed below.
+    isActiveStaff: Boolean = false,
 ) {
     val borderColor = if (isOverdue) {
         MaterialTheme.colorScheme.error.copy(alpha = 0.4f)
@@ -158,6 +161,7 @@ fun OrderHeroCard(
                 balanceRemaining = balanceRemaining,
                 discount = discount,
                 phone = phone,
+                isActiveStaff = isActiveStaff,
                 onSetDeadlineClick = onSetDeadlineClick,
                 onWhatsAppClick = onWhatsAppClick,
                 onCallClick = onCallClick,
@@ -169,14 +173,20 @@ fun OrderHeroCard(
                 OverdueBanner(overdueDaysAgo = overdueDaysAgo)
             }
 
-            CtaRow(
-                cta = cta,
-                status = status,
-                subStatus = subStatus,
-                isOverdue = isOverdue,
-                onPrimaryCta = onPrimaryCta,
-                onSecondaryCta = onSecondaryCta,
-            )
+            // The primary/secondary CTAs resolve to money/contact actions (Record
+            // payment, Share receipt, Send reminder) as well as status advances. Rather
+            // than partially filter them, hide the whole row for staff — status advance
+            // stays reachable via the production timeline below (Slice 6c).
+            if (!isActiveStaff) {
+                CtaRow(
+                    cta = cta,
+                    status = status,
+                    subStatus = subStatus,
+                    isOverdue = isOverdue,
+                    onPrimaryCta = onPrimaryCta,
+                    onSecondaryCta = onSecondaryCta,
+                )
+            }
         }
     }
 }
@@ -196,6 +206,7 @@ private fun HeroDetails(
     balanceRemaining: Double,
     discount: Double,
     phone: String?,
+    isActiveStaff: Boolean,
     onSetDeadlineClick: () -> Unit,
     onWhatsAppClick: () -> Unit,
     onCallClick: () -> Unit,
@@ -259,11 +270,14 @@ private fun HeroDetails(
             }
         }
 
-        // Reach-out actions folded in from the old Customer card.
-        if (phone.isNullOrBlank()) {
-            AddPhoneCta(onClick = onAddPhoneClick)
-        } else {
-            ReachOutChips(onWhatsAppClick = onWhatsAppClick, onCallClick = onCallClick)
+        // Reach-out actions folded in from the old Customer card. Customer contact is
+        // hidden entirely for active staff (Slice 6c) — no call / WhatsApp / add-phone.
+        if (!isActiveStaff) {
+            if (phone.isNullOrBlank()) {
+                AddPhoneCta(onClick = onAddPhoneClick)
+            } else {
+                ReachOutChips(onWhatsAppClick = onWhatsAppClick, onCallClick = onCallClick)
+            }
         }
 
         // Unified payment block — folds the deadline, the balance, the order
@@ -279,6 +293,7 @@ private fun HeroDetails(
             totalPrice = totalPrice,
             balanceRemaining = balanceRemaining,
             discount = discount,
+            isActiveStaff = isActiveStaff,
             onSetDeadlineClick = onSetDeadlineClick,
         )
     }
@@ -292,6 +307,7 @@ private fun PaymentBlock(
     totalPrice: Double,
     balanceRemaining: Double,
     discount: Double,
+    isActiveStaff: Boolean,
     onSetDeadlineClick: () -> Unit,
 ) {
     val progress = paymentProgress(totalPrice, balanceRemaining, discount)
@@ -328,41 +344,48 @@ private fun PaymentBlock(
                 } else {
                     SetDeadlineCta(onClick = onSetDeadlineClick)
                 }
-                BalanceSection(
-                    balanceRemaining = balanceRemaining,
-                    netTotal = progress.netTotal,
-                    grossTotal = totalPrice,
-                    discount = discount,
-                    isOverdue = isOverdue,
-                )
+                // Balance + total is money — hidden for active staff (Slice 6c). The
+                // deadline above stays so staff can still see + edit the due date.
+                if (!isActiveStaff) {
+                    BalanceSection(
+                        balanceRemaining = balanceRemaining,
+                        netTotal = progress.netTotal,
+                        grossTotal = totalPrice,
+                        discount = discount,
+                        isOverdue = isOverdue,
+                    )
+                }
             }
 
-            PaymentTrack(fraction = progress.fraction, fullyPaid = fullyPaid)
+            // Payment progress bar + paid-so-far figures are money — staff-hidden.
+            if (!isActiveStaff) {
+                PaymentTrack(fraction = progress.fraction, fullyPaid = fullyPaid)
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(
-                    text = stringResource(
-                        Res.string.order_detail_paid_amount,
-                        "₦${formatPrice(progress.paid)}",
-                    ),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontFamily = FontFamily.Monospace,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    // Bake the "%" into the arg — Compose's resource formatter doesn't
-                    // collapse a literal "%%" in the string, so it renders "40%%".
-                    text = stringResource(
-                        Res.string.order_detail_paid_percent,
-                        "$percent%",
-                    ),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontFamily = FontFamily.Monospace,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        text = stringResource(
+                            Res.string.order_detail_paid_amount,
+                            "₦${formatPrice(progress.paid)}",
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontFamily = FontFamily.Monospace,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        // Bake the "%" into the arg — Compose's resource formatter doesn't
+                        // collapse a literal "%%" in the string, so it renders "40%%".
+                        text = stringResource(
+                            Res.string.order_detail_paid_percent,
+                            "$percent%",
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontFamily = FontFamily.Monospace,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }

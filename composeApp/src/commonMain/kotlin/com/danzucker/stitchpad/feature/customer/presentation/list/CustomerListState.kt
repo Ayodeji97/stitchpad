@@ -30,5 +30,13 @@ data class CustomerListState(
     val customerToDelete: Customer? = null,
     /** Active (non-delivered) order count for [customerToDelete]. > 0 blocks deletion. */
     val customerToDeleteActiveOrderCount: Int = 0,
-    val errorMessage: UiText? = null
+    val errorMessage: UiText? = null,
+    /**
+     * Slice 6c: true when the signed-in user is an ACTIVE STAFF member of this
+     * workshop (not the owner). Staff may VIEW customers but never see or trigger
+     * contact details — the row/sheet phone text and the WhatsApp action are hidden
+     * when this is true, and [CustomerListViewModel] early-returns on the WhatsApp
+     * handler as defense-in-depth.
+     */
+    val isActiveStaff: Boolean = false,
 )

@@ -12,6 +12,9 @@ import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.MembershipStatus
+import com.danzucker.stitchpad.core.domain.session.StaffRole
+import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import com.danzucker.stitchpad.feature.freemium.domain.FreemiumRepository
 import com.danzucker.stitchpad.feature.measurement.presentation.entry.MeasurementEntryResolver
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +34,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CustomerListViewModelTest {
@@ -139,6 +143,40 @@ class CustomerListViewModelTest {
             val event = assertIs<CustomerListEvent.NavigateToMeasurementDetail>(awaitItem())
             assertEquals("customer-1", event.customerId)
             assertNull(event.measurementId)
+        }
+    }
+
+    // --- Staff read-only contact guards (Slice 6c) ---
+
+    private val activeStaffSession = WorkshopSession(
+        authUid = "s",
+        workshopUid = "o",
+        role = StaffRole.STAFF,
+        membershipStatus = MembershipStatus.ACTIVE,
+    )
+
+    @Test
+    fun activeStaffSession_setsIsActiveStaffTrue() = runTest {
+        activeWorkshopProvider.setSession(activeStaffSession)
+        val vm = createViewModel()
+
+        assertTrue(vm.state.value.isActiveStaff)
+    }
+
+    @Test
+    fun staff_onMessageWhatsApp_emitsNoLaunchEvent() = runTest {
+        // Seed a customer with a usable number so only the staff guard — not a
+        // missing/blank phone — can be what blocks the WhatsApp launch.
+        customerRepository.customersList = listOf(fakeCustomer(phone = "+2348012345678"))
+        activeWorkshopProvider.setSession(activeStaffSession)
+        val vm = createViewModel()
+        assertTrue(vm.state.value.isActiveStaff)
+
+        vm.events.test {
+            vm.onAction(CustomerListAction.OnMessageWhatsApp(fakeCustomer(phone = "+2348012345678")))
+            advanceTimeBy(451)
+            runCurrent()
+            expectNoEvents()
         }
     }
 

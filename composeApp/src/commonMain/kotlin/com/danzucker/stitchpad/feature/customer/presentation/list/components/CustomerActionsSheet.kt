@@ -61,6 +61,7 @@ fun CustomerActionsSheet(
     onNewOrder: (String) -> Unit,
     onDelete: (Customer) -> Unit,
     onDismiss: () -> Unit,
+    showContact: Boolean = true,
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -68,6 +69,7 @@ fun CustomerActionsSheet(
     ) {
         CustomerActionsSheetContent(
             customer = customer,
+            showContact = showContact,
             onView = onView,
             onMessageWhatsApp = onMessageWhatsApp,
             onEdit = onEdit,
@@ -93,6 +95,7 @@ private fun CustomerActionsSheetContent(
     onNewMeasurement: (String) -> Unit,
     onNewOrder: (String) -> Unit,
     onDelete: (Customer) -> Unit,
+    showContact: Boolean = true,
 ) {
     Column(
         modifier = Modifier
@@ -101,6 +104,7 @@ private fun CustomerActionsSheetContent(
     ) {
         SheetHeader(
             customer = customer,
+            showContact = showContact,
             onClick = { onView(customer.id) },
         )
         HorizontalDivider(
@@ -110,7 +114,8 @@ private fun CustomerActionsSheetContent(
         Spacer(Modifier.height(DesignTokens.space2))
         // PTSP-32: message the customer on WhatsApp — only when we have a number
         // to send to. Communication action sits first, above the edit/create rows.
-        if (customer.phone.isNotBlank()) {
+        // Slice 6c: staff never see the WhatsApp action (contact-free).
+        if (showContact && customer.phone.isNotBlank()) {
             ActionRow(
                 icon = Icons.AutoMirrored.Filled.Chat,
                 label = stringResource(Res.string.customer_actions_message_whatsapp),
@@ -150,6 +155,7 @@ private fun CustomerActionsSheetContent(
 private fun SheetHeader(
     customer: Customer,
     onClick: () -> Unit,
+    showContact: Boolean = true,
 ) {
     val viewCd = stringResource(Res.string.cd_customer_actions_view, customer.name)
     Row(
@@ -174,7 +180,8 @@ private fun SheetHeader(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (customer.phone.isNotBlank()) {
+            // Slice 6c: staff see the header contact-free — phone hidden entirely.
+            if (showContact && customer.phone.isNotBlank()) {
                 Spacer(Modifier.height(2.dp))
                 Text(
                     text = customer.phone,

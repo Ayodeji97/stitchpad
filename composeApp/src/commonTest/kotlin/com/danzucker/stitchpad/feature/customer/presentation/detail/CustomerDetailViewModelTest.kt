@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.customer.presentation.detail
 
 import androidx.lifecycle.SavedStateHandle
+import app.cash.turbine.test
 import com.danzucker.stitchpad.core.data.repository.FakeCustomMeasurementFieldRepository
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeMeasurementRepository
@@ -14,6 +15,8 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.MembershipStatus
+import com.danzucker.stitchpad.core.domain.session.StaffRole
 import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -409,5 +412,50 @@ class CustomerDetailViewModelTest {
 
         vm.onAction(CustomerDetailAction.OnErrorDismiss)
         assertNull(vm.state.value.errorMessage)
+    }
+
+    // --- Staff read-only contact guards (Slice 6c) ---
+
+    private val activeStaffSession = WorkshopSession(
+        authUid = "s",
+        workshopUid = "o",
+        role = StaffRole.STAFF,
+        membershipStatus = MembershipStatus.ACTIVE,
+    )
+
+    @Test
+    fun activeStaffSession_setsIsActiveStaffTrue() = runTest {
+        activeWorkshopProvider.setSession(activeStaffSession)
+        val vm = createViewModel()
+
+        assertTrue(vm.state.value.isActiveStaff)
+    }
+
+    @Test
+    fun staff_onMessageWhatsAppClick_emitsNoLaunchEvent() = runTest {
+        // Seed a customer with a usable number so only the staff guard — not a
+        // missing customer/phone — can be what blocks the event.
+        customerRepository.customersList = listOf(fakeCustomer(phone = "+2348012345678"))
+        activeWorkshopProvider.setSession(activeStaffSession)
+        val vm = createViewModel()
+        assertTrue(vm.state.value.isActiveStaff)
+
+        vm.events.test {
+            vm.onAction(CustomerDetailAction.OnMessageWhatsAppClick)
+            expectNoEvents()
+        }
+    }
+
+    @Test
+    fun staff_onCallClick_emitsNoLaunchEvent() = runTest {
+        customerRepository.customersList = listOf(fakeCustomer(phone = "+2348012345678"))
+        activeWorkshopProvider.setSession(activeStaffSession)
+        val vm = createViewModel()
+        assertTrue(vm.state.value.isActiveStaff)
+
+        vm.events.test {
+            vm.onAction(CustomerDetailAction.OnCallClick)
+            expectNoEvents()
+        }
     }
 }

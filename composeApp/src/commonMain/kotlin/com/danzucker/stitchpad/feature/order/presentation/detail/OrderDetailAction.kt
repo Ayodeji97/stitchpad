@@ -113,3 +113,52 @@ sealed interface OrderDetailAction {
     // Misc
     data object OnErrorDismiss : OrderDetailAction
 }
+
+/**
+ * Actions an active staff member must never be able to trigger (Slice 6c): anything
+ * touching money — prices, payments, costs, receipts/sharing — or customer contact —
+ * call, WhatsApp, payment reminder, add-phone. [OrderDetailViewModel.onAction] early-returns
+ * on these when the session is active-staff, so no state mutates and no event fires even
+ * if a stray tap reaches the VM. Status advance, notes, styles, measurements, deadline,
+ * delete/archive and plain sheet-dismisses are intentionally NOT restricted.
+ */
+@Suppress("CyclomaticComplexMethod")
+internal fun OrderDetailAction.isStaffRestricted(): Boolean = when (this) {
+    // Share / receipt
+    OrderDetailAction.OnShareClick,
+    OrderDetailAction.OnShareAsImageClick,
+    OrderDetailAction.OnShareAsPdfClick,
+    is OrderDetailAction.OnDocumentTypeChoice,
+    OrderDetailAction.OnShareReceiptFromSnackbar,
+    // Payment
+    OrderDetailAction.OnRecordPaymentClick,
+    is OrderDetailAction.OnPaymentAmountChange,
+    is OrderDetailAction.OnPaymentMethodSelect,
+    is OrderDetailAction.OnPaymentTypeSelect,
+    OrderDetailAction.OnMarkPaidInFull,
+    OrderDetailAction.OnConfirmRecordPayment,
+    OrderDetailAction.OnPaymentHistoryToggle,
+    OrderDetailAction.OnBalanceWarningRecordPayment,
+    OrderDetailAction.OnBalanceWarningProceed,
+    OrderDetailAction.OnBalanceWarningDismiss,
+    // Costs
+    OrderDetailAction.OnEditCostsClick,
+    is OrderDetailAction.OnCostDraftChange,
+    OrderDetailAction.OnSaveCosts,
+    OrderDetailAction.OnDismissCostsEditor,
+    OrderDetailAction.OnCostsExpandToggle,
+    // Customer contact
+    OrderDetailAction.OnWhatsAppClick,
+    OrderDetailAction.OnCallClick,
+    OrderDetailAction.OnSendReminderClick,
+    OrderDetailAction.OnAddPhoneClick,
+    // Create / edit / destroy — staff can't create or edit orders; edit and
+    // duplicate open the order form (which shows and edits money).
+    OrderDetailAction.OnEditClick,
+    OrderDetailAction.OnDuplicateClick,
+    OrderDetailAction.OnArchiveClick,
+    OrderDetailAction.OnDeleteClick,
+    -> true
+
+    else -> false
+}
