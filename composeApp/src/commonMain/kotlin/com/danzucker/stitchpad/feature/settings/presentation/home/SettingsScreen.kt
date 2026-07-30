@@ -287,24 +287,28 @@ private fun SettingsLandingLegacy(
     }
 
     SettingsSectionCard(label = stringResource(Res.string.settings_section_preferences)) {
-        SettingsRow(
-            icon = Icons.Outlined.Straighten,
-            label = stringResource(Res.string.settings_row_measurement_units),
-            onClick = { onAction(SettingsAction.OnMeasurementUnitClick) },
-            trailing = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    SettingsRowValue(
-                        text = stringResource(
-                            when (state.measurementUnit) {
-                                MeasurementUnit.INCHES -> Res.string.settings_row_measurement_units_inches
-                                MeasurementUnit.CM -> Res.string.settings_row_measurement_units_centimeters
-                            }
-                        ),
-                    )
-                }
-            },
-        )
-        SettingsRowDivider()
+        // Measurement units + receipt image style are workshop-wide settings the OWNER
+        // controls — hidden for active staff (they inherit the owner's choices).
+        if (!state.isActiveStaff) {
+            SettingsRow(
+                icon = Icons.Outlined.Straighten,
+                label = stringResource(Res.string.settings_row_measurement_units),
+                onClick = { onAction(SettingsAction.OnMeasurementUnitClick) },
+                trailing = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        SettingsRowValue(
+                            text = stringResource(
+                                when (state.measurementUnit) {
+                                    MeasurementUnit.INCHES -> Res.string.settings_row_measurement_units_inches
+                                    MeasurementUnit.CM -> Res.string.settings_row_measurement_units_centimeters
+                                }
+                            ),
+                        )
+                    }
+                },
+            )
+            SettingsRowDivider()
+        }
         SettingsRow(
             icon = Icons.Outlined.Brightness6,
             label = stringResource(Res.string.settings_row_appearance),
@@ -321,15 +325,17 @@ private fun SettingsLandingLegacy(
                 )
             },
         )
-        SettingsRowDivider()
-        SettingsRow(
-            icon = Icons.Outlined.Image,
-            label = stringResource(Res.string.settings_row_receipt_image),
-            onClick = { onAction(SettingsAction.OnReceiptImageStyleClick) },
-            trailing = {
-                SettingsRowValue(text = receiptImageStyleLabel(state.receiptImageStyle))
-            },
-        )
+        if (!state.isActiveStaff) {
+            SettingsRowDivider()
+            SettingsRow(
+                icon = Icons.Outlined.Image,
+                label = stringResource(Res.string.settings_row_receipt_image),
+                onClick = { onAction(SettingsAction.OnReceiptImageStyleClick) },
+                trailing = {
+                    SettingsRowValue(text = receiptImageStyleLabel(state.receiptImageStyle))
+                },
+            )
+        }
         SettingsRowDivider()
         SettingsRow(
             icon = Icons.Outlined.Notifications,
@@ -533,24 +539,28 @@ private fun SettingsLandingHub(
     }
 
     SettingsSectionCard(label = stringResource(Res.string.settings_section_preferences)) {
-        SettingsRow(
-            icon = Icons.Outlined.Straighten,
-            label = stringResource(Res.string.settings_row_measurement_units),
-            onClick = { onAction(SettingsAction.OnMeasurementUnitClick) },
-            trailing = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    SettingsRowValue(
-                        text = stringResource(
-                            when (state.measurementUnit) {
-                                MeasurementUnit.INCHES -> Res.string.settings_row_measurement_units_inches
-                                MeasurementUnit.CM -> Res.string.settings_row_measurement_units_centimeters
-                            }
-                        ),
-                    )
-                }
-            },
-        )
-        SettingsRowDivider()
+        // Measurement units + receipt image style are workshop-wide settings the OWNER
+        // controls — hidden for active staff (they inherit the owner's choices).
+        if (!state.isActiveStaff) {
+            SettingsRow(
+                icon = Icons.Outlined.Straighten,
+                label = stringResource(Res.string.settings_row_measurement_units),
+                onClick = { onAction(SettingsAction.OnMeasurementUnitClick) },
+                trailing = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        SettingsRowValue(
+                            text = stringResource(
+                                when (state.measurementUnit) {
+                                    MeasurementUnit.INCHES -> Res.string.settings_row_measurement_units_inches
+                                    MeasurementUnit.CM -> Res.string.settings_row_measurement_units_centimeters
+                                }
+                            ),
+                        )
+                    }
+                },
+            )
+            SettingsRowDivider()
+        }
         SettingsRow(
             icon = Icons.Outlined.Brightness6,
             label = stringResource(Res.string.settings_row_appearance),
@@ -567,15 +577,17 @@ private fun SettingsLandingHub(
                 )
             },
         )
-        SettingsRowDivider()
-        SettingsRow(
-            icon = Icons.Outlined.Image,
-            label = stringResource(Res.string.settings_row_receipt_image),
-            onClick = { onAction(SettingsAction.OnReceiptImageStyleClick) },
-            trailing = {
-                SettingsRowValue(text = receiptImageStyleLabel(state.receiptImageStyle))
-            },
-        )
+        if (!state.isActiveStaff) {
+            SettingsRowDivider()
+            SettingsRow(
+                icon = Icons.Outlined.Image,
+                label = stringResource(Res.string.settings_row_receipt_image),
+                onClick = { onAction(SettingsAction.OnReceiptImageStyleClick) },
+                trailing = {
+                    SettingsRowValue(text = receiptImageStyleLabel(state.receiptImageStyle))
+                },
+            )
+        }
         SettingsRowDivider()
         SettingsRow(
             icon = Icons.Outlined.Notifications,
