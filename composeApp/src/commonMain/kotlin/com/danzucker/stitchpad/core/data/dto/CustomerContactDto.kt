@@ -12,14 +12,19 @@ import kotlinx.serialization.Serializable
  * doc keeps only name + slot fields (which staff need to do the work), and this
  * sub-doc holds the contact so Firestore rules can deny staff read access.
  *
- * During the dual-write window (Slice 2) the base [CustomerDto] still carries
- * these fields for backward compatibility with older app versions; the owner app
- * keeps reading them from the base doc. This sub-doc is written in parallel so a
- * later slice can flip reads here and strip the base fields behind a minimum
- * app-version floor.
+ * During the dual-write window the base [CustomerDto] still carries these fields
+ * for backward compatibility with older app versions. Slice 8a flipped the owner's
+ * read onto this sub-doc (see [ownerId]); the base fields stay until a later slice
+ * strips them behind a minimum app-version floor.
  */
 @Serializable
 data class CustomerContactDto(
+    // Slice 8a: [ownerId] (the workshop owner's uid) lets the owner read contact
+    // for the whole list in one `collectionGroup("private")` query filtered by
+    // `ownerId == uid`; [customerId] carries the parent id so results join back
+    // onto each customer without walking the document's parent chain.
+    val ownerId: String = "",
+    val customerId: String = "",
     val phone: String = "",
     val email: String? = null,
     val address: String? = null,

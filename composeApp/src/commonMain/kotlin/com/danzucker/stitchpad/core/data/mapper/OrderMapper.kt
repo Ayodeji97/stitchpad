@@ -122,8 +122,14 @@ fun Order.toOrderDto(): OrderDto {
  * Carries the full money set — `{ totalPrice, discount, discountReason, payments,
  * costs, itemPrices }` — every [Order] money getter derives from. `itemPrices`
  * relocates each item's `price` keyed by item id (see [OrderMoneyDto]).
+ *
+ * [ownerId] is the workshop owner's uid; it (plus [Order.id] as `orderId`) lets
+ * the owner read money for the whole list via one `collectionGroup("private")`
+ * query — see [withMoney].
  */
-fun Order.toOrderMoneyDto(): OrderMoneyDto = OrderMoneyDto(
+fun Order.toOrderMoneyDto(ownerId: String): OrderMoneyDto = OrderMoneyDto(
+    ownerId = ownerId,
+    orderId = id,
     totalPrice = totalPrice,
     discount = discount,
     discountReason = discountReason,
@@ -131,6 +137,34 @@ fun Order.toOrderMoneyDto(): OrderMoneyDto = OrderMoneyDto(
     costs = costs.map { it.toOrderCostDto() },
     itemPrices = items.associate { it.id to it.price },
 )
+
+/**
+ * Slice 8a: fold the owner-only money sub-doc back onto a base [Order]. The owner
+ * reads money from `/private/money` instead of the base doc; when a COMPLETE
+ * sub-doc is present it is the source of truth for every money field (and each
+ * item's `price` is restored from [OrderMoneyDto.itemPrices] by item id).
+ *
+ * `ownerId` is the completeness sentinel: it is stamped only by a FULL write
+ * ([toOrderMoneyDto] via createOrder/updateOrder) or the backfill. A sub-doc that
+ * is absent (null), unstamped (pre-8a Slice-2 doc, complete but no ownerId), or
+ * created by a partial payment/cost mirror (incomplete — recordPayment/updateCosts
+ * deliberately do NOT stamp ownerId) therefore falls back to the base doc, which
+ * still carries the full money during the dual-write window. Without this guard, an
+ * incomplete partial sub-doc would zero out totalPrice/discount/costs on read.
+ */
+fun Order.withMoney(money: OrderMoneyDto?): Order {
+    if (money == null || money.ownerId.isBlank()) return this
+    return copy(
+        totalPrice = money.totalPrice,
+        discount = money.discount,
+        discountReason = money.discountReason,
+        payments = money.payments.map { it.toPayment() },
+        costs = money.costs.map { it.toOrderCost() },
+        items = items.map { item ->
+            money.itemPrices[item.id]?.let { item.copy(price = it) } ?: item
+        },
+    )
+}
 
 fun PaymentDto.toPayment(): Payment = Payment(
     id = id,

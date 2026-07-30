@@ -422,6 +422,24 @@ service cloud.firestore {
       }
     }
 
+    // ── Collection-group read of owner-only /private sub-docs (Slice 8a) ────
+    // The owner reads money (orders) + contact (customers) for whole LISTS via a
+    // single `collectionGroup("private")` query, filtered by the `ownerId` field.
+    // The nested `.../orders/{oid}/private/{doc}` and `.../customers/{cid}/private/{doc}`
+    // rules authorize direct get/write, but NOT a collection-group query (which
+    // spans every owner's paths, so a path-scoped isOwner rule can't authorize it —
+    // Firestore rejects it with "No matching allow statements"). This rule authorizes
+    // the query by scoping it to the caller's own docs via `ownerId`: Firestore only
+    // allows a collection-group read when it is constrained to
+    // `where ownerId == request.auth.uid`, and only returns docs whose `ownerId`
+    // matches — so an owner sees exactly their own money/contact, and staff / other
+    // owners are denied (their uid never equals another owner's `ownerId`), keeping
+    // the money + contact wall intact. Read-only; writes stay governed by the nested
+    // isOwner rules above.
+    match /{path=**}/private/{doc} {
+      allow read: if request.auth != null && resource.data.ownerId == request.auth.uid;
+    }
+
     // ── /appleSubscriptions/{originalTransactionId} — server-only index ────
     // Reverse index mapping an Apple subscription's originalTransactionId to the
     // Firebase uid that owns it. Written by the Apple IAP functions (Admin SDK)
