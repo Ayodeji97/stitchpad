@@ -93,6 +93,19 @@ class SettingsViewModel(
 
     private val uiState = MutableStateFlow(LocalUiState())
 
+    // Slice 7: the owner-only "Team" row shows when the session is an owner. Combined
+    // into the state (not the cold upstream) so role resolves independently of the
+    // Firestore listeners. Owner-of-self (pre-hydration) reads as owner — worst case
+    // a staff member briefly sees the row before their claim resolves, then it hides.
+    private val isOwnerFlow: StateFlow<Boolean> =
+        activeWorkshopProvider.flow
+            .map { it.isOwner }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000L),
+                initialValue = true,
+            )
+
     init {
         // Mirror the resolved workshop session into local UI state so the whole
         // Settings surface reacts to a staff/owner role change: an active-staff
@@ -138,8 +151,8 @@ class SettingsViewModel(
      * full lifetime. [hubEnabledFlow] is combined in separately so the layout
      * flag survives that resubscribe without flashing.
      */
-    val state = combine(settingsStateFlow(), hubEnabledFlow) { settings, hubEnabled ->
-        settings.copy(settingsHubEnabled = hubEnabled)
+    val state = combine(settingsStateFlow(), hubEnabledFlow, isOwnerFlow) { settings, hubEnabled, isOwner ->
+        settings.copy(settingsHubEnabled = hubEnabled, isOwner = isOwner)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),
@@ -157,6 +170,7 @@ class SettingsViewModel(
             SettingsAction.OnEmailRowClick -> emit(SettingsEvent.NavigateToChangeEmail)
             SettingsAction.OnChangePasswordClick -> emit(SettingsEvent.NavigateToChangePassword)
             SettingsAction.OnReferralCodeClick -> emit(SettingsEvent.NavigateToReferralCode)
+            SettingsAction.OnTeamClick -> emit(SettingsEvent.NavigateToTeam)
             SettingsAction.OnSignOutRowClick -> uiState.update { it.copy(showSignOutDialog = true) }
             SettingsAction.OnSignOutDismiss -> uiState.update { it.copy(showSignOutDialog = false) }
             SettingsAction.OnSignOutConfirm -> signOut()

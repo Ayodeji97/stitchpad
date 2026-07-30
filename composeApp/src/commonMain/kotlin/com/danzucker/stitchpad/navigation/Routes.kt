@@ -53,6 +53,13 @@ data class RedeemInviteRoute(val declined: Boolean = false)
 @Serializable
 data class StaffPendingRoute(val workshopName: String? = null, val fromRedeem: Boolean = false)
 
+/**
+ * Owner-side team management (Slice 7) — invite a teammate, approve/decline pending
+ * requests, and revoke active staff. Reached from Settings, owner-only.
+ */
+@Serializable
+data object TeamRoute
+
 @Serializable
 data object HomeRoute
 

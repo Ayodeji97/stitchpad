@@ -111,6 +111,8 @@ import stitchpad.composeapp.generated.resources.settings_row_privacy
 import stitchpad.composeapp.generated.resources.settings_row_receipt_image
 import stitchpad.composeapp.generated.resources.settings_row_sign_out
 import stitchpad.composeapp.generated.resources.settings_row_signin_method
+import stitchpad.composeapp.generated.resources.settings_row_team
+import stitchpad.composeapp.generated.resources.settings_row_team_subtitle
 import stitchpad.composeapp.generated.resources.settings_row_terms
 import stitchpad.composeapp.generated.resources.settings_row_tutorials
 import stitchpad.composeapp.generated.resources.settings_row_tutorials_subtitle
@@ -239,6 +241,16 @@ private fun SettingsLandingLegacy(
     // Business section (invite, referral, gifting) is owner-only — hidden for staff.
     if (!state.isActiveStaff) {
         SettingsSectionCard(label = stringResource(Res.string.settings_section_business)) {
+            // Slice 7: owner-only Team management (invite staff, approve/revoke access).
+            if (state.isOwner) {
+                SettingsRow(
+                    icon = Icons.Outlined.Groups,
+                    label = stringResource(Res.string.settings_row_team),
+                    subtitle = stringResource(Res.string.settings_row_team_subtitle),
+                    onClick = { onAction(SettingsAction.OnTeamClick) },
+                    trailing = { SettingsRowChevron() },
+                )
+            }
             SettingsRow(
                 icon = Icons.Outlined.PersonAddAlt,
                 label = stringResource(Res.string.settings_row_invite),
@@ -600,6 +612,17 @@ private fun SettingsLandingHub(
             onClick = { onAction(SettingsAction.OnAccountSecurityClick) },
             trailing = { SettingsRowChevron() },
         )
+        // Slice 7: owner-only Team management.
+        if (state.isOwner) {
+            SettingsRowDivider()
+            SettingsRow(
+                icon = Icons.Outlined.Groups,
+                label = stringResource(Res.string.settings_row_team),
+                subtitle = stringResource(Res.string.settings_row_team_subtitle),
+                onClick = { onAction(SettingsAction.OnTeamClick) },
+                trailing = { SettingsRowChevron() },
+            )
+        }
         // Invite & rewards (referrals) is owner-only — hidden for active staff.
         if (!state.isActiveStaff) {
             SettingsRowDivider()

@@ -9,6 +9,9 @@ sealed interface SettingsAction {
     data object OnEmailRowClick : SettingsAction
     data object OnChangePasswordClick : SettingsAction
     data object OnReferralCodeClick : SettingsAction
+
+    /** Slice 7: owner opens the Team management screen. */
+    data object OnTeamClick : SettingsAction
     data object OnSignOutRowClick : SettingsAction
     data object OnSignOutConfirm : SettingsAction
     data object OnSignOutDismiss : SettingsAction

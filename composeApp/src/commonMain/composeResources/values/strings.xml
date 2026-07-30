@@ -69,6 +69,9 @@
     <string name="workshop_business_name_placeholder">e.g. Ade Fashions</string>
     <string name="workshop_continue_button">Continue</string>
     <string name="workshop_skip">Skip for now</string>
+    <string name="workshop_join_card_title">Invited to join a workshop?</string>
+    <string name="workshop_join_card_subtitle">Enter the code your owner shared.</string>
+    <string name="workshop_join_card_cta">Enter code</string>
 
     <!-- Splash -->
     <string name="splash_tagline">Your tailor's notebook</string>
@@ -1359,6 +1362,8 @@
     <string name="settings_section_business">Business</string>
     <string name="settings_section_support">Support</string>
     <string name="settings_row_invite">Invite a tailor</string>
+    <string name="settings_row_team">Team</string>
+    <string name="settings_row_team_subtitle">Invite staff and manage who can access your workshop</string>
     <string name="settings_row_invite_subtitle">Grow your network</string>
     <string name="referral_code_settings_row">Have a referral code?</string>
     <string name="referral_code_settings_subtitle">Enter a code from whoever referred you</string>
@@ -1835,6 +1840,40 @@
     <string name="reports_profit_coverage_remaining">Add costs to %1$d more to see your full profit</string>
     <string name="reports_profit_coverage_all">All %1$d orders costed — this is your full profit</string>
     <string name="reports_profit_empty">Add costs to an order to see profit</string>
+
+    <!-- Owner team management (Slice 7) -->
+    <string name="team_title">Team</string>
+    <string name="team_back_cd">Back</string>
+    <string name="team_seats_label">Workshop seats</string>
+    <string name="team_seats_used">%1$d of %2$d seats used</string>
+    <string name="team_seats_note">Staff help run production. They see the work, but never money or customer contact.</string>
+    <string name="team_seats_full_note">All seats are in use. Remove a teammate to invite someone else.</string>
+    <string name="team_invite_cta">Invite a teammate</string>
+    <string name="team_invite_first_cta">Invite your first teammate</string>
+    <string name="team_seats_full_hint">Both seats are used. Revoke a teammate below to free a seat.</string>
+    <string name="team_seats_plan_hint">Up to %1$d seats on your plan.</string>
+    <string name="team_pending_header">Pending request</string>
+    <string name="team_active_header">Active</string>
+    <string name="team_active_header_count">Active · %1$d</string>
+    <string name="team_role_staff">Staff</string>
+    <string name="team_approve">Approve</string>
+    <string name="team_decline">Decline</string>
+    <string name="team_member_menu_cd">Member options</string>
+    <string name="team_revoke">Revoke access</string>
+    <string name="team_empty_title">Build your team</string>
+    <string name="team_empty_body">Invite a teammate to help with production. They see the work, never money or customer contact.</string>
+    <string name="team_invite_sheet_title">Invite a teammate</string>
+    <string name="team_invite_sheet_sub">Share this code or link. They enter it in StitchPad to request access, then you approve them here.</string>
+    <string name="team_invite_expires_days">Expires in %1$d days</string>
+    <string name="team_invite_expires_tomorrow">Expires tomorrow</string>
+    <string name="team_invite_copy_code">Copy code</string>
+    <string name="team_invite_share_link">Share link</string>
+    <string name="team_invite_copied">Invite code copied</string>
+    <string name="team_invite_whatsapp_message">Join my workshop on StitchPad. Tap to request access: %1$s</string>
+    <string name="team_revoke_dialog_title">Remove this teammate?</string>
+    <string name="team_revoke_dialog_body">%1$s will lose access to your workshop right away. You can invite them again later.</string>
+    <string name="team_revoke_dialog_confirm">Remove</string>
+    <string name="team_revoke_dialog_cancel">Cancel</string>
 
     <!-- Staff onboarding (Owner + Staff feature) -->
     <string name="staff_sign_out">Sign out</string>

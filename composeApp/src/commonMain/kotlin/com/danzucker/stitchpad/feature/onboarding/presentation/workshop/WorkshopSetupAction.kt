@@ -7,6 +7,9 @@ sealed interface WorkshopSetupAction {
     data object OnWhatsAppNumberBlur : WorkshopSetupAction
     data object OnContinueClick : WorkshopSetupAction
     data object OnSkipClick : WorkshopSetupAction
+
+    /** Slice 7: "joining as staff" fork — go to the invite-code redeem screen. */
+    data object OnJoinWorkshopClick : WorkshopSetupAction
     data class OnLogoPicked(val bytes: ByteArray) : WorkshopSetupAction
     data object OnLogoRetry : WorkshopSetupAction
 
