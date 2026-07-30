@@ -244,11 +244,21 @@ service cloud.firestore {
         // the base doc still carries phone/email/address; the field-absence guard
         // makes staff read auto-enable per-doc exactly when the strip lands, so a
         // member can never see contact by reading the base doc. Owner reads always.
-        allow read: if isOwner(uid)
+        //
+        // GET vs LIST: the field-absence guard on `resource.data` only reliably gates
+        // single-doc GETs — Firestore security rules are NOT query filters, so a member
+        // LIST of the collection is NOT blocked per-doc and would stream contact-bearing
+        // base docs over the wire during the dual-write window (verified in smoke). So
+        // members are denied LIST until Slice 8 strips contact from the base docs; then
+        // flip `allow list` to `isOwner(uid) || isActiveMember(uid)` (docs are clean, no
+        // field guard needed). GET keeps the field-absence guard (works, and lets a
+        // member fetch an already-stripped doc). Owner lists always.
+        allow get: if isOwner(uid)
           || (isActiveMember(uid)
               && !('phone' in resource.data)
               && !('email' in resource.data)
               && !('address' in resource.data));
+        allow list: if isOwner(uid);
         allow create: if activityCreateOk();
         allow update: if isOwner(uid) && serverCreatedAtProtectedOnUpdate() && activityCreatedAtStableOnUpdate();
         allow delete: if isOwner(uid);
@@ -292,13 +302,21 @@ service cloud.firestore {
         // money during the dual-write window. The top-level money fields are the
         // strip sentinel — Slice 8 removes them together with items[].price, so
         // their absence guarantees the whole doc (incl. per-item price) is safe.
-        allow read: if isOwner(uid)
+        //
+        // GET vs LIST: same as customers above — the field-absence guard only reliably
+        // gates single-doc GETs; a member LIST is not filtered per-doc and would stream
+        // money-bearing base docs over the wire (verified in smoke: the staff dashboard
+        // observeOrders LIST returned the owner's totalPrice/payments/costs). So members
+        // are denied LIST until Slice 8 strips money from the base docs, then flip
+        // `allow list` to `isOwner(uid) || isActiveMember(uid)`. GET keeps the guard.
+        allow get: if isOwner(uid)
           || (isActiveMember(uid)
               && !('totalPrice' in resource.data)
               && !('discount' in resource.data)
               && !('discountReason' in resource.data)
               && !('payments' in resource.data)
               && !('costs' in resource.data));
+        allow list: if isOwner(uid);
         allow create: if activityCreateOk();
         // Owner: full update. Active staff: may ONLY advance production status —
         // status/subStatus/statusHistory/updatedAt — never money, customer, or
