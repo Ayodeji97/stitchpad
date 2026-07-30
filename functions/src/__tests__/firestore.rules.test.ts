@@ -7,10 +7,12 @@ import {
   RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import {
+  collection,
   deleteDoc,
   deleteField,
   doc,
   getDoc,
+  getDocs,
   serverTimestamp,
   setDoc,
   Timestamp,
@@ -763,6 +765,34 @@ describe('active staff member access', () => {
     // The field-absence gate blocks staff until Slice 8 strips these fields.
     await assertFails(getDoc(doc(staffDb('chidi', 'alice'), 'users/alice/customers/withPhone')));
     await assertFails(getDoc(doc(staffDb('chidi', 'alice'), 'users/alice/orders/withMoney')));
+  });
+
+  // Regression guard for the money/contact-wall LIST leak (2026-07-30 smoke): the
+  // field-absence guard only gates single-doc GETs — Firestore rules are NOT query
+  // filters, so a member LIST of the collection is not evaluated per-doc and would
+  // stream money/contact-bearing base docs over the wire during the dual-write
+  // window (the staff dashboard's observeOrders LIST did exactly this in prod). So
+  // `allow list` is owner-only until Slice 8 strips the base docs. GET keeps the gate.
+  it('cannot LIST the orders or customers collections (the GET-gate does not cover list)', async () => {
+    await asAdmin(async (admin) => {
+      // A dual-write-window doc: money/contact still on the base. A member LIST must
+      // not stream it — even though the collection also holds stripped docs.
+      await setDoc(doc(admin, 'users/alice/orders/withMoney'), { status: 'PENDING', totalPrice: 5000 });
+      await setDoc(doc(admin, 'users/alice/customers/withPhone'), { name: 'Bola', phone: '+234' });
+    });
+    await assertFails(getDocs(collection(staffDb('chidi', 'alice'), 'users/alice/orders')));
+    await assertFails(getDocs(collection(staffDb('chidi', 'alice'), 'users/alice/customers')));
+  });
+
+  it('owner can still LIST their own orders and customers (no regression)', async () => {
+    await assertSucceeds(getDocs(collection(db('alice'), 'users/alice/orders')));
+    await assertSucceeds(getDocs(collection(db('alice'), 'users/alice/customers')));
+  });
+
+  it('may still LIST measurements (needed to sew — measurement access is unchanged)', async () => {
+    await assertSucceeds(
+      getDocs(collection(staffDb('chidi', 'alice'), 'users/alice/customers/c1/measurements')),
+    );
   });
 
   it('is denied the /private money and contact sub-docs (the wall)', async () => {
