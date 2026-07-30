@@ -9,6 +9,9 @@ sealed interface SettingsEvent {
     data object NavigateToChangeEmail : SettingsEvent
     data object NavigateToChangePassword : SettingsEvent
     data object NavigateToReferralCode : SettingsEvent
+
+    /** Slice 7: navigate to owner Team management. */
+    data object NavigateToTeam : SettingsEvent
     data object NavigateToDeleteAccount : SettingsEvent
     data object NavigateToLoginAfterSignOut : SettingsEvent
     data object NavigateToDebugMenu : SettingsEvent

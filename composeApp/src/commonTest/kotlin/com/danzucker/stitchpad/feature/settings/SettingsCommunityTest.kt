@@ -1,4 +1,5 @@
 package com.danzucker.stitchpad.feature.settings
+import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
 
 import app.cash.turbine.test
 import com.danzucker.stitchpad.core.config.FakeAppConfigRepository
@@ -155,6 +156,7 @@ class SettingsCommunityTest {
             appConfigRepository = appConfigRepository,
             communityJoinTracker = communityJoinTracker,
             dismissal = dismissal,
+            activeWorkshopProvider = FakeActiveWorkshopProvider(),
         )
     }
 }

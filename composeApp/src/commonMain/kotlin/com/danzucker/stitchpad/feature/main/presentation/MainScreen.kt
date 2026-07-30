@@ -63,6 +63,7 @@ import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsRoot
 import com.danzucker.stitchpad.feature.settings.presentation.inviterewards.SettingsInviteRewardsRoot
 import com.danzucker.stitchpad.feature.settings.presentation.legalabout.SettingsLegalAboutRoot
 import com.danzucker.stitchpad.feature.smart.presentation.draft.DraftMessageRoot
+import com.danzucker.stitchpad.feature.staff.presentation.team.TeamRoot
 import com.danzucker.stitchpad.feature.style.presentation.folders.StyleFoldersRoot
 import com.danzucker.stitchpad.feature.style.presentation.form.StyleFormRoot
 import com.danzucker.stitchpad.feature.style.presentation.gallery.StyleGalleryRoot
@@ -102,6 +103,7 @@ import com.danzucker.stitchpad.navigation.ShareGiftLinkRoute
 import com.danzucker.stitchpad.navigation.StyleFoldersRoute
 import com.danzucker.stitchpad.navigation.StyleFormRoute
 import com.danzucker.stitchpad.navigation.StyleGalleryRoute
+import com.danzucker.stitchpad.navigation.TeamRoute
 import com.danzucker.stitchpad.navigation.ToCollectRoute
 import com.danzucker.stitchpad.navigation.TutorialPlayerRoute
 import com.danzucker.stitchpad.navigation.UpgradeRoute
@@ -674,6 +676,7 @@ private fun MainNavGraph(
                 onNavigateToChangeEmail = { navController.navigate(ChangeEmailRoute) },
                 onNavigateToChangePassword = { navController.navigate(ChangePasswordRoute) },
                 onNavigateToReferralCode = { navController.navigate(ReferralCodeRoute) },
+                onNavigateToTeam = { navController.navigate(TeamRoute) },
                 onNavigateToDeleteAccount = { navController.navigate(DeleteAccountRoute) },
                 onSignedOut = onSignedOut,
                 onNavigateToDebugMenu = onNavigateToDebugMenu,
@@ -695,6 +698,10 @@ private fun MainNavGraph(
                 onNavigateToChangePassword = { navController.navigate(ChangePasswordRoute) },
                 onSignedOut = onSignedOut,
             )
+        }
+        // Slice 7: owner Team management, reached from Settings.
+        composable<TeamRoute> {
+            TeamRoot(onNavigateBack = { navController.navigateUp() })
         }
         composable<SettingsInviteRewardsRoute> {
             SettingsInviteRewardsRoot(

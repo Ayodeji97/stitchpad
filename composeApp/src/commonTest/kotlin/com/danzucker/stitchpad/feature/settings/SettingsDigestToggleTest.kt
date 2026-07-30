@@ -1,4 +1,5 @@
 package com.danzucker.stitchpad.feature.settings
+import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
 
 import com.danzucker.stitchpad.core.data.staff.FakeStaffMembershipPrefsStore
 import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
@@ -223,6 +224,7 @@ private fun buildSettingsVmForDigest(
         appConfigRepository = FakeAppConfigRepository(),
         communityJoinTracker = FakeCommunityJoinTracker(),
         dismissal = CommunityBannerDismissal(FakeOnboardingPreferences()),
+        activeWorkshopProvider = FakeActiveWorkshopProvider(),
     )
     return vm to userRepo
 }

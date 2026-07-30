@@ -396,7 +396,9 @@ fun StitchPadNavHost(
                     navController.navigate(WelcomeRoute) {
                         popUpTo<WorkshopSetupRoute> { inclusive = true }
                     }
-                }
+                },
+                // Slice 7: "joining as staff" fork -> the invite-code redeem screen.
+                onNavigateToJoinWorkshop = { navController.navigate(RedeemInviteRoute()) },
             )
         }
         composable<RedeemInviteRoute> { entry ->

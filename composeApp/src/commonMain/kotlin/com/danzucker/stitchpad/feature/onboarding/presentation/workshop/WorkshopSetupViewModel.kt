@@ -95,6 +95,8 @@ class WorkshopSetupViewModel(
                 if (_state.value.whatsappNumber.isNotBlank()) validateWhatsAppNumber()
             WorkshopSetupAction.OnContinueClick -> onContinue()
             WorkshopSetupAction.OnSkipClick -> onSkip()
+            WorkshopSetupAction.OnJoinWorkshopClick ->
+                viewModelScope.launch { _events.send(WorkshopSetupEvent.NavigateToJoinWorkshop) }
             is WorkshopSetupAction.OnLogoPicked -> onLogoPicked(action.bytes)
             WorkshopSetupAction.OnLogoRetry -> onLogoRetry()
             WorkshopSetupAction.OnConfirmWhatsAppClick -> onConfirmWhatsAppClick()

@@ -53,6 +53,8 @@ data class SettingsState(
     val communityEnabled: Boolean = false,
     val communityUrl: String? = null,
     val settingsHubEnabled: Boolean = false,
+    // Slice 7: true for an owner session; drives the owner-only "Team" row.
+    val isOwner: Boolean = false,
 ) {
 
     /** Settings community row shows only when remotely enabled with a usable link. */

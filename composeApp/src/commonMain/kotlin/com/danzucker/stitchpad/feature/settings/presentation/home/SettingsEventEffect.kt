@@ -22,6 +22,7 @@ fun SettingsEventEffect(
     onNavigateToChangeEmail: () -> Unit = {},
     onNavigateToChangePassword: () -> Unit = {},
     onNavigateToReferralCode: () -> Unit = {},
+    onNavigateToTeam: () -> Unit = {},
     onNavigateToDeleteAccount: () -> Unit = {},
     onSignedOut: () -> Unit = {},
     onNavigateToDebugMenu: () -> Unit = {},
@@ -45,6 +46,7 @@ fun SettingsEventEffect(
             SettingsEvent.NavigateToChangeEmail -> onNavigateToChangeEmail()
             SettingsEvent.NavigateToChangePassword -> onNavigateToChangePassword()
             SettingsEvent.NavigateToReferralCode -> onNavigateToReferralCode()
+            SettingsEvent.NavigateToTeam -> onNavigateToTeam()
             SettingsEvent.NavigateToDeleteAccount -> onNavigateToDeleteAccount()
             SettingsEvent.NavigateToLoginAfterSignOut -> onSignedOut()
             SettingsEvent.NavigateToDebugMenu -> onNavigateToDebugMenu()

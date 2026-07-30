@@ -88,6 +88,7 @@ import stitchpad.composeapp.generated.resources.workshop_business_name_helper
 import stitchpad.composeapp.generated.resources.workshop_business_name_label
 import stitchpad.composeapp.generated.resources.workshop_business_name_placeholder
 import stitchpad.composeapp.generated.resources.workshop_continue_button
+import stitchpad.composeapp.generated.resources.workshop_join_instead
 import stitchpad.composeapp.generated.resources.workshop_logo_finishing
 import stitchpad.composeapp.generated.resources.workshop_logo_label
 import stitchpad.composeapp.generated.resources.workshop_logo_optional
@@ -107,6 +108,7 @@ import stitchpad.composeapp.generated.resources.workshop_whatsapp_placeholder
 fun WorkshopSetupRoot(
     onNavigateToHome: () -> Unit,
     onNavigateToLogin: () -> Unit,
+    onNavigateToJoinWorkshop: () -> Unit = {},
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     viewModel: WorkshopSetupViewModel = koinViewModel(),
 ) {
@@ -126,6 +128,7 @@ fun WorkshopSetupRoot(
         when (event) {
             WorkshopSetupEvent.NavigateToHome -> onNavigateToHome()
             WorkshopSetupEvent.NavigateToLogin -> onNavigateToLogin()
+            WorkshopSetupEvent.NavigateToJoinWorkshop -> onNavigateToJoinWorkshop()
             is WorkshopSetupEvent.ShowError -> showMessage(event.message)
             is WorkshopSetupEvent.ShowSnackbar -> showMessage(event.message)
             is WorkshopSetupEvent.LaunchWhatsAppConfirm -> scope.launch {
@@ -421,6 +424,21 @@ fun WorkshopSetupScreen(
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = LocalStitchPadColors.current.brandAccent,
+                        ),
+                    )
+                }
+
+                // 8. "Joining as staff?" fork (Slice 7) — go to the invite-code redeem screen.
+                TextButton(
+                    onClick = { onAction(WorkshopSetupAction.OnJoinWorkshopClick) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text = stringResource(Res.string.workshop_join_instead),
+                        style = TextStyle(
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         ),
                     )
                 }
