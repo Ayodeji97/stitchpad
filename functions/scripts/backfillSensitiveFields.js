@@ -38,6 +38,7 @@
 const admin = require('firebase-admin');
 
 const BATCH_LIMIT = 400;
+const USER_PAGE_SIZE = 200;
 
 // Lockstep with migrateSensitiveFields.ts buildContactDoc.
 function buildContactDoc(customer, ownerId, customerId) {
@@ -87,35 +88,48 @@ async function main() {
   admin.initializeApp({ projectId: process.env.GOOGLE_CLOUD_PROJECT });
   const db = admin.firestore();
 
-  const usersSnap = await db.collection('users').get();
-
   let users = 0;
   let contactsWritten = 0;
   let moneyWritten = 0;
 
-  for (const userDoc of usersSnap.docs) {
-    users += 1;
-    const uid = userDoc.id;
+  // Page the users query so a large production users collection can't exhaust
+  // memory / hit RPC limits by materialising every user at once — matches the
+  // paging in migrateSensitiveFieldsHandler.
+  let cursor = null;
+  for (;;) {
+    let query = db
+      .collection('users')
+      .orderBy(admin.firestore.FieldPath.documentId())
+      .limit(USER_PAGE_SIZE);
+    if (cursor) query = query.startAfter(cursor);
+    const page = await query.get();
+    if (page.empty) break;
 
-    const customersSnap = await db.collection(`users/${uid}/customers`).get();
-    const contactWrites = customersSnap.docs.map((d) => ({
-      ref: db.doc(`users/${uid}/customers/${d.id}/private/contact`),
-      data: buildContactDoc(d.data(), uid, d.id),
-    }));
-    contactsWritten += contactWrites.length;
-    if (commit && contactWrites.length > 0) {
-      await commitBatched(db, contactWrites);
-    }
+    for (const userDoc of page.docs) {
+      users += 1;
+      const uid = userDoc.id;
 
-    const ordersSnap = await db.collection(`users/${uid}/orders`).get();
-    const moneyWrites = ordersSnap.docs.map((d) => ({
-      ref: db.doc(`users/${uid}/orders/${d.id}/private/money`),
-      data: buildMoneyDoc(d.data(), uid, d.id),
-    }));
-    moneyWritten += moneyWrites.length;
-    if (commit && moneyWrites.length > 0) {
-      await commitBatched(db, moneyWrites);
+      const customersSnap = await db.collection(`users/${uid}/customers`).get();
+      const contactWrites = customersSnap.docs.map((d) => ({
+        ref: db.doc(`users/${uid}/customers/${d.id}/private/contact`),
+        data: buildContactDoc(d.data(), uid, d.id),
+      }));
+      contactsWritten += contactWrites.length;
+      if (commit && contactWrites.length > 0) {
+        await commitBatched(db, contactWrites);
+      }
+
+      const ordersSnap = await db.collection(`users/${uid}/orders`).get();
+      const moneyWrites = ordersSnap.docs.map((d) => ({
+        ref: db.doc(`users/${uid}/orders/${d.id}/private/money`),
+        data: buildMoneyDoc(d.data(), uid, d.id),
+      }));
+      moneyWritten += moneyWrites.length;
+      if (commit && moneyWrites.length > 0) {
+        await commitBatched(db, moneyWrites);
+      }
     }
+    cursor = page.docs[page.docs.length - 1];
   }
 
   console.log(
