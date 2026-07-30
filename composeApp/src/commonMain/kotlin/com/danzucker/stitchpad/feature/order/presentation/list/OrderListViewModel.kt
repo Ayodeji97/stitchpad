@@ -42,6 +42,7 @@ class OrderListViewModel(
         .onStart {
             if (!hasLoadedInitialData) {
                 hasLoadedInitialData = true
+                observeActiveWorkshop()
                 observeOrders()
                 observeArchivedOrders()
             }
@@ -52,6 +53,7 @@ class OrderListViewModel(
             initialValue = OrderListState()
         )
 
+    @Suppress("CyclomaticComplexMethod", "ReturnCount")
     fun onAction(action: OrderListAction) {
         when (action) {
             is OrderListAction.OnStatusFilterChange -> {
@@ -73,6 +75,9 @@ class OrderListViewModel(
                 }
             }
             OrderListAction.OnAddOrderClick -> {
+                // Slice 6c: staff can't create orders. Defense-in-depth — the FAB
+                // is hidden, and the empty-state add button no-ops here.
+                if (_state.value.isActiveStaff) return
                 viewModelScope.launch {
                     _events.send(
                         if (userHasActiveCustomer()) {
@@ -84,16 +89,35 @@ class OrderListViewModel(
                 }
             }
             is OrderListAction.OnDeleteOrderClick -> {
+                // Slice 6c: staff can't delete orders. Defense-in-depth — swipe-to-delete
+                // is disabled in the UI, and this arms the confirm dialog.
+                if (_state.value.isActiveStaff) return
                 _state.update { it.copy(showDeleteDialog = true, orderToDelete = action.order) }
             }
-            OrderListAction.OnConfirmDelete -> deleteOrder()
+            OrderListAction.OnConfirmDelete -> {
+                if (_state.value.isActiveStaff) return
+                deleteOrder()
+            }
             OrderListAction.OnDismissDeleteDialog -> {
                 _state.update { it.copy(showDeleteDialog = false, orderToDelete = null) }
             }
-            OrderListAction.OnToggleShowProfit ->
+            OrderListAction.OnToggleShowProfit -> {
+                // Slice 6c: profit is money — never expose it to active staff. The
+                // toggle control is hidden for them, but guard here too so the action
+                // is inert even if dispatched.
+                if (_state.value.isActiveStaff) return
                 _state.update { it.copy(showProfit = !it.showProfit) }
+            }
             OrderListAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
+            }
+        }
+    }
+
+    private fun observeActiveWorkshop() {
+        viewModelScope.launch {
+            activeWorkshopProvider.flow.collect { session ->
+                _state.update { it.copy(isActiveStaff = session.isActiveStaff) }
             }
         }
     }

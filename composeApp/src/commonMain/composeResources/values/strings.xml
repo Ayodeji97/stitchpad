@@ -1419,6 +1419,13 @@
     <string name="sign_out_dialog_confirm">Sign out</string>
     <string name="sign_out_dialog_cancel">Cancel</string>
 
+    <!-- Leave workshop (active staff) -->
+    <string name="settings_leave_workshop">Leave this workshop</string>
+    <string name="settings_leave_workshop_dialog_title">Leave this workshop?</string>
+    <string name="settings_leave_workshop_dialog_body">You&apos;ll lose access to this workshop&apos;s customers, measurements, and orders, and be signed out. The owner can invite you again anytime.</string>
+    <string name="settings_leave_workshop_confirm">Leave</string>
+    <string name="settings_leave_workshop_cancel">Cancel</string>
+
     <!-- Sign-in providers -->
     <string name="signin_provider_email">Email</string>
     <string name="signin_provider_apple">Apple</string>

@@ -21,6 +21,7 @@ import com.danzucker.stitchpad.core.domain.preferences.ThemePreferencesStore
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.staff.repository.InviteRedemptionRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageDocSource
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageSnapshot
@@ -47,6 +48,7 @@ import kotlinx.coroutines.launch
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.settings_invite_share_message
 import stitchpad.composeapp.generated.resources.settings_support_intro_message
+import com.danzucker.stitchpad.feature.staff.presentation.toUiText as staffErrorToUiText
 
 private const val SUPPORT_WHATSAPP_NUMBER = "+2348064816696"
 
@@ -64,6 +66,9 @@ private data class LocalUiState(
     val receiptImageStyle: ReceiptImageStyle = ReceiptImageStyle.LIGHT,
     val showSignOutDialog: Boolean = false,
     val isSigningOut: Boolean = false,
+    val isActiveStaff: Boolean = false,
+    val showLeaveWorkshopDialog: Boolean = false,
+    val isLeavingWorkshop: Boolean = false,
 )
 
 @Suppress("LongParameterList")
@@ -83,6 +88,7 @@ class SettingsViewModel(
     private val communityJoinTracker: CommunityJoinTracker,
     private val dismissal: CommunityBannerDismissal,
     private val activeWorkshopProvider: ActiveWorkshopProvider,
+    private val inviteRedemptionRepository: InviteRedemptionRepository,
 ) : ViewModel() {
 
     private val uiState = MutableStateFlow(LocalUiState())
@@ -99,6 +105,17 @@ class SettingsViewModel(
                 started = SharingStarted.WhileSubscribed(5_000L),
                 initialValue = true,
             )
+
+    init {
+        // Mirror the resolved workshop session into local UI state so the whole
+        // Settings surface reacts to a staff/owner role change: an active-staff
+        // session hides owner-only entries and unlocks "Leave this workshop".
+        viewModelScope.launch {
+            activeWorkshopProvider.flow.collect { session ->
+                uiState.update { it.copy(isActiveStaff = session.isActiveStaff) }
+            }
+        }
+    }
 
     private val _events = Channel<SettingsEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
@@ -191,6 +208,11 @@ class SettingsViewModel(
             SettingsAction.OnInviteRewardsClick -> emit(SettingsEvent.NavigateToInviteRewards)
             SettingsAction.OnHelpSupportClick -> emit(SettingsEvent.NavigateToHelpSupport)
             SettingsAction.OnLegalAboutClick -> emit(SettingsEvent.NavigateToLegalAbout)
+            SettingsAction.OnLeaveWorkshopClick ->
+                uiState.update { it.copy(showLeaveWorkshopDialog = true) }
+            SettingsAction.OnDismissLeaveWorkshopDialog ->
+                uiState.update { it.copy(showLeaveWorkshopDialog = false) }
+            SettingsAction.OnConfirmLeaveWorkshop -> leaveWorkshop()
         }
     }
 
@@ -308,6 +330,9 @@ class SettingsViewModel(
             pushReminderSupported = true,
             showSignOutDialog = ui.showSignOutDialog,
             isSigningOut = ui.isSigningOut,
+            isActiveStaff = ui.isActiveStaff,
+            showLeaveWorkshopDialog = ui.showLeaveWorkshopDialog,
+            isLeavingWorkshop = ui.isLeavingWorkshop,
             communityEnabled = appConfig.communityEnabled,
             communityUrl = appConfig.communityInviteUrl,
             // settingsHubEnabled is injected by the outer state combine via
@@ -409,6 +434,42 @@ class SettingsViewModel(
                     AppLogger.e(tag = TAG) { "signOut failed error=${result.error}" }
                     uiState.update { it.copy(isSigningOut = false) }
                     emit(SettingsEvent.ShowSnackbar(result.error.toUiText()))
+                }
+            }
+        }
+    }
+
+    /**
+     * Staff-only "Leave this workshop". Mirrors [StaffPendingViewModel.onLeave]:
+     * cancel the membership server-side FIRST so the owner can never later approve
+     * a membership the staffer already abandoned; only once the server has revoked
+     * it do we sign out (which clears the staff prefs) and route to Welcome so no
+     * stale staff claim lingers. On failure we stay on Settings and surface the error.
+     */
+    private fun leaveWorkshop() {
+        val workshopUid = activeWorkshopProvider.current().workshopUid
+        if (workshopUid.isBlank()) return
+        viewModelScope.launch {
+            uiState.update { it.copy(isLeavingWorkshop = true, showLeaveWorkshopDialog = false) }
+            when (val result = inviteRedemptionRepository.cancelMembership(workshopUid)) {
+                is Result.Success -> {
+                    // signOutUseCase already clears the staff membership prefs. Guard the
+                    // nav on its Result (like signOut()): if sign-out fails we must NOT
+                    // route to Welcome while the session is still active — stay put and
+                    // surface the error so the user can retry. The membership is already
+                    // revoked server-side, so a retry via the normal Sign out row is safe.
+                    when (val signOut = signOutUseCase()) {
+                        is Result.Success -> emit(SettingsEvent.NavigateToLoginAfterSignOut)
+                        is Result.Error -> {
+                            AppLogger.e(tag = TAG) { "leaveWorkshop signOut failed error=${signOut.error}" }
+                            uiState.update { it.copy(isLeavingWorkshop = false) }
+                            emit(SettingsEvent.ShowSnackbar(signOut.error.toUiText()))
+                        }
+                    }
+                }
+                is Result.Error -> {
+                    uiState.update { it.copy(isLeavingWorkshop = false) }
+                    emit(SettingsEvent.ShowSnackbar(result.error.staffErrorToUiText()))
                 }
             }
         }

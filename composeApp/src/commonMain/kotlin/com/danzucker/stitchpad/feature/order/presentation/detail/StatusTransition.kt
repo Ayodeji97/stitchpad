@@ -10,6 +10,21 @@ data class StatusTransition(
 )
 
 /**
+ * Whether advancing to [toStatus] should raise the "balance still owed" warning
+ * before proceeding. Only Ready / Delivered with a positive balance warrants it.
+ *
+ * Active staff never see money (Slice 6c), so the warning — which reads the balance
+ * aloud — is suppressed for them and the transition proceeds directly.
+ */
+internal fun requiresBalanceWarning(
+    isActiveStaff: Boolean,
+    balanceRemaining: Double,
+    toStatus: OrderStatus,
+): Boolean = !isActiveStaff &&
+    balanceRemaining > 0.0 &&
+    (toStatus == OrderStatus.READY || toStatus == OrderStatus.DELIVERED)
+
+/**
  * The full production pipeline, one entry per stage, in forward order. This is
  * the canonical ordering the status sheet renders.
  */

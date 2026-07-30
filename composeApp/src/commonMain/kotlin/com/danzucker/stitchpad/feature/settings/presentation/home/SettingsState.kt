@@ -55,6 +55,14 @@ data class SettingsState(
     val settingsHubEnabled: Boolean = false,
     // Slice 7: true for an owner session; drives the owner-only "Team" row.
     val isOwner: Boolean = false,
+    /**
+     * True only for an approved staff member operating inside an owner's workshop.
+     * Drives the reduced Settings surface (owner-only entries hidden) and the
+     * staff-only "Leave this workshop" action.
+     */
+    val isActiveStaff: Boolean = false,
+    val showLeaveWorkshopDialog: Boolean = false,
+    val isLeavingWorkshop: Boolean = false,
 ) {
 
     /** Settings community row shows only when remotely enabled with a usable link. */

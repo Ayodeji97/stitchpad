@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Chat
+import androidx.compose.material.icons.automirrored.outlined.ExitToApp
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Brightness6
@@ -54,6 +55,7 @@ import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.preferences.ReceiptImageStyle
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreference
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
+import com.danzucker.stitchpad.feature.settings.presentation.account.LeaveWorkshopConfirmDialog
 import com.danzucker.stitchpad.feature.settings.presentation.account.SignOutConfirmDialog
 import com.danzucker.stitchpad.feature.settings.presentation.account.providerSubtitle
 import com.danzucker.stitchpad.feature.settings.presentation.components.PlanCard
@@ -76,6 +78,7 @@ import stitchpad.composeapp.generated.resources.gift_share_settings_subtitle
 import stitchpad.composeapp.generated.resources.referral_code_settings_row
 import stitchpad.composeapp.generated.resources.referral_code_settings_subtitle
 import stitchpad.composeapp.generated.resources.settings_back_cd
+import stitchpad.composeapp.generated.resources.settings_leave_workshop
 import stitchpad.composeapp.generated.resources.settings_receipt_image_dark
 import stitchpad.composeapp.generated.resources.settings_receipt_image_light
 import stitchpad.composeapp.generated.resources.settings_row_account_security
@@ -184,6 +187,13 @@ fun SettingsScreen(
                 onDismiss = { onAction(SettingsAction.OnSignOutDismiss) },
             )
         }
+
+        if (state.showLeaveWorkshopDialog) {
+            LeaveWorkshopConfirmDialog(
+                onConfirm = { onAction(SettingsAction.OnConfirmLeaveWorkshop) },
+                onDismiss = { onAction(SettingsAction.OnDismissLeaveWorkshopDialog) },
+            )
+        }
     }
 }
 
@@ -192,6 +202,7 @@ fun SettingsScreen(
  * (Business, Preferences, Account, Support, Legal) + pinned Delete-account and
  * debug cards. Kept byte-for-byte identical to the pre-hub layout.
  */
+@Suppress("CyclomaticComplexMethod")
 @Composable
 private fun SettingsLandingLegacy(
     state: SettingsState,
@@ -208,63 +219,70 @@ private fun SettingsLandingLegacy(
         planBadgeLabel = state.proBadgeLabel?.let { stringResource(it) },
     )
 
-    Spacer(Modifier.height(DesignTokens.space3))
+    // Plan/subscription + Upgrade CTA are owner-only — an active staff member
+    // operates inside the owner's workshop and can't manage its plan.
+    if (!state.isActiveStaff) {
+        Spacer(Modifier.height(DesignTokens.space3))
 
-    PlanCard(
-        tier = state.subscriptionTier,
-        customerCount = state.customerCount,
-        customerLimit = state.customerLimit,
-        aiDraftsUsed = state.aiDraftsUsed,
-        aiDraftLimit = state.aiDraftLimit,
-        isFirstMonth = state.isFirstMonth,
-        welcomeDaysLeft = state.welcomeDaysLeft,
-        onUpgradeClick = { onAction(SettingsAction.OnUpgradeClick) },
-        modifier = Modifier,
-        subscriptionStatus = state.subscriptionStatus,
-    )
+        PlanCard(
+            tier = state.subscriptionTier,
+            customerCount = state.customerCount,
+            customerLimit = state.customerLimit,
+            aiDraftsUsed = state.aiDraftsUsed,
+            aiDraftLimit = state.aiDraftLimit,
+            isFirstMonth = state.isFirstMonth,
+            welcomeDaysLeft = state.welcomeDaysLeft,
+            onUpgradeClick = { onAction(SettingsAction.OnUpgradeClick) },
+            modifier = Modifier,
+            subscriptionStatus = state.subscriptionStatus,
+        )
+    }
 
-    SettingsSectionCard(label = stringResource(Res.string.settings_section_business)) {
-        // Slice 7: owner-only Team management (invite staff, approve/revoke access).
-        if (state.isOwner) {
+    // Business section (invite, referral, gifting) is owner-only — hidden for staff.
+    if (!state.isActiveStaff) {
+        SettingsSectionCard(label = stringResource(Res.string.settings_section_business)) {
+            // Slice 7: owner-only Team management (invite staff, approve/revoke access).
+            if (state.isOwner) {
+                SettingsRow(
+                    icon = Icons.Outlined.Groups,
+                    label = stringResource(Res.string.settings_row_team),
+                    subtitle = stringResource(Res.string.settings_row_team_subtitle),
+                    onClick = { onAction(SettingsAction.OnTeamClick) },
+                    trailing = { SettingsRowChevron() },
+                )
+            }
             SettingsRow(
-                icon = Icons.Outlined.Groups,
-                label = stringResource(Res.string.settings_row_team),
-                subtitle = stringResource(Res.string.settings_row_team_subtitle),
-                onClick = { onAction(SettingsAction.OnTeamClick) },
-                trailing = { SettingsRowChevron() },
-            )
-        }
-        SettingsRow(
-            icon = Icons.Outlined.PersonAddAlt,
-            label = stringResource(Res.string.settings_row_invite),
-            subtitle = stringResource(Res.string.settings_row_invite_subtitle),
-            onClick = { onAction(SettingsAction.OnInviteClick) },
-            trailing = { SettingsRowChevron() },
-        )
-        SettingsRow(
-            icon = Icons.Outlined.Redeem,
-            label = stringResource(Res.string.referral_code_settings_row),
-            subtitle = stringResource(Res.string.referral_code_settings_subtitle),
-            onClick = { onAction(SettingsAction.OnReferralCodeClick) },
-            trailing = { SettingsRowChevron() },
-        )
-        // Gifting entry points are hidden while payments are paused — see
-        // GIFTING_ENABLED at the top of this file.
-        if (GIFTING_ENABLED) {
-            SettingsRow(
-                icon = Icons.Outlined.CardGiftcard,
-                label = stringResource(Res.string.gift_share_settings_row),
-                subtitle = stringResource(Res.string.gift_share_settings_subtitle),
-                onClick = { onAction(SettingsAction.OnGetGiftedClick) },
+                icon = Icons.Outlined.PersonAddAlt,
+                label = stringResource(Res.string.settings_row_invite),
+                subtitle = stringResource(Res.string.settings_row_invite_subtitle),
+                onClick = { onAction(SettingsAction.OnInviteClick) },
                 trailing = { SettingsRowChevron() },
             )
             SettingsRow(
                 icon = Icons.Outlined.Redeem,
-                label = stringResource(Res.string.gift_redeem_title),
-                subtitle = stringResource(Res.string.gift_redeem_settings_subtitle),
-                onClick = { onAction(SettingsAction.OnRedeemGiftClick) },
+                label = stringResource(Res.string.referral_code_settings_row),
+                subtitle = stringResource(Res.string.referral_code_settings_subtitle),
+                onClick = { onAction(SettingsAction.OnReferralCodeClick) },
                 trailing = { SettingsRowChevron() },
             )
+            // Gifting entry points are hidden while payments are paused — see
+            // GIFTING_ENABLED at the top of this file.
+            if (GIFTING_ENABLED) {
+                SettingsRow(
+                    icon = Icons.Outlined.CardGiftcard,
+                    label = stringResource(Res.string.gift_share_settings_row),
+                    subtitle = stringResource(Res.string.gift_share_settings_subtitle),
+                    onClick = { onAction(SettingsAction.OnGetGiftedClick) },
+                    trailing = { SettingsRowChevron() },
+                )
+                SettingsRow(
+                    icon = Icons.Outlined.Redeem,
+                    label = stringResource(Res.string.gift_redeem_title),
+                    subtitle = stringResource(Res.string.gift_redeem_settings_subtitle),
+                    onClick = { onAction(SettingsAction.OnRedeemGiftClick) },
+                    trailing = { SettingsRowChevron() },
+                )
+            }
         }
     }
 
@@ -372,6 +390,17 @@ private fun SettingsLandingLegacy(
             label = stringResource(Res.string.settings_row_sign_out),
             onClick = { onAction(SettingsAction.OnSignOutRowClick) },
         )
+        // Staff-only: leave the owner's workshop. Sits with Sign out because both
+        // end the current session; it's destructive so it routes through a dialog.
+        if (state.isActiveStaff) {
+            SettingsRowDivider()
+            SettingsRow(
+                icon = Icons.AutoMirrored.Outlined.ExitToApp,
+                label = stringResource(Res.string.settings_leave_workshop),
+                onClick = { onAction(SettingsAction.OnLeaveWorkshopClick) },
+                isDanger = true,
+            )
+        }
     }
 
     SettingsSectionCard(label = stringResource(Res.string.settings_section_support)) {
@@ -400,14 +429,18 @@ private fun SettingsLandingLegacy(
                 trailing = { SettingsRowChevron() },
             )
         }
-        SettingsRowDivider()
-        SettingsRow(
-            icon = Icons.Outlined.Info,
-            label = stringResource(Res.string.settings_row_founders_note),
-            subtitle = stringResource(Res.string.settings_row_founders_note_subtitle),
-            onClick = { onAction(SettingsAction.OnFoundersNoteClick) },
-            trailing = { SettingsRowChevron() },
-        )
+        // Slice 6d: "About your plan / founder note" is owner plan+billing content —
+        // hidden for active staff (they have no plan).
+        if (!state.isActiveStaff) {
+            SettingsRowDivider()
+            SettingsRow(
+                icon = Icons.Outlined.Info,
+                label = stringResource(Res.string.settings_row_founders_note),
+                subtitle = stringResource(Res.string.settings_row_founders_note_subtitle),
+                onClick = { onAction(SettingsAction.OnFoundersNoteClick) },
+                trailing = { SettingsRowChevron() },
+            )
+        }
     }
 
     SettingsSectionCard(label = stringResource(Res.string.settings_section_legal)) {
@@ -481,20 +514,23 @@ private fun SettingsLandingHub(
         planBadgeLabel = state.proBadgeLabel?.let { stringResource(it) },
     )
 
-    Spacer(Modifier.height(DesignTokens.space3))
+    // Plan/subscription + Upgrade CTA are owner-only — hidden for active staff.
+    if (!state.isActiveStaff) {
+        Spacer(Modifier.height(DesignTokens.space3))
 
-    PlanCard(
-        tier = state.subscriptionTier,
-        customerCount = state.customerCount,
-        customerLimit = state.customerLimit,
-        aiDraftsUsed = state.aiDraftsUsed,
-        aiDraftLimit = state.aiDraftLimit,
-        isFirstMonth = state.isFirstMonth,
-        welcomeDaysLeft = state.welcomeDaysLeft,
-        onUpgradeClick = { onAction(SettingsAction.OnUpgradeClick) },
-        modifier = Modifier,
-        subscriptionStatus = state.subscriptionStatus,
-    )
+        PlanCard(
+            tier = state.subscriptionTier,
+            customerCount = state.customerCount,
+            customerLimit = state.customerLimit,
+            aiDraftsUsed = state.aiDraftsUsed,
+            aiDraftLimit = state.aiDraftLimit,
+            isFirstMonth = state.isFirstMonth,
+            welcomeDaysLeft = state.welcomeDaysLeft,
+            onUpgradeClick = { onAction(SettingsAction.OnUpgradeClick) },
+            modifier = Modifier,
+            subscriptionStatus = state.subscriptionStatus,
+        )
+    }
 
     SettingsSectionCard(label = stringResource(Res.string.settings_section_preferences)) {
         SettingsRow(
@@ -587,14 +623,17 @@ private fun SettingsLandingHub(
                 trailing = { SettingsRowChevron() },
             )
         }
-        SettingsRowDivider()
-        SettingsRow(
-            icon = Icons.Outlined.PersonAddAlt,
-            label = stringResource(Res.string.settings_row_invite_rewards),
-            subtitle = stringResource(Res.string.settings_row_invite_rewards_subtitle),
-            onClick = { onAction(SettingsAction.OnInviteRewardsClick) },
-            trailing = { SettingsRowChevron() },
-        )
+        // Invite & rewards (referrals) is owner-only — hidden for active staff.
+        if (!state.isActiveStaff) {
+            SettingsRowDivider()
+            SettingsRow(
+                icon = Icons.Outlined.PersonAddAlt,
+                label = stringResource(Res.string.settings_row_invite_rewards),
+                subtitle = stringResource(Res.string.settings_row_invite_rewards_subtitle),
+                onClick = { onAction(SettingsAction.OnInviteRewardsClick) },
+                trailing = { SettingsRowChevron() },
+            )
+        }
         SettingsRowDivider()
         SettingsRow(
             icon = Icons.AutoMirrored.Outlined.HelpOutline,
@@ -611,6 +650,21 @@ private fun SettingsLandingHub(
             onClick = { onAction(SettingsAction.OnLegalAboutClick) },
             trailing = { SettingsRowChevron() },
         )
+    }
+
+    // Staff-only: the hub landing has no Sign out row (it lives in the Account &
+    // security sub-screen), so "Leave this workshop" gets its own pinned card here
+    // so an active staff member can always exit the owner's workshop.
+    if (state.isActiveStaff) {
+        Spacer(Modifier.height(DesignTokens.space4))
+        SettingsSectionCard {
+            SettingsRow(
+                icon = Icons.AutoMirrored.Outlined.ExitToApp,
+                label = stringResource(Res.string.settings_leave_workshop),
+                onClick = { onAction(SettingsAction.OnLeaveWorkshopClick) },
+                isDanger = true,
+            )
+        }
     }
 
     // Visual gap so the headerless Delete account card reads as its own

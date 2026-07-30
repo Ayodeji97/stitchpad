@@ -123,6 +123,7 @@ class OrderDetailViewModel(
                 observeOrder()
                 loadUser()
                 observeCustomFieldLabels()
+                observeActiveWorkshop()
             }
         }
         .stateIn(
@@ -133,6 +134,10 @@ class OrderDetailViewModel(
 
     @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount")
     fun onAction(action: OrderDetailAction) {
+        // Slice 6c defense-in-depth: an active staff member may view + advance
+        // production, but every money / customer-contact action is inert for them —
+        // no state mutation, no event emitted — regardless of what the screen renders.
+        if (_state.value.isActiveStaff && action.isStaffRestricted()) return
         when (action) {
             // Navigation
             OrderDetailAction.OnBackClick ->
@@ -739,6 +744,14 @@ class OrderDetailViewModel(
         }
     }
 
+    private fun observeActiveWorkshop() {
+        viewModelScope.launch {
+            activeWorkshopProvider.flow.collect { session ->
+                _state.update { it.copy(isActiveStaff = session.isActiveStaff) }
+            }
+        }
+    }
+
     private fun observeOrder() {
         val orderId = orderId ?: return
         viewModelScope.launch {
@@ -963,8 +976,11 @@ class OrderDetailViewModel(
 
     private fun handleStatusTransition(transition: StatusTransition) {
         val order = _state.value.order ?: return
-        val needsBalanceWarning = order.balanceRemaining > 0.0 &&
-            (transition.toStatus == OrderStatus.READY || transition.toStatus == OrderStatus.DELIVERED)
+        val needsBalanceWarning = requiresBalanceWarning(
+            isActiveStaff = _state.value.isActiveStaff,
+            balanceRemaining = order.balanceRemaining,
+            toStatus = transition.toStatus,
+        )
         if (needsBalanceWarning) {
             _state.update {
                 it.copy(
