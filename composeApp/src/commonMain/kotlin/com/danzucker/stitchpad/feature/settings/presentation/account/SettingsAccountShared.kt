@@ -10,6 +10,10 @@ import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.settings_leave_workshop_cancel
+import stitchpad.composeapp.generated.resources.settings_leave_workshop_confirm
+import stitchpad.composeapp.generated.resources.settings_leave_workshop_dialog_body
+import stitchpad.composeapp.generated.resources.settings_leave_workshop_dialog_title
 import stitchpad.composeapp.generated.resources.sign_out_dialog_body
 import stitchpad.composeapp.generated.resources.sign_out_dialog_cancel
 import stitchpad.composeapp.generated.resources.sign_out_dialog_confirm
@@ -57,6 +61,37 @@ internal fun SignOutConfirmDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(Res.string.sign_out_dialog_cancel))
+            }
+        },
+    )
+}
+
+@Composable
+internal fun LeaveWorkshopConfirmDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(Res.string.settings_leave_workshop_dialog_title),
+                fontWeight = FontWeight.Bold,
+            )
+        },
+        text = { Text(stringResource(Res.string.settings_leave_workshop_dialog_body)) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(
+                    text = stringResource(Res.string.settings_leave_workshop_confirm),
+                    color = MaterialTheme.colorScheme.error,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.settings_leave_workshop_cancel))
             }
         },
     )

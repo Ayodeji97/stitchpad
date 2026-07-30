@@ -1,4 +1,6 @@
 package com.danzucker.stitchpad.feature.settings
+import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
+import com.danzucker.stitchpad.core.data.staff.FakeInviteRedemptionRepository
 
 import app.cash.turbine.test
 import com.danzucker.stitchpad.core.config.FakeAppConfigRepository
@@ -152,6 +154,8 @@ private fun buildSettingsVm(
         appConfigRepository = appConfig,
         communityJoinTracker = FakeCommunityJoinTracker(),
         dismissal = CommunityBannerDismissal(FakeOnboardingPreferences()),
+        activeWorkshopProvider = FakeActiveWorkshopProvider(),
+        inviteRedemptionRepository = FakeInviteRedemptionRepository(),
     )
 }
 
