@@ -47,9 +47,21 @@ data class AppConfig(
      * config, matching [communityEnabled]. Flip `config/app.settingsHubEnabled`
      * to roll out; flip back to revert with no app release. */
     val settingsHubEnabled: Boolean = false,
+    /**
+     * Remote kill-switch for the Owner + Staff experience. Default **true**
+     * (fail-open) — unlike the other flags, a missing/unreadable config must NOT
+     * disable staff. Flip `config/app.staffFeatureEnabled = false` to instantly
+     * disable the staff experience with no app release: [WorkshopSessionResolver]
+     * then resolves every signed-in user to owner-of-self, so a staff member falls
+     * back to their own (empty) tree — no staff nav, no owner data, no crash — the
+     * break-glass for a staff release that misbehaves once real data lights up.
+     */
+    val staffFeatureEnabled: Boolean = true,
 ) {
     companion object {
-        /** Safe fallback used before config loads or on read failure: feature hidden. */
+        /** Safe fallback used before config loads or on read failure: feature hidden.
+         * [staffFeatureEnabled] intentionally stays at its `true` default here — a
+         * config read failure must not disable staff (fail-open). */
         val Disabled = AppConfig(communityEnabled = false, communityInviteUrl = null)
     }
 }

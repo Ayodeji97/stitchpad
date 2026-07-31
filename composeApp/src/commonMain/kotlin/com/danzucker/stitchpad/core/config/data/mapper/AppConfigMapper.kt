@@ -15,4 +15,5 @@ fun AppConfigDto.toAppConfig(): AppConfig = AppConfig(
     maintenanceMode = maintenanceMode,
     maintenanceMessage = maintenanceMessage,
     settingsHubEnabled = settingsHubEnabled,
+    staffFeatureEnabled = staffFeatureEnabled,
 )

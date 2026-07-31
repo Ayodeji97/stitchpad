@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.di
 
+import com.danzucker.stitchpad.core.config.domain.repository.AppConfigRepository
 import com.danzucker.stitchpad.core.data.entitlement.UserDocEntitlementsProvider
 import com.danzucker.stitchpad.core.data.session.FirebaseActiveWorkshopProvider
 import com.danzucker.stitchpad.core.data.session.MembershipStatusDto
@@ -85,6 +86,9 @@ val coreModule = module {
             // A flow (not a one-shot read) so redeeming — which writes prefs with
             // no token change — re-resolves the session immediately.
             storedWorkshopUid = membershipPrefs.workshopUid,
+            // Remote kill-switch: flipping config/app.staffFeatureEnabled=false
+            // re-resolves everyone to owner-of-self with no app release.
+            staffFeatureEnabled = get<AppConfigRepository>().config.map { it.staffFeatureEnabled },
             membershipStatusFlow = { workshopUid, authUid ->
                 firestore.collection("users").document(workshopUid)
                     .collection("memberships").document(authUid).snapshots

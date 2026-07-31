@@ -15,4 +15,6 @@ data class AppConfigDto(
     val maintenanceMode: Boolean = false,
     val maintenanceMessage: String? = null,
     val settingsHubEnabled: Boolean = false,
+    // Fail-open: default true so a missing field never disables staff (see AppConfig).
+    val staffFeatureEnabled: Boolean = true,
 )

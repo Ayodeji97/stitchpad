@@ -12,11 +12,13 @@ class WorkshopSessionResolverTest {
         claimWorkshopUid: String? = null,
         claimRole: String? = null,
         membershipStatus: MembershipStatus? = null,
+        staffFeatureEnabled: Boolean = true,
     ) = WorkshopSessionResolver.resolve(
         authUid = authUid,
         claimWorkshopUid = claimWorkshopUid,
         claimRole = claimRole,
         membershipStatus = membershipStatus,
+        staffFeatureEnabled = staffFeatureEnabled,
     )
 
     @Test
@@ -27,6 +29,36 @@ class WorkshopSessionResolverTest {
         assertEquals("owner-1", session.workshopUid)
         assertEquals(StaffRole.OWNER, session.role)
         assertTrue(session.isOwner)
+        assertFalse(session.isActiveStaff)
+    }
+
+    @Test
+    fun kill_switch_disabled_resolves_a_staff_claim_to_owner_of_self() {
+        // Remote kill-switch: even a valid staff claim resolves to owner-of-self
+        // when config/app.staffFeatureEnabled is false — the break-glass disable.
+        val session = resolve(
+            authUid = "staff-1",
+            claimWorkshopUid = "owner-9",
+            claimRole = WorkshopSessionResolver.CLAIM_ROLE_STAFF,
+            staffFeatureEnabled = false,
+        )
+
+        assertEquals("staff-1", session.authUid)
+        assertEquals("staff-1", session.workshopUid)
+        assertEquals(StaffRole.OWNER, session.role)
+        assertFalse(session.isActiveStaff)
+    }
+
+    @Test
+    fun kill_switch_disabled_holds_a_pending_staffer_on_owner_of_self() {
+        val session = resolve(
+            authUid = "staff-2",
+            membershipStatus = MembershipStatus.PENDING,
+            staffFeatureEnabled = false,
+        )
+
+        assertEquals("staff-2", session.workshopUid)
+        assertEquals(StaffRole.OWNER, session.role)
         assertFalse(session.isActiveStaff)
     }
 
