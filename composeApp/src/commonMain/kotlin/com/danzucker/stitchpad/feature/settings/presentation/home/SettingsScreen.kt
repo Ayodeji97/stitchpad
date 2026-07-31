@@ -210,14 +210,19 @@ private fun SettingsLandingLegacy(
 ) {
     Spacer(Modifier.height(DesignTokens.space2))
 
-    ProfileHeroCard(
-        businessName = state.businessName.ifBlank { "—" },
-        logoUrl = state.businessLogoUrl,
-        subtitle = state.heroSubtitle.ifBlank { state.email },
-        avatarColorIndex = state.avatarColorIndex,
-        onClick = { onAction(SettingsAction.OnProfileClick) },
-        planBadgeLabel = state.proBadgeLabel?.let { stringResource(it) },
-    )
+    // The profile hero opens EditProfile — the owner's business-identity + payment
+    // (bank) editor. Hidden for active staff, who operate inside the owner's workshop
+    // and must not edit workshop identity or payment details.
+    if (!state.isActiveStaff) {
+        ProfileHeroCard(
+            businessName = state.businessName.ifBlank { "—" },
+            logoUrl = state.businessLogoUrl,
+            subtitle = state.heroSubtitle.ifBlank { state.email },
+            avatarColorIndex = state.avatarColorIndex,
+            onClick = { onAction(SettingsAction.OnProfileClick) },
+            planBadgeLabel = state.proBadgeLabel?.let { stringResource(it) },
+        )
+    }
 
     // Plan/subscription + Upgrade CTA are owner-only — an active staff member
     // operates inside the owner's workshop and can't manage its plan.
@@ -515,14 +520,19 @@ private fun SettingsLandingHub(
 ) {
     Spacer(Modifier.height(DesignTokens.space2))
 
-    ProfileHeroCard(
-        businessName = state.businessName.ifBlank { "—" },
-        logoUrl = state.businessLogoUrl,
-        subtitle = state.heroSubtitle.ifBlank { state.email },
-        avatarColorIndex = state.avatarColorIndex,
-        onClick = { onAction(SettingsAction.OnProfileClick) },
-        planBadgeLabel = state.proBadgeLabel?.let { stringResource(it) },
-    )
+    // The profile hero opens EditProfile — the owner's business-identity + payment
+    // (bank) editor. Hidden for active staff, who operate inside the owner's workshop
+    // and must not edit workshop identity or payment details.
+    if (!state.isActiveStaff) {
+        ProfileHeroCard(
+            businessName = state.businessName.ifBlank { "—" },
+            logoUrl = state.businessLogoUrl,
+            subtitle = state.heroSubtitle.ifBlank { state.email },
+            avatarColorIndex = state.avatarColorIndex,
+            onClick = { onAction(SettingsAction.OnProfileClick) },
+            planBadgeLabel = state.proBadgeLabel?.let { stringResource(it) },
+        )
+    }
 
     // Plan/subscription + Upgrade CTA are owner-only — hidden for active staff.
     if (!state.isActiveStaff) {
