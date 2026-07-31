@@ -728,18 +728,27 @@ class OrderDetailViewModel(
 
     private fun loadUser() {
         viewModelScope.launch {
-            val authUser = authRepository.getCurrentUser() ?: return@launch
-            // Resolve the Firestore user doc — the Auth user has businessName,
+            // The receipt's business identity — business name, logo, WhatsApp, and the
+            // bank block customers pay into — must belong to the WORKSHOP OWNER, not the
+            // signed-in user. For active staff, workshopUidOrNull() resolves to the
+            // owner's uid (the same tree observeOrder() uses), so a staff-shared receipt
+            // can never print the staff member's own bank/WhatsApp on the owner's invoice
+            // (a payment-hijack shape). For an owner it is their own uid, unchanged.
+            val ownerUid = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
+            // Only the owner-of-self may backfill identity (email/displayName) from their
+            // own Auth record; never merge a staff member's Auth identity onto the owner.
+            val selfAuthUser = authRepository.getCurrentUser()?.takeIf { it.id == ownerUid }
+            // Resolve the owner's Firestore user doc — the Auth user has businessName,
             // whatsappNumber, phoneNumber, and businessLogoUrl hardcoded to null, so
             // without this read the receipt header would fall back to the generic
-            // business name and never show the uploaded logo. Merge identity (email,
-            // displayName) from Auth when the Firestore doc lacks them (the user doc
-            // doesn't redundantly store those fields).
-            val firestoreUser = userRepository.observeUser(authUser.id).first()
+            // business name and never show the uploaded logo.
+            val firestoreUser = userRepository.observeUser(ownerUid).first()
             val user = firestoreUser?.copy(
-                email = firestoreUser.email.ifBlank { authUser.email },
-                displayName = firestoreUser.displayName.ifBlank { authUser.displayName },
-            ) ?: authUser
+                email = firestoreUser.email.ifBlank { selfAuthUser?.email ?: firestoreUser.email },
+                displayName = firestoreUser.displayName.ifBlank {
+                    selfAuthUser?.displayName ?: firestoreUser.displayName
+                },
+            ) ?: selfAuthUser ?: return@launch
             _state.update { it.copy(user = user) }
         }
     }

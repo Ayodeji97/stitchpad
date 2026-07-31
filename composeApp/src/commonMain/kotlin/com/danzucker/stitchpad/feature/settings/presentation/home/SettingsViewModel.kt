@@ -163,7 +163,11 @@ class SettingsViewModel(
     fun onAction(action: SettingsAction) {
         when (action) {
             SettingsAction.OnBackClick -> emit(SettingsEvent.NavigateBack)
-            SettingsAction.OnProfileClick -> emit(SettingsEvent.NavigateToEditProfile)
+            // EditProfile is the owner's business-identity + payment editor; an active
+            // staff member must never reach it (belt-and-braces with the hero card that
+            // is hidden for staff in SettingsScreen).
+            SettingsAction.OnProfileClick ->
+                if (!uiState.value.isActiveStaff) emit(SettingsEvent.NavigateToEditProfile)
             SettingsAction.OnMeasurementUnitClick -> toggleMeasurementUnit()
             SettingsAction.OnAppearanceClick -> cycleTheme()
             SettingsAction.OnReceiptImageStyleClick -> toggleReceiptImageStyle()
