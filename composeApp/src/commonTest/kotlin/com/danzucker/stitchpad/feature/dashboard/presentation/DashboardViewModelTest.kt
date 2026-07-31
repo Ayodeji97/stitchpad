@@ -682,6 +682,22 @@ class DashboardViewModelTest {
     }
 
     @Test
+    fun staffOverdueTile_emitsNavigateToOrders() = runTest {
+        signIn()
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnViewOverdueClick)
+        assertIs<DashboardEvent.NavigateToOrders>(vm.events.first())
+    }
+
+    @Test
+    fun staffDueTodayTile_emitsNavigateToOrders() = runTest {
+        signIn()
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnViewDueTodayClick)
+        assertIs<DashboardEvent.NavigateToOrders>(vm.events.first())
+    }
+
+    @Test
     fun onOutstandingClick_emitsNavigateToToCollect() = runTest {
         signIn()
         val vm = createViewModel()

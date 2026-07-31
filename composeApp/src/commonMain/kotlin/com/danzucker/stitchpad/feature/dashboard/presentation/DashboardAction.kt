@@ -30,6 +30,12 @@ sealed interface DashboardAction {
     /** Opens the Orders tab with no filter — "View all" in TodayWorkCard. */
     data object OnViewAllOrdersClick : DashboardAction
 
+    /** Staff dashboard: tapped the Overdue count tile — opens the Orders tab. */
+    data object OnViewOverdueClick : DashboardAction
+
+    /** Staff dashboard: tapped the Due-today count tile — opens the Orders tab. */
+    data object OnViewDueTodayClick : DashboardAction
+
     /** Opens the Orders tab filtered to in-progress orders. */
     data object OnViewPipelineInProgressClick : DashboardAction
 

@@ -4,13 +4,14 @@ package com.danzucker.stitchpad.feature.dashboard.presentation.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,10 +23,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -37,7 +36,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -64,6 +62,8 @@ import stitchpad.composeapp.generated.resources.dashboard_staff_stage_ready
 import stitchpad.composeapp.generated.resources.dashboard_staff_tile_due_today
 import stitchpad.composeapp.generated.resources.dashboard_staff_tile_in_progress
 import stitchpad.composeapp.generated.resources.dashboard_staff_tile_overdue
+import stitchpad.composeapp.generated.resources.dashboard_staff_tile_view
+import stitchpad.composeapp.generated.resources.dashboard_staff_workshop_count
 import stitchpad.composeapp.generated.resources.order_stage_cutting
 import stitchpad.composeapp.generated.resources.order_stage_fitting
 import stitchpad.composeapp.generated.resources.order_stage_sewing
@@ -73,10 +73,11 @@ import stitchpad.composeapp.generated.resources.order_stage_sewing
  * revenue, no "ready to collect", no goals or collect nudges — those never enter
  * [DashboardState] for a staff member (see DashboardViewModel.updateStaffState).
  *
- * Layout: greeting header (own name + Staff pill + workshop) → three throughput
- * tiles (overdue / due today / in progress) → a "Needs attention" queue of
- * orders to advance → the pipeline by production stage. When nothing is overdue
- * or due today, the queue is replaced by an "All caught up" state.
+ * Layout: greeting header (own name + Staff pill + workshop) → three urgency-weighted
+ * count tiles (overdue / due today / in progress), each tappable to open the Orders
+ * list → a "Needs attention" queue of orders to advance → the pipeline by production
+ * stage as one segmented bar. When nothing is overdue or due today, the queue is
+ * replaced by an "All caught up" state.
  *
  * [DashboardState.staffPipeline] is null until the first data load lands — that
  * is the loading sentinel (header shows, body is a spinner).
@@ -111,6 +112,9 @@ fun StaffDashboardContent(
             overdue = state.overdue.size,
             dueToday = state.dueToday.size,
             inProgress = pipeline.inProgressTotal,
+            onOverdueClick = { onAction(DashboardAction.OnViewOverdueClick) },
+            onDueTodayClick = { onAction(DashboardAction.OnViewDueTodayClick) },
+            onInProgressClick = { onAction(DashboardAction.OnViewPipelineInProgressClick) },
         )
         val rows = remember(state.overdue, state.dueToday) {
             buildTodayWorkRows(state.overdue, state.dueToday, emptyList())
@@ -125,7 +129,7 @@ fun StaffDashboardContent(
             StaffAllCaughtUp()
         }
         if (!pipeline.isEmpty) {
-            StaffPipelineStrip(pipeline)
+            StaffPipelineBar(pipeline)
         }
     }
 }
@@ -186,68 +190,112 @@ private fun StaffPill() {
 }
 
 @Composable
-private fun StaffCountTiles(overdue: Int, dueToday: Int, inProgress: Int) {
-    Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
+private fun StaffCountTiles(
+    overdue: Int,
+    dueToday: Int,
+    inProgress: Int,
+    onOverdueClick: () -> Unit,
+    onDueTodayClick: () -> Unit,
+    onInProgressClick: () -> Unit,
+) {
+    // IntrinsicSize.Min keeps all three tiles the height of the tallest, so the "View"
+    // affordance on populated tiles never leaves a zero-count tile looking clipped.
+    Row(
+        modifier = Modifier.height(IntrinsicSize.Min),
+        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+    ) {
         StaffCountTile(
             count = overdue,
             label = stringResource(Res.string.dashboard_staff_tile_overdue),
             accent = DesignTokens.error500,
-            icon = Icons.Filled.Warning,
-            modifier = Modifier.weight(1f),
+            tinted = true,
+            onClick = onOverdueClick,
+            modifier = Modifier.weight(1f).fillMaxHeight(),
         )
         StaffCountTile(
             count = dueToday,
             label = stringResource(Res.string.dashboard_staff_tile_due_today),
-            accent = DesignTokens.sienna500,
-            icon = Icons.Filled.Schedule,
-            modifier = Modifier.weight(1f),
+            accent = DesignTokens.warning500,
+            tinted = true,
+            onClick = onDueTodayClick,
+            modifier = Modifier.weight(1f).fillMaxHeight(),
         )
         StaffCountTile(
             count = inProgress,
             label = stringResource(Res.string.dashboard_staff_tile_in_progress),
             accent = MaterialTheme.colorScheme.primary,
-            icon = Icons.Filled.Build,
-            modifier = Modifier.weight(1f),
+            tinted = false,
+            onClick = onInProgressClick,
+            modifier = Modifier.weight(1f).fillMaxHeight(),
         )
     }
 }
 
+/**
+ * One urgency-weighted, tappable count tile. Overdue (critical) and Due-today
+ * (warning) carry a soft accent wash + a full-height severity bar so they visibly
+ * outrank the calm, neutral In-progress tile. A zero count drops the wash and the
+ * "View" affordance and renders in a muted neutral — nothing to chase, no alarm.
+ */
 @Composable
 private fun StaffCountTile(
     count: Int,
     label: String,
     accent: Color,
-    icon: ImageVector,
+    tinted: Boolean,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val isZero = count == 0
+    val urgent = tinted && !isZero
+    val barColor = when {
+        isZero -> MaterialTheme.colorScheme.outlineVariant
+        else -> accent
+    }
     Surface(
+        onClick = onClick,
         shape = RoundedCornerShape(DesignTokens.radiusLg),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        color = if (urgent) accent.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surface,
+        border = if (urgent) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = modifier,
     ) {
-        Column(modifier = Modifier.padding(DesignTokens.space3)) {
+        Row(Modifier.fillMaxHeight()) {
             Box(
                 modifier = Modifier
-                    .size(26.dp)
-                    .clip(RoundedCornerShape(DesignTokens.radiusSm))
-                    .background(accent.copy(alpha = 0.14f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(imageVector = icon, contentDescription = null, tint = accent, modifier = Modifier.size(16.dp))
+                    .width(4.dp)
+                    .fillMaxHeight()
+                    .background(barColor),
+            )
+            Column(modifier = Modifier.padding(DesignTokens.space3)) {
+                Text(
+                    text = count.toString(),
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isZero) MaterialTheme.colorScheme.onSurfaceVariant else accent,
+                )
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (!isZero) {
+                    Spacer(Modifier.height(DesignTokens.space1))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = stringResource(Res.string.dashboard_staff_tile_view),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(13.dp),
+                        )
+                    }
+                }
             }
-            Spacer(Modifier.height(DesignTokens.space2))
-            Text(
-                text = count.toString(),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = if (count == 0) MaterialTheme.colorScheme.onSurfaceVariant else accent,
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }
@@ -287,71 +335,93 @@ private fun StaffNeedsAttentionSection(
     }
 }
 
+/**
+ * The production pipeline as a single glanceable unit: a proportional segmented bar
+ * (each stage's share of everything in the workshop) over a compact four-item legend.
+ * Replaces the previous four separate tiles — same information, far less noise. Only
+ * rendered when at least one stage is non-empty (see the caller's `!pipeline.isEmpty`).
+ */
 @Composable
-private fun StaffPipelineStrip(counts: StaffPipelineCounts) {
-    Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
-        Text(
-            text = stringResource(Res.string.dashboard_staff_pipeline),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
-        ) {
-            StaffPipelineStage(
-                count = counts.cutting,
-                label = stringResource(Res.string.order_stage_cutting),
-                dotColor = DesignTokens.saffron500,
-            )
-            StaffPipelineStage(
-                count = counts.sewing,
-                label = stringResource(Res.string.order_stage_sewing),
-                dotColor = MaterialTheme.colorScheme.primary,
-            )
-            StaffPipelineStage(
-                count = counts.fitting,
-                label = stringResource(Res.string.order_stage_fitting),
-                dotColor = DesignTokens.sienna500,
-            )
-            StaffPipelineStage(
-                count = counts.ready,
-                label = stringResource(Res.string.dashboard_staff_stage_ready),
-                dotColor = DesignTokens.success500,
-            )
-        }
-    }
-}
+private fun StaffPipelineBar(counts: StaffPipelineCounts) {
+    val cutting = stringResource(Res.string.order_stage_cutting)
+    val sewing = stringResource(Res.string.order_stage_sewing)
+    val fitting = stringResource(Res.string.order_stage_fitting)
+    val ready = stringResource(Res.string.dashboard_staff_stage_ready)
+    val stages = listOf(
+        PipelineStage(cutting, counts.cutting, DesignTokens.warning500),
+        PipelineStage(sewing, counts.sewing, MaterialTheme.colorScheme.primary),
+        PipelineStage(fitting, counts.fitting, DesignTokens.sienna500),
+        PipelineStage(ready, counts.ready, DesignTokens.success500),
+    )
+    val total = stages.sumOf { it.count }
 
-@Composable
-private fun StaffPipelineStage(count: Int, label: String, dotColor: Color) {
-    Surface(
-        shape = RoundedCornerShape(DesignTokens.radiusLg),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier.width(96.dp),
-    ) {
-        Column(modifier = Modifier.padding(DesignTokens.space3)) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(dotColor),
-            )
-            Spacer(Modifier.height(DesignTokens.space2))
+    Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Text(
-                text = count.toString(),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
+                text = stringResource(Res.string.dashboard_staff_pipeline),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                text = label,
+                text = stringResource(Res.string.dashboard_staff_workshop_count, total),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(10.dp)
+                .clip(RoundedCornerShape(DesignTokens.radiusSm)),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            stages.filter { it.count > 0 }.forEach { stage ->
+                Box(
+                    modifier = Modifier
+                        .weight(stage.count.toFloat())
+                        .fillMaxHeight()
+                        .background(stage.color),
+                )
+            }
+        }
+        Row(modifier = Modifier.fillMaxWidth()) {
+            stages.forEach { stage ->
+                StageLegendItem(stage = stage, modifier = Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+private data class PipelineStage(val label: String, val count: Int, val color: Color)
+
+@Composable
+private fun StageLegendItem(stage: PipelineStage, modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(stage.color),
+            )
+            Spacer(Modifier.width(DesignTokens.space1))
+            Text(
+                text = stage.count.toString(),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+        Text(
+            text = stage.label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
