@@ -50,6 +50,10 @@ internal class FirebaseActiveWorkshopProvider(
     authClaims: Flow<WorkshopClaims?>,
     scope: CoroutineScope,
     storedWorkshopUid: Flow<String?> = flowOf(null),
+    // Remote kill-switch (config/app.staffFeatureEnabled). Default true (fail-open):
+    // when false, every user resolves to owner-of-self so the staff experience is
+    // disabled instantly without a release. See [WorkshopSessionResolver].
+    staffFeatureEnabled: Flow<Boolean> = flowOf(true),
     private val membershipStatusFlow: (workshopUid: String, authUid: String) -> Flow<MembershipStatus?> =
         { _, _ -> flowOf(null) },
     private val refreshToken: suspend () -> Unit = {},
@@ -69,8 +73,11 @@ internal class FirebaseActiveWorkshopProvider(
             combine(
                 authClaims.distinctUntilChanged(),
                 storedWorkshopUid.distinctUntilChanged(),
-            ) { claims, storedWs -> claims to storedWs }
-                .flatMapLatest { (claims, storedWs) -> sessionFlow(claims, storedWs) }
+                staffFeatureEnabled.distinctUntilChanged(),
+            ) { claims, storedWs, staffEnabled -> Triple(claims, storedWs, staffEnabled) }
+                .flatMapLatest { (claims, storedWs, staffEnabled) ->
+                    sessionFlow(claims, storedWs, staffEnabled)
+                }
                 .collect { session ->
                     // Write `_flow` before flipping `_hydrated` so a racing
                     // awaitHydrated() reads the real value, not the default.
@@ -80,11 +87,20 @@ internal class FirebaseActiveWorkshopProvider(
         }
     }
 
-    private fun sessionFlow(claims: WorkshopClaims?, storedWs: String?): Flow<WorkshopSession> {
+    @Suppress("ReturnCount") // three fast-exits: signed-out, kill-switch, resolved.
+    private fun sessionFlow(
+        claims: WorkshopClaims?,
+        storedWs: String?,
+        staffEnabled: Boolean,
+    ): Flow<WorkshopSession> {
         // Signed-out is a RESOLVED state — emitting it marks hydrated so
         // awaitHydrated()/workshopUidOrNull() return immediately instead of
         // suspending forever.
         if (claims == null) return flowOf(WorkshopSession.signedOut())
+        // Remote kill-switch: with staff disabled in config/app, resolve to
+        // owner-of-self for everyone (a staff member falls back to their own empty
+        // tree). Short-circuits ALL resolution paths, incl. the pending-window flow.
+        if (!staffEnabled) return flowOf(WorkshopSession.ownerOfSelf(claims.authUid))
         return resolvedFlow(claims, storedWs)
     }
 

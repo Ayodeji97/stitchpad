@@ -34,7 +34,15 @@ object WorkshopSessionResolver {
         claimWorkshopUid: String?,
         claimRole: String?,
         membershipStatus: MembershipStatus?,
+        staffFeatureEnabled: Boolean = true,
     ): WorkshopSession {
+        // Remote kill-switch (config/app.staffFeatureEnabled): when the whole Owner +
+        // Staff experience is disabled, ignore the claim + membership and resolve
+        // EVERY user to owner-of-self. A staff member falls back to their own (empty)
+        // tree — no staff nav, no owner data, no crash — so a misbehaving staff
+        // release can be disabled instantly with no app release. Fail-open: the
+        // default is true, so a missing/unreadable config never disables staff.
+        if (!staffFeatureEnabled) return WorkshopSession.ownerOfSelf(authUid)
         // Precedence: server-authoritative claim, then the membership-doc fallback
         // (drives the waiting UI before an approved token refreshes), then the
         // fail-safe.
