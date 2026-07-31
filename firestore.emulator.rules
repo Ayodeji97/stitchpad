@@ -1,0 +1,553 @@
+rules_version = '2';
+
+// StitchPad Firestore security rules — V1.0 freemium.
+//
+// Threat model: a signed-in malicious client wielding a Firestore SDK can bypass
+// our Kotlin/Compose UI gates and write directly to their own docs. These rules
+// stop the high-value bypasses:
+//   1. Granting themselves a paid tier (subscriptionTier flip).
+//   2. Re-filling their welcome bonus (bonusCoins refill).
+//   3. Replaying the welcome window (welcomeBonusAppliedAt rewind).
+//   4. Editing the server's Smart-usage truth (usage/smart_drafts.bonusBalance / count).
+//
+// What we deliberately DO NOT enforce in rules (V1.0):
+//   - **Customer cap on create.** Client UI gates the +Customer button against the
+//     active count; reconcileSlots Cloud Function reconciles excess back to locked
+//     on the next foreground. A determined bypasser can briefly seed extra active
+//     customers; the cap re-asserts on next reconcile. Rule-level enforcement
+//     would require a per-create `get()` lookup of the user doc (expensive) and
+//     duplicating the welcome-window math in rules — deferred until we ship a
+//     server-side createCustomer Cloud Function.
+//   - **Customer slotState locking.** The SwapSheet flow batches two updates from
+//     the client (promote + demote). Locking slotState would break it. Deferred
+//     until swap migrates to a Cloud Function (tracked as a V1.0 follow-up).
+//   - **Tier flips via debug menu.** Setting tier=pro from the deployed app's
+//     debug menu hits these rules and fails. Use Firebase Console > Firestore to
+//     manually flip a tester account's tier when needed. Production has no
+//     legitimate client-side tier-write path until a Paystack webhook function
+//     lands.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // Owner + Staff feature: a signed-in STAFF member operating on their owner's
+    // (uid's) workshop tree. Identified by custom auth claims set server-side when
+    // an owner approves them — `role == 'staff'` and `workshopUid == <owner uid>`.
+    // `.get(key, default)` tolerates the claims being absent (owners have neither),
+    // so a normal owner session simply evaluates this to false. Money and customer
+    // contact live in /private sub-docs that stay isOwner-only, so members reach the
+    // work (orders, customers, measurements) but never the sensitive fields.
+    function isActiveMember(uid) {
+      return request.auth != null
+        && request.auth.token.get('role', '') == 'staff'
+        && request.auth.token.get('workshopUid', '') == uid
+        // Also require the membership doc to be ACTIVE. The claim alone can't
+        // enforce revocation: a revoked member's already-minted token keeps the
+        // stale claim for up to an hour. Gating on the doc makes revokeStaffMember
+        // (status -> 'revoked') cut access immediately. The claim checks above are
+        // a cheap pre-filter so owners (no claim) never incur this get().
+        && exists(/databases/$(database)/documents/users/$(uid)/memberships/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(uid)/memberships/$(request.auth.uid)).data.status == 'active';
+    }
+
+    // Read access to a workshop's non-private data: the owner, or an active member.
+    function canReadWorkshop(uid) {
+      return isOwner(uid) || isActiveMember(uid);
+    }
+
+    // True iff the incoming update keeps `field` at its existing value (i.e. the
+    // client did not attempt to change it). Compatible with merge-true updates
+    // where `request.resource.data` is the full merged result. NOTE: this returns
+    // true when the field is absent from the update, so it does NOT block
+    // FieldValue.delete() — only use it for fields where deletion is harmless.
+    function fieldUnchanged(field) {
+      return !(field in request.resource.data) ||
+             request.resource.data[field] == resource.data[field];
+    }
+
+    // A server-only field. Once present it must stay present and equal — which
+    // blocks edits AND deletes (a delete drops the field from request.resource.data)
+    // — and a client may never add it via update. Used for the subscription fields,
+    // all set by the Paystack webhook, the Apple IAP functions (verifyAppleTransaction
+    // / appStoreServerNotifications), or the createUserProfile seed — all Admin SDK,
+    // which bypasses rules: subscriptionTier, subscriptionStatus, subscriptionEndsAt,
+    // subscriptionRenews, plus the Apple provenance fields subscriptionSource,
+    // appleOriginalTransactionId, appleProductId. This closes two holes: deleting subscriptionEndsAt /
+    // subscriptionRenews to dodge the expirePrepaidSubscriptions query (and keep
+    // paid access), and deleting subscriptionTier / subscriptionStatus to corrupt
+    // billing state. NOT used for welcomeBonusAppliedAt / bonusCoins: blocking adds
+    // there is unnecessary (deleting them only downgrades the user) and those use
+    // fieldUnchanged to avoid any interaction with the welcome-bonus create rule.
+    function serverOnlyField(field) {
+      return (field in resource.data)
+        ? (field in request.resource.data
+           && request.resource.data[field] == resource.data[field])
+        : !(field in request.resource.data);
+    }
+
+    // ── /users/{uid} ───────────────────────────────────────────────────────
+    match /users/{uid} {
+      // ── Lane B: activity docs (customers/orders/measurements) ────────────────
+      // serverCreatedAt is the server-stamped anti-backdating anchor. On create it
+      // must equal request.time if present (old binaries omit it → allowed, graded
+      // by the Lane A ratchet). On update it is immutable, except a create that
+      // omitted it may be stamped exactly once (the two-write client path). This
+      // lets edit flows through while making the field unforgeable.
+      function activityCreateOk() {
+        return isOwner(uid)
+          && (!('serverCreatedAt' in request.resource.data)
+              || request.resource.data.serverCreatedAt == request.time)
+          && (!('createdAt' in request.resource.data)
+              || request.resource.data.createdAt <= request.time.toMillis() + 300000);
+      }
+      // Keys off resource.data (the BEFORE state) first. If serverCreatedAt already
+      // existed, it is fully immutable: the post-write doc must still contain it AND
+      // equal the prior value (blocks both change and delete-then-restamp). If it did
+      // NOT exist before, the write may leave it absent (a normal edit of an
+      // old-binary doc) or stamp it once to request.time.
+      //
+      // NOTE: the earlier version of this function keyed off request.resource.data
+      // (the AFTER state) first, which meant `updateDoc({serverCreatedAt:
+      // deleteField()})` dropped the field from request.resource.data and was
+      // ALLOWED — reopening the door to a follow-up `updateDoc({serverCreatedAt:
+      // serverTimestamp()})` "first stamp" that rewrote an already-stamped value.
+      function serverCreatedAtProtectedOnUpdate() {
+        return ('serverCreatedAt' in resource.data)
+          ? (('serverCreatedAt' in request.resource.data)
+             && request.resource.data.serverCreatedAt == resource.data.serverCreatedAt)
+          : (!('serverCreatedAt' in request.resource.data)
+             || request.resource.data.serverCreatedAt == request.time);
+      }
+      // Once a doc is server-stamped, its createdAt is the day-anchor the payout
+      // grader trusts for freshness (isServerFresh: serverCreatedAt - createdAt
+      // within the window). Freeze createdAt on a stamped doc so a single doc
+      // can't be re-dated across nightly runs to manufacture multiple distinct
+      // active days — the customer cap is meant to make each active day scarce.
+      // Only stamped docs are graded by this freshness path; unstamped
+      // (old-binary/legacy) docs keep createdAt mutable, both because they are
+      // graded by the Lane A ratchet instead and because they can legitimately
+      // carry createdAt == 0 (missing field) which the client remaps to `now` on
+      // the next write — freezing those would reject every edit (the same
+      // permission-denied class as the replacement-write bug). A stamped doc
+      // always has a non-zero createdAt (the write mappers substitute `now` for 0
+      // before the create), so this equality never locks an honest edit out.
+      function activityCreatedAtStableOnUpdate() {
+        return ('serverCreatedAt' in resource.data) && ('createdAt' in resource.data)
+          ? (('createdAt' in request.resource.data)
+             && request.resource.data.createdAt == resource.data.createdAt)
+          : true;
+      }
+
+      allow read: if isOwner(uid);
+
+      // Client-side delete is denied to prevent welcome-window replay.
+      // Without this, a signed-in user using the Firestore SDK directly
+      // could delete their own user doc (customers subcollection is NOT
+      // cascade-deleted by Firestore) and then immediately recreate it
+      // under `allow create` rules with a fresh `welcomeBonusAppliedAt
+      // == request.time` and `bonusCoins == 30` — restoring First Month
+      // status + bonus coins indefinitely while keeping all their data.
+      //
+      // Legitimate account deletion goes through Auth.delete() →
+      // onAuthUserDeleted Cloud Function, which uses the Admin SDK
+      // (bypasses rules) to clean up users/{uid} + subcollections.
+      allow delete: if false;
+
+      // Initial profile create: enforce safe defaults for every financially
+      // meaningful field. Matches `FirebaseUserRepository.buildInitialUserDoc()`.
+      // Anything the client invents beyond these caps gets rejected.
+      //
+      // welcomeBonusAppliedAt must equal request.time (the server-resolved
+      // value that FieldValue.serverTimestamp materializes into). Without this
+      // a malicious client could set it to a future timestamp at signup and
+      // permanently extend their First Month welcome window.
+      allow create: if isOwner(uid)
+        && (!('subscriptionTier' in request.resource.data) ||
+            request.resource.data.subscriptionTier == 'free')
+        && (!('subscriptionStatus' in request.resource.data) ||
+            request.resource.data.subscriptionStatus == 'active')
+        && (!('subscriptionRenews' in request.resource.data) ||
+            request.resource.data.subscriptionRenews == false)
+        && (!('customerCount' in request.resource.data) ||
+            request.resource.data.customerCount == 0)
+        && (!('bonusCoins' in request.resource.data) ||
+            request.resource.data.bonusCoins == 30)
+        && (!('welcomeBonusAppliedAt' in request.resource.data) ||
+            request.resource.data.welcomeBonusAppliedAt == request.time)
+        // subscriptionEndsAt is server-owned (set only by the Paystack webhook /
+        // Apple IAP / gift functions via the Admin SDK). A client must never plant
+        // it at creation, or it could ride a far-future date by buying a single period.
+        && (!('subscriptionEndsAt' in request.resource.data))
+        // Apple provenance fields are likewise server-owned and must be absent at
+        // creation — a client could otherwise self-mark as an Apple subscriber.
+        && (!('subscriptionSource' in request.resource.data))
+        && (!('appleOriginalTransactionId' in request.resource.data))
+        && (!('appleProductId' in request.resource.data))
+        // subscriptionFallbackTier/EndsAt are the queued lower-tier segment from a
+        // mismatched-tier gift — server-owned, never planted at creation.
+        && (!('subscriptionFallbackTier' in request.resource.data))
+        && (!('subscriptionFallbackEndsAt' in request.resource.data))
+        // giftLinkToken is the public token behind a tailor's "Gift me" link,
+        // minted only by createGiftLink (Admin SDK). A client-planted token could
+        // collide with the giftLinkTokens reverse index and hijack another tailor's
+        // incoming gifts, so it must never be set at creation.
+        && (!('giftLinkToken' in request.resource.data))
+        // referredBy is the marketer id credited for this signup, stamped only by
+        // recordReferralAttribution (Admin SDK) after it validates the referral
+        // code. A client-planted value would let a user self-attribute to any
+        // marketer (or itself), inflating payouts — so it must never be set at
+        // creation.
+        && (!('referredBy' in request.resource.data));
+
+      // Profile updates: user can edit display fields freely, but cannot touch
+      // the financially meaningful fields. Server (admin SDK) bypasses these
+      // rules so Cloud Functions and Firebase Console edits still work.
+      allow update: if isOwner(uid)
+        && serverOnlyField('subscriptionTier')
+        && serverOnlyField('subscriptionStatus')
+        && serverOnlyField('subscriptionEndsAt')
+        && serverOnlyField('subscriptionRenews')
+        && serverOnlyField('subscriptionSource')
+        && serverOnlyField('appleOriginalTransactionId')
+        && serverOnlyField('appleProductId')
+        && serverOnlyField('subscriptionFallbackTier')
+        && serverOnlyField('subscriptionFallbackEndsAt')
+        && serverOnlyField('giftLinkToken')
+        && serverOnlyField('referredBy')
+        && fieldUnchanged('welcomeBonusAppliedAt')
+        && fieldUnchanged('bonusCoins')
+        && fieldUnchanged('customerCount');
+
+      // ── Custom measurement fields ────────────────────────────────────────
+      // PTSP-12 — Per-tailor custom field definitions. Soft-archive only;
+      // no hard-delete (delete is explicitly denied so past measurements'
+      // UUID-to-label mappings stay intact). Client-side gate on tier;
+      // server-side feature gate is deferred (see custom-measurements
+      // design doc §7).
+      match /customMeasurementFields/{fieldId} {
+        allow read, create, update: if isOwner(uid);
+        // delete is intentionally omitted — soft-archive only.
+      }
+
+      // ── Customer subcollection ───────────────────────────────────────────
+      // slotState/lockedAt stay client-writable in V1.0 because the SwapSheet
+      // mutates them directly via Firestore batch. See top-level comment.
+      match /customers/{customerId} {
+        // Members read the base customer (name + slot) — but ONLY once the contact
+        // fields have been stripped from the base doc (Slice 8). Firestore rules
+        // can't hide individual fields on read, and during the dual-write window
+        // the base doc still carries phone/email/address; the field-absence guard
+        // makes staff read auto-enable per-doc exactly when the strip lands, so a
+        // member can never see contact by reading the base doc. Owner reads always.
+        //
+        // GET vs LIST: the field-absence guard on `resource.data` only reliably gates
+        // single-doc GETs — Firestore security rules are NOT query filters, so a member
+        // LIST of the collection is NOT blocked per-doc and would stream contact-bearing
+        // base docs over the wire during the dual-write window (verified in smoke). So
+        // members are denied LIST until Slice 8 strips contact from the base docs; then
+        // flip `allow list` to `isOwner(uid) || isActiveMember(uid)` (docs are clean, no
+        // field guard needed). GET keeps the field-absence guard (works, and lets a
+        // member fetch an already-stripped doc). Owner lists always.
+        allow get: if isOwner(uid)
+          || (isActiveMember(uid)
+              && !('phone' in resource.data)
+              && !('email' in resource.data)
+              && !('address' in resource.data));
+        // EMULATOR ONLY (Slice 8e preview): members may LIST once the base docs are
+        // money/contact-free. This is the flip that lights up the staff experience;
+        // NOT deployed to prod until Slice 8d strips the base docs.
+        allow list: if isOwner(uid) || isActiveMember(uid);
+        allow create: if activityCreateOk();
+        allow update: if isOwner(uid) && serverCreatedAtProtectedOnUpdate() && activityCreatedAtStableOnUpdate();
+        allow delete: if isOwner(uid);
+
+        match /measurements/{measurementId} {
+          // Members read measurements (needed to sew); writes stay owner-only.
+          allow read: if canReadWorkshop(uid);
+          allow create: if activityCreateOk();
+          allow update: if isOwner(uid) && serverCreatedAtProtectedOnUpdate() && activityCreatedAtStableOnUpdate();
+          allow delete: if isOwner(uid);
+        }
+
+        match /styles/{styleId} {
+          allow read, write: if isOwner(uid);
+        }
+
+        // Named style collections (folders) within a customer's closet, each
+        // with its own styles subcollection.
+        match /styleFolders/{folderId} {
+          allow read, write: if isOwner(uid);
+
+          match /styles/{styleId} {
+            allow read, write: if isOwner(uid);
+          }
+        }
+
+        // Owner-only contact sub-doc (Owner + Staff feature) — phone/email/address.
+        // isOwner-only, so a future staff member (a non-owner) is denied: this is
+        // the customer-contact wall. Staff will be able to read the base customer
+        // doc (name, measurements) but never this.
+        match /private/{doc} {
+          allow read, write: if isOwner(uid);
+        }
+      }
+
+      // ── Orders subcollection ─────────────────────────────────────────────
+      match /orders/{orderId} {
+        // Members read the base order (garment, status, dates) — but ONLY once the
+        // money fields have been stripped from the base doc (Slice 8). Same reason
+        // as customers: rules can't hide fields, and the base doc still carries
+        // money during the dual-write window. The top-level money fields are the
+        // strip sentinel — Slice 8 removes them together with items[].price, so
+        // their absence guarantees the whole doc (incl. per-item price) is safe.
+        //
+        // GET vs LIST: same as customers above — the field-absence guard only reliably
+        // gates single-doc GETs; a member LIST is not filtered per-doc and would stream
+        // money-bearing base docs over the wire (verified in smoke: the staff dashboard
+        // observeOrders LIST returned the owner's totalPrice/payments/costs). So members
+        // are denied LIST until Slice 8 strips money from the base docs, then flip
+        // `allow list` to `isOwner(uid) || isActiveMember(uid)`. GET keeps the guard.
+        allow get: if isOwner(uid)
+          || (isActiveMember(uid)
+              && !('totalPrice' in resource.data)
+              && !('discount' in resource.data)
+              && !('discountReason' in resource.data)
+              && !('payments' in resource.data)
+              && !('costs' in resource.data));
+        // EMULATOR ONLY (Slice 8e preview): members may LIST once the base docs are
+        // money/contact-free. This is the flip that lights up the staff experience;
+        // NOT deployed to prod until Slice 8d strips the base docs.
+        allow list: if isOwner(uid) || isActiveMember(uid);
+        allow create: if activityCreateOk();
+        // Owner: full update. Active staff: may ONLY advance production status —
+        // status/subStatus/statusHistory/updatedAt — never money, customer, or
+        // items, and still can't backdate the server-stamp fields.
+        allow update: if (isOwner(uid) && serverCreatedAtProtectedOnUpdate() && activityCreatedAtStableOnUpdate())
+          || (
+            isActiveMember(uid)
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['status', 'subStatus', 'statusHistory', 'updatedAt'])
+            && serverCreatedAtProtectedOnUpdate()
+            && activityCreatedAtStableOnUpdate()
+          );
+        allow delete: if isOwner(uid);
+
+        // Owner-only money sub-doc (Owner + Staff feature) — price/discount/
+        // payments/costs/itemPrices. isOwner-only, so a future staff member is
+        // denied: this is the money wall. Staff will read the base order doc
+        // (garment, status, measurements) but never this.
+        match /private/{doc} {
+          allow read, write: if isOwner(uid);
+        }
+      }
+
+      // ── Inspiration style gallery ───────────────────────────────────────
+      // Top-level styles that are not tied to a customer closet.
+      match /inspiration/{styleId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      // Named style collections (folders) at the Inspiration level, each with
+      // its own styles subcollection.
+      match /inspirationFolders/{folderId} {
+        allow read, write: if isOwner(uid);
+
+        match /styles/{styleId} {
+          allow read, write: if isOwner(uid);
+        }
+      }
+
+      // ── Notifications inbox subcollection ───────────────────────────────
+      // Server (Admin SDK) creates docs via create-if-absent; client reads
+      // them and marks isRead. No client create (deterministic ids would
+      // resurrect a dismissed-but-still-open notification on the next scan)
+      // and no client delete in V1.
+      match /notifications/{notificationId} {
+        allow read: if isOwner(uid);
+        allow update: if isOwner(uid)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead'])
+          && request.resource.data.isRead is bool;
+        allow create, delete: if false;
+      }
+
+      // ── Staff memberships (Owner + Staff feature) ───────────────────────
+      // The owner (uid) reads all their memberships; a staff member reads ONLY
+      // their own doc (docId == their auth uid) to drive the post-approval token
+      // refresh and the pending screen. All writes are Admin-SDK only — the
+      // generate/redeem/approve/revoke callables own the lifecycle so a client
+      // can never self-approve or edit status/claims.
+      match /memberships/{staffAuthUid} {
+        allow read: if isOwner(uid) || (request.auth != null && request.auth.uid == staffAuthUid);
+        allow write: if false;
+      }
+
+      // ── Push notification tokens subcollection ──────────────────────
+      // Owner-managed: the device registers/refreshes/removes its own token.
+      match /notificationTokens/{token} {
+        allow read, create, update, delete: if isOwner(uid);
+      }
+
+      // ── Custom garment types subcollection ───────────────────────────────
+      // Stores tailor-defined garment names (e.g. "Iro/Buba"). Client reads
+      // these in the garment picker and writes on upsert / touch. No
+      // financially meaningful fields — full read/write for the owner.
+      match /customGarmentTypes/{docId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      // ── Goals subcollection ──────────────────────────────────────────────
+      match /goals/{goalId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      // ── Smart usage subcollection — server-only writes ───────────────────
+      // The client reads `users/{uid}/usage/smart_drafts.bonusBalance` and
+      // `.count` to keep PlanCard in sync (see SmartUsageDocSource), but the
+      // server's draftMessage Cloud Function is the only writer — it decrements
+      // bonusBalance per draft and increments count per monthly call.
+      //
+      // A successful client write here would let a user reset their AI quota
+      // mid-month. Hard deny.
+      match /usage/{usageDoc} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
+
+      // ── Billing transactions — server-only writes ───────────────────────
+      // The app can observe checkout/payment status for its own account, but
+      // transaction creation, Paystack references, paid markers, and entitlement
+      // updates must come only from Cloud Functions using the Admin SDK.
+      match /billingTransactions/{transactionId} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
+    }
+
+    // ── Collection-group read of owner-only /private sub-docs (Slice 8a) ────
+    // The owner reads money (orders) + contact (customers) for whole LISTS via a
+    // single `collectionGroup("private")` query, filtered by the `ownerId` field.
+    // The nested `.../orders/{oid}/private/{doc}` and `.../customers/{cid}/private/{doc}`
+    // rules authorize direct get/write, but NOT a collection-group query (which
+    // spans every owner's paths, so a path-scoped isOwner rule can't authorize it —
+    // Firestore rejects it with "No matching allow statements"). This rule authorizes
+    // the query by scoping it to the caller's own docs via `ownerId`: Firestore only
+    // allows a collection-group read when it is constrained to
+    // `where ownerId == request.auth.uid`, and only returns docs whose `ownerId`
+    // matches — so an owner sees exactly their own money/contact, and staff / other
+    // owners are denied (their uid never equals another owner's `ownerId`), keeping
+    // the money + contact wall intact. Read-only; writes stay governed by the nested
+    // isOwner rules above.
+    match /{path=**}/private/{doc} {
+      allow read: if request.auth != null && resource.data.ownerId == request.auth.uid;
+    }
+
+    // ── /appleSubscriptions/{originalTransactionId} — server-only index ────
+    // Reverse index mapping an Apple subscription's originalTransactionId to the
+    // Firebase uid that owns it. Written by the Apple IAP functions (Admin SDK)
+    // so an App Store Server Notification can find its user, and so a restore on
+    // a second account can be refused. No client may read or write it — the uid
+    // ownership map must not be enumerable or forgeable from a device.
+    match /appleSubscriptions/{originalTransactionId} {
+      allow read, write: if false;
+    }
+
+    // ── /gifts/{giftId} — Admin-SDK only ───────────────────────────────────
+    // Gift docs hold payment state and the bearer claim code (which IS the doc id
+    // for public gifts). A client must never read a code (bearer credential) nor
+    // write payment/claim state. Redemption goes through the redeemGift Cloud
+    // Function; public gift profiles through getPublicGiftProfile. Hard deny.
+    match /gifts/{giftId} {
+      allow read, write: if false;
+    }
+
+    // ── /giftLinkTokens/{token} — Admin-SDK only ───────────────────────────
+    // Reverse index token -> uid, read only by getPublicGiftProfile (Admin SDK) so
+    // the users collection stays owner-read-only. Minted by createGiftLink. Hard deny.
+    match /giftLinkTokens/{token} {
+      allow read, write: if false;
+    }
+
+    // ── /staffInvites/{code} — Admin-SDK only (Owner + Staff feature) ──────
+    // Bearer invite codes minted by generateStaffInvite and consumed by
+    // redeemStaffInvite (both callables, Admin SDK). Never client-readable: a
+    // code holder redeems via the callable, not by reading the doc. Hard deny.
+    match /staffInvites/{code} {
+      allow read, write: if false;
+    }
+
+    // ── Referral / marketing-attribution — all Admin-SDK only ─────────────
+    // A referral system pays real money to marketers per genuinely-active
+    // referred user, so every collection here is server-owned and hard-denied
+    // to clients (mirrors the gifts / giftLinkTokens bearer-credential model):
+    //
+    //   marketers/{id}          — the referrer entity (affiliate or, later, a
+    //                             user). Holds payout rate + bank details. A
+    //                             client read would leak other marketers' payout
+    //                             terms; a write could self-enroll or raise a rate.
+    //   referralCodes/{code}    — reverse index code -> marketerId (the code IS
+    //                             the doc id). A client write could hijack a code.
+    //   referrals/{referredUid} — per-referred-user milestone + payout state,
+    //                             computed by recordReferralAttribution +
+    //                             reconcileReferrals. A client write could self-
+    //                             mark as qualified and mint a payout.
+    //   referralDevices/{hash}  — device-dedupe reverse index; enumerating or
+    //                             forging it would defeat reinstall fraud checks.
+    match /marketers/{marketerId} {
+      allow read, write: if false;
+    }
+    match /referralCodes/{code} {
+      allow read, write: if false;
+    }
+    match /referrals/{referredUid} {
+      allow read, write: if false;
+    }
+    match /referralDevices/{deviceHash} {
+      allow read, write: if false;
+    }
+
+    // ── Global remote app config (community link, kill switch, feature flags) ──
+    // PUBLIC read: the break-glass app gate (force-update / maintenance) wraps the
+    // whole app INCLUDING the logged-out login/onboarding screens, so the config
+    // must be readable before auth — otherwise the gate silently fails open for
+    // first-run/signed-out users. The doc holds nothing sensitive (community link,
+    // billingEnabled, update floors, maintenance flag; billingEnabled is already
+    // exposed unauthenticated via the getBillingConfig callable). Writes stay
+    // console/admin-only.
+    match /config/{configDoc} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ── /tutorials/{tutorialId} — remote tutorial catalog, read-only ───────
+    // The in-app Help library and contextual hint cards listen to this
+    // collection (FirebaseTutorialsRepository); docs hold nothing sensitive
+    // (topicId, storagePath, durationSec, sortOrder, enabled). Without this
+    // rule the listener fails PERMISSION_DENIED on every client and the app
+    // silently falls back to the bundled catalog — which means remote
+    // enable/disable and cache-busting doc-id rotations never reach devices.
+    // Writes stay console/admin-only.
+    match /tutorials/{tutorialId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // ── /account_deletion_feedback/{docId} — analytics-only writes ─────────
+    // FirestoreDeletionFeedbackRepository writes anonymous-shaped feedback
+    // (reason, additionalNotes, plan, daysActive, platform, appVersion,
+    // locale, createdAtEpochMs) here right before the user deletes their
+    // account. Any authenticated user can create; nobody can read, update,
+    // or delete from a client. Admin SDK / Firebase Console bypass rules
+    // for analytics consumption.
+    //
+    // Without this rule, the delete-account flow silently drops feedback
+    // (rules default to deny), masking signal we need from churn.
+    match /account_deletion_feedback/{docId} {
+      allow create: if request.auth != null;
+    }
+  }
+}
