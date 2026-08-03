@@ -89,6 +89,7 @@ export { sweepDeletedReferralUsers, debugSweepDeletedReferralUsers } from './ref
 export { getReferralDashboard } from './referral/referralDashboard';
 export { markReferralPaid } from './referral/markReferralPaid';
 export { setMarketerStatus } from './referral/setMarketerStatus';
+export { aggregateFoundingTailorsLeaderboard } from './referral/foundingTailorsLeaderboard';
 export { dailyOnboardingMetrics, debugRunOnboardingMetrics } from './metrics/dailyOnboardingMetrics';
 export { grantLaunchFreeOnSignup } from './freemium/onUserCreated';
 export { migrateSensitiveFields } from './staff/migrateSensitiveFields';
