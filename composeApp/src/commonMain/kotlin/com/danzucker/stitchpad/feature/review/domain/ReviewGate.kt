@@ -21,6 +21,7 @@ object ReviewGate {
         ReviewOutcome.DISMISSED -> COOLDOWN_DISMISSED_DAYS * DAY_MS
     }
 
+    @Suppress("ReturnCount") // staged guards (install age, engagement, orders, cooldown) read clearer than nesting
     fun isEligible(signals: ReviewSignals, nowMillis: Long): Boolean {
         if (signals.installedAtMillis <= 0L) return false
         val daysSinceInstall = (nowMillis - signals.installedAtMillis) / DAY_MS

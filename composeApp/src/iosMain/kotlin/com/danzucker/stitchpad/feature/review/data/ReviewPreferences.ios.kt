@@ -47,9 +47,10 @@ actual class ReviewPreferences : ReviewPreferencesStore {
     override suspend fun resetForDebug() {
         listOf(KEY_INSTALL_MILLIS, KEY_HAS_OPEN_DAY, KEY_LAST_OPEN_DAY, KEY_DISTINCT_OPEN_DAYS)
             .forEach { defaults.removeObjectForKey(it) }
+        val perUserPrefixes = listOf(PREFIX_ORDERS, PREFIX_LAST_PROMPT, PREFIX_OUTCOME)
         defaults.dictionaryRepresentation().keys
             .filterIsInstance<String>()
-            .filter { it.startsWith(PREFIX_ORDERS) || it.startsWith(PREFIX_LAST_PROMPT) || it.startsWith(PREFIX_OUTCOME) }
+            .filter { key -> perUserPrefixes.any { key.startsWith(it) } }
             .forEach { defaults.removeObjectForKey(it) }
     }
 
