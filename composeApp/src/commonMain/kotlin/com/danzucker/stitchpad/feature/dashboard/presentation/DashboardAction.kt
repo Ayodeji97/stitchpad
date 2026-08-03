@@ -81,6 +81,9 @@ sealed interface DashboardAction {
     /** Tapped the bell / notifications button → navigate to the in-app inbox. */
     data object OnNotificationsClick : DashboardAction
 
+    /** Founding Tailors card tapped → open the referral + leaderboard screen. */
+    data object OnFoundingTailorsClick : DashboardAction
+
     /** Community banner Join tapped → open the invite + record + dismiss. */
     data object OnJoinCommunity : DashboardAction
 

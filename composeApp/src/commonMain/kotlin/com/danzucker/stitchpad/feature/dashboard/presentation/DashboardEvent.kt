@@ -46,6 +46,9 @@ sealed interface DashboardEvent {
     /** Bell button tapped: navigate to the in-app notifications inbox. */
     data object NavigateToNotifications : DashboardEvent
 
+    /** Founding Tailors card tapped: navigate to the referral + leaderboard screen. */
+    data object NavigateToFoundingTailors : DashboardEvent
+
     /** Open the WhatsApp community invite (chat.whatsapp.com) directly. */
     data class OpenCommunityLink(val url: String) : DashboardEvent
 

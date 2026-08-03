@@ -15,6 +15,7 @@ fun SettingsInviteRewardsRoot(
     onNavigateToReferralCode: () -> Unit,
     onNavigateToShareGiftLink: () -> Unit,
     onNavigateToRedeemGift: () -> Unit,
+    onNavigateToFoundingTailors: () -> Unit,
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -26,6 +27,7 @@ fun SettingsInviteRewardsRoot(
         onNavigateToReferralCode = onNavigateToReferralCode,
         onNavigateToShareGiftLink = onNavigateToShareGiftLink,
         onNavigateToRedeemGift = onNavigateToRedeemGift,
+        onNavigateToFoundingTailors = onNavigateToFoundingTailors,
     )
     SettingsInviteRewardsScreen(state = state, snackbarHostState = snackbarHostState, onAction = viewModel::onAction)
 }

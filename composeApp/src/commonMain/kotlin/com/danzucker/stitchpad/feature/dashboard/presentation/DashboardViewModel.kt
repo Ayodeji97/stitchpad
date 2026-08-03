@@ -283,6 +283,7 @@ class DashboardViewModel(
                 DashboardEvent.NavigateToCustomerDetail(action.customerId)
             )
             DashboardAction.OnDraftMessageClick -> emitEvent(DashboardEvent.NavigateToDraftMessage)
+            DashboardAction.OnFoundingTailorsClick -> emitEvent(DashboardEvent.NavigateToFoundingTailors)
             DashboardAction.OpenUpgrade -> emitEvent(DashboardEvent.NavigateToUpgrade)
             DashboardAction.OnNotificationsClick -> emitEvent(DashboardEvent.NavigateToNotifications)
             DashboardAction.OnErrorDismiss -> _state.update { it.copy(errorMessage = null) }

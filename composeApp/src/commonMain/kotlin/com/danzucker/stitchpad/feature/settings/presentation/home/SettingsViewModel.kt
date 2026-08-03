@@ -197,6 +197,7 @@ class SettingsViewModel(
             SettingsAction.OnDebugMenuClick -> emit(SettingsEvent.NavigateToDebugMenu)
             SettingsAction.OnUpgradeClick -> emit(SettingsEvent.NavigateToUpgrade)
             SettingsAction.OnFoundersNoteClick -> emit(SettingsEvent.NavigateToFoundersNote)
+            SettingsAction.OnFoundingTailorsClick -> emit(SettingsEvent.NavigateToFoundingTailors)
             SettingsAction.OnGetGiftedClick -> emit(SettingsEvent.NavigateToShareGiftLink)
             SettingsAction.OnRedeemGiftClick -> emit(SettingsEvent.NavigateToRedeemGift)
             SettingsAction.OnHelpTutorialsClick -> emit(SettingsEvent.NavigateToHelpTutorials)

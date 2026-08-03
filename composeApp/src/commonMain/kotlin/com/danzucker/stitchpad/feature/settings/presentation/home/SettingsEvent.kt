@@ -30,6 +30,9 @@ sealed interface SettingsEvent {
     data class ShowSnackbar(val message: UiText) : SettingsEvent
     data object NavigateToUpgrade : SettingsEvent
     data object NavigateToFoundersNote : SettingsEvent
+
+    /** Navigate to the Founding Tailors referral + leaderboard screen. */
+    data object NavigateToFoundingTailors : SettingsEvent
     data object NavigateToShareGiftLink : SettingsEvent
     data object NavigateToRedeemGift : SettingsEvent
     data object NavigateToHelpTutorials : SettingsEvent
