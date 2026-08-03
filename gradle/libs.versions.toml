@@ -34,6 +34,7 @@ material3 = "1.12.0-alpha02"
 coil = "3.5.0"
 napier = "2.7.1"
 peekaboo = "0.5.2"
+play-review = "2.0.2"
 turbine = "1.2.1"
 
 [libraries]
@@ -101,6 +102,9 @@ ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "kto
 
 # Peekaboo (KMP image picker)
 peekaboo-image-picker = { module = "io.github.onseok:peekaboo-image-picker", version.ref = "peekaboo" }
+
+# Play In-App Review
+play-review = { module = "com.google.android.play:review-ktx", version.ref = "play-review" }
 
 # Napier (KMP logger — Timber-like API)
 napier = { module = "io.github.aakira:napier", version.ref = "napier" }

@@ -41,6 +41,7 @@ kotlin {
             implementation(libs.installreferrer)
             implementation(libs.koin.android)
             implementation(libs.ktor.client.okhttp)
+            implementation(libs.play.review)
 
             // Media3 / ExoPlayer — looping background video on the welcome screen
             implementation(libs.androidx.media3.exoplayer)
