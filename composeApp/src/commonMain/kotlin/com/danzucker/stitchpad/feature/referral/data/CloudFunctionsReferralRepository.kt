@@ -1,9 +1,11 @@
 package com.danzucker.stitchpad.feature.referral.data
 
+import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.referral.domain.AttributionOutcome
 import com.danzucker.stitchpad.feature.referral.domain.ReferralError
+import com.danzucker.stitchpad.feature.referral.domain.ReferralLink
 import com.danzucker.stitchpad.feature.referral.domain.ReferralRepository
 import com.danzucker.stitchpad.feature.referral.domain.ReferralSource
 import dev.gitlive.firebase.functions.FirebaseFunctions
@@ -62,6 +64,20 @@ internal class CloudFunctionsReferralRepository(
                 recoverError(e.message, fallback = ReferralError.CODE_NOT_FOUND)
             else -> recoverError(e.message, fallback = ReferralError.UNKNOWN)
         }
+
+    override suspend fun getOrCreateMyReferralLink(): Result<ReferralLink, DataError.Network> =
+        try {
+            val data = functions
+                .httpsCallable("getOrCreateMyReferralLink")
+                .invoke()
+                .data<MyReferralLinkDto>()
+            Result.Success(ReferralLink(code = data.code, url = data.url, playUrl = data.playUrl))
+        } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
+            AppLogger.e(tag = TAG, throwable = e) {
+                "getOrCreateMyReferralLink threw ${e::class.simpleName}: ${e.message}"
+            }
+            Result.Error(DataError.Network.UNKNOWN)
+        }
 }
 
 // Server message marker from functions/src/referral/referralConstants.ts
@@ -87,4 +103,11 @@ private data class RecordAttributionRequestDto(
 private data class RecordAttributionResponseDto(
     val status: String,
     val marketerId: String,
+)
+
+@Serializable
+private data class MyReferralLinkDto(
+    val code: String = "",
+    val url: String = "",
+    val playUrl: String = "",
 )
