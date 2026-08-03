@@ -423,6 +423,18 @@ describe('gradeReferral', () => {
     expect(gradeReferral({ ...base, activated: false, qualifiesByActivity: true })).toBeNull();
   });
 
+  it('never re-fires qualifiedDelta for a referral already at qualified (one-time guard)', () => {
+    // The invariant reconcileReferrals.ts leans on for the qualifiedAt stamp:
+    // once milestone is already 'qualified', currentRank can never be < the
+    // qualified rank again, so qualifiedDelta is 0 (and nothing else changes
+    // either — gradeReferral returns null, meaning the caller's
+    // `if (grade.qualifiedDelta === 1)` stamp line is never even reached).
+    // Same inputs that WOULD produce qualifiedDelta: 1 from 'attributed'/'activated'
+    // (see the two tests above), but starting from 'qualified' this run.
+    const r = gradeReferral({ ...base, milestone: 'qualified', payoutState: 'pending', activated: true, qualifiesByActivity: true });
+    expect(r).toBeNull();
+  });
+
   it('returns null when nothing changes', () => {
     expect(gradeReferral({ ...base, milestone: 'activated', activated: true })).toBeNull();
     expect(gradeReferral(base)).toBeNull();
@@ -473,10 +485,14 @@ describe('reconcileReferralsHandler', () => {
     expect(ref.qualifiedAt.toMillis()).toBe(NOW);
   });
 
-  it('does not overwrite qualifiedAt on a later run of an already-qualified referral', async () => {
-    // Already qualified — outside the ['attributed','activated'] scan filter, so a
-    // later nightly run must never touch it (and, defense-in-depth, gradeReferral's
-    // qualifiedDelta can only ever fire once per referral regardless).
+  it('excludes an already-qualified referral from the nightly scan entirely (qualifiedAt untouched)', async () => {
+    // NOTE: this is NOT a test of the qualifiedAt one-time-write guard itself —
+    // the `milestone in ['attributed','activated']` query filter means an
+    // already-'qualified' doc never reaches the transaction body at all, so
+    // `if (grade.qualifiedDelta === 1)` never runs for it either way. That guard
+    // is proven directly by the 'gradeReferral' pure-function test above
+    // ('never re-fires qualifiedDelta for a referral already at qualified').
+    // This test documents the (separate, also-true) scan-level exclusion.
     const { store, db } = seed({}, {
       milestone: 'qualified',
       payoutState: 'pending',
