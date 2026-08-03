@@ -89,6 +89,11 @@ class DebugMenuViewModel(
                 sessionActions.resetCelebrations()
                 emit(DebugMenuEvent.ShowSnackbar(UiText.DynamicString("Celebrations reset")))
             }
+            DebugMenuAction.OnForceReviewPromptClick -> sessionActions.forceReviewPrompt()
+            DebugMenuAction.OnResetReviewSignalsClick -> runJob {
+                sessionActions.resetReviewSignals()
+                emit(DebugMenuEvent.ShowSnackbar(UiText.DynamicString("Review signals reset")))
+            }
             DebugMenuAction.OnSignOutClick -> runSignOut()
             DebugMenuAction.OnSwitchToFolaClick -> runJob {
                 handleSwitch(

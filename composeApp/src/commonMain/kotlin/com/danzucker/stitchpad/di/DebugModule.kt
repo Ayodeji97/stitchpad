@@ -41,6 +41,8 @@ val debugModule = module {
             onboardingPreferences = get(),
             signOutUseCase = get(),
             communityBannerDismissal = get(),
+            reviewController = get(),
+            reviewPreferences = get(),
         )
     }
     single<FreemiumDebugActions> {
