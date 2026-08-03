@@ -1909,4 +1909,10 @@
     <string name="staff_pending_step3_sub">See orders, measurements &amp; advance jobs.</string>
     <string name="staff_pending_leave">Leave this workshop</string>
     <string name="staff_pending_declined">Your request wasn&apos;t approved. You can try another code.</string>
+
+    <string name="review_sentiment_title">Enjoying StitchPad?</string>
+    <string name="review_sentiment_subtitle">Your feedback helps us build the best tool for your business.</string>
+    <string name="review_sentiment_love">Love it</string>
+    <string name="review_sentiment_not_really">Not really</string>
+    <string name="review_sentiment_dismiss_cd">Close</string>
 </resources>
