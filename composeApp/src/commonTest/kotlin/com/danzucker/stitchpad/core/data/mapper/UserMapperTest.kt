@@ -162,4 +162,17 @@ class UserMapperTest {
         // explicit push wins over digest value
         assertTrue(UserDto(id = "u1", dailyPushEnabled = true, dailyDigestEmailEnabled = false).toUser().dailyPushEnabled)
     }
+
+    @Test
+    fun referralCode_mapsFromDtoToDomain() {
+        val dto = UserDto(id = "u1", email = "a@b.com", displayName = "Ada", referralCode = "CODE0")
+        val user = dto.toUser()
+        assertEquals("CODE0", user.referralCode)
+    }
+
+    @Test
+    fun referralCode_isNullWhenAbsent() {
+        val dto = UserDto(id = "u1", email = "a@b.com", displayName = "Ada")
+        assertNull(dto.toUser().referralCode)
+    }
 }
