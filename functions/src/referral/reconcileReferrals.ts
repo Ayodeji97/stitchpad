@@ -479,6 +479,12 @@ export async function reconcileReferralsHandler(
       if (grade) {
         update.milestone = grade.milestone;
         update.payoutState = grade.payoutState;
+        if (grade.qualifiedDelta === 1) {
+          // First time this referral reaches `qualified`. Stamp the server instant
+          // so the Founding Tailors aggregator can bucket the point by month.
+          // qualifiedDelta is only ever 1 on the transition, so this never overwrites.
+          update.qualifiedAt = nowTs;
+        }
         if (grade.payoutState === 'pending' && f.payoutState === 'none') {
           update.payoutAmount = grade.payoutAmount;
           update.holdEndsAt = admin.firestore.Timestamp.fromMillis(grade.holdEndsAtMs as number);

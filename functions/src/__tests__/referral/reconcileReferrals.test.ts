@@ -455,6 +455,40 @@ describe('reconcileReferralsHandler', () => {
     expect(m).toMatchObject({ activated: 1, qualified: 1, pendingAmount: 500_000 });
   });
 
+  it('stamps qualifiedAt once on the run that first qualifies a referral', async () => {
+    // Identical arrange to "qualifies a set-up user active on 4 distinct days" —
+    // a referral that crosses the qualification bar on THIS run.
+    const { store, db } = seed(
+      {
+        'users/u1/customers/c3': { createdAt: SIGNUP + 4.5 * DAY_MS }, // '2026-07-05' — credited this run
+      },
+      priorNights(['2026-07-01', '2026-07-02', '2026-07-03'], '2026-07-05'),
+    );
+    const res = await reconcileReferralsHandler(deps(db));
+    expect(res).toEqual({ scanned: 1, activated: 1, qualified: 1 });
+
+    const ref = store.get('referrals/u1');
+    expect(ref.milestone).toBe('qualified');
+    expect(ref.qualifiedAt).toBeDefined();
+    expect(ref.qualifiedAt.toMillis()).toBe(NOW);
+  });
+
+  it('does not overwrite qualifiedAt on a later run of an already-qualified referral', async () => {
+    // Already qualified — outside the ['attributed','activated'] scan filter, so a
+    // later nightly run must never touch it (and, defense-in-depth, gradeReferral's
+    // qualifiedDelta can only ever fire once per referral regardless).
+    const { store, db } = seed({}, {
+      milestone: 'qualified',
+      payoutState: 'pending',
+      qualifiedAt: ts(1_000),
+      observedDayKeys: ['2026-07-01', '2026-07-02', '2026-07-03', '2026-07-04'],
+      lastObservedRunDateKey: '2026-07-05',
+    });
+    const res = await reconcileReferralsHandler(deps(db, NOW + DAY_MS));
+    expect(res.scanned).toBe(0);
+    expect(store.get('referrals/u1').qualifiedAt.toMillis()).toBe(1_000); // unchanged
+  });
+
   it('activates (no payout) when set up but under the distinct-day bar', async () => {
     const { store, db } = seed(customersOnDays(3));
     const res = await reconcileReferralsHandler(deps(db));
