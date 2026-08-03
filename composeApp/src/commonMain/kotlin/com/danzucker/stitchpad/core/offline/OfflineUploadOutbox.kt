@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.core.offline
 
 import com.danzucker.stitchpad.core.data.dto.OrderDto
 import com.danzucker.stitchpad.core.data.dto.UserDto
+import com.danzucker.stitchpad.core.data.mapper.toBaseDto
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.style.data.toStorageData
 import dev.gitlive.firebase.firestore.FieldValue
@@ -241,7 +242,12 @@ class OfflineUploadOutbox(
                 }
             }
             if (!patched) error("Pending order image ref is unavailable")
-            set(docRef, dto.copy(items = updatedItems, updatedAt = nowMs()))
+            // Slice 8d-1 (stop-dual-write): write back the money-free base shape so an
+            // image-upload completion never re-mirrors money onto the base doc (which
+            // would re-appear after the Slice-8d strip). Money stays in /private/money,
+            // untouched by this image patch. Same replacement semantics as before —
+            // OrderDto never carried serverCreatedAt either, so rules behave the same.
+            set(docRef, dto.copy(items = updatedItems, updatedAt = nowMs()).toBaseDto())
         }
         rememberCompletedUpload(job.storagePath, downloadUrl)
     }

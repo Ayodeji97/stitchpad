@@ -4,6 +4,7 @@ import com.danzucker.stitchpad.core.data.decodeDocOrLog
 import com.danzucker.stitchpad.core.data.dto.CustomerContactDto
 import com.danzucker.stitchpad.core.data.dto.CustomerDto
 import com.danzucker.stitchpad.core.data.mapper.toCustomer
+import com.danzucker.stitchpad.core.data.mapper.toCustomerBaseDto
 import com.danzucker.stitchpad.core.data.mapper.toCustomerContactDto
 import com.danzucker.stitchpad.core.data.mapper.toCustomerDto
 import com.danzucker.stitchpad.core.data.mapper.withContact
@@ -52,6 +53,19 @@ internal fun shouldBlockActiveCustomerCreate(
     entitlementsHydrated: Boolean = true,
 ): Boolean =
     entitlementsHydrated && cachedActiveCount != null && cachedActiveCount >= customerCap
+
+/**
+ * Editable base-doc fields for [FirebaseCustomerRepository.updateCustomer]'s merge
+ * (Slice 8d-1, stop-dual-write). Only the non-sensitive `name` + `updatedAt`:
+ * phone/email/address now live solely in `/private/contact`, so the base customer doc
+ * stops carrying contact. slotState/lockedAt are server-owned and never written here.
+ * Extracted as a pure helper so the "no contact on the base update" invariant is
+ * asserted in commonTest without a Firestore fake.
+ */
+internal fun customerBaseUpdateFields(dto: CustomerDto): Map<String, Any?> = mapOf(
+    "name" to dto.name,
+    "updatedAt" to dto.updatedAt,
+)
 
 class FirebaseCustomerRepository(
     private val firestore: FirebaseFirestore,
@@ -187,7 +201,9 @@ class FirebaseCustomerRepository(
             firestore.collection("users").document(userId).collection("customers")
                 .document(customer.id)
         }
-        val dto = customer.toCustomerDto().copy(id = docRef.id)
+        // Slice 8d-1 (stop-dual-write): base doc is contact-free; contact goes only to
+        // the /private/contact sub-doc below via toCustomerContactDto.
+        val dto = customer.toCustomerBaseDto().copy(id = docRef.id)
         if (CustomerSlotState.fromWire(dto.slotState) == CustomerSlotState.ACTIVE) {
             val cap = entitlements.current().customerCap
             val activeCount = cachedActiveCustomerCounts.value[userId]
@@ -235,13 +251,9 @@ class FirebaseCustomerRepository(
             .collection("customers")
             .document(customer.id)
         val dto = customer.toCustomerDto()
-        val editableFields = mapOf(
-            "name" to dto.name,
-            "phone" to dto.phone,
-            "email" to dto.email,
-            "address" to dto.address,
-            "updatedAt" to dto.updatedAt,
-        )
+        // Slice 8d-1 (stop-dual-write): the base doc no longer carries contact — only
+        // name + updatedAt. phone/email/address live solely in /private/contact (below).
+        val editableFields = customerBaseUpdateFields(dto)
         val accepted = offlineWrites.enqueue("updateCustomer customerId=${customer.id}") {
             // Merge only fields from the edit form. slotState/lockedAt are
             // server-owned and must not be reconstructed from offline UI state.

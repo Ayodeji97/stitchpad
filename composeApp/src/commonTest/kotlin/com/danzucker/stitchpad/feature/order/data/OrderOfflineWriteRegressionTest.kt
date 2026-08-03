@@ -107,6 +107,18 @@ class OrderOfflineWriteRegressionTest {
         )
     }
 
+    // Slice 8d-1 (stop-dual-write): recordPayment must stop mirroring money onto the
+    // base order doc. The base write may only touch non-sensitive fields (updatedAt);
+    // `payments` and the legacy `depositPaid` now live solely in /private/money.
+    @Test
+    fun orderPaymentBaseWriteFields_bumpsUpdatedAtOnly_neverMoney() {
+        val fields = orderPaymentBaseWriteFields(now = 1_700_000_000_000L)
+
+        assertEquals(mapOf<String, Any?>("updatedAt" to 1_700_000_000_000L), fields)
+        assertFalse(fields.containsKey("payments"))
+        assertFalse(fields.containsKey("depositPaid"))
+    }
+
     private fun assertAllValuesAreFirestorePrimitives(map: Map<String, Any?>) {
         map.forEach { (key, value) ->
             assertTrue(

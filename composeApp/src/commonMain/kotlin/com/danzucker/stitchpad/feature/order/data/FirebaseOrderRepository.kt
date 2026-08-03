@@ -6,8 +6,8 @@ import com.danzucker.stitchpad.core.data.dto.OrderMoneyDto
 import com.danzucker.stitchpad.core.data.dto.PaymentDto
 import com.danzucker.stitchpad.core.data.dto.StatusChangeDto
 import com.danzucker.stitchpad.core.data.mapper.toOrder
+import com.danzucker.stitchpad.core.data.mapper.toOrderBaseDto
 import com.danzucker.stitchpad.core.data.mapper.toOrderCostDto
-import com.danzucker.stitchpad.core.data.mapper.toOrderDto
 import com.danzucker.stitchpad.core.data.mapper.toOrderMoneyDto
 import com.danzucker.stitchpad.core.data.mapper.toPaymentDto
 import com.danzucker.stitchpad.core.data.mapper.withMoney
@@ -120,6 +120,18 @@ internal fun OrderCostDto.toFirestoreMap(): Map<String, Any?> = mapOf(
  */
 internal fun orderCostsWriteFields(costs: List<OrderCost>): Map<String, Any?> = mapOf(
     "costs" to costs.map { it.toOrderCostDto().toFirestoreMap() },
+)
+
+/**
+ * Write payload for [FirebaseOrderRepository.recordPayment]'s BASE order-doc update
+ * (Slice 8d-1, stop-dual-write). Only the non-sensitive `updatedAt`: `payments` and the
+ * legacy `depositPaid` now live solely in `/private/money`, so the base doc stops
+ * carrying money and a later strip can remove the base money fields for good. Extracted
+ * as a pure helper so the "no money on the base payment write" invariant is asserted in
+ * commonTest without a Firestore fake.
+ */
+internal fun orderPaymentBaseWriteFields(now: Long): Map<String, Any?> = mapOf(
+    "updatedAt" to now,
 )
 
 @Suppress("TooManyFunctions")
@@ -328,7 +340,9 @@ class FirebaseOrderRepository(
         } else {
             ordersCollection(userId).document(order.id)
         }
-        val dto = order.withCompletedUploadPatches().toOrderDto().copy(id = docRef.id)
+        // Slice 8d-1 (stop-dual-write): the base doc is money-free; money goes only to
+        // the /private/money sub-doc below via toOrderMoneyDto.
+        val dto = order.withCompletedUploadPatches().toOrderBaseDto().copy(id = docRef.id)
         val accepted = offlineWrites.enqueue("createOrder orderId=${docRef.id}") {
             docRef.set(dto)
             docRef.set(mapOf("serverCreatedAt" to FieldValue.serverTimestamp), merge = true)
@@ -352,8 +366,13 @@ class FirebaseOrderRepository(
             // replacement here is rejected with permission-denied. GitLive encodes
             // defaults, so every DTO field (nulls and zeros included) is still
             // written and field-clearing behaves exactly as before.
+            //
+            // Slice 8d-1 (stop-dual-write): base write is money-free (toOrderBaseDto).
+            // With merge = true the base doc's pre-existing money fields (on a legacy
+            // doc written before 8d-1) are simply left untouched — never refreshed —
+            // and the full money is re-mirrored to /private/money below.
             ordersCollection(userId).document(order.id)
-                .set(order.withCompletedUploadPatches().toOrderDto(), merge = true)
+                .set(order.withCompletedUploadPatches().toOrderBaseDto(), merge = true)
             // Full-money mirror; order carries the current money so a replace is correct.
             orderMoneyDoc(userId, order.id).set(order.toOrderMoneyDto(userId))
         }
@@ -383,6 +402,8 @@ class FirebaseOrderRepository(
         return Result.Success(Unit)
     }
 
+    @Suppress("SpreadOperator") // GitLive's update() only accepts vararg Pair<String, Any?>;
+    // spreading orderPaymentBaseWriteFields' map keeps the tested helper as the actual write path.
     override suspend fun recordPayment(
         userId: String,
         orderId: String,
@@ -399,10 +420,11 @@ class FirebaseOrderRepository(
             FieldValue.arrayUnion(paymentsToAppend[0], paymentsToAppend[1])
         }
         val accepted = offlineWrites.enqueue("recordPayment orderId=$orderId paymentId=${payment.id}") {
+            // Slice 8d-1 (stop-dual-write): the base doc no longer carries money —
+            // only bump updatedAt. `payments` (and the legacy `depositPaid`) live
+            // solely in /private/money now (the mirror below).
             ordersCollection(userId).document(orderId).update(
-                "payments" to paymentsArrayUnion,
-                "depositPaid" to 0.0,
-                "updatedAt" to now,
+                *orderPaymentBaseWriteFields(now).entries.map { it.key to it.value }.toTypedArray(),
             )
             // Mirror the payment append to the money sub-doc. merge=true so it
             // create-or-updates even for orders whose money doc isn't backfilled yet.
@@ -467,19 +489,15 @@ class FirebaseOrderRepository(
      * corrupt a public report. See [orderCostsWriteFields] for the write payload this
      * invariant is guarded by in commonTest.
      */
-    @Suppress("SpreadOperator") // GitLive's update() only accepts vararg Pair<String, Any?>;
-    // spreading orderCostsWriteFields' map keeps the tested helper as the actual write path.
     override suspend fun updateCosts(
         userId: String,
         orderId: String,
         costs: List<OrderCost>,
     ): EmptyResult<DataError.Network> {
         val accepted = offlineWrites.enqueue("updateCosts orderId=$orderId") {
-            ordersCollection(userId).document(orderId).update(
-                *orderCostsWriteFields(costs).entries.map { it.key to it.value }.toTypedArray(),
-            )
-            // Mirror costs to the money sub-doc (create-safe). Same "no updatedAt"
-            // invariant as the base write — the sub-doc has no updatedAt field.
+            // Slice 8d-1 (stop-dual-write): costs are money — they live solely in
+            // /private/money now, so the base order doc gets NO cost write at all (it
+            // never bumped updatedAt either — see the KDoc — so nothing else is lost).
             // Partial mirror: costs only. No ownerId stamp — same completeness-sentinel
             // reasoning as recordPayment above (see Order.withMoney).
             orderMoneyDoc(userId, orderId).set(orderCostsWriteFields(costs), merge = true)
