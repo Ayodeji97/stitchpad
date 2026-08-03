@@ -1,6 +1,8 @@
 package com.danzucker.stitchpad.feature.review.data
 
 import com.danzucker.stitchpad.feature.review.domain.StoreReviewLauncher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import platform.Foundation.NSURL
 import platform.StoreKit.SKStoreReviewController
 import platform.UIKit.UIApplication
@@ -14,7 +16,12 @@ class IosStoreReviewLauncher : StoreReviewLauncher {
         // Deprecated-but-supported no-scene form keeps the K/N binding simple; StoreKit
         // routes it to the active scene. Adjust to requestReviewInScene(...) if the
         // compiler requires a UIWindowScene on the linked StoreKit headers.
-        SKStoreReviewController.requestReview()
+        // Callers may invoke this from a background dispatcher (e.g. ReviewController's
+        // Dispatchers.Default scope), so hop to main before touching StoreKit/UIKit —
+        // same pattern as WhatsAppLauncher.ios.kt.
+        withContext(Dispatchers.Main) {
+            SKStoreReviewController.requestReview()
+        }
     }
 
     override fun openStoreListing() {
