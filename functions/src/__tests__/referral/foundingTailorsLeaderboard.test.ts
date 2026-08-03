@@ -119,6 +119,34 @@ test('writes a current-month doc with an empty board when there are zero qualify
   expect((await db.doc('leaderboards/current').get()).data().monthId).toBe('2026-09');
 });
 
+test('skips a qualified, non-blocked, program referral that has no qualifiedAt (pre-Task-1 doc)', async () => {
+  const { db } = makeFakeDb({
+    'marketers/mA': { program: 'founding_tailors', name: 'Ada Styles', type: 'user' },
+    'referrals/r1': { marketerId: 'mA', milestone: 'qualified', qualifiedAt: ts('2026-08-05T10:00:00Z'), flags: [] },
+    'referrals/r7': { marketerId: 'mA', milestone: 'qualified', flags: [] }, // no qualifiedAt — must NOT count
+  });
+
+  await aggregateFoundingTailorsLeaderboardHandler({ db, now: () => new Date('2026-08-25T00:00:00Z') });
+
+  const aug = (await db.doc('leaderboards/2026-08').get()).data();
+  // Only r1 counts; r7 contributes zero points despite being qualified/non-blocked/program.
+  expect(aug.entries).toEqual([{ marketerId: 'mA', name: 'Ada Styles', points: 1 }]);
+});
+
+test('still writes current + current-month + alltime (all empty) when there are zero program marketers at all', async () => {
+  const { db } = makeFakeDb({});
+
+  await expect(
+    aggregateFoundingTailorsLeaderboardHandler({ db, now: () => new Date('2026-09-01T00:00:00Z') }),
+  ).resolves.not.toThrow();
+
+  expect((await db.doc('leaderboards/current').get()).data()).toEqual({ monthId: '2026-09', updatedAt: expect.anything() });
+  const sep = (await db.doc('leaderboards/2026-09').get()).data();
+  expect(sep).toEqual({ monthId: '2026-09', updatedAt: expect.anything(), entries: [] });
+  const alltime = (await db.doc('leaderboards/alltime').get()).data();
+  expect(alltime).toEqual({ updatedAt: expect.anything(), entries: [] });
+});
+
 test('writes the alltime board aggregated across all months, points-desc', async () => {
   const { db } = makeFakeDb({
     'marketers/mA': { program: 'founding_tailors', name: 'Ada Styles', type: 'user' },
