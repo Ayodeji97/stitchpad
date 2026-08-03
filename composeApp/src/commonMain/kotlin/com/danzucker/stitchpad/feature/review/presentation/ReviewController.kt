@@ -78,13 +78,19 @@ class ReviewController(
     }
 
     override fun recordOrderCreated() {
-        scope.launch { currentUserId?.let { preferences.incrementOrdersCreated(it) } }
+        scope.launch {
+            val uid = mutex.withLock { currentUserId } ?: return@launch
+            preferences.incrementOrdersCreated(uid)
+        }
     }
 
     fun onLoveIt() {
         scope.launch {
-            _current.value = false
-            currentUserId?.let { preferences.recordPrompt(it, ReviewOutcome.RATED, now()) }
+            val uid = mutex.withLock {
+                _current.value = false
+                currentUserId
+            }
+            uid?.let { preferences.recordPrompt(it, ReviewOutcome.RATED, now()) }
             analytics.logEvent(AnalyticsEvent.ReviewSentiment("positive"))
             analytics.logEvent(AnalyticsEvent.ReviewInAppRequested)
             launcher.requestInAppReview()
@@ -93,8 +99,11 @@ class ReviewController(
 
     fun onNotReally() {
         scope.launch {
-            _current.value = false
-            currentUserId?.let { preferences.recordPrompt(it, ReviewOutcome.GAVE_FEEDBACK, now()) }
+            val uid = mutex.withLock {
+                _current.value = false
+                currentUserId
+            }
+            uid?.let { preferences.recordPrompt(it, ReviewOutcome.GAVE_FEEDBACK, now()) }
             analytics.logEvent(AnalyticsEvent.ReviewSentiment("negative"))
             analytics.logEvent(AnalyticsEvent.ReviewFeedbackOpened)
             _effects.send(ReviewEffect.OpenFeedback(ReviewConfig.FEEDBACK_URL))
@@ -103,8 +112,11 @@ class ReviewController(
 
     fun onDismiss() {
         scope.launch {
-            _current.value = false
-            currentUserId?.let { preferences.recordPrompt(it, ReviewOutcome.DISMISSED, now()) }
+            val uid = mutex.withLock {
+                _current.value = false
+                currentUserId
+            }
+            uid?.let { preferences.recordPrompt(it, ReviewOutcome.DISMISSED, now()) }
             analytics.logEvent(AnalyticsEvent.ReviewSentiment("dismissed"))
         }
     }
