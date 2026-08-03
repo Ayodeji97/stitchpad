@@ -92,4 +92,30 @@ sealed interface AnalyticsEvent {
         override val name = "referral_code_applied"
         override val params = mapOf("source" to source, "surface" to surface)
     }
+
+    /** The sentiment bottom sheet was shown (gate passed). */
+    data object ReviewPromptShown : AnalyticsEvent {
+        override val name = "review_prompt_shown"
+    }
+
+    /** [sentiment] ∈ positive|negative|dismissed — the user's answer to the sentiment sheet. */
+    data class ReviewSentiment(val sentiment: String) : AnalyticsEvent {
+        override val name = "review_sentiment"
+        override val params = mapOf("sentiment" to sentiment)
+    }
+
+    /** The native in-app review API was invoked (fire-and-forget; may be OS-throttled). */
+    data object ReviewInAppRequested : AnalyticsEvent {
+        override val name = "review_inapp_requested"
+    }
+
+    /** An unhappy user was routed to the Tally feedback hub. */
+    data object ReviewFeedbackOpened : AnalyticsEvent {
+        override val name = "review_feedback_opened"
+    }
+
+    /** The Settings "Rate StitchPad" row opened the store listing. */
+    data object ReviewStoreListingOpened : AnalyticsEvent {
+        override val name = "review_store_listing_opened"
+    }
 }
