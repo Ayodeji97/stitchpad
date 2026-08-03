@@ -218,6 +218,10 @@ class DashboardViewModel(
             DashboardAction.OnSeeAllClick -> emitEvent(DashboardEvent.NavigateToOrders)
             DashboardAction.OnOutstandingClick -> emitEvent(DashboardEvent.NavigateToToCollect)
             DashboardAction.OnViewAllOrdersClick -> emitEvent(DashboardEvent.NavigateToOrders)
+            // Staff count-tile taps open the Orders list. PR-A2 will pass a status/deadline
+            // filter through NavigateToOrders so each tile lands on its own filtered view.
+            DashboardAction.OnViewOverdueClick -> emitEvent(DashboardEvent.NavigateToOrders)
+            DashboardAction.OnViewDueTodayClick -> emitEvent(DashboardEvent.NavigateToOrders)
             DashboardAction.OnViewPipelineInProgressClick -> emitEvent(DashboardEvent.NavigateToOrders)
             DashboardAction.OnViewPipelineNotStartedClick -> emitEvent(DashboardEvent.NavigateToOrders)
             DashboardAction.OnViewReconnectClick -> emitEvent(DashboardEvent.NavigateToCustomers)
