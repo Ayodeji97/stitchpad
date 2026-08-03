@@ -38,6 +38,10 @@ import com.danzucker.stitchpad.feature.referral.data.ReferralPreferences
 import com.danzucker.stitchpad.feature.referral.domain.ClipboardReferralReader
 import com.danzucker.stitchpad.feature.referral.domain.InstallReferrerReader
 import com.danzucker.stitchpad.feature.referral.domain.ReferralPreferencesStore
+import com.danzucker.stitchpad.feature.review.data.IosStoreReviewLauncher
+import com.danzucker.stitchpad.feature.review.data.ReviewPreferences
+import com.danzucker.stitchpad.feature.review.data.ReviewPreferencesStore
+import com.danzucker.stitchpad.feature.review.domain.StoreReviewLauncher
 import com.danzucker.stitchpad.feature.tutorials.data.TutorialVideoCache
 import org.koin.core.module.Module
 import org.koin.dsl.bind
@@ -88,6 +92,8 @@ actual val platformModule: Module = module {
     single<MeasurementSharer> { IosMeasurementSharer() }
     single { WhatsAppLauncher() }
     single { DialerLauncher() }
+    single { ReviewPreferences() } bind ReviewPreferencesStore::class
+    single<StoreReviewLauncher> { IosStoreReviewLauncher() }
     single<PushPermissionController> { IosPushPermissionController() }
     single<SsoCredentialProvider> {
         val google = iosNativeGoogleSignInLauncher

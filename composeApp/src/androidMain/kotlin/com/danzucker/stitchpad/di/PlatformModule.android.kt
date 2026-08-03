@@ -35,6 +35,10 @@ import com.danzucker.stitchpad.feature.referral.data.ReferralPreferences
 import com.danzucker.stitchpad.feature.referral.domain.ClipboardReferralReader
 import com.danzucker.stitchpad.feature.referral.domain.InstallReferrerReader
 import com.danzucker.stitchpad.feature.referral.domain.ReferralPreferencesStore
+import com.danzucker.stitchpad.feature.review.data.AndroidStoreReviewLauncher
+import com.danzucker.stitchpad.feature.review.data.ReviewPreferences
+import com.danzucker.stitchpad.feature.review.data.ReviewPreferencesStore
+import com.danzucker.stitchpad.feature.review.domain.StoreReviewLauncher
 import com.danzucker.stitchpad.feature.tutorials.data.TutorialVideoCache
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
@@ -66,6 +70,8 @@ actual val platformModule: Module = module {
     single { WhatsAppLauncher(androidContext()) }
     single { DialerLauncher(androidContext()) }
     single { CurrentActivityHolder() }
+    single { ReviewPreferences(androidContext()) } bind ReviewPreferencesStore::class
+    single<StoreReviewLauncher> { AndroidStoreReviewLauncher(activityHolder = get(), context = androidContext()) }
     single<PushPermissionController> {
         AndroidPushPermissionController(
             context = androidContext(),
