@@ -1,4 +1,8 @@
-import { aggregateFoundingTailorsLeaderboardHandler, monthKeyLagos } from '../../referral/foundingTailorsLeaderboard';
+import {
+  aggregateFoundingTailorsLeaderboardHandler,
+  getFoundingTailorsLeaderboardHandler,
+  monthKeyLagos,
+} from '../../referral/foundingTailorsLeaderboard';
 
 // ── Fake Firestore ───────────────────────────────────────────────────────────
 // Same chainable collection().where() query layer as reconcileReferrals.test.ts,
@@ -163,4 +167,80 @@ test('writes the alltime board aggregated across all months, points-desc', async
     { marketerId: 'mA', name: 'Ada Styles', points: 2 },
     { marketerId: 'mB', name: 'Bola Wears', points: 1 },
   ]);
+});
+
+// ── getFoundingTailorsLeaderboardHandler (public read callable) ────────────
+
+test('returns ranked top rows without codes and resolves you from ?code', async () => {
+  const { db } = makeFakeDb({
+    'leaderboards/current': { monthId: '2026-08' },
+    'leaderboards/2026-08': {
+      monthId: '2026-08',
+      updatedAt: ts('2026-08-25T00:00:00Z'),
+      entries: [
+        { marketerId: 'mA', name: 'Ada Styles', points: 3 },
+        { marketerId: 'mB', name: 'Bola Wears', points: 1 },
+      ],
+    },
+    'referralCodes/CODEB': { marketerId: 'mB' },
+  });
+
+  const res = await getFoundingTailorsLeaderboardHandler({ code: 'CODEB' }, { db });
+
+  expect(res.monthId).toBe('2026-08');
+  expect(res.top).toEqual([
+    { rank: 1, name: 'Ada Styles', points: 3 },
+    { rank: 2, name: 'Bola Wears', points: 1 },
+  ]);
+  expect((res.top[0] as any).marketerId).toBeUndefined();
+  expect((res.top[0] as any).code).toBeUndefined();
+  expect(res.you).toEqual({ rank: 2, points: 1 });
+});
+
+test('unknown code yields you=null and never leaks code existence', async () => {
+  const { db } = makeFakeDb({
+    'leaderboards/current': { monthId: '2026-08' },
+    'leaderboards/2026-08': { monthId: '2026-08', updatedAt: ts('2026-08-25T00:00:00Z'), entries: [] },
+  });
+  const res = await getFoundingTailorsLeaderboardHandler({ code: 'NOPE' }, { db });
+  expect(res.you).toBeNull();
+});
+
+test('valid code but marketer has no entry this month yields you={rank:0,points:0}', async () => {
+  const { db } = makeFakeDb({
+    'leaderboards/current': { monthId: '2026-08' },
+    'leaderboards/2026-08': {
+      monthId: '2026-08',
+      updatedAt: ts('2026-08-25T00:00:00Z'),
+      entries: [{ marketerId: 'mA', name: 'Ada Styles', points: 3 }],
+    },
+    'referralCodes/CODEC': { marketerId: 'mC' },
+  });
+  const res = await getFoundingTailorsLeaderboardHandler({ code: 'CODEC' }, { db });
+  expect(res.you).toEqual({ rank: 0, points: 0 });
+});
+
+test('no code arg yields you=null and returns updatedAt/monthId from the current-month doc', async () => {
+  const { db } = makeFakeDb({
+    'leaderboards/current': { monthId: '2026-08' },
+    'leaderboards/2026-08': {
+      monthId: '2026-08',
+      updatedAt: ts('2026-08-25T00:00:00Z'),
+      entries: [{ marketerId: 'mA', name: 'Ada Styles', points: 3 }],
+    },
+  });
+  const res = await getFoundingTailorsLeaderboardHandler({}, { db });
+  expect(res.you).toBeNull();
+  expect(res.monthId).toBe('2026-08');
+  expect(res.updatedAt).toBe(new Date('2026-08-25T00:00:00Z').getTime());
+});
+
+test('falls back to monthKeyLagos(now) when leaderboards/current is missing', async () => {
+  const nowMonth = monthKeyLagos(Date.now());
+  const { db } = makeFakeDb({
+    [`leaderboards/${nowMonth}`]: { monthId: nowMonth, updatedAt: ts('2026-08-25T00:00:00Z'), entries: [] },
+  });
+  const res = await getFoundingTailorsLeaderboardHandler({}, { db });
+  expect(res.monthId).toBe(nowMonth);
+  expect(res.top).toEqual([]);
 });

@@ -9,7 +9,7 @@
 
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
-import { REGION, MARKETERS, REFERRALS, ACTIVE_DAY_TIMEZONE, hasBlockingFlag } from './referralConstants';
+import { REGION, MARKETERS, REFERRALS, REFERRAL_CODES, ACTIVE_DAY_TIMEZONE, hasBlockingFlag } from './referralConstants';
 import type { ReferralFlag, ReferralMilestone } from './referralConstants';
 import { FOUNDING_TAILORS_PROGRAM } from './getOrCreateMyReferralLink';
 
@@ -81,3 +81,53 @@ export const aggregateFoundingTailorsLeaderboard = functions
   .onRun(async () => {
     await aggregateFoundingTailorsLeaderboardHandler({ db: admin.firestore(), now: () => new Date() });
   });
+
+// ── Public read callable ────────────────────────────────────────────────────
+// Reads only the pre-computed public `leaderboards/*` docs written by the
+// aggregator above (never re-scans referrals/marketers). No auth guard on
+// purpose: the public web page calls this unauthenticated.
+
+export interface PublicRow { rank: number; name: string; points: number }
+export interface LeaderboardResponse {
+  updatedAt: number;
+  monthId: string;
+  top: PublicRow[];
+  you: { rank: number; points: number } | null;
+}
+export interface ReadDeps { db: admin.firestore.Firestore }
+
+const TOP_LIMIT = 25;
+
+export async function getFoundingTailorsLeaderboardHandler(
+  data: { code?: unknown },
+  deps: ReadDeps,
+): Promise<LeaderboardResponse> {
+  const currentDoc = (await deps.db.doc('leaderboards/current').get()).data() as { monthId?: string } | undefined;
+  const monthId = currentDoc?.monthId ?? monthKeyLagos(Date.now());
+  const board = (await deps.db.doc(`leaderboards/${monthId}`).get()).data() as
+    | { updatedAt?: { toMillis(): number }; entries?: LeaderEntry[] }
+    | undefined;
+  const entries = board?.entries ?? [];
+
+  const top: PublicRow[] = entries
+    .slice(0, TOP_LIMIT)
+    .map((e, i) => ({ rank: i + 1, name: e.name, points: e.points }));
+
+  let you: { rank: number; points: number } | null = null;
+  const code = typeof data?.code === 'string' && data.code.trim() ? data.code.trim() : null;
+  if (code) {
+    const codeDoc = (await deps.db.doc(`${REFERRAL_CODES}/${code}`).get()).data() as { marketerId?: string } | undefined;
+    const marketerId = codeDoc?.marketerId;
+    if (marketerId) {
+      const idx = entries.findIndex((e) => e.marketerId === marketerId);
+      you = idx >= 0 ? { rank: idx + 1, points: entries[idx].points } : { rank: 0, points: 0 };
+    }
+    // Unknown code: `you` stays null — never leak whether the code exists.
+  }
+
+  return { updatedAt: board?.updatedAt?.toMillis?.() ?? 0, monthId, top, you };
+}
+
+export const getFoundingTailorsLeaderboard = functions
+  .region(REGION)
+  .https.onCall(async (data) => getFoundingTailorsLeaderboardHandler(data as { code?: unknown }, { db: admin.firestore() }));
