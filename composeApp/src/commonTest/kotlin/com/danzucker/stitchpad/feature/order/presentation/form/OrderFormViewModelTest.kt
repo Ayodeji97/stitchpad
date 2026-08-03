@@ -31,6 +31,7 @@ import com.danzucker.stitchpad.core.media.FakeImageCompressor
 import com.danzucker.stitchpad.core.media.ImageCompressor
 import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
+import com.danzucker.stitchpad.feature.review.presentation.NoopReviewArmer
 import com.danzucker.stitchpad.feature.style.domain.StylePickerFolder
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -111,6 +112,7 @@ class OrderFormViewModelTest {
                 authUserIds = emptyFlow(),
                 scope = CoroutineScope(UnconfinedTestDispatcher()),
             ),
+            reviewArmer = NoopReviewArmer(),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm

@@ -19,6 +19,7 @@ import com.danzucker.stitchpad.core.media.FakeImageCompressor
 import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
 import com.danzucker.stitchpad.core.presentation.celebration.Milestone
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
+import com.danzucker.stitchpad.feature.review.presentation.NoopReviewArmer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -93,6 +94,7 @@ class OrderFormViewModelCelebrationTest {
             imageCompressor = FakeImageCompressor(),
             analytics = FakeAnalytics(),
             celebrations = celebrations,
+            reviewArmer = NoopReviewArmer(),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
