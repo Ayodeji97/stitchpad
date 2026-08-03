@@ -2,6 +2,8 @@ package com.danzucker.stitchpad.feature.settings.presentation.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.analytics.domain.Analytics
+import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
 import com.danzucker.stitchpad.core.config.domain.CommunityJoinTracker
 import com.danzucker.stitchpad.core.config.domain.model.AppConfig
@@ -31,6 +33,7 @@ import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
 import com.danzucker.stitchpad.feature.auth.presentation.toUiText
 import com.danzucker.stitchpad.feature.notification.push.PushPermissionController
+import com.danzucker.stitchpad.feature.review.domain.StoreReviewLauncher
 import com.danzucker.stitchpad.feature.settings.domain.resolveSubscriptionStatus
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -89,6 +92,8 @@ class SettingsViewModel(
     private val dismissal: CommunityBannerDismissal,
     private val activeWorkshopProvider: ActiveWorkshopProvider,
     private val inviteRedemptionRepository: InviteRedemptionRepository,
+    private val analytics: Analytics,
+    private val storeReviewLauncher: StoreReviewLauncher,
 ) : ViewModel() {
 
     private val uiState = MutableStateFlow(LocalUiState())
@@ -212,6 +217,10 @@ class SettingsViewModel(
             SettingsAction.OnInviteRewardsClick -> emit(SettingsEvent.NavigateToInviteRewards)
             SettingsAction.OnHelpSupportClick -> emit(SettingsEvent.NavigateToHelpSupport)
             SettingsAction.OnLegalAboutClick -> emit(SettingsEvent.NavigateToLegalAbout)
+            SettingsAction.OnRateAppClick -> {
+                analytics.logEvent(AnalyticsEvent.ReviewStoreListingOpened)
+                storeReviewLauncher.openStoreListing()
+            }
             SettingsAction.OnLeaveWorkshopClick ->
                 uiState.update { it.copy(showLeaveWorkshopDialog = true) }
             SettingsAction.OnDismissLeaveWorkshopDialog ->

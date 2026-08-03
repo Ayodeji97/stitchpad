@@ -1379,6 +1379,8 @@
     <string name="referral_code_generic_error">Something went wrong. Please try again.</string>
     <string name="settings_row_contact">Contact us on WhatsApp</string>
     <string name="settings_row_contact_subtitle">Get help and support</string>
+    <string name="settings_row_rate_app">Rate StitchPad</string>
+    <string name="settings_row_rate_app_subtitle">Tell others what you think on the store</string>
     <string name="settings_row_community">Join our community</string>
     <string name="settings_row_community_subtitle">Updates, tips &amp; other tailors on WhatsApp</string>
     <string name="community_banner_title">Join our WhatsApp community</string>
