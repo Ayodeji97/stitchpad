@@ -39,6 +39,7 @@ import com.danzucker.stitchpad.feature.customer.presentation.form.CustomerFormRo
 import com.danzucker.stitchpad.feature.customer.presentation.list.CustomerListRoot
 import com.danzucker.stitchpad.feature.dashboard.presentation.AddCustomerFirstScreen
 import com.danzucker.stitchpad.feature.dashboard.presentation.DashboardRoot
+import com.danzucker.stitchpad.feature.foundingtailors.presentation.FoundingTailorsRoot
 import com.danzucker.stitchpad.feature.freemium.presentation.upgrade.UpgradeRoot
 import com.danzucker.stitchpad.feature.gift.presentation.redeem.RedeemGiftRoot
 import com.danzucker.stitchpad.feature.gift.presentation.sharelink.ShareGiftLinkRoot
@@ -81,6 +82,7 @@ import com.danzucker.stitchpad.navigation.DeleteAccountRoute
 import com.danzucker.stitchpad.navigation.DraftMessageRoute
 import com.danzucker.stitchpad.navigation.EditProfileRoute
 import com.danzucker.stitchpad.navigation.FoundersNoteRoute
+import com.danzucker.stitchpad.navigation.FoundingTailorsRoute
 import com.danzucker.stitchpad.navigation.GoalSetupRoute
 import com.danzucker.stitchpad.navigation.HelpTutorialsRoute
 import com.danzucker.stitchpad.navigation.MeasurementDetailRoute
@@ -575,6 +577,9 @@ private fun MainNavGraph(
                 onNavigateToDraftMessage = {
                     navController.navigate(DraftMessageRoute)
                 },
+                onNavigateToFoundingTailors = {
+                    navController.navigate(FoundingTailorsRoute) { launchSingleTop = true }
+                },
                 onNavigateToUpgrade = {
                     navController.navigate(UpgradeRoute)
                 },
@@ -709,6 +714,9 @@ private fun MainNavGraph(
                 onNavigateToReferralCode = { navController.navigate(ReferralCodeRoute) },
                 onNavigateToShareGiftLink = { navController.navigate(ShareGiftLinkRoute) },
                 onNavigateToRedeemGift = { navController.navigate(RedeemGiftRoute) },
+                onNavigateToFoundingTailors = {
+                    navController.navigate(FoundingTailorsRoute) { launchSingleTop = true }
+                },
             )
         }
         composable<SettingsHelpSupportRoute> {
@@ -738,6 +746,11 @@ private fun MainNavGraph(
         }
         composable<FoundersNoteRoute> {
             FoundersNoteRoot(
+                onNavigateBack = { navController.navigateUp() },
+            )
+        }
+        composable<FoundingTailorsRoute> {
+            FoundingTailorsRoot(
                 onNavigateBack = { navController.navigateUp() },
             )
         }

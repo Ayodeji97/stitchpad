@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.referral.domain
 
 import com.danzucker.stitchpad.core.analytics.FakeAnalytics
 import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
+import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 import kotlinx.coroutines.CoroutineScope
@@ -31,6 +32,11 @@ private class FakeReferralRepository(
         calls += Call(code, deviceHash, source)
         return result
     }
+
+    override suspend fun getOrCreateMyReferralLink(): Result<ReferralLink, DataError.Network> =
+        Result.Success(
+            ReferralLink(code = "CODE0", url = "https://link.getstitchpad.com/r/CODE0", playUrl = ""),
+        )
 }
 
 private class FakeReferralPreferences(

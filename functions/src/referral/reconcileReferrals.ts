@@ -257,13 +257,18 @@ export function gradeReferral(input: ReferralGradeInput): ReferralGradeResult | 
   const qualifiedDelta = targetRank >= MILESTONE_RANK.qualified && currentRank < MILESTONE_RANK.qualified ? 1 : 0;
 
   // Open the payout only when qualification is first reached, the referral is
-  // clean, and no payout has started yet. Flags advance the milestone but leave
-  // payoutState `none` — nothing is ever queued for a flagged install.
+  // clean, no payout has started yet, AND the marketer earns a positive rate.
+  // Flags advance the milestone but leave payoutState `none` — nothing is ever
+  // queued for a flagged install. The `payoutRatePerUser > 0` guard is the
+  // structural no-cash guarantee for zero-rate programs (e.g. founding_tailors):
+  // such a referral still advances to `qualified` (the leaderboard rides
+  // qualifiedDelta) but never enters `payoutState='pending'`, so it can never be
+  // picked up by confirmReferralPayouts or surface a ₦0 row in the payout book.
   let payoutState = input.payoutState;
   let payoutAmount = 0;
   let holdEndsAtMs: number | null = null;
   let pendingAmountDelta = 0;
-  if (qualifiedDelta === 1 && !input.hasFlags && input.payoutState === 'none') {
+  if (qualifiedDelta === 1 && !input.hasFlags && input.payoutState === 'none' && input.payoutRatePerUser > 0) {
     payoutState = 'pending';
     payoutAmount = input.payoutRatePerUser;
     holdEndsAtMs = input.nowMs + HOLD_WINDOW_DAYS * DAY_MS;
@@ -479,6 +484,26 @@ export async function reconcileReferralsHandler(
       if (grade) {
         update.milestone = grade.milestone;
         update.payoutState = grade.payoutState;
+        if (grade.qualifiedDelta === 1) {
+          // First time this referral reaches `qualified`. Stamp qualifiedAt from the
+          // ACTIVITY DAY that earned qualification — the QUALIFY_DISTINCT_DAYS-th
+          // (4th) distinct active Lagos day — NOT the run instant. The nightly grader
+          // runs at 03:30 the day AFTER the activity it counts, so stamping `nowMs`
+          // credited a last-day-of-month qualifier to the FOLLOWING month once the
+          // aggregator bucketed by qualifiedAt's Lagos month. observedDayKeys are
+          // 'YYYY-MM-DD' Lagos keys (see lagosDateKey); sorted ascending, index
+          // QUALIFY_DISTINCT_DAYS-1 is the crossing day regardless of how many days
+          // the run credited. Convert to noon Lagos (= 11:00 UTC; Lagos is UTC+1
+          // year-round, no DST) so month-bucketing is unambiguous. Defensive fallback
+          // to nowTs if the observed set is somehow shorter than the bar (it never
+          // should be — qualification requires >= QUALIFY_DISTINCT_DAYS observed days).
+          // qualifiedDelta is only ever 1 on the transition, so this never overwrites.
+          const observedSorted = [...ratchet.observedDayKeys].sort();
+          const qualifyingDayKey = observedSorted[QUALIFY_DISTINCT_DAYS - 1];
+          update.qualifiedAt = qualifyingDayKey
+            ? admin.firestore.Timestamp.fromMillis(Date.parse(`${qualifyingDayKey}T11:00:00Z`))
+            : nowTs;
+        }
         if (grade.payoutState === 'pending' && f.payoutState === 'none') {
           update.payoutAmount = grade.payoutAmount;
           update.holdEndsAt = admin.firestore.Timestamp.fromMillis(grade.holdEndsAtMs as number);

@@ -46,4 +46,7 @@ data class User(
     val dailyDigestEmailEnabled: Boolean = true,
     /** Whether the tailor receives the daily push reminder. Opt-out: true by default. */
     val dailyPushEnabled: Boolean = true,
+    /** The tailor's own outbound referral code for the Founding Tailors program.
+     *  Null until first minted server-side via getOrCreateMyReferralLink. */
+    val referralCode: String? = null,
 )

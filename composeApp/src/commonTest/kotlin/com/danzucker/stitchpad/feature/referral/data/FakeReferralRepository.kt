@@ -1,8 +1,10 @@
 package com.danzucker.stitchpad.feature.referral.data
 
+import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.feature.referral.domain.AttributionOutcome
 import com.danzucker.stitchpad.feature.referral.domain.ReferralError
+import com.danzucker.stitchpad.feature.referral.domain.ReferralLink
 import com.danzucker.stitchpad.feature.referral.domain.ReferralRepository
 import com.danzucker.stitchpad.feature.referral.domain.ReferralSource
 
@@ -16,6 +18,16 @@ class FakeReferralRepository : ReferralRepository {
     var lastSource: ReferralSource? = null
     var callCount: Int = 0
 
+    var referralLinkResult: Result<ReferralLink, DataError.Network> =
+        Result.Success(
+            ReferralLink(
+                code = "CODE0",
+                url = "https://link.getstitchpad.com/r/CODE0",
+                playUrl = "https://play.google.com/store/apps/details?id=com.danzucker.stitchpad&referrer=ref%3DCODE0",
+            ),
+        )
+    var referralLinkCallCount: Int = 0
+
     override suspend fun recordAttribution(
         code: String,
         deviceHash: String,
@@ -26,5 +38,10 @@ class FakeReferralRepository : ReferralRepository {
         lastDeviceHash = deviceHash
         lastSource = source
         return result
+    }
+
+    override suspend fun getOrCreateMyReferralLink(): Result<ReferralLink, DataError.Network> {
+        referralLinkCallCount++
+        return referralLinkResult
     }
 }

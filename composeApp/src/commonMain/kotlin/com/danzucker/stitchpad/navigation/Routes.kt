@@ -180,6 +180,14 @@ data object ShareGiftLinkRoute
 @Serializable
 data object FoundersNoteRoute
 
+/**
+ * Founding Tailors — the tailor's own referral link + a link out to the public
+ * monthly leaderboard. Reached from Settings (Invite & rewards) and a dashboard
+ * card. Owner-facing referral program surface.
+ */
+@Serializable
+data object FoundingTailorsRoute
+
 @Serializable
 data object SettingsAccountRoute
 

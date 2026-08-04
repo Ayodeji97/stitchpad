@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.di
 
+import com.danzucker.stitchpad.feature.foundingtailors.presentation.FoundingTailorsViewModel
 import com.danzucker.stitchpad.feature.referral.data.CloudFunctionsReferralRepository
 import com.danzucker.stitchpad.feature.referral.domain.ReferralAttribution
 import com.danzucker.stitchpad.feature.referral.domain.ReferralAttributionCoordinator
@@ -10,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.map
+import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
@@ -40,4 +42,14 @@ val referralModule = module {
         ).also { it.start() }
     }
     viewModelOf(::ReferralCodeViewModel)
+    // Explicit `viewModel { ... }` factory rather than viewModelOf(::FoundingTailorsViewModel)
+    // because the VM takes a defaulted shareMessageResolver param — viewModelOf can't skip
+    // defaulted params (see feedback_koin_constructor_ref_defaults memory).
+    viewModel {
+        FoundingTailorsViewModel(
+            referralRepository = get(),
+            userRepository = get(),
+            authRepository = get(),
+        )
+    }
 }

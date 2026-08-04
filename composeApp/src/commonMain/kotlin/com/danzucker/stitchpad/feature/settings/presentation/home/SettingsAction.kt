@@ -23,6 +23,9 @@ sealed interface SettingsAction {
     data object OnDebugMenuClick : SettingsAction
     data object OnUpgradeClick : SettingsAction
     data object OnFoundersNoteClick : SettingsAction
+
+    /** Invite & rewards: open the Founding Tailors referral + leaderboard screen. */
+    data object OnFoundingTailorsClick : SettingsAction
     data object OnGetGiftedClick : SettingsAction
     data object OnRedeemGiftClick : SettingsAction
     data object OnHelpTutorialsClick : SettingsAction

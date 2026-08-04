@@ -22,6 +22,7 @@ fun UserDto.toUser(): User = User(
     // Absent push flag inherits the digest opt-in/out — same resolution as the backend
     // productionDigestIO. Explicit push value always wins over the digest default.
     dailyPushEnabled = dailyPushEnabled ?: dailyDigestEmailEnabled,
+    referralCode = referralCode,
 )
 
 fun User.toUserDto(): UserDto = UserDto(

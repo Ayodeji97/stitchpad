@@ -50,4 +50,6 @@ data class UserDto(
     val dailyDigestEmailEnabled: Boolean = true,
     @SerialName("dailyPushEnabled")
     val dailyPushEnabled: Boolean? = null,
+    @SerialName("referralCode")
+    val referralCode: String? = null,
 )

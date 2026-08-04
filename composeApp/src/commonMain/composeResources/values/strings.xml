@@ -1377,6 +1377,13 @@
     <string name="referral_code_not_recognized">That code wasn&apos;t recognized. Check it and try again.</string>
     <string name="referral_code_network_error">No connection. Check your internet and try again.</string>
     <string name="referral_code_generic_error">Something went wrong. Please try again.</string>
+    <string name="founding_tailors_share_message">I just joined the StitchPad Founding Tailors program. Sign up with my link and let&apos;s grow together: %1$s</string>
+    <string name="founding_tailors_title">Founding Tailors</string>
+    <string name="founding_tailors_subtitle">Refer other tailors. Top 3 each month win a free StitchPad shirt.</string>
+    <string name="founding_tailors_share_cta">Share my invite link</string>
+    <string name="founding_tailors_view_board">View leaderboard</string>
+    <string name="founding_tailors_back_cd">Back</string>
+    <string name="founding_tailors_entry_subtitle">Refer tailors, top 3 win a free shirt</string>
     <string name="settings_row_contact">Contact us on WhatsApp</string>
     <string name="settings_row_contact_subtitle">Get help and support</string>
     <string name="settings_row_rate_app">Rate StitchPad</string>

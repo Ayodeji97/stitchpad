@@ -72,6 +72,7 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.components.Custome
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.EmptyCardCtaStyle
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.EmptyIllustrationCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.EmptyIllustrationSlot
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.FoundingTailorsCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.IllustratedFocusCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.MeasurementsPickerSheet
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.OnboardingStepsCard
@@ -285,6 +286,7 @@ fun DashboardRoot(
     onNavigateToCustomerDetail: (String) -> Unit,
     onNavigateToInspiration: () -> Unit,
     onNavigateToDraftMessage: () -> Unit,
+    onNavigateToFoundingTailors: () -> Unit,
     onNavigateToUpgrade: () -> Unit,
     onNavigateToNotifications: () -> Unit,
     onNavigateToTutorial: (String) -> Unit,
@@ -342,6 +344,7 @@ fun DashboardRoot(
             onNavigateToCustomerDetail = onNavigateToCustomerDetail,
             onNavigateToInspiration = onNavigateToInspiration,
             onNavigateToDraftMessage = onNavigateToDraftMessage,
+            onNavigateToFoundingTailors = onNavigateToFoundingTailors,
             onNavigateToUpgrade = onNavigateToUpgrade,
             onNavigateToNotifications = onNavigateToNotifications,
             onNavigateToMeasurementDetail = onNavigateToMeasurementDetail,
@@ -483,6 +486,7 @@ private fun handleDashboardEvent(
     onNavigateToCustomerDetail: (String) -> Unit,
     onNavigateToInspiration: () -> Unit,
     onNavigateToDraftMessage: () -> Unit,
+    onNavigateToFoundingTailors: () -> Unit,
     onNavigateToUpgrade: () -> Unit,
     onNavigateToNotifications: () -> Unit,
     onNavigateToMeasurementDetail: (customerId: String, measurementId: String) -> Unit,
@@ -502,6 +506,7 @@ private fun handleDashboardEvent(
         is DashboardEvent.NavigateToCustomerDetail -> onNavigateToCustomerDetail(event.customerId)
         DashboardEvent.NavigateToInspiration -> onNavigateToInspiration()
         DashboardEvent.NavigateToDraftMessage -> onNavigateToDraftMessage()
+        DashboardEvent.NavigateToFoundingTailors -> onNavigateToFoundingTailors()
         DashboardEvent.NavigateToUpgrade -> onNavigateToUpgrade()
         DashboardEvent.NavigateToNotifications -> onNavigateToNotifications()
         is DashboardEvent.LaunchWhatsApp -> launchWhatsAppForAction(
@@ -1006,6 +1011,12 @@ private fun DashboardContent(
             onCardClick = { id -> onAction(DashboardAction.OnReconnectViewCustomerClick(id)) },
             onMessageClick = { id -> onAction(DashboardAction.OnReconnectClick(id)) },
             onViewAllClick = { onAction(DashboardAction.OnViewReconnectClick) },
+        )
+
+        // 8. Founding Tailors — low-key referral + leaderboard entry point. Sits
+        //    at the foot of the body so it never competes with the tailor's work.
+        FoundingTailorsCard(
+            onClick = { onAction(DashboardAction.OnFoundingTailorsClick) },
         )
     }
 }

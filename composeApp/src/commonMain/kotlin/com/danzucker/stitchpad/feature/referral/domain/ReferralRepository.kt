@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.referral.domain
 
+import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
 
 /** Outcome of a successful attribution call. */
@@ -7,6 +8,13 @@ data class AttributionOutcome(
     /** True when the server had already attributed this install (idempotent replay). */
     val alreadyAttributed: Boolean,
     val marketerId: String,
+)
+
+/** The signed-in user's own Founding Tailors referral link (self-serve, server-issued). */
+data class ReferralLink(
+    val code: String,
+    val url: String,
+    val playUrl: String,
 )
 
 /**
@@ -24,4 +32,10 @@ interface ReferralRepository {
         deviceHash: String,
         source: ReferralSource,
     ): Result<AttributionOutcome, ReferralError>
+
+    /**
+     * Fetches the signed-in user's own Founding Tailors referral link, creating and
+     * persisting one server-side on first call (`getOrCreateMyReferralLink`).
+     */
+    suspend fun getOrCreateMyReferralLink(): Result<ReferralLink, DataError.Network>
 }

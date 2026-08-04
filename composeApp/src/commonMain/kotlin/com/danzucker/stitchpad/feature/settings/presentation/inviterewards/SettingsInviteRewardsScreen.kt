@@ -10,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.CardGiftcard
+import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.PersonAddAlt
 import androidx.compose.material.icons.outlined.Redeem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,6 +39,8 @@ import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.founding_tailors_entry_subtitle
+import stitchpad.composeapp.generated.resources.founding_tailors_title
 import stitchpad.composeapp.generated.resources.gift_redeem_settings_subtitle
 import stitchpad.composeapp.generated.resources.gift_redeem_title
 import stitchpad.composeapp.generated.resources.gift_share_settings_row
@@ -97,6 +100,14 @@ fun SettingsInviteRewardsScreen(
                     label = stringResource(Res.string.referral_code_settings_row),
                     subtitle = stringResource(Res.string.referral_code_settings_subtitle),
                     onClick = { onAction(SettingsAction.OnReferralCodeClick) },
+                    trailing = { SettingsRowChevron() },
+                )
+                SettingsRowDivider()
+                SettingsRow(
+                    icon = Icons.Outlined.EmojiEvents,
+                    label = stringResource(Res.string.founding_tailors_title),
+                    subtitle = stringResource(Res.string.founding_tailors_entry_subtitle),
+                    onClick = { onAction(SettingsAction.OnFoundingTailorsClick) },
                     trailing = { SettingsRowChevron() },
                 )
                 if (GIFTING_ENABLED) {

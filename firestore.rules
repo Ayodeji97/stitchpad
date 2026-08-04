@@ -202,7 +202,14 @@ service cloud.firestore {
         // code. A client-planted value would let a user self-attribute to any
         // marketer (or itself), inflating payouts — so it must never be set at
         // creation.
-        && (!('referredBy' in request.resource.data));
+        && (!('referredBy' in request.resource.data))
+        // referralCode is the user's OWN outbound share code, minted exactly once
+        // by getOrCreateMyReferralLink (Admin SDK). The app later TRUSTS this field
+        // to build/share the referral link and to decide whether to mint. The client
+        // creates its user doc (createUserProfile) BEFORE any code is minted, so it
+        // must never be planted at creation — otherwise a client could seed an
+        // arbitrary/dead code and short-circuit the real server-backed mint.
+        && (!('referralCode' in request.resource.data));
 
       // Profile updates: user can edit display fields freely, but cannot touch
       // the financially meaningful fields. Server (admin SDK) bypasses these
@@ -219,6 +226,13 @@ service cloud.firestore {
         && serverOnlyField('subscriptionFallbackEndsAt')
         && serverOnlyField('giftLinkToken')
         && serverOnlyField('referredBy')
+        // referralCode is server-owned (minted once by getOrCreateMyReferralLink via
+        // the Admin SDK). serverOnlyField makes it immutable from the client: once
+        // present it must stay present AND equal — blocking a change AND a
+        // deleteField() (a delete drops it from request.resource.data) — and a client
+        // may never add it via update. This stops a user overwriting/killing their
+        // real code to share an arbitrary or dead link and stop minting.
+        && serverOnlyField('referralCode')
         && fieldUnchanged('welcomeBonusAppliedAt')
         && fieldUnchanged('bonusCoins')
         && fieldUnchanged('customerCount');

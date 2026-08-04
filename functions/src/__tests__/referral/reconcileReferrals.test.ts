@@ -414,6 +414,22 @@ describe('gradeReferral', () => {
     expect(r?.holdEndsAtMs).toBeNull();
   });
 
+  it('qualifies a rate-0 marketer (founding tailors) but NEVER opens a payout', () => {
+    // A founding-tailors referrer is minted with payoutRatePerUser: 0. The
+    // referral must still reach 'qualified' (the leaderboard rides qualifiedDelta),
+    // but no payout may ever open — payoutState stays 'none', no hold, no accrual.
+    const r = gradeReferral({ ...base, activated: true, qualifiesByActivity: true, payoutRatePerUser: 0 });
+    expect(r).toMatchObject({
+      milestone: 'qualified',
+      payoutState: 'none',
+      payoutAmount: 0,
+      activatedDelta: 1,
+      qualifiedDelta: 1,
+      pendingAmountDelta: 0,
+    });
+    expect(r?.holdEndsAtMs).toBeNull();
+  });
+
   it('does not double-count activated when jumping from already-activated', () => {
     const r = gradeReferral({ ...base, milestone: 'activated', activated: true, qualifiesByActivity: true });
     expect(r).toMatchObject({ milestone: 'qualified', activatedDelta: 0, qualifiedDelta: 1 });
@@ -421,6 +437,18 @@ describe('gradeReferral', () => {
 
   it('requires activation — activity alone does not qualify', () => {
     expect(gradeReferral({ ...base, activated: false, qualifiesByActivity: true })).toBeNull();
+  });
+
+  it('never re-fires qualifiedDelta for a referral already at qualified (one-time guard)', () => {
+    // The invariant reconcileReferrals.ts leans on for the qualifiedAt stamp:
+    // once milestone is already 'qualified', currentRank can never be < the
+    // qualified rank again, so qualifiedDelta is 0 (and nothing else changes
+    // either — gradeReferral returns null, meaning the caller's
+    // `if (grade.qualifiedDelta === 1)` stamp line is never even reached).
+    // Same inputs that WOULD produce qualifiedDelta: 1 from 'attributed'/'activated'
+    // (see the two tests above), but starting from 'qualified' this run.
+    const r = gradeReferral({ ...base, milestone: 'qualified', payoutState: 'pending', activated: true, qualifiesByActivity: true });
+    expect(r).toBeNull();
   });
 
   it('returns null when nothing changes', () => {
@@ -453,6 +481,123 @@ describe('reconcileReferralsHandler', () => {
 
     const m = store.get('marketers/m1');
     expect(m).toMatchObject({ activated: 1, qualified: 1, pendingAmount: 500_000 });
+  });
+
+  it('qualifies a rate-0 (founding tailors) referral without opening any payout', async () => {
+    // Same qualifying arrange, but the marketer earns nothing (payoutRatePerUser: 0,
+    // as founding-tailors referrers are minted). The referral must reach 'qualified'
+    // and bump the marketer's `qualified` counter (the leaderboard's source), yet
+    // NEVER enter payoutState='pending' — no holdEndsAt, no payoutAmount, no accrual.
+    const { store, db } = seed(
+      {
+        'marketers/m1': { payoutRatePerUser: 0, program: 'founding_tailors', activated: 0, qualified: 0, pendingAmount: 0 },
+        'users/u1/customers/c3': { createdAt: SIGNUP + 4.5 * DAY_MS }, // '2026-07-05' — credited this run
+      },
+      priorNights(['2026-07-01', '2026-07-02', '2026-07-03'], '2026-07-05'),
+    );
+    const res = await reconcileReferralsHandler(deps(db));
+    expect(res).toEqual({ scanned: 1, activated: 1, qualified: 1 });
+
+    const ref = store.get('referrals/u1');
+    expect(ref.milestone).toBe('qualified');
+    expect(ref.payoutState).toBe('none');       // never advances to pending
+    expect(ref.payoutAmount).toBeUndefined();    // no payout amount written
+    expect(ref.holdEndsAt).toBeUndefined();      // no hold opened
+    expect(ref.qualifiedAt).toBeDefined();       // qualify transition still stamped
+
+    const m = store.get('marketers/m1');
+    // Leaderboard still counts the qualify; no cash ever accrues.
+    expect(m).toMatchObject({ activated: 1, qualified: 1, pendingAmount: 0 });
+  });
+
+  it('stamps qualifiedAt from the qualifying activity DAY (4th distinct day), not the run instant', async () => {
+    // Identical arrange to "qualifies a set-up user active on 4 distinct days" —
+    // a referral that crosses the qualification bar on THIS run. observedDayKeys
+    // becomes ['2026-07-01','2026-07-02','2026-07-03','2026-07-05']; the 4th
+    // (index QUALIFY_DISTINCT_DAYS-1) distinct Lagos day is '2026-07-05', which is
+    // the day qualification was earned. qualifiedAt is stamped at NOON Lagos of that
+    // day (= 11:00 UTC), NOT the reconcile run instant (NOW). This is the intentional
+    // month-boundary fix: the aggregator buckets by qualifiedAt's Lagos month, so it
+    // must reflect the earning day, not the following-morning grader run.
+    const { store, db } = seed(
+      {
+        'users/u1/customers/c3': { createdAt: SIGNUP + 4.5 * DAY_MS }, // '2026-07-05' — credited this run
+      },
+      priorNights(['2026-07-01', '2026-07-02', '2026-07-03'], '2026-07-05'),
+    );
+    const res = await reconcileReferralsHandler(deps(db));
+    expect(res).toEqual({ scanned: 1, activated: 1, qualified: 1 });
+
+    const ref = store.get('referrals/u1');
+    expect(ref.milestone).toBe('qualified');
+    expect(ref.qualifiedAt).toBeDefined();
+    // Noon Lagos of the 4th distinct day, not the run instant.
+    expect(ref.qualifiedAt.toMillis()).toBe(Date.parse('2026-07-05T11:00:00Z'));
+    expect(ref.qualifiedAt.toMillis()).not.toBe(NOW);
+  });
+
+  it('buckets a last-day-of-month qualifier into the EARNED month even when graded after Lagos midnight', async () => {
+    // Month-boundary regression. The qualifying (4th) distinct active Lagos day is
+    // 2026-07-31 (the last day of July). The reconcile `now` is 2026-08-01T02:30:00Z,
+    // which is 03:30 Africa/Lagos on Aug 1 — the nightly run the DAY AFTER the earning
+    // activity. If qualifiedAt were stamped from the run instant it would land in
+    // August; stamping from the earning day keeps it in July, so the Founding Tailors
+    // aggregator (which buckets by qualifiedAt's Lagos month) credits the right contest.
+    const JUL = Date.UTC(2026, 6, 1, 10, 0, 0); // signup 2026-07-01 10:00 UTC
+    const store0 = makeDb({
+      'marketers/m1': { payoutRatePerUser: 0, program: 'founding_tailors', activated: 0, qualified: 0, pendingAmount: 0 },
+      'users/u1': { businessName: 'Ada Styles' },
+      // A meaningful write on 2026-07-31 (noon Lagos) — the day the run will credit.
+      'users/u1/customers/c3': { createdAt: Date.UTC(2026, 6, 31, 11, 0, 0) }, // 2026-07-31 12:00 Lagos
+      'referrals/u1': {
+        milestone: 'activated',
+        payoutState: 'none',
+        flags: [],
+        marketerId: 'm1',
+        signupAt: ts(JUL),
+        qualificationWindowEndsAt: ts(JUL + 40 * DAY_MS), // window still open through Aug
+        activeDays: 0,
+        activeDayKeys: [],
+        // Three distinct prior-observed days; last grader run was 2026-07-31, so a
+        // completed 2026-07-31 day is the day THIS run credits as the 4th.
+        observedDayKeys: ['2026-07-28', '2026-07-29', '2026-07-30'],
+        lastObservedRunDateKey: '2026-07-31',
+      },
+    });
+    const runNowMs = Date.parse('2026-08-01T02:30:00Z'); // 03:30 Africa/Lagos, Aug 1
+    const res = await reconcileReferralsHandler(deps(store0.db, runNowMs));
+    expect(res).toEqual({ scanned: 1, activated: 0, qualified: 1 });
+
+    const ref = store0.store.get('referrals/u1');
+    expect(ref.milestone).toBe('qualified');
+    expect(ref.observedDayKeys).toEqual(['2026-07-28', '2026-07-29', '2026-07-30', '2026-07-31']);
+
+    // Run qualifiedAt through the SAME Lagos-month formatting the aggregator uses.
+    const monthKey = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Africa/Lagos', year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(new Date(ref.qualifiedAt.toMillis())).slice(0, 7);
+    expect(monthKey).toBe('2026-07');       // earned month
+    expect(monthKey).not.toBe('2026-08');   // NOT the grader-run month
+  });
+
+  it('excludes an already-qualified referral from the nightly scan entirely (qualifiedAt untouched)', async () => {
+    // NOTE: this is NOT a test of the qualifiedAt one-time-write guard itself —
+    // the `milestone in ['attributed','activated']` query filter means an
+    // already-'qualified' doc never reaches the transaction body at all, so
+    // `if (grade.qualifiedDelta === 1)` never runs for it either way. That guard
+    // is proven directly by the 'gradeReferral' pure-function test above
+    // ('never re-fires qualifiedDelta for a referral already at qualified').
+    // This test documents the (separate, also-true) scan-level exclusion.
+    const { store, db } = seed({}, {
+      milestone: 'qualified',
+      payoutState: 'pending',
+      qualifiedAt: ts(1_000),
+      observedDayKeys: ['2026-07-01', '2026-07-02', '2026-07-03', '2026-07-04'],
+      lastObservedRunDateKey: '2026-07-05',
+    });
+    const res = await reconcileReferralsHandler(deps(db, NOW + DAY_MS));
+    expect(res.scanned).toBe(0);
+    expect(store.get('referrals/u1').qualifiedAt.toMillis()).toBe(1_000); // unchanged
   });
 
   it('activates (no payout) when set up but under the distinct-day bar', async () => {

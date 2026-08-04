@@ -28,6 +28,7 @@ fun SettingsEventEffect(
     onNavigateToDebugMenu: () -> Unit = {},
     onNavigateToUpgrade: () -> Unit = {},
     onNavigateToFoundersNote: () -> Unit = {},
+    onNavigateToFoundingTailors: () -> Unit = {},
     onNavigateToShareGiftLink: () -> Unit = {},
     onNavigateToRedeemGift: () -> Unit = {},
     onNavigateToHelpTutorials: () -> Unit = {},
@@ -52,6 +53,7 @@ fun SettingsEventEffect(
             SettingsEvent.NavigateToDebugMenu -> onNavigateToDebugMenu()
             SettingsEvent.NavigateToUpgrade -> onNavigateToUpgrade()
             SettingsEvent.NavigateToFoundersNote -> onNavigateToFoundersNote()
+            SettingsEvent.NavigateToFoundingTailors -> onNavigateToFoundingTailors()
             SettingsEvent.NavigateToShareGiftLink -> onNavigateToShareGiftLink()
             SettingsEvent.NavigateToRedeemGift -> onNavigateToRedeemGift()
             SettingsEvent.NavigateToHelpTutorials -> onNavigateToHelpTutorials()
