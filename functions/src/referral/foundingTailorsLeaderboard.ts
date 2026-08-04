@@ -97,6 +97,8 @@ export interface LeaderboardResponse {
 export interface ReadDeps { db: admin.firestore.Firestore }
 
 const TOP_LIMIT = 25;
+// Referral codes are Crockford-ish alphanumerics — no slashes, no punctuation.
+const REFERRAL_CODE_PATTERN = /^[A-Za-z0-9]+$/;
 
 export async function getFoundingTailorsLeaderboardHandler(
   data: { code?: unknown },
@@ -114,7 +116,13 @@ export async function getFoundingTailorsLeaderboardHandler(
     .map((e, i) => ({ rank: i + 1, name: e.name, points: e.points }));
 
   let you: { rank: number; points: number } | null = null;
-  const code = typeof data?.code === 'string' && data.code.trim() ? data.code.trim() : null;
+  const trimmedCode = typeof data?.code === 'string' ? data.code.trim() : '';
+  // Referral codes are Crockford-ish alphanumerics. Anything outside that
+  // charset (e.g. a slash) can't be a real code — and interpolating it into
+  // `db.doc()` below would throw (wrong path-segment count) instead of the
+  // intended "unknown code" no-op. Treat it as no code: never look it up,
+  // never throw, never leak whether a code exists.
+  const code = REFERRAL_CODE_PATTERN.test(trimmedCode) ? trimmedCode : null;
   if (code) {
     const codeDoc = (await deps.db.doc(`${REFERRAL_CODES}/${code}`).get()).data() as { marketerId?: string } | undefined;
     const marketerId = codeDoc?.marketerId;

@@ -26,14 +26,25 @@ function matches(v: any, op: string, val: any): boolean {
 }
 function makeFakeDb(initial: Record<string, any> = {}) {
   const store = new Map<string, any>(Object.entries(initial));
-  const docRef = (path: string): any => ({
-    path,
-    get: async () => ({ exists: store.has(path), data: () => store.get(path) }),
-    set: async (data: any, opts?: { merge?: boolean }) => {
-      const prev = store.get(path) ?? {};
-      store.set(path, opts?.merge ? { ...prev, ...data } : data);
-    },
-  });
+  const docRef = (path: string): any => {
+    // Mirror real Firestore: db.doc() requires an even number of path
+    // segments (collection/doc/collection/doc/...). An odd count means the
+    // caller pointed at a collection, and the real SDK throws synchronously.
+    // This matters for the malformed-`code` regression test below: without
+    // it, the fake db would silently no-op instead of reproducing the bug.
+    const segments = path.split('/').filter(Boolean);
+    if (segments.length % 2 !== 0) {
+      throw new Error(`Value for argument "documentPath" must point to a document, but was pointed to a collection: ${path}`);
+    }
+    return {
+      path,
+      get: async () => ({ exists: store.has(path), data: () => store.get(path) }),
+      set: async (data: any, opts?: { merge?: boolean }) => {
+        const prev = store.get(path) ?? {};
+        store.set(path, opts?.merge ? { ...prev, ...data } : data);
+      },
+    };
+  };
   const makeQuery = (path: string, filters: any[]): any => ({
     where: (field: string, op: string, val: any) => makeQuery(path, [...filters, { field, op, val }]),
     get: async () => {
@@ -233,6 +244,23 @@ test('no code arg yields you=null and returns updatedAt/monthId from the current
   expect(res.you).toBeNull();
   expect(res.monthId).toBe('2026-08');
   expect(res.updatedAt).toBe(new Date('2026-08-25T00:00:00Z').getTime());
+});
+
+test('malformed code containing a slash yields you=null without throwing (public caller, never a lookup)', async () => {
+  const { db } = makeFakeDb({
+    'leaderboards/current': { monthId: '2026-08' },
+    'leaderboards/2026-08': {
+      monthId: '2026-08',
+      updatedAt: ts('2026-08-25T00:00:00Z'),
+      entries: [{ marketerId: 'mA', name: 'Ada Styles', points: 3 }],
+    },
+  });
+
+  const res = await getFoundingTailorsLeaderboardHandler({ code: 'a/b' }, { db });
+
+  expect(res.you).toBeNull();
+  expect(res.monthId).toBe('2026-08');
+  expect(res.top).toEqual([{ rank: 1, name: 'Ada Styles', points: 3 }]);
 });
 
 test('falls back to monthKeyLagos(now) when leaderboards/current is missing', async () => {
