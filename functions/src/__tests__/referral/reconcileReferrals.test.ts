@@ -510,9 +510,15 @@ describe('reconcileReferralsHandler', () => {
     expect(m).toMatchObject({ activated: 1, qualified: 1, pendingAmount: 0 });
   });
 
-  it('stamps qualifiedAt once on the run that first qualifies a referral', async () => {
+  it('stamps qualifiedAt from the qualifying activity DAY (4th distinct day), not the run instant', async () => {
     // Identical arrange to "qualifies a set-up user active on 4 distinct days" —
-    // a referral that crosses the qualification bar on THIS run.
+    // a referral that crosses the qualification bar on THIS run. observedDayKeys
+    // becomes ['2026-07-01','2026-07-02','2026-07-03','2026-07-05']; the 4th
+    // (index QUALIFY_DISTINCT_DAYS-1) distinct Lagos day is '2026-07-05', which is
+    // the day qualification was earned. qualifiedAt is stamped at NOON Lagos of that
+    // day (= 11:00 UTC), NOT the reconcile run instant (NOW). This is the intentional
+    // month-boundary fix: the aggregator buckets by qualifiedAt's Lagos month, so it
+    // must reflect the earning day, not the following-morning grader run.
     const { store, db } = seed(
       {
         'users/u1/customers/c3': { createdAt: SIGNUP + 4.5 * DAY_MS }, // '2026-07-05' — credited this run
@@ -525,7 +531,53 @@ describe('reconcileReferralsHandler', () => {
     const ref = store.get('referrals/u1');
     expect(ref.milestone).toBe('qualified');
     expect(ref.qualifiedAt).toBeDefined();
-    expect(ref.qualifiedAt.toMillis()).toBe(NOW);
+    // Noon Lagos of the 4th distinct day, not the run instant.
+    expect(ref.qualifiedAt.toMillis()).toBe(Date.parse('2026-07-05T11:00:00Z'));
+    expect(ref.qualifiedAt.toMillis()).not.toBe(NOW);
+  });
+
+  it('buckets a last-day-of-month qualifier into the EARNED month even when graded after Lagos midnight', async () => {
+    // Month-boundary regression. The qualifying (4th) distinct active Lagos day is
+    // 2026-07-31 (the last day of July). The reconcile `now` is 2026-08-01T02:30:00Z,
+    // which is 03:30 Africa/Lagos on Aug 1 — the nightly run the DAY AFTER the earning
+    // activity. If qualifiedAt were stamped from the run instant it would land in
+    // August; stamping from the earning day keeps it in July, so the Founding Tailors
+    // aggregator (which buckets by qualifiedAt's Lagos month) credits the right contest.
+    const JUL = Date.UTC(2026, 6, 1, 10, 0, 0); // signup 2026-07-01 10:00 UTC
+    const store0 = makeDb({
+      'marketers/m1': { payoutRatePerUser: 0, program: 'founding_tailors', activated: 0, qualified: 0, pendingAmount: 0 },
+      'users/u1': { businessName: 'Ada Styles' },
+      // A meaningful write on 2026-07-31 (noon Lagos) — the day the run will credit.
+      'users/u1/customers/c3': { createdAt: Date.UTC(2026, 6, 31, 11, 0, 0) }, // 2026-07-31 12:00 Lagos
+      'referrals/u1': {
+        milestone: 'activated',
+        payoutState: 'none',
+        flags: [],
+        marketerId: 'm1',
+        signupAt: ts(JUL),
+        qualificationWindowEndsAt: ts(JUL + 40 * DAY_MS), // window still open through Aug
+        activeDays: 0,
+        activeDayKeys: [],
+        // Three distinct prior-observed days; last grader run was 2026-07-31, so a
+        // completed 2026-07-31 day is the day THIS run credits as the 4th.
+        observedDayKeys: ['2026-07-28', '2026-07-29', '2026-07-30'],
+        lastObservedRunDateKey: '2026-07-31',
+      },
+    });
+    const runNowMs = Date.parse('2026-08-01T02:30:00Z'); // 03:30 Africa/Lagos, Aug 1
+    const res = await reconcileReferralsHandler(deps(store0.db, runNowMs));
+    expect(res).toEqual({ scanned: 1, activated: 0, qualified: 1 });
+
+    const ref = store0.store.get('referrals/u1');
+    expect(ref.milestone).toBe('qualified');
+    expect(ref.observedDayKeys).toEqual(['2026-07-28', '2026-07-29', '2026-07-30', '2026-07-31']);
+
+    // Run qualifiedAt through the SAME Lagos-month formatting the aggregator uses.
+    const monthKey = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Africa/Lagos', year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(new Date(ref.qualifiedAt.toMillis())).slice(0, 7);
+    expect(monthKey).toBe('2026-07');       // earned month
+    expect(monthKey).not.toBe('2026-08');   // NOT the grader-run month
   });
 
   it('excludes an already-qualified referral from the nightly scan entirely (qualifiedAt untouched)', async () => {

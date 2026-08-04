@@ -485,10 +485,24 @@ export async function reconcileReferralsHandler(
         update.milestone = grade.milestone;
         update.payoutState = grade.payoutState;
         if (grade.qualifiedDelta === 1) {
-          // First time this referral reaches `qualified`. Stamp the server instant
-          // so the Founding Tailors aggregator can bucket the point by month.
+          // First time this referral reaches `qualified`. Stamp qualifiedAt from the
+          // ACTIVITY DAY that earned qualification — the QUALIFY_DISTINCT_DAYS-th
+          // (4th) distinct active Lagos day — NOT the run instant. The nightly grader
+          // runs at 03:30 the day AFTER the activity it counts, so stamping `nowMs`
+          // credited a last-day-of-month qualifier to the FOLLOWING month once the
+          // aggregator bucketed by qualifiedAt's Lagos month. observedDayKeys are
+          // 'YYYY-MM-DD' Lagos keys (see lagosDateKey); sorted ascending, index
+          // QUALIFY_DISTINCT_DAYS-1 is the crossing day regardless of how many days
+          // the run credited. Convert to noon Lagos (= 11:00 UTC; Lagos is UTC+1
+          // year-round, no DST) so month-bucketing is unambiguous. Defensive fallback
+          // to nowTs if the observed set is somehow shorter than the bar (it never
+          // should be — qualification requires >= QUALIFY_DISTINCT_DAYS observed days).
           // qualifiedDelta is only ever 1 on the transition, so this never overwrites.
-          update.qualifiedAt = nowTs;
+          const observedSorted = [...ratchet.observedDayKeys].sort();
+          const qualifyingDayKey = observedSorted[QUALIFY_DISTINCT_DAYS - 1];
+          update.qualifiedAt = qualifyingDayKey
+            ? admin.firestore.Timestamp.fromMillis(Date.parse(`${qualifyingDayKey}T11:00:00Z`))
+            : nowTs;
         }
         if (grade.payoutState === 'pending' && f.payoutState === 'none') {
           update.payoutAmount = grade.payoutAmount;
