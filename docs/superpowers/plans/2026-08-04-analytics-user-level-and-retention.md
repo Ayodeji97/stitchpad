@@ -165,18 +165,26 @@ In `refresh/refresh.py`, inside `query_window()` (alongside the other `d[...] = 
                DATE_TRUNC(DATE(TIMESTAMP_MICROS(MIN(event_timestamp))), WEEK) AS cohort_week,
                MIN(event_timestamp) AS signup_ts
         FROM src WHERE event_name='sign_up' GROUP BY user_pseudo_id),
-      activity AS (
-        SELECT user_pseudo_id, event_timestamp
-        FROM src WHERE event_name='session_start')
-      SELECT CAST(s.cohort_week AS STRING) AS cohort_week,
-             DATE_DIFF(DATE(TIMESTAMP_MICROS(a.event_timestamp)),
-                       DATE(TIMESTAMP_MICROS(s.signup_ts)), WEEK) AS weeks_since,
-             COUNT(DISTINCT s.user_pseudo_id) AS users
-      FROM signups s JOIN activity a USING (user_pseudo_id)
-      WHERE a.event_timestamp >= s.signup_ts
-      GROUP BY cohort_week, weeks_since
+      rets AS (
+        SELECT s.user_pseudo_id, s.cohort_week,
+               DATE_DIFF(DATE(TIMESTAMP_MICROS(a.event_timestamp)),
+                         DATE(TIMESTAMP_MICROS(s.signup_ts)), WEEK) AS weeks_since
+        FROM signups s
+        JOIN (SELECT user_pseudo_id, event_timestamp FROM src WHERE event_name='session_start') a
+          ON a.user_pseudo_id = s.user_pseudo_id AND a.event_timestamp >= s.signup_ts
+        UNION ALL
+        SELECT user_pseudo_id, cohort_week, 0 AS weeks_since FROM signups)
+      SELECT CAST(cohort_week AS STRING) AS cohort_week, weeks_since,
+             COUNT(DISTINCT user_pseudo_id) AS users
+      FROM rets GROUP BY cohort_week, weeks_since
       ORDER BY cohort_week, weeks_since""")
 ```
+
+> **Correctness note (fixed during implementation):** W0 must be the true cohort
+> size — *every* sign-up in the week — so it is forced in via `UNION ALL SELECT …, 0`.
+> Deriving W0 from `session_start` activity alone (an earlier draft) dropped sign-ups
+> with no post-signup session and used a too-small denominator, producing >100%
+> retention cells and breaking the "W0 sum == total sign-ups" reconciliation.
 
 - [ ] **Step 2: Pivot into the dataset in `build_dataset()`**
 

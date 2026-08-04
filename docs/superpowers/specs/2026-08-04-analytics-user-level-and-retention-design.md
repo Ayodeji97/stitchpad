@@ -91,18 +91,23 @@ return" tile; that's expected and both coexist.
              DATE_TRUNC(DATE(TIMESTAMP_MICROS(MIN(event_timestamp))), WEEK) AS cohort_week,
              MIN(event_timestamp) AS signup_ts
       FROM src WHERE event_name='sign_up' GROUP BY user_pseudo_id),
-    activity AS (
-      SELECT user_pseudo_id, event_timestamp
-      FROM src WHERE event_name='session_start')
-  SELECT s.cohort_week,
-         DATE_DIFF(DATE(TIMESTAMP_MICROS(a.event_timestamp)),
-                   DATE(TIMESTAMP_MICROS(s.signup_ts)), WEEK) AS weeks_since,
-         COUNT(DISTINCT s.user_pseudo_id) AS users
-  FROM signups s JOIN activity a USING (user_pseudo_id)
-  WHERE a.event_timestamp >= s.signup_ts
-  GROUP BY s.cohort_week, weeks_since
-  ORDER BY s.cohort_week, weeks_since;
+    rets AS (
+      SELECT s.user_pseudo_id, s.cohort_week,
+             DATE_DIFF(DATE(TIMESTAMP_MICROS(a.event_timestamp)),
+                       DATE(TIMESTAMP_MICROS(s.signup_ts)), WEEK) AS weeks_since
+      FROM signups s
+      JOIN (SELECT user_pseudo_id, event_timestamp FROM src WHERE event_name='session_start') a
+        ON a.user_pseudo_id = s.user_pseudo_id AND a.event_timestamp >= s.signup_ts
+      UNION ALL   -- force every sign-up into W0 so the denominator is the true cohort size
+      SELECT user_pseudo_id, cohort_week, 0 AS weeks_since FROM signups)
+  SELECT CAST(cohort_week AS STRING) AS cohort_week, weeks_since,
+         COUNT(DISTINCT user_pseudo_id) AS users
+  FROM rets GROUP BY cohort_week, weeks_since
+  ORDER BY cohort_week, weeks_since;
   ```
+  W0 = the full cohort (all sign-ups that week), NOT session-derived — otherwise
+  sign-ups with no post-signup session drop out and the denominator understates,
+  yielding >100% cells and breaking reconciliation.
 - `build_dataset()` pivots the long rows into a triangle: per cohort_week a row of
   `[cohort_label, cohort_size, W0%, W1%, W2%, …]`, where `Wn% = users_in_wn / cohort_size`.
 - Render in `template.html` as a compact heatmap-style table (cell shading by %,
