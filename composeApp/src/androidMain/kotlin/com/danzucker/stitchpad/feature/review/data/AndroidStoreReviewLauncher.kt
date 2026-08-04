@@ -8,7 +8,9 @@ import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.auth.data.CurrentActivityHolder
 import com.danzucker.stitchpad.feature.review.domain.StoreReviewLauncher
 import com.google.android.play.core.review.ReviewManagerFactory
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 private const val PACKAGE = "com.danzucker.stitchpad"
 private const val MARKET_URL = "market://details?id=$PACKAGE"
@@ -22,9 +24,15 @@ class AndroidStoreReviewLauncher(
     override suspend fun requestInAppReview() {
         val activity = activityHolder.activity ?: return
         try {
-            val manager = ReviewManagerFactory.create(context)
-            val info = manager.requestReviewFlow().await()
-            manager.launchReviewFlow(activity, info).await()
+            // Callers may invoke this from a background dispatcher (e.g. ReviewController's
+            // Dispatchers.Default scope). launchReviewFlow reads the Activity's window/decor
+            // view and starts the review Activity, so it must run on main — same pattern as
+            // IosStoreReviewLauncher.requestInAppReview().
+            withContext(Dispatchers.Main) {
+                val manager = ReviewManagerFactory.create(context)
+                val info = manager.requestReviewFlow().await()
+                manager.launchReviewFlow(activity, info).await()
+            }
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = "StoreReview", throwable = e) { "in-app review flow failed" }
         }
