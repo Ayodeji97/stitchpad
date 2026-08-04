@@ -46,9 +46,13 @@ class AndroidStoreReviewLauncher(
             )
         } catch (e: ActivityNotFoundException) {
             AppLogger.e(tag = "StoreReview", throwable = e) { "Play app missing; falling back to web" }
-            context.startActivity(
-                Intent(Intent.ACTION_VIEW, Uri.parse(WEB_URL)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-            )
+            try {
+                context.startActivity(
+                    Intent(Intent.ACTION_VIEW, Uri.parse(WEB_URL)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            } catch (e2: ActivityNotFoundException) {
+                AppLogger.e(tag = "StoreReview", throwable = e2) { "No handler for store web URL either" }
+            }
         }
     }
 }
