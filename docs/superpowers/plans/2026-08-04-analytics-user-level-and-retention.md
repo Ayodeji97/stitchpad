@@ -567,13 +567,18 @@ Expected: 3 passed.
 In `refresh/refresh.py`, inside `query_window()`, add (day fields are cast to DATE so bq JSON emits ISO `YYYY-MM-DD`, which `classify_segments` parses):
 
 ```python
-    d["people"] = q(""", ev AS (
-        SELECT user_id, event_name, event_timestamp, event_date, platform,
-          (SELECT value.string_value FROM UNNEST(user_properties)
-             WHERE key='subscription_tier') tier
+    d["people"] = q(""", uid_map AS (
+        SELECT DISTINCT user_id, user_pseudo_id
         FROM src WHERE user_id IS NOT NULL),
+      uev AS (
+        SELECT m.user_id, e.event_name, e.event_timestamp, e.event_date, e.platform,
+          (SELECT value.string_value FROM UNNEST(e.user_properties)
+             WHERE key='subscription_tier') tier
+        FROM src e JOIN uid_map m USING (user_pseudo_id)),
       per AS (
-        SELECT user_id, ANY_VALUE(platform) platform, ANY_VALUE(tier) tier,
+        SELECT user_id,
+          ANY_VALUE(platform) platform,
+          ARRAY_AGG(tier IGNORE NULLS ORDER BY event_timestamp DESC LIMIT 1)[SAFE_OFFSET(0)] tier,
           MIN(IF(event_name='first_open', PARSE_DATE('%Y%m%d', event_date), NULL)) first_open_day,
           MIN(IF(event_name='sign_up',    PARSE_DATE('%Y%m%d', event_date), NULL)) signup_day,
           MAX(PARSE_DATE('%Y%m%d', event_date)) last_active_day,
@@ -585,10 +590,10 @@ In `refresh/refresh.py`, inside `query_window()`, add (day fields are cast to DA
           COUNTIF(event_name='payment_recorded') payments,
           MAX(IF(event_name='ai_feature_used',1,0)) ai_used,
           MAX(IF(event_name='referral_code_applied',1,0)) referral
-        FROM ev GROUP BY user_id),
+        FROM uev GROUP BY user_id),
       d14 AS (
         SELECT e.user_id, COUNT(DISTINCT e.event_date) distinct_days_first14
-        FROM ev e JOIN per p USING (user_id)
+        FROM uev e JOIN per p USING (user_id)
         WHERE p.first_open_day IS NOT NULL
           AND PARSE_DATE('%Y%m%d', e.event_date)
               BETWEEN p.first_open_day AND DATE_ADD(p.first_open_day, INTERVAL 13 DAY)
@@ -598,7 +603,7 @@ In `refresh/refresh.py`, inside `query_window()`, add (day fields are cast to DA
                  FORMAT_TIMESTAMP('%Y-%m-%d %H:%M',
                    TIMESTAMP_MICROS(event_timestamp), 'Africa/Lagos') AS ts)
                  ORDER BY event_timestamp LIMIT 500) timeline
-        FROM ev
+        FROM uev
         WHERE event_name IN ('first_open','sign_up','login','workshop_setup_completed',
           'customer_created','measurement_added','order_created','order_status_advanced',
           'payment_recorded','receipt_sent','whatsapp_message_sent','ai_feature_used',
@@ -608,6 +613,13 @@ In `refresh/refresh.py`, inside `query_window()`, add (day fields are cast to DA
              tl.timeline
       FROM per p LEFT JOIN d14 USING (user_id) LEFT JOIN tl USING (user_id)""")
 ```
+
+> **Correctness note (fixed during implementation):** day-based metrics must bridge
+> `user_id → user_pseudo_id` (device). `first_open` fires pre-login and carries no
+> `user_id`, so deriving `first_open_day` from `user_id`-scoped events alone returns
+> NULL — which made `distinct_days_first14` unreachable and the `qualified` roster
+> silently empty. `uid_map`/`uev` attribute the device's full event history to the
+> signed-in user, matching how the aggregate `activity` query already works.
 
 Note: `distinct_days_first14` returns as int in bq JSON; `classify_segments`/`build_people_dataset` coerce with `int(... or 0)`, so string/int both work.
 

@@ -151,6 +151,10 @@ appear only as an aggregate "(unsigned device)" count.
   in first 14, workshop-setup flag, first-customer flag, first-order flag, orders
   count, payments count, AI-used flag, referral-applied flag, and an **ordered event
   timeline** (event_name + timestamp) for the journey view.
+- **Bridge `user_id → user_pseudo_id`** (a `uid_map`/`uev` CTE) so day-based metrics
+  cover the user's whole device history. `first_open` fires pre-login without a
+  `user_id`, so install-day and first-14-day counts must come via the device, exactly
+  as the aggregate `activity` query does — otherwise `Qualified` is silently empty.
 - Compute per-user **segment membership** in Python mirroring the existing aggregate
   definitions in `build_dataset()` (`activity_rows`): Activated, Qualified, Signed-in-
   but-passive, Dormant, Active-7d. Reuse the exact same thresholds so rosters
