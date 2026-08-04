@@ -3,11 +3,14 @@ package com.danzucker.stitchpad.feature.foundingtailors.presentation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.EmojiEvents
@@ -33,6 +36,12 @@ import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.founding_tailors_back_cd
+import stitchpad.composeapp.generated.resources.founding_tailors_how_point1
+import stitchpad.composeapp.generated.resources.founding_tailors_how_point2
+import stitchpad.composeapp.generated.resources.founding_tailors_how_point3
+import stitchpad.composeapp.generated.resources.founding_tailors_how_point4
+import stitchpad.composeapp.generated.resources.founding_tailors_how_point5
+import stitchpad.composeapp.generated.resources.founding_tailors_how_title
 import stitchpad.composeapp.generated.resources.founding_tailors_share_cta
 import stitchpad.composeapp.generated.resources.founding_tailors_subtitle
 import stitchpad.composeapp.generated.resources.founding_tailors_title
@@ -84,6 +93,7 @@ fun FoundingTailorsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = DesignTokens.space4),
             verticalArrangement = Arrangement.spacedBy(DesignTokens.space4),
         ) {
@@ -129,6 +139,40 @@ fun FoundingTailorsScreen(
                     leadingIcon = Icons.Filled.EmojiEvents,
                 )
             }
+
+            // "How points work" explainer — points are awarded only when a
+            // referral reaches the server-verified `qualified` milestone, so set
+            // expectations up front (no points for a bare install/signup).
+            Spacer(Modifier.height(DesignTokens.space2))
+            Text(
+                text = stringResource(Res.string.founding_tailors_how_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
+                listOf(
+                    Res.string.founding_tailors_how_point1,
+                    Res.string.founding_tailors_how_point2,
+                    Res.string.founding_tailors_how_point3,
+                    Res.string.founding_tailors_how_point4,
+                    Res.string.founding_tailors_how_point5,
+                ).forEach { pointRes ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
+                        Text(
+                            text = "•",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Text(
+                            text = stringResource(pointRes),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(DesignTokens.space2))
         }
     }
 }
