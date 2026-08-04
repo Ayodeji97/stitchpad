@@ -2,6 +2,7 @@ import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { REGION, MARKETERS } from './referralConstants';
 import type { ReferrerType, PayoutKind, MarketerStatus } from './referralConstants';
+import { FOUNDING_TAILORS_PROGRAM } from './getOrCreateMyReferralLink';
 
 // getReferralDashboard — admin-only read of the marketer payout book for the
 // web dashboard (getstitchpad.com/admin, in the stitchpad-web repo). The
@@ -66,7 +67,14 @@ export async function getReferralDashboardHandler(
   }
 
   const snap = await deps.db.collection(MARKETERS).get();
-  const marketers: MarketerRow[] = snap.docs.map((d) => {
+  const marketers: MarketerRow[] = snap.docs
+    // Exclude zero-cash founding-tailors referrers — they earn no payout
+    // (payoutRatePerUser: 0) and would otherwise dilute the affiliate payout book
+    // with ~100+ ₦0 rows. Their standings live in the founding-tailors leaderboard,
+    // not here. totals below are computed over the filtered set, so counts stay
+    // consistent with the rows shown.
+    .filter((d) => d.data().program !== FOUNDING_TAILORS_PROGRAM)
+    .map((d) => {
     const m = d.data();
     return {
       id: d.id,

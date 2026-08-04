@@ -257,13 +257,18 @@ export function gradeReferral(input: ReferralGradeInput): ReferralGradeResult | 
   const qualifiedDelta = targetRank >= MILESTONE_RANK.qualified && currentRank < MILESTONE_RANK.qualified ? 1 : 0;
 
   // Open the payout only when qualification is first reached, the referral is
-  // clean, and no payout has started yet. Flags advance the milestone but leave
-  // payoutState `none` — nothing is ever queued for a flagged install.
+  // clean, no payout has started yet, AND the marketer earns a positive rate.
+  // Flags advance the milestone but leave payoutState `none` — nothing is ever
+  // queued for a flagged install. The `payoutRatePerUser > 0` guard is the
+  // structural no-cash guarantee for zero-rate programs (e.g. founding_tailors):
+  // such a referral still advances to `qualified` (the leaderboard rides
+  // qualifiedDelta) but never enters `payoutState='pending'`, so it can never be
+  // picked up by confirmReferralPayouts or surface a ₦0 row in the payout book.
   let payoutState = input.payoutState;
   let payoutAmount = 0;
   let holdEndsAtMs: number | null = null;
   let pendingAmountDelta = 0;
-  if (qualifiedDelta === 1 && !input.hasFlags && input.payoutState === 'none') {
+  if (qualifiedDelta === 1 && !input.hasFlags && input.payoutState === 'none' && input.payoutRatePerUser > 0) {
     payoutState = 'pending';
     payoutAmount = input.payoutRatePerUser;
     holdEndsAtMs = input.nowMs + HOLD_WINDOW_DAYS * DAY_MS;

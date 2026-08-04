@@ -67,6 +67,30 @@ describe('getReferralDashboardHandler', () => {
     expect(res.marketers[0]).toMatchObject({ installs: 0, pendingAmount: 0, phone: null, bankName: null });
   });
 
+  it('excludes founding-tailors (rate-0) marketers from rows AND totals', async () => {
+    // Founding-tailors referrers are minted with payoutRatePerUser: 0 and
+    // program: 'founding_tailors'. They must never appear in the affiliate payout
+    // book — and the totals must be summed over the affiliate-only set so counts
+    // stay consistent with the visible rows.
+    const db = makeDb({
+      'marketers/aff': marketer({ name: 'Ada', confirmedAmount: 1_000_000, installs: 10, activated: 6, qualified: 3 }),
+      'marketers/ft': marketer({
+        name: 'Founding Femi', program: 'founding_tailors', payoutRatePerUser: 0,
+        installs: 40, activated: 20, qualified: 15,
+        pendingAmount: 0, confirmedAmount: 0, paidAmount: 0,
+      }),
+    });
+    const res = await getReferralDashboardHandler(ctx(true), deps(db));
+
+    // Only the affiliate row is present.
+    expect(res.marketers.map((m) => m.id)).toEqual(['aff']);
+    expect(res.marketers.some((m) => m.id === 'ft')).toBe(false);
+    // Totals reflect the affiliate only — the founding-tailors counts are excluded.
+    expect(res.totals).toMatchObject({
+      marketers: 1, installs: 10, activated: 6, qualified: 3,
+    });
+  });
+
   it('returns an empty book without error', async () => {
     const res = await getReferralDashboardHandler(ctx(true), deps(makeDb({})));
     expect(res.marketers).toEqual([]);

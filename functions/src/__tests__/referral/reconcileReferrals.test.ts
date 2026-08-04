@@ -414,6 +414,22 @@ describe('gradeReferral', () => {
     expect(r?.holdEndsAtMs).toBeNull();
   });
 
+  it('qualifies a rate-0 marketer (founding tailors) but NEVER opens a payout', () => {
+    // A founding-tailors referrer is minted with payoutRatePerUser: 0. The
+    // referral must still reach 'qualified' (the leaderboard rides qualifiedDelta),
+    // but no payout may ever open — payoutState stays 'none', no hold, no accrual.
+    const r = gradeReferral({ ...base, activated: true, qualifiesByActivity: true, payoutRatePerUser: 0 });
+    expect(r).toMatchObject({
+      milestone: 'qualified',
+      payoutState: 'none',
+      payoutAmount: 0,
+      activatedDelta: 1,
+      qualifiedDelta: 1,
+      pendingAmountDelta: 0,
+    });
+    expect(r?.holdEndsAtMs).toBeNull();
+  });
+
   it('does not double-count activated when jumping from already-activated', () => {
     const r = gradeReferral({ ...base, milestone: 'activated', activated: true, qualifiesByActivity: true });
     expect(r).toMatchObject({ milestone: 'qualified', activatedDelta: 0, qualifiedDelta: 1 });
@@ -465,6 +481,33 @@ describe('reconcileReferralsHandler', () => {
 
     const m = store.get('marketers/m1');
     expect(m).toMatchObject({ activated: 1, qualified: 1, pendingAmount: 500_000 });
+  });
+
+  it('qualifies a rate-0 (founding tailors) referral without opening any payout', async () => {
+    // Same qualifying arrange, but the marketer earns nothing (payoutRatePerUser: 0,
+    // as founding-tailors referrers are minted). The referral must reach 'qualified'
+    // and bump the marketer's `qualified` counter (the leaderboard's source), yet
+    // NEVER enter payoutState='pending' — no holdEndsAt, no payoutAmount, no accrual.
+    const { store, db } = seed(
+      {
+        'marketers/m1': { payoutRatePerUser: 0, program: 'founding_tailors', activated: 0, qualified: 0, pendingAmount: 0 },
+        'users/u1/customers/c3': { createdAt: SIGNUP + 4.5 * DAY_MS }, // '2026-07-05' — credited this run
+      },
+      priorNights(['2026-07-01', '2026-07-02', '2026-07-03'], '2026-07-05'),
+    );
+    const res = await reconcileReferralsHandler(deps(db));
+    expect(res).toEqual({ scanned: 1, activated: 1, qualified: 1 });
+
+    const ref = store.get('referrals/u1');
+    expect(ref.milestone).toBe('qualified');
+    expect(ref.payoutState).toBe('none');       // never advances to pending
+    expect(ref.payoutAmount).toBeUndefined();    // no payout amount written
+    expect(ref.holdEndsAt).toBeUndefined();      // no hold opened
+    expect(ref.qualifiedAt).toBeDefined();       // qualify transition still stamped
+
+    const m = store.get('marketers/m1');
+    // Leaderboard still counts the qualify; no cash ever accrues.
+    expect(m).toMatchObject({ activated: 1, qualified: 1, pendingAmount: 0 });
   });
 
   it('stamps qualifiedAt once on the run that first qualifies a referral', async () => {
