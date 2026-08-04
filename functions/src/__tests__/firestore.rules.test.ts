@@ -285,6 +285,42 @@ describe('referredBy field hardening', () => {
   });
 });
 
+describe('referralCode field hardening', () => {
+  it('rejects planting a referralCode at user-doc creation (createUserProfile runs before any mint)', async () => {
+    await assertFails(
+      setDoc(doc(db('alice'), 'users/alice'), { ...SEED_DEFAULTS, referralCode: 'FAKE1234' }),
+    );
+  });
+
+  it('allows a normal profile edit that never touches referralCode (guard does not break edits)', async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice'), { ...SEED_DEFAULTS, referralCode: 'REAL1234' });
+    });
+    await assertSucceeds(
+      updateDoc(doc(db('alice'), 'users/alice'), { displayName: 'Alice B' }),
+    );
+  });
+
+  it('rejects changing or deleting a server-minted referralCode via update', async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice'), { ...SEED_DEFAULTS, referralCode: 'REAL1234' });
+    });
+    // Change it to an arbitrary code (share a different link).
+    await assertFails(updateDoc(doc(db('alice'), 'users/alice'), { referralCode: 'HACK9999' }));
+    // Delete it (share a dead link + force re-mint / stop minting).
+    await assertFails(updateDoc(doc(db('alice'), 'users/alice'), { referralCode: deleteField() }));
+    // A full replacement-set that omits referralCode is ALSO a delete of it — must fail.
+    await assertFails(setDoc(doc(db('alice'), 'users/alice'), { ...SEED_DEFAULTS, displayName: 'Alice' }));
+  });
+
+  it('rejects adding referralCode to a doc that never had it (planting via update)', async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice'), SEED_DEFAULTS);
+    });
+    await assertFails(updateDoc(doc(db('alice'), 'users/alice'), { referralCode: 'FAKE1234' }));
+  });
+});
+
 describe('giftLinkToken field hardening', () => {
   it('rejects planting a giftLinkToken at user-doc creation', async () => {
     await assertFails(
