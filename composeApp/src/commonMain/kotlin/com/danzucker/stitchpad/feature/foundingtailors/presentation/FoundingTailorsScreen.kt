@@ -140,9 +140,9 @@ fun FoundingTailorsScreen(
                 )
             }
 
-            // "How points work" explainer — points are awarded only when a
-            // referral reaches the server-verified `qualified` milestone, so set
-            // expectations up front (no points for a bare install/signup).
+            // "How points work" explainer — points start when a referral becomes
+            // activated (first real customer/order) and accrue per active day, up
+            // to 5; a bare install or signup earns nothing. Set expectations here.
             Spacer(Modifier.height(DesignTokens.space2))
             Text(
                 text = stringResource(Res.string.founding_tailors_how_title),

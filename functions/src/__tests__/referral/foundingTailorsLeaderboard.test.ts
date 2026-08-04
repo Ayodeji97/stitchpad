@@ -230,7 +230,7 @@ test('writes the alltime board aggregated across all months, points-desc', async
   const { db } = makeFakeDb({
     'marketers/mA': { program: 'founding_tailors', name: 'Ada Styles', type: 'user' },
     'marketers/mB': { program: 'founding_tailors', name: 'Bola Wears', type: 'user' },
-    // mA: qualified with 4 days spanning Jul->Aug → 5 points total (2 in Jul, 3 in Aug).
+    // mA: qualified with 4 days spanning Jul->Aug → 5 points total (3 in Jul, 2 in Aug).
     'referrals/r1': {
       marketerId: 'mA', milestone: 'qualified', flags: [],
       observedDayKeys: ['2026-07-30', '2026-07-31', '2026-08-01', '2026-08-02'],
