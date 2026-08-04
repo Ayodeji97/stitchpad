@@ -41,6 +41,7 @@ import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
 import com.danzucker.stitchpad.feature.order.presentation.form.StylePickerSource
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayNameAsync
+import com.danzucker.stitchpad.feature.review.presentation.ReviewArmer
 import com.danzucker.stitchpad.feature.style.domain.observeFoldersWithStyles
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -94,6 +95,7 @@ class OrderDetailViewModel(
     private val platformContext: PlatformContext,
     private val entitlementsProvider: EntitlementsProvider,
     private val analytics: Analytics,
+    private val reviewArmer: ReviewArmer,
 ) : ViewModel() {
 
     private val orderId: String? = savedStateHandle["orderId"]
@@ -1015,6 +1017,7 @@ class OrderDetailViewModel(
                 return@launch
             }
             analytics.logEvent(AnalyticsEvent.OrderStatusAdvanced(status = newStatus.name.lowercase()))
+            if (newStatus == OrderStatus.DELIVERED) reviewArmer.armFromDelight()
             // Always normalise subStatus: only IN_PROGRESS keeps it; other states clear.
             val effectiveSub = if (newStatus == OrderStatus.IN_PROGRESS) newSubStatus else null
             val subResult = orderRepository.updateSubStatus(userId, orderId, effectiveSub)
@@ -1145,6 +1148,7 @@ class OrderDetailViewModel(
                         AnalyticsEvent.PaymentRecorded(isFullyPaid = safeAmount >= order.balanceRemaining)
                     )
                     _events.send(OrderDetailEvent.PaymentRecorded)
+                    reviewArmer.armFromDelight()
                 }
                 is Result.Error ->
                     _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }

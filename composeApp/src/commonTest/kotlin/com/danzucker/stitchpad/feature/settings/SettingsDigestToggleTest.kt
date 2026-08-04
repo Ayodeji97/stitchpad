@@ -6,6 +6,7 @@ import com.danzucker.stitchpad.core.data.staff.FakeStaffMembershipPrefsStore
 import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 
 import app.cash.turbine.test
+import com.danzucker.stitchpad.core.analytics.FakeAnalytics
 import com.danzucker.stitchpad.core.config.FakeAppConfigRepository
 import com.danzucker.stitchpad.core.config.FakeCommunityJoinTracker
 import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
@@ -29,6 +30,7 @@ import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
 import com.danzucker.stitchpad.feature.notification.push.PushPermissionController
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
+import com.danzucker.stitchpad.feature.review.presentation.FakeStoreReviewLauncher
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsAction
 import com.danzucker.stitchpad.feature.settings.presentation.home.SettingsViewModel
 import kotlinx.coroutines.Dispatchers
@@ -227,6 +229,8 @@ private fun buildSettingsVmForDigest(
         dismissal = CommunityBannerDismissal(FakeOnboardingPreferences()),
         activeWorkshopProvider = FakeActiveWorkshopProvider(),
         inviteRedemptionRepository = FakeInviteRedemptionRepository(),
+        analytics = FakeAnalytics(),
+        storeReviewLauncher = FakeStoreReviewLauncher(),
     )
     return vm to userRepo
 }

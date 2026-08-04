@@ -39,6 +39,8 @@ sealed interface DebugMenuAction {
 
     data object OnResetCommunityBannerClick : DebugMenuAction
     data object OnResetCelebrationsClick : DebugMenuAction
+    data object OnForceReviewPromptClick : DebugMenuAction
+    data object OnResetReviewSignalsClick : DebugMenuAction
 
     // Referral (client)
     data object OnReferralAttributeClick : DebugMenuAction

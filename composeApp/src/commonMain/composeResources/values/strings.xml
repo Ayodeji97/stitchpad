@@ -1379,6 +1379,8 @@
     <string name="referral_code_generic_error">Something went wrong. Please try again.</string>
     <string name="settings_row_contact">Contact us on WhatsApp</string>
     <string name="settings_row_contact_subtitle">Get help and support</string>
+    <string name="settings_row_rate_app">Rate StitchPad</string>
+    <string name="settings_row_rate_app_subtitle">Tell others what you think on the store</string>
     <string name="settings_row_community">Join our community</string>
     <string name="settings_row_community_subtitle">Updates, tips &amp; other tailors on WhatsApp</string>
     <string name="community_banner_title">Join our WhatsApp community</string>
@@ -1909,4 +1911,10 @@
     <string name="staff_pending_step3_sub">See orders, measurements &amp; advance jobs.</string>
     <string name="staff_pending_leave">Leave this workshop</string>
     <string name="staff_pending_declined">Your request wasn&apos;t approved. You can try another code.</string>
+
+    <string name="review_sentiment_title">Enjoying StitchPad?</string>
+    <string name="review_sentiment_subtitle">Your feedback helps us build the best tool for your business.</string>
+    <string name="review_sentiment_love">Love it</string>
+    <string name="review_sentiment_not_really">Not really</string>
+    <string name="review_sentiment_dismiss_cd">Close</string>
 </resources>

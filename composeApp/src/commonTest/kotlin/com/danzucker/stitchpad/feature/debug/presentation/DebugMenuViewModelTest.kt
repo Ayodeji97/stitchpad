@@ -19,11 +19,19 @@ import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
 import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
+import com.danzucker.stitchpad.core.analytics.domain.Analytics
+import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
+import com.danzucker.stitchpad.core.analytics.domain.AnalyticsUserProperty
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
+import com.danzucker.stitchpad.feature.review.presentation.FakeReviewPreferences
+import com.danzucker.stitchpad.feature.review.presentation.FakeStoreReviewLauncher
+import com.danzucker.stitchpad.feature.review.presentation.ReviewController
 import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
@@ -44,7 +52,15 @@ class DebugMenuViewModelTest {
     private lateinit var seeder: FakeDebugSeeder
     private lateinit var fakeAuth: FakeAuthRepository
     private lateinit var fakeOnboarding: FakeOnboardingPreferences
+    private lateinit var reviewPreferences: FakeReviewPreferences
     private lateinit var sessionActions: DebugSessionActions
+
+    private val noopAnalytics = object : Analytics {
+        override fun logEvent(event: AnalyticsEvent) {}
+        override fun logScreenView(screenName: String) {}
+        override fun setUserId(userId: String?) {}
+        override fun setUserProperty(property: AnalyticsUserProperty, value: String) {}
+    }
 
     @BeforeTest
     fun setUp() {
@@ -58,11 +74,21 @@ class DebugMenuViewModelTest {
             )
         }
         fakeOnboarding = FakeOnboardingPreferences()
+        reviewPreferences = FakeReviewPreferences()
         sessionActions = DebugSessionActions(
             authRepository = fakeAuth,
             onboardingPreferences = fakeOnboarding,
             signOutUseCase = SignOutUseCase(fakeAuth, NoOpPushTokenRegistrar(), PendingDeepLinkHolder(), FakeStaffMembershipPrefsStore()),
             communityBannerDismissal = CommunityBannerDismissal(fakeOnboarding),
+            reviewController = ReviewController(
+                preferences = reviewPreferences,
+                analytics = noopAnalytics,
+                launcher = FakeStoreReviewLauncher(),
+                authUserIds = MutableStateFlow(null),
+                scope = CoroutineScope(UnconfinedTestDispatcher()),
+                now = { 0L },
+            ),
+            reviewPreferences = reviewPreferences,
         )
     }
 

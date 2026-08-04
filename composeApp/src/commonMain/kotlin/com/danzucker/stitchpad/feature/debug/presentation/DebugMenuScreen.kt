@@ -161,6 +161,18 @@ fun DebugMenuScreen(
                 )
                 SettingsRowDivider()
                 SettingsRow(
+                    icon = Icons.Outlined.Star,
+                    label = "Force review prompt",
+                    onClick = { onAction(DebugMenuAction.OnForceReviewPromptClick) },
+                )
+                SettingsRowDivider()
+                SettingsRow(
+                    icon = Icons.Outlined.Refresh,
+                    label = "Reset review signals",
+                    onClick = { onAction(DebugMenuAction.OnResetReviewSignalsClick) },
+                )
+                SettingsRowDivider()
+                SettingsRow(
                     icon = Icons.AutoMirrored.Outlined.Logout,
                     label = "Sign out",
                     onClick = { onAction(DebugMenuAction.OnSignOutClick) },

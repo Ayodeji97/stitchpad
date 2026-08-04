@@ -33,6 +33,7 @@ import com.danzucker.stitchpad.core.presentation.celebration.CelebrationControll
 import com.danzucker.stitchpad.core.presentation.celebration.Milestone
 import com.danzucker.stitchpad.feature.order.domain.DepositReconciler
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
+import com.danzucker.stitchpad.feature.review.presentation.ReviewArmer
 import com.danzucker.stitchpad.feature.style.domain.observeFoldersWithStyles
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -69,6 +70,7 @@ class OrderFormViewModel(
     private val imageCompressor: ImageCompressor,
     private val analytics: Analytics,
     private val celebrations: CelebrationController,
+    private val reviewArmer: ReviewArmer,
 ) : ViewModel() {
 
     private val orderId: String? = savedStateHandle["orderId"]
@@ -918,6 +920,7 @@ class OrderFormViewModel(
                 is Result.Success -> {
                     if (!isEdit) {
                         analytics.logEvent(AnalyticsEvent.OrderCreated)
+                        reviewArmer.recordOrderCreated()
                         if (isFirstOrderCandidate) {
                             celebrations.trigger(
                                 userId = uid,

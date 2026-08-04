@@ -12,8 +12,10 @@ import com.danzucker.stitchpad.core.domain.preferences.ThemePreferencesStore
 import com.danzucker.stitchpad.core.offline.OfflineUploadOutbox
 import com.danzucker.stitchpad.feature.freemium.presentation.reconcile.ReconcileCoordinator
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferences
+import com.danzucker.stitchpad.feature.review.presentation.ReviewController
 import com.danzucker.stitchpad.navigation.StitchPadNavHost
 import com.danzucker.stitchpad.ui.components.celebration.CelebrationOverlayHost
+import com.danzucker.stitchpad.ui.components.review.ReviewPromptHost
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.koin.compose.koinInject
 
@@ -27,6 +29,7 @@ fun App() {
     // (V1.0 design spec decision #4).
     koinInject<ReconcileCoordinator>().ensureRunning()
     koinInject<OfflineUploadOutbox>().ensureRunning()
+    koinInject<ReviewController>().ensureRunning()
 
     val themeStore: ThemePreferencesStore = koinInject()
     val themeFlow = remember(themeStore) { themeStore.observeTheme() }
@@ -45,10 +48,12 @@ fun App() {
             val navController = rememberNavController()
             val onboardingPreferences: OnboardingPreferences = koinInject()
             CelebrationOverlayHost {
-                StitchPadNavHost(
-                    navController = navController,
-                    onboardingPreferences = onboardingPreferences
-                )
+                ReviewPromptHost {
+                    StitchPadNavHost(
+                        navController = navController,
+                        onboardingPreferences = onboardingPreferences
+                    )
+                }
             }
         }
     }

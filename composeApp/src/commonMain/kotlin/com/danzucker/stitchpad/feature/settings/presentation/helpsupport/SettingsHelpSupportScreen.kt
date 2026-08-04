@@ -12,6 +12,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Groups
+import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,6 +44,8 @@ import stitchpad.composeapp.generated.resources.settings_row_community
 import stitchpad.composeapp.generated.resources.settings_row_community_subtitle
 import stitchpad.composeapp.generated.resources.settings_row_contact
 import stitchpad.composeapp.generated.resources.settings_row_contact_subtitle
+import stitchpad.composeapp.generated.resources.settings_row_rate_app
+import stitchpad.composeapp.generated.resources.settings_row_rate_app_subtitle
 import stitchpad.composeapp.generated.resources.settings_row_tutorials
 import stitchpad.composeapp.generated.resources.settings_row_tutorials_subtitle
 
@@ -93,6 +96,14 @@ fun SettingsHelpSupportScreen(
                     label = stringResource(Res.string.settings_row_contact),
                     subtitle = stringResource(Res.string.settings_row_contact_subtitle),
                     onClick = { onAction(SettingsAction.OnContactClick) },
+                    trailing = { SettingsRowChevron() },
+                )
+                SettingsRowDivider()
+                SettingsRow(
+                    icon = Icons.Outlined.StarOutline,
+                    label = stringResource(Res.string.settings_row_rate_app),
+                    subtitle = stringResource(Res.string.settings_row_rate_app_subtitle),
+                    onClick = { onAction(SettingsAction.OnRateAppClick) },
                     trailing = { SettingsRowChevron() },
                 )
                 if (state.showCommunityRow) {
