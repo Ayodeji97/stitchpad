@@ -8,6 +8,7 @@ import platform.StoreKit.SKStoreReviewController
 import platform.UIKit.UIApplication
 
 private const val APP_ID = "6770673562"
+
 // itms-apps opens the App Store app directly (best on a real device). apps.apple.com is
 // the graceful fallback: on a device it still routes to the App Store, and on the Simulator
 // — which has no App Store app to handle itms-apps:// — it opens the listing in Safari
