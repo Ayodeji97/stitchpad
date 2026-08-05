@@ -106,6 +106,7 @@ export interface LeaderboardResponse {
   monthId: string;
   top: PublicRow[];
   you: { rank: number; points: number } | null;
+  youAllTime: { rank: number; points: number } | null;
 }
 export interface ReadDeps { db: admin.firestore.Firestore }
 
@@ -129,6 +130,7 @@ export async function getFoundingTailorsLeaderboardHandler(
     .map((e, i) => ({ rank: i + 1, name: e.name, points: e.points }));
 
   let you: { rank: number; points: number } | null = null;
+  let youAllTime: { rank: number; points: number } | null = null;
   const trimmedCode = typeof data?.code === 'string' ? data.code.trim() : '';
   // Referral codes are Crockford-ish alphanumerics. Anything outside that
   // charset (e.g. a slash) can't be a real code — and interpolating it into
@@ -142,11 +144,21 @@ export async function getFoundingTailorsLeaderboardHandler(
     if (marketerId) {
       const idx = entries.findIndex((e) => e.marketerId === marketerId);
       you = idx >= 0 ? { rank: idx + 1, points: entries[idx].points } : { rank: 0, points: 0 };
+
+      // Lifetime running total from the pre-computed all-time board (same shape /
+      // resolution as `you`). Read here — only when a code resolved a marketer — so
+      // anonymous/web reads pay nothing new.
+      const allTime = (await deps.db.doc('leaderboards/alltime').get()).data() as
+        | { entries?: LeaderEntry[] }
+        | undefined;
+      const allEntries = allTime?.entries ?? [];
+      const aIdx = allEntries.findIndex((e) => e.marketerId === marketerId);
+      youAllTime = aIdx >= 0 ? { rank: aIdx + 1, points: allEntries[aIdx].points } : { rank: 0, points: 0 };
     }
-    // Unknown code: `you` stays null — never leak whether the code exists.
+    // Unknown code: `you`/`youAllTime` stay null — never leak whether the code exists.
   }
 
-  return { updatedAt: board?.updatedAt?.toMillis?.() ?? 0, monthId, top, you };
+  return { updatedAt: board?.updatedAt?.toMillis?.() ?? 0, monthId, top, you, youAllTime };
 }
 
 export const getFoundingTailorsLeaderboard = functions

@@ -18,6 +18,17 @@ data class ReferralLink(
 )
 
 /**
+ * The signed-in tailor's own Founding Tailors standing. Rank 0 means the tailor
+ * has a referral code but no points/rank yet (this month or lifetime).
+ */
+data class FoundingTailorsStanding(
+    val monthPoints: Int,
+    val monthRank: Int,
+    val allTimePoints: Int,
+    val allTimeRank: Int,
+)
+
+/**
  * Client side of referral attribution. The server (`recordReferralAttribution`) owns
  * all fraud checks + the payout lifecycle; the app only reports the captured code +
  * a stable device hash once, at first authenticated launch.
@@ -38,4 +49,10 @@ interface ReferralRepository {
      * persisting one server-side on first call (`getOrCreateMyReferralLink`).
      */
     suspend fun getOrCreateMyReferralLink(): Result<ReferralLink, DataError.Network>
+
+    /**
+     * The signed-in tailor's own month + lifetime Founding Tailors standing,
+     * resolved from their [code] via the public leaderboard callable.
+     */
+    suspend fun getFoundingTailorsStanding(code: String): Result<FoundingTailorsStanding, DataError.Network>
 }

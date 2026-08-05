@@ -37,6 +37,11 @@ private class FakeReferralRepository(
         Result.Success(
             ReferralLink(code = "CODE0", url = "https://link.getstitchpad.com/r/CODE0", playUrl = ""),
         )
+
+    override suspend fun getFoundingTailorsStanding(
+        code: String,
+    ): Result<FoundingTailorsStanding, DataError.Network> =
+        Result.Success(FoundingTailorsStanding(monthPoints = 0, monthRank = 0, allTimePoints = 0, allTimeRank = 0))
 }
 
 private class FakeReferralPreferences(

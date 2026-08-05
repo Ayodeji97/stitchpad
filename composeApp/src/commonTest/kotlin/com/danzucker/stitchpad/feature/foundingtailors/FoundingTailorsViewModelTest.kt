@@ -9,6 +9,7 @@ import com.danzucker.stitchpad.feature.foundingtailors.presentation.FoundingTail
 import com.danzucker.stitchpad.feature.foundingtailors.presentation.FoundingTailorsEvent
 import com.danzucker.stitchpad.feature.foundingtailors.presentation.FoundingTailorsViewModel
 import com.danzucker.stitchpad.feature.referral.data.FakeReferralRepository
+import com.danzucker.stitchpad.feature.referral.domain.FoundingTailorsStanding
 import com.danzucker.stitchpad.feature.referral.domain.ReferralLink
 import app.cash.turbine.test
 import kotlinx.coroutines.Dispatchers
@@ -138,6 +139,37 @@ class FoundingTailorsViewModelTest {
                 awaitItem(),
             )
         }
+    }
+
+    @Test
+    fun `LoadLink populates standing from the repository`() = runTest {
+        val repo = FakeReferralRepository()
+        repo.standingResult = Result.Success(
+            FoundingTailorsStanding(monthPoints = 2, monthRank = 1, allTimePoints = 9, allTimeRank = 3),
+        )
+        val vm = viewModel(referralRepository = repo, userRepository = userWith("CODE0"))
+
+        vm.onAction(FoundingTailorsAction.LoadLink)
+
+        assertEquals(1, repo.standingCallCount)
+        assertEquals("CODE0", repo.lastStandingCode)
+        assertEquals(
+            FoundingTailorsStanding(monthPoints = 2, monthRank = 1, allTimePoints = 9, allTimeRank = 3),
+            vm.state.value.standing,
+        )
+    }
+
+    @Test
+    fun `LoadLink leaves standing null and no error when the standing fetch fails`() = runTest {
+        val repo = FakeReferralRepository()
+        repo.standingResult = Result.Error(DataError.Network.UNKNOWN)
+        val vm = viewModel(referralRepository = repo, userRepository = userWith("CODE0"))
+
+        vm.onAction(FoundingTailorsAction.LoadLink)
+
+        assertNull(vm.state.value.standing)
+        assertNull(vm.state.value.error) // a failed standing fetch must NOT surface an error
+        assertEquals("https://link.getstitchpad.com/r/CODE0", vm.state.value.referralUrl)
     }
 
     @Test

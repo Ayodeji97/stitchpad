@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.referral.data
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.feature.referral.domain.AttributionOutcome
+import com.danzucker.stitchpad.feature.referral.domain.FoundingTailorsStanding
 import com.danzucker.stitchpad.feature.referral.domain.ReferralError
 import com.danzucker.stitchpad.feature.referral.domain.ReferralLink
 import com.danzucker.stitchpad.feature.referral.domain.ReferralRepository
@@ -28,6 +29,11 @@ class FakeReferralRepository : ReferralRepository {
         )
     var referralLinkCallCount: Int = 0
 
+    var standingResult: Result<FoundingTailorsStanding, DataError.Network> =
+        Result.Success(FoundingTailorsStanding(monthPoints = 0, monthRank = 0, allTimePoints = 0, allTimeRank = 0))
+    var standingCallCount: Int = 0
+    var lastStandingCode: String? = null
+
     override suspend fun recordAttribution(
         code: String,
         deviceHash: String,
@@ -43,5 +49,13 @@ class FakeReferralRepository : ReferralRepository {
     override suspend fun getOrCreateMyReferralLink(): Result<ReferralLink, DataError.Network> {
         referralLinkCallCount++
         return referralLinkResult
+    }
+
+    override suspend fun getFoundingTailorsStanding(
+        code: String,
+    ): Result<FoundingTailorsStanding, DataError.Network> {
+        standingCallCount++
+        lastStandingCode = code
+        return standingResult
     }
 }
