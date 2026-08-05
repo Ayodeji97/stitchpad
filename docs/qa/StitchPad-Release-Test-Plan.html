@@ -1,0 +1,181 @@
+<style>
+  :root{
+    --indigo:#2C3E7C; --indigo-tint:#EAEDF5; --sienna:#B85A30; --saffron:#E8A800;
+    --paper:#FAF6EC; --ink:#14110E; --muted:#6B6357; --line:#D9D2C4; --ok:#2E7D5B;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-print-color-adjust:exact; print-color-adjust:exact;}
+  body{font-family:-apple-system,"Helvetica Neue",Arial,sans-serif; color:var(--ink); margin:0; font-size:11px; line-height:1.5;}
+  .page{padding:34px 40px;}
+  h1{font-family:Georgia,"Times New Roman",serif; font-size:26px; margin:0 0 2px; color:var(--indigo); letter-spacing:-.3px;}
+  h2{font-family:Georgia,serif; font-size:16px; color:var(--indigo); margin:26px 0 8px; padding-bottom:5px; border-bottom:2px solid var(--indigo);}
+  h3{font-size:12.5px; margin:16px 0 5px; color:var(--sienna); font-weight:700;}
+  p{margin:6px 0;}
+  .sub{color:var(--muted); font-size:11px; margin:0 0 14px;}
+  .meta{display:flex; flex-wrap:wrap; gap:6px 22px; background:var(--indigo-tint); border-radius:8px; padding:12px 16px; margin:12px 0 4px; font-size:10.5px;}
+  .meta b{color:var(--indigo);}
+  .lead{background:var(--paper); border:1px solid var(--line); border-left:4px solid var(--sienna); border-radius:6px; padding:11px 14px; margin:14px 0;}
+  .pill{display:inline-block; background:var(--indigo); color:#fff; border-radius:20px; padding:1px 9px; font-size:9.5px; font-weight:700; letter-spacing:.3px; vertical-align:middle;}
+  .pill.new{background:var(--sienna);}
+  ul{margin:5px 0 5px 0; padding-left:18px;} li{margin:2px 0;}
+  table{border-collapse:collapse; width:100%; margin:8px 0 4px; font-size:10px;}
+  th,td{border:1px solid var(--line); padding:6px 8px; text-align:left; vertical-align:top;}
+  th{background:var(--indigo); color:#fff; font-weight:700; font-size:9.5px; letter-spacing:.2px;}
+  td.id{font-family:"SF Mono",Menlo,monospace; font-weight:700; color:var(--indigo); white-space:nowrap; width:46px;}
+  .plat{width:34px; text-align:center; font-weight:700; color:var(--muted);}
+  .res{width:64px;}
+  .box{display:inline-block; width:11px; height:11px; border:1.4px solid var(--indigo); border-radius:3px; vertical-align:middle;}
+  .exp{color:var(--muted);}
+  .exp b{color:var(--ink);}
+  .note{font-size:10px; color:var(--muted); font-style:italic; margin:4px 0;}
+  .tag{font-family:"SF Mono",Menlo,monospace; font-size:9px; background:var(--indigo-tint); color:var(--indigo); border-radius:3px; padding:1px 4px;}
+  .sect-intro{color:var(--muted); margin:2px 0 8px; font-size:10.5px;}
+  .callout{background:#FCF3E0; border:1px solid var(--saffron); border-radius:6px; padding:9px 13px; margin:10px 0; font-size:10.5px;}
+  footer{margin-top:22px; padding-top:10px; border-top:1px solid var(--line); color:var(--muted); font-size:9.5px; display:flex; justify-content:space-between;}
+  @page{size:A4; margin:14mm 0;}
+  h2,h3{break-after:avoid;} table{break-inside:auto;} tr{break-inside:avoid;}
+  .scope{break-inside:avoid;}
+</style>
+
+<div class="page">
+
+  <h1>StitchPad — Release Test Plan</h1>
+  <p class="sub">Tester acceptance pass for the tester round (iOS TestFlight + Android closed test) before Play Store submission.</p>
+
+  <div class="meta">
+    <span><b>Release candidate:</b> v1.2.0</span>
+    <span><b>Baseline (live):</b> 1.1.0 / 1.1.1</span>
+    <span><b>Prepared:</b> 2026-08-05</span>
+    <span><b>QA lead:</b> Daniel</span>
+    <span><b>Platforms:</b> Android + iOS</span>
+    <span><b>Report bugs to:</b> tally.so/r/5BgVVb or getstitchpad@gmail.com</span>
+  </div>
+
+  <div class="lead scope">
+    <b>Scope — test only what is officially new in this release.</b> This plan covers <b>only the features added since the last store release (1.1.0 / 1.1.1)</b>. Everything else (create/edit orders, customers, measurements, receipts, auth, billing) is unchanged and is covered by the light regression pass in §5, not re-tested in full.
+    <div style="margin-top:6px">Officially added:
+      <span class="pill new">Staff roles &middot; multi-user workshop</span>
+      <span class="pill new">Founding Tailors leaderboard</span>
+      <span class="pill new">To collect</span>
+      <span class="pill new">In-app ratings</span>
+    </div>
+  </div>
+
+  <h2>0 &nbsp; Before you start</h2>
+  <table>
+    <tr><th style="width:150px">Item</th><th>Detail</th></tr>
+    <tr><td><b>Build under test</b></td><td>StitchPad <b>v1.2.0</b> — iOS via <b>TestFlight</b> (external group), Android via the <b>Play closed-test / alpha</b> track. Confirm the version on Settings before testing.</td></tr>
+    <tr><td><b>Test accounts</b></td><td><b>Owner:</b> Fola (demo owner account). &nbsp; <b>Staff:</b> Gabby (joins Fola's workshop). Staff flows need <b>both</b> accounts — one device signed in as the owner, one as the staff member.</td></tr>
+    <tr><td><b>Devices</b></td><td>At minimum one Android phone + one iPhone. For staff flows, two sign-ins running at once makes approve/leave easy to observe.</td></tr>
+    <tr><td><b>How to record</b></td><td>Tick the platform box you tested and mark <b>P</b> (pass) / <b>F</b> (fail) in Result. For any <b>F</b>, note the step number + a screenshot in the bug report.</td></tr>
+    <tr><td><b>Network tests</b></td><td>A few cases ask you to turn Wi-Fi/data off — use airplane mode, then restore.</td></tr>
+  </table>
+
+  <!-- =============================== STAFF =============================== -->
+  <h2>1 &nbsp; Staff roles &amp; multi-user workshop <span class="pill new">flagship</span></h2>
+  <p class="sect-intro">A workshop owner can invite teammates. Staff get a reduced, <b>money-free</b>, read-only work view — they see garments, statuses, dates, measurements and customer <b>names</b>, and can advance production, but never see prices, balances, payments, costs, profit, receipts, or customer contact. Test with owner = Fola, staff = Gabby.</p>
+
+  <h3>1a &nbsp; Owner invites a teammate (Team screen)</h3>
+  <table>
+    <tr><th class="id">ID</th><th>Test step</th><th>Expected result</th><th class="plat">And</th><th class="plat">iOS</th><th class="res">Result</th></tr>
+    <tr><td class="id">ST-01</td><td>As owner (Fola): Settings &rarr; <span class="tag">Team</span>.</td><td class="exp">Team row is visible for the <b>owner only</b>. Opens a seat card showing usage (dots) out of the seat cap.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">ST-02</td><td>Tap <b>Invite a teammate</b>.</td><td class="exp">Generates an invite code shown as <span class="tag">XXXX-XXXX</span> with a 7-day expiry, plus <b>Copy code</b> and <b>Share link</b> (WhatsApp).</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">ST-03</td><td>Fill the workshop's seats, then reopen Team.</td><td class="exp">At the seat cap the <b>Invite</b> button is disabled and a seats-full state shows. (Server is the real gate — <span class="tag">SEAT_CAP_REACHED</span>.)</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+  </table>
+
+  <h3>1b &nbsp; Staff joins &amp; waits for approval</h3>
+  <table>
+    <tr><th class="id">ID</th><th>Test step</th><th>Expected result</th><th class="plat">And</th><th class="plat">iOS</th><th class="res">Result</th></tr>
+    <tr><td class="id">ST-04</td><td>As Gabby: tap the shared invite <b>link</b> (from WhatsApp) on the device.</td><td class="exp">App opens the <b>Redeem invite</b> screen with the code <b>pre-filled</b> (<span class="tag">XXXX-XXXX</span>).</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">ST-05</td><td>Also test the manual path: on WorkshopSetup tap the "joining as staff?" fork and paste the code.</td><td class="exp">Same Redeem screen; invalid codes show an <b>inline</b> error, network errors show a <b>snackbar</b>.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">ST-06</td><td>Submit a valid code (<b>Join</b>).</td><td class="exp">Routes to the <b>waiting for approval</b> screen — animated hourglass, 3-step tracker, workshop identity chip.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">ST-07</td><td>Owner (Fola): Team &rarr; <b>pending</b> requests &rarr; <b>Approve</b> Gabby.</td><td class="exp">Gabby's waiting screen <b>auto-advances to Home</b> the moment approval lands (no manual refresh).</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">ST-08</td><td>Repeat with <b>Decline</b> on a second pending request.</td><td class="exp">Declined staff returns to the <b>Redeem</b> screen with a message.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+  </table>
+
+  <h3>1c &nbsp; Staff experience — money-free, read-only</h3>
+  <table>
+    <tr><th class="id">ID</th><th>Test step</th><th>Expected result</th><th class="plat">And</th><th class="plat">iOS</th><th class="res">Result</th></tr>
+    <tr><td class="id">ST-09</td><td>As active staff (Gabby): look at the bottom navigation.</td><td class="exp"><b>Three tabs only</b> — Dashboard, Customers, Orders. <b>No Reports tab.</b></td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">ST-10</td><td>Dashboard.</td><td class="exp">Work view: Overdue / Due-today / In-progress count tiles, a "Needs attention" advance queue, pipeline by stage. Header greets Gabby by name but shows <b>Fola's workshop name</b>. <b>No ₦ anywhere</b>, no revenue, no goal, <b>no speed-dial FAB</b>. Empty state = "All caught up".</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">ST-11</td><td>Open an Order as staff.</td><td class="exp">Garment, status, dates, measurements, customer <b>name</b> visible. <b>Hidden:</b> prices, balance, discounts, payments, costs, profit, share/receipt. Can <b>advance production status</b>; no edit/create/delete; Ready/Delivered advances with <b>no balance-owed warning</b>.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">ST-12</td><td>Open a Customer as staff.</td><td class="exp">Name + their orders visible. <b>No phone, no WhatsApp/call chips</b>, no add-phone. No create FAB, no edit/duplicate/overflow.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">ST-13</td><td>Try to reach Reports via a deep link / restored screen.</td><td class="exp">Redirects staff back to the dashboard — Reports is <b>unreachable</b> for staff.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+  </table>
+
+  <h3>1d &nbsp; Staff Settings — reduced surface &amp; leave</h3>
+  <table>
+    <tr><th class="id">ID</th><th>Test step</th><th>Expected result</th><th class="plat">And</th><th class="plat">iOS</th><th class="res">Result</th></tr>
+    <tr><td class="id">ST-14</td><td>Staff: Settings.</td><td class="exp"><b>Hidden:</b> Plan/subscription + Upgrade, Invite staff, Referral / "Invite &amp; rewards", gift, business profile hero. <b>Kept:</b> profile, Appearance + notification toggles, account + Sign out, support, legal, delete account, community.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">ST-15</td><td>Staff: Settings &rarr; Preferences.</td><td class="exp">Shows <b>only Appearance + notification toggles</b>. <b>Measurement units and Receipt image style are gone</b> (owner-set), no dangling dividers.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">ST-16</td><td>Staff: tap <b>Leave this workshop</b> &rarr; confirm.</td><td class="exp">Confirmation dialog, then membership is cancelled and the user is <b>signed out to the login screen</b> (clean session, no stale staff access).</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">ST-17</td><td>Owner: Team &rarr; active members &rarr; <b>Revoke</b> Gabby (confirm dialog).</td><td class="exp">Gabby is removed from the seat list; on Gabby's device the staff access ends.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+  </table>
+
+  <div class="callout"><b>Owner sanity (ST-18):</b> Throughout 1a–1d, confirm the <b>owner</b> (Fola) experience is unchanged — all four tabs incl. Reports, full money/contact everywhere, profile hero opens EditProfile with business + bank/payment fields, and a shared receipt/invoice carries <b>the owner's</b> business name, WhatsApp and bank details (never the staff member's). <span class="box"></span> And <span class="box"></span> iOS</div>
+
+  <!-- =============================== FOUNDING TAILORS =============================== -->
+  <h2>2 &nbsp; Founding Tailors leaderboard <span class="pill new">new</span></h2>
+  <p class="sect-intro">A monthly member-get-member leaderboard for tailors. Each tailor gets a personal invite link; referrals that reach the "qualified" milestone earn tiered points; top 3 each month win a branded shirt. Test as an <b>owner</b> account (owner-gated surface).</p>
+  <table>
+    <tr><th class="id">ID</th><th>Test step</th><th>Expected result</th><th class="plat">And</th><th class="plat">iOS</th><th class="res">Result</th></tr>
+    <tr><td class="id">FT-01</td><td>Owner: open Founding Tailors (dashboard card, or Settings &rarr; <b>Invite &amp; rewards</b> which now <b>leads with Founding Tailors</b>).</td><td class="exp">Screen loads with the tailor's own invite link and a Share (WhatsApp) action.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">FT-02</td><td>Look at the <b>Your standing</b> card.</td><td class="exp">Shows a <b>This month</b> row and an <b>All time</b> row. A rank chip appears <b>only when rank &gt; 0</b>. At 0/0 it shows the "Share your link to start earning" hint. Brief loading placeholder before it fills.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">FT-03</td><td>Read the <b>How points work</b> section (scroll).</td><td class="exp">Five bullets explaining tiered points (+1 activation, +1 per active day, capped), monthly counting, and that installs/signups alone do not count.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">FT-04</td><td>Tap <b>Share</b>.</td><td class="exp">WhatsApp share sheet opens with the invite link to <span class="tag">getstitchpad.com/founding-tailors?code=&lt;code&gt;</span>.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">FT-05</td><td>View the leaderboard (top rankings).</td><td class="exp">Ranked list of top tailors; #1 rank reads as a tinted pill, distinct from the points figure.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">FT-06</td><td>Turn off network, then open Founding Tailors.</td><td class="exp">The <b>Your standing</b> card is simply <b>absent</b> — <b>no error banner</b> — and link / share / leaderboard still work.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+  </table>
+
+  <!-- =============================== TO COLLECT =============================== -->
+  <h2>3 &nbsp; To collect <span class="pill new">new</span></h2>
+  <p class="sect-intro">A place to see who still owes money — Ready/Delivered orders with a balance remaining. Overdue = 7+ days. Includes an instant push when an order first becomes collectible. Test as an <b>owner</b>.</p>
+  <table>
+    <tr><th class="id">ID</th><th>Test step</th><th>Expected result</th><th class="plat">And</th><th class="plat">iOS</th><th class="res">Result</th></tr>
+    <tr><td class="id">TC-01</td><td>Owner dashboard: find the <b>You're owed / Money to collect</b> card. Tap it.</td><td class="exp">Card reflects Ready <b>and Delivered</b> unpaid orders and opens the <b>To collect</b> list.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">TC-02</td><td>In the list, use the <b>sort</b> menu and the <b>filter chips</b>.</td><td class="exp">Sort: oldest-owed (default), biggest-balance, newest, customer A–Z; <b>overdue always on top</b>. Chips filter by overdue / status / customer.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">TC-03</td><td>Tap <b>Chase</b> on a row.</td><td class="exp">WhatsApp opens with a <b>balance-aware</b> payment reminder signed with the workshop/business name. A customer with a blank/missing phone shows a snackbar instead of crashing.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">TC-04</td><td>Tap a row body.</td><td class="exp">Opens that order's detail (to record payment).</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">TC-05</td><td>Have an <b>overdue</b> (7+ days) unpaid order.</td><td class="exp">Overdue collection is <b>promoted into the dashboard focus hero</b>; the Money-to-collect card shows a periodic nudge animation.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">TC-06</td><td>Move an order to Ready/Delivered while it still has a balance (with push enabled for your tester account).</td><td class="exp">An <b>instant push</b> arrives once (not on every status change). Tapping it opens <b>that order</b> to record payment.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">TC-07</td><td>Tap the daily summary push (if received).</td><td class="exp">Opens the <b>To collect</b> list.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+  </table>
+  <p class="note">Note: push notifications are tester-gated (staged rollout). If your account is not in the rollout, TC-06/TC-07 may not fire — mark N/A and note it.</p>
+
+  <!-- =============================== RATINGS =============================== -->
+  <h2>4 &nbsp; In-app ratings <span class="pill new">new</span></h2>
+  <p class="sect-intro">Happy, engaged users are asked to rate at a delight moment (a recorded payment or an order marked Delivered). Happy &rarr; native store review; unhappy &rarr; feedback form. Use the <b>Debug menu</b> to force the prompt without waiting for the eligibility gate.</p>
+  <table>
+    <tr><th class="id">ID</th><th>Test step</th><th>Expected result</th><th class="plat">And</th><th class="plat">iOS</th><th class="res">Result</th></tr>
+    <tr><td class="id">RV-01</td><td>Debug menu &rarr; <b>Force review prompt</b> &rarr; choose <b>Love it</b> 😍.</td><td class="exp">The <b>native in-app review</b> UI appears (Play in-app review on Android, StoreKit on iOS).</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">RV-02</td><td>Force the prompt again &rarr; choose <b>Not really</b> 🙁.</td><td class="exp">Opens the <b>Tally feedback</b> form in the browser (<span class="tag">tally.so/r/5BgVVb</span>).</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">RV-03</td><td>Settings &rarr; Help &amp; Support &rarr; <b>Rate StitchPad</b>.</td><td class="exp">Opens the app's <b>store listing</b> (write-review) on both platforms.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">RV-04</td><td>Debug &rarr; <b>Reset review signals</b>. On a fresh account, record a payment.</td><td class="exp">Prompt does <b>not</b> show yet (gate: needs ~3 days installed, opened on 2+ days, 3+ orders). After thresholds are met, one payment shows it <b>once</b>; a second payment in the same session does <b>not</b> re-show.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">RV-05</td><td>Android <b>release build</b> only: smoke the Love-it path.</td><td class="exp">Play in-app review flow behaves (OS may throttle the actual card — confirm no crash / no burned state).</td><td class="plat"><span class="box"></span></td><td class="plat">—</td><td></td></tr>
+  </table>
+
+  <!-- =============================== REGRESSION =============================== -->
+  <h2>5 &nbsp; Regression sanity (unchanged areas)</h2>
+  <p class="sect-intro">Quick confidence check that the new work did not disturb the core owner flows. Not exhaustive — just confirm nothing obvious broke.</p>
+  <table>
+    <tr><th class="id">ID</th><th>Test step</th><th>Expected result</th><th class="plat">And</th><th class="plat">iOS</th><th class="res">Result</th></tr>
+    <tr><td class="id">RG-01</td><td>Sign in as owner; create a customer, an order with measurements, record a payment.</td><td class="exp">All core flows work as before; money shows normally for the owner.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">RG-02</td><td>Generate and share a receipt.</td><td class="exp">Receipt renders and shares with the owner's business identity + bank block.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">RG-03</td><td>Open Reports (owner).</td><td class="exp">Revenue analytics load as before.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+    <tr><td class="id">RG-04</td><td>General: light + dark mode across the new screens.</td><td class="exp">No clipped/unreadable UI in either theme.</td><td class="plat"><span class="box"></span></td><td class="plat"><span class="box"></span></td><td></td></tr>
+  </table>
+
+  <h2>6 &nbsp; Tester sign-off</h2>
+  <table>
+    <tr><th>Tester</th><th>Platform / device</th><th>Build version</th><th>Date</th><th>Overall (P / F)</th><th>Notes</th></tr>
+    <tr><td style="height:34px"></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td style="height:34px"></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td style="height:34px"></td><td></td><td></td><td></td><td></td><td></td></tr>
+  </table>
+
+  <footer>
+    <span>StitchPad — Adire Atelier &middot; Release Test Plan v1.2.0</span>
+    <span>Confidential — for testers only</span>
+  </footer>
+
+</div>
