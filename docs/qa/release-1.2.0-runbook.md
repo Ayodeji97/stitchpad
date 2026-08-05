@@ -32,7 +32,7 @@ Infra also bumped: AGP 9.2.1 / Gradle 9.6.0 / compileSdk 37 (#305), ktor 3.5.1 (
 
 1. **Version bump (done in working tree, needs commit):** Android `versionName` and iOS `MARKETING_VERSION` are now `1.2.0` (were `1.1.0` / `1.1.1` — they had drifted). Change if you want a different number.
    - The Android `beta` lane derives `versionCode` from git commit count and **refuses to run if there are no new commits since the last Play upload** — so the version bump **must be committed** (a release-marker commit) before `fastlane android beta`.
-2. **iOS push entitlement:** `iosApp/iosApp/iosApp.entitlements` has `aps-environment = development`. **Flip to `production`** for the store/TestFlight build or push notifications (incl. the To-collect instant push) won't work on distributed builds.
+2. **iOS push entitlement — leave as-is, just verify.** `iosApp/iosApp/iosApp.entitlements` has `aps-environment = development`. Do **not** flip it in source: the value is rewritten to `production` by the **distribution provisioning profile at archive/signing time** (standard iOS behavior; 1.1.0 shipped this way and push worked). Editing it to `production` would break local dev push. Action: after the TestFlight build is up, **send yourself a test push and confirm it arrives** — don't touch the file.
 3. **Do NOT commit** the untracked `composeApp/src/androidMain/res/xml/network_security_config.xml` — it's a local emulator/QA aid (permits cleartext to loopback only, and isn't wired into the manifest). It's harmless but has no place in a release. Leave it untracked or delete it.
 4. **Rules parity check:** the audit reflects repo state, not deployed state. Confirm the live console matches:
    ```
@@ -100,4 +100,4 @@ There is **no production fastlane lane** (Phase 1 = local beta only), so the pro
 
 - iOS device QA for Founding Tailors (share sheet + leaderboard link) was still pending on device per PR #338 — the PDF covers it (FT-04/FT-05).
 - Push is on a staged rollout (`rollout.ts STAGING`); To-collect push cases (TC-06/07) only fire for tester-gated accounts — flip when ready for broad rollout.
-- `aps-environment` (item 3.2) is the single easiest thing to forget and silently breaks push on the store build.
+- `aps-environment` (item 3.2): the source value stays `development` — it's rewritten to `production` at distribution signing. Verify push in the TestFlight build rather than editing the entitlement.
