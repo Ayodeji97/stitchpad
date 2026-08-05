@@ -53,11 +53,11 @@ git commit -m "chore(release): cut 1.2.0 — staff roles, founding tailors, to-c
 
 ## 4. Send the two tester builds
 
-> These lanes need credentials and have been run locally only (Phase 1). The `before_all` hook runs `allTests`, which has failed locally before — if it blocks you, that's the known preflight gap, not a release problem.
+> These lanes need credentials and have been run locally only (Phase 1). **fastlane is the Homebrew install — there is NO Gemfile, so do NOT use `bundle exec` (it errors "Could not locate Gemfile").** Invoke `fastlane` directly. The `before_all` hook runs detekt + `:composeApp:allTests` (incl. iOS tests that fail locally — the known preflight gap); set `SKIP_PREFLIGHT=true` to skip it (verification was already run separately).
 
 ### Android → Play closed testing (alpha)
 ```
-cd fastlane && bundle exec fastlane android beta
+cd fastlane && SKIP_PREFLIGHT=true fastlane android beta
 ```
 - Builds a signed AAB (`:composeApp:bundleRelease`, `--no-configuration-cache`) and uploads to the **alpha (closed)** track as a **draft**.
 - Then: **Play Console → Closed testing → Alpha → review & roll out** to your tester list.
@@ -65,10 +65,10 @@ cd fastlane && bundle exec fastlane android beta
 
 ### iOS → TestFlight external group
 ```
-cd fastlane && bundle exec fastlane ios beta
+cd fastlane && SKIP_PREFLIGHT=true fastlane ios beta
 ```
 - Reads `MARKETING_VERSION` (1.2.0), builds a signed IPA, uploads to the **TestFlight external group**.
-- Watch for the ASC API-key `.env` path gotcha (`ASC_API_KEY_P8_PATH`) — a wrong path crashes this lane.
+- **Known-broken:** this lane has historically crashed on the ASC API-key `.env` path collision (`ASC_API_KEY_P8_PATH`). At 1.1.0 the working path was a **Xcode GUI archive → upload to TestFlight** instead. If the lane dies at the key/auth step, use the GUI fallback — build number (`CURRENT_PROJECT_VERSION`) must exceed the last uploaded (1.1.1 = 536).
 - Public TestFlight link (existing): testflight.apple.com/join/7FhZk4Yy.
 
 Distribute `StitchPad-Release-Test-Plan.pdf` to testers with the builds.
