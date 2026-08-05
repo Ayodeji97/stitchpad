@@ -9,6 +9,8 @@ import com.danzucker.stitchpad.core.config.domain.CommunityJoinTracker
 import com.danzucker.stitchpad.core.config.domain.model.AppConfig
 import com.danzucker.stitchpad.core.config.domain.repository.AppConfigRepository
 import com.danzucker.stitchpad.core.data.repository.FirebaseUserRepository
+import com.danzucker.stitchpad.core.domain.currentAppBuildNumber
+import com.danzucker.stitchpad.core.domain.currentAppVersion
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.error.Result
@@ -156,12 +158,18 @@ class SettingsViewModel(
      * full lifetime. [hubEnabledFlow] is combined in separately so the layout
      * flag survives that resubscribe without flashing.
      */
+    // Static per-install fact stamped onto every emission (and the initial value, so
+    // it shows even while the Firestore-backed state is still loading). The build
+    // number disambiguates re-cut builds that share a versionName.
+    private val appVersionLabel: String =
+        currentAppBuildNumber?.let { "$currentAppVersion ($it)" } ?: currentAppVersion
+
     val state = combine(settingsStateFlow(), hubEnabledFlow, isOwnerFlow) { settings, hubEnabled, isOwner ->
-        settings.copy(settingsHubEnabled = hubEnabled, isOwner = isOwner)
+        settings.copy(settingsHubEnabled = hubEnabled, isOwner = isOwner, appVersionLabel = appVersionLabel)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),
-        initialValue = SettingsState(),
+        initialValue = SettingsState(appVersionLabel = appVersionLabel),
     )
 
     @Suppress("CyclomaticComplexMethod")
