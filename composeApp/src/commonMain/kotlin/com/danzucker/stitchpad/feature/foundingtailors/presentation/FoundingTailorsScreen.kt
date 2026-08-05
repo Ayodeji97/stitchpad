@@ -238,10 +238,17 @@ private fun StandingRow(label: String, points: Int, rank: Int) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (rank > 0) {
+                // Rank as a tinted pill so "#1" reads as one contained unit, never
+                // running into the points figure beside it (e.g. "#1 2" -> "#12").
                 Text(
                     text = stringResource(Res.string.founding_tailors_standing_rank, rank),
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(DesignTokens.radiusFull))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                        .padding(horizontal = DesignTokens.space2, vertical = DesignTokens.space1),
                 )
             }
             Text(
