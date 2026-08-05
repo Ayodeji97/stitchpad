@@ -76,6 +76,7 @@ class FoundingTailorsViewModel(
                 _state.update {
                     it.copy(isLoading = false, referralUrl = LINK_BASE_URL + existingCode)
                 }
+                loadStanding(existingCode)
                 return@launch
             }
 
@@ -83,11 +84,24 @@ class FoundingTailorsViewModel(
                 is Result.Success -> {
                     code = result.data.code
                     _state.update { it.copy(isLoading = false, referralUrl = result.data.url) }
+                    loadStanding(result.data.code)
                 }
                 is Result.Error -> {
                     _state.update { it.copy(isLoading = false, error = result.error.toFoundingTailorsUiText()) }
                 }
             }
+        }
+    }
+
+    /**
+     * Best-effort secondary load of the tailor's own month + lifetime points. A
+     * failure is swallowed (the card stays hidden) so it never blocks the link,
+     * share, or leaderboard actions.
+     */
+    private suspend fun loadStanding(code: String) {
+        when (val result = referralRepository.getFoundingTailorsStanding(code)) {
+            is Result.Success -> _state.update { it.copy(standing = result.data) }
+            is Result.Error -> Unit // leave standing null; never surface an error
         }
     }
 
