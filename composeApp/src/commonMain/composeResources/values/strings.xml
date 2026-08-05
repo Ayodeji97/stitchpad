@@ -1384,6 +1384,12 @@
     <string name="founding_tailors_view_board">View leaderboard</string>
     <string name="founding_tailors_back_cd">Back</string>
     <string name="founding_tailors_entry_subtitle">Refer tailors, top 3 win a free shirt</string>
+    <string name="founding_tailors_how_title">How points work</string>
+    <string name="founding_tailors_how_point1">You earn up to 5 points for every tailor you invite.</string>
+    <string name="founding_tailors_how_point2">1 point when they set up their workshop and add their first customer or order.</string>
+    <string name="founding_tailors_how_point3">1 more point for each day they use the app, up to 4 days, in their first 2 weeks.</string>
+    <string name="founding_tailors_how_point4">Installs and signups alone do not count. We reward real, working tailors.</string>
+    <string name="founding_tailors_how_point5">Each point counts in the month it was earned. The top 3 each month win a free customized StitchPad shirt, and points bank toward free Pro months.</string>
     <string name="settings_row_contact">Contact us on WhatsApp</string>
     <string name="settings_row_contact_subtitle">Get help and support</string>
     <string name="settings_row_rate_app">Rate StitchPad</string>

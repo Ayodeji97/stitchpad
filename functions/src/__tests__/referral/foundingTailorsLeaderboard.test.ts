@@ -82,44 +82,122 @@ function makeFakeDb(initial: Record<string, any> = {}) {
 
 const ts = (iso: string) => ({ toMillis: () => new Date(iso).getTime() });
 
-test('counts only qualified, non-blocked referrals of program user-referrers, bucketed by qualifiedAt month', async () => {
+test('activated referral with one active day earns activation + day-1 (2 points) in that day month', async () => {
   const { db } = makeFakeDb({
     'marketers/mA': { program: 'founding_tailors', name: 'Ada Styles', type: 'user' },
-    'marketers/mB': { program: 'founding_tailors', name: 'Bola Wears', type: 'user' },
-    'marketers/mAff': { type: 'affiliate', name: 'Paid Marketer' }, // must be excluded
-    'referrals/r1': { marketerId: 'mA', milestone: 'qualified', qualifiedAt: ts('2026-08-05T10:00:00Z'), flags: [] },
-    'referrals/r2': { marketerId: 'mA', milestone: 'qualified', qualifiedAt: ts('2026-08-20T10:00:00Z'), flags: [] },
-    'referrals/r3': { marketerId: 'mA', milestone: 'qualified', qualifiedAt: ts('2026-08-21T10:00:00Z'), flags: ['self_referral'] }, // blocked
-    'referrals/r4': { marketerId: 'mB', milestone: 'qualified', qualifiedAt: ts('2026-08-06T10:00:00Z'), flags: [] },
-    'referrals/r5': { marketerId: 'mB', milestone: 'activated', flags: [] }, // not qualified
-    'referrals/r6': { marketerId: 'mAff', milestone: 'qualified', qualifiedAt: ts('2026-08-06T10:00:00Z'), flags: [] },
+    'referrals/r1': { marketerId: 'mA', milestone: 'activated', flags: [], observedDayKeys: ['2026-08-05'] },
   });
 
   await aggregateFoundingTailorsLeaderboardHandler({ db, now: () => new Date('2026-08-25T00:00:00Z') });
 
   const aug = (await db.doc('leaderboards/2026-08').get()).data();
-  expect(aug.entries).toEqual([
-    { marketerId: 'mA', name: 'Ada Styles', points: 2 },
-    { marketerId: 'mB', name: 'Bola Wears', points: 1 },
-  ]);
+  expect(aug.entries).toEqual([{ marketerId: 'mA', name: 'Ada Styles', points: 2 }]);
   expect((await db.doc('leaderboards/current').get()).data().monthId).toBe('2026-08');
+});
+
+test('fully qualified referral with 4 active days in one month earns 5 points', async () => {
+  const { db } = makeFakeDb({
+    'marketers/mA': { program: 'founding_tailors', name: 'Ada Styles', type: 'user' },
+    'referrals/r1': {
+      marketerId: 'mA', milestone: 'qualified', flags: [],
+      observedDayKeys: ['2026-08-02', '2026-08-03', '2026-08-04', '2026-08-05'],
+    },
+  });
+
+  await aggregateFoundingTailorsLeaderboardHandler({ db, now: () => new Date('2026-08-25T00:00:00Z') });
+
+  const aug = (await db.doc('leaderboards/2026-08').get()).data();
+  expect(aug.entries).toEqual([{ marketerId: 'mA', name: 'Ada Styles', points: 5 }]);
+});
+
+test('points split across a month boundary; activation counts in the first active day month', async () => {
+  const { db } = makeFakeDb({
+    'marketers/mA': { program: 'founding_tailors', name: 'Ada Styles', type: 'user' },
+    'referrals/r1': {
+      marketerId: 'mA', milestone: 'qualified', flags: [],
+      observedDayKeys: ['2026-08-30', '2026-08-31', '2026-09-01', '2026-09-02'],
+    },
+  });
+
+  await aggregateFoundingTailorsLeaderboardHandler({ db, now: () => new Date('2026-09-05T00:00:00Z') });
+
+  // Aug: activation (first active day is 08-30) + 08-30 + 08-31 = 3 points.
+  const aug = (await db.doc('leaderboards/2026-08').get()).data();
+  expect(aug.entries).toEqual([{ marketerId: 'mA', name: 'Ada Styles', points: 3 }]);
+  // Sep: 09-01 + 09-02 = 2 points.
+  const sep = (await db.doc('leaderboards/2026-09').get()).data();
+  expect(sep.entries).toEqual([{ marketerId: 'mA', name: 'Ada Styles', points: 2 }]);
+});
+
+test('a blocking flag withholds ALL points (activation + days)', async () => {
+  const { db } = makeFakeDb({
+    'marketers/mA': { program: 'founding_tailors', name: 'Ada Styles', type: 'user' },
+    'referrals/r1': {
+      marketerId: 'mA', milestone: 'qualified', flags: ['self_referral'],
+      observedDayKeys: ['2026-08-02', '2026-08-03', '2026-08-04', '2026-08-05'],
+    },
+  });
+
+  await aggregateFoundingTailorsLeaderboardHandler({ db, now: () => new Date('2026-08-25T00:00:00Z') });
+
+  const aug = (await db.doc('leaderboards/2026-08').get()).data();
+  expect(aug.entries).toEqual([]);
+});
+
+test('excludes affiliate (non-program) marketers even if a referral names their id', async () => {
+  const { db } = makeFakeDb({
+    'marketers/mAff': { type: 'affiliate', name: 'Paid Marketer' },
+    'referrals/r1': { marketerId: 'mAff', milestone: 'qualified', flags: [], observedDayKeys: ['2026-08-05'] },
+  });
+
+  await aggregateFoundingTailorsLeaderboardHandler({ db, now: () => new Date('2026-08-25T00:00:00Z') });
+
+  const aug = (await db.doc('leaderboards/2026-08').get()).data();
+  expect(aug.entries).toEqual([]);
+});
+
+test('more than 4 active days is capped at 5 points', async () => {
+  const { db } = makeFakeDb({
+    'marketers/mA': { program: 'founding_tailors', name: 'Ada Styles', type: 'user' },
+    'referrals/r1': {
+      marketerId: 'mA', milestone: 'qualified', flags: [],
+      observedDayKeys: ['2026-08-01', '2026-08-02', '2026-08-03', '2026-08-04', '2026-08-05', '2026-08-06'],
+    },
+  });
+
+  await aggregateFoundingTailorsLeaderboardHandler({ db, now: () => new Date('2026-08-25T00:00:00Z') });
+
+  const aug = (await db.doc('leaderboards/2026-08').get()).data();
+  expect(aug.entries).toEqual([{ marketerId: 'mA', name: 'Ada Styles', points: 5 }]);
+});
+
+test('activated referral with no observed active days yet earns 0 points', async () => {
+  const { db } = makeFakeDb({
+    'marketers/mA': { program: 'founding_tailors', name: 'Ada Styles', type: 'user' },
+    'referrals/r1': { marketerId: 'mA', milestone: 'activated', flags: [], observedDayKeys: [] },
+  });
+
+  await aggregateFoundingTailorsLeaderboardHandler({ db, now: () => new Date('2026-08-25T00:00:00Z') });
+
+  const aug = (await db.doc('leaderboards/2026-08').get()).data();
+  expect(aug.entries).toEqual([]);
+});
+
+test('an attributed-only referral earns 0 points (excluded by the milestone scan)', async () => {
+  const { db } = makeFakeDb({
+    'marketers/mA': { program: 'founding_tailors', name: 'Ada Styles', type: 'user' },
+    'referrals/r1': { marketerId: 'mA', milestone: 'attributed', flags: [], observedDayKeys: ['2026-08-05'] },
+  });
+
+  await aggregateFoundingTailorsLeaderboardHandler({ db, now: () => new Date('2026-08-25T00:00:00Z') });
+
+  const aug = (await db.doc('leaderboards/2026-08').get()).data();
+  expect(aug.entries).toEqual([]);
 });
 
 test('monthKeyLagos buckets a UTC-evening instant into the correct Lagos month', () => {
   // 2026-07-31T23:30Z is 2026-08-01 00:30 in Lagos (UTC+1)
   expect(monthKeyLagos(new Date('2026-07-31T23:30:00Z').getTime())).toBe('2026-08');
-});
-
-test('excludes affiliate marketers from the board even if a referral names their id', () => {
-  const { db } = makeFakeDb({
-    'marketers/mAff': { type: 'affiliate', name: 'Paid Marketer' },
-    'referrals/r1': { marketerId: 'mAff', milestone: 'qualified', qualifiedAt: ts('2026-08-06T10:00:00Z'), flags: [] },
-  });
-
-  return aggregateFoundingTailorsLeaderboardHandler({ db, now: () => new Date('2026-08-25T00:00:00Z') }).then(async () => {
-    const aug = (await db.doc('leaderboards/2026-08').get()).data();
-    expect(aug.entries).toEqual([]);
-  });
 });
 
 test('writes a current-month doc with an empty board when there are zero qualifying entries', async () => {
@@ -134,21 +212,7 @@ test('writes a current-month doc with an empty board when there are zero qualify
   expect((await db.doc('leaderboards/current').get()).data().monthId).toBe('2026-09');
 });
 
-test('skips a qualified, non-blocked, program referral that has no qualifiedAt (pre-Task-1 doc)', async () => {
-  const { db } = makeFakeDb({
-    'marketers/mA': { program: 'founding_tailors', name: 'Ada Styles', type: 'user' },
-    'referrals/r1': { marketerId: 'mA', milestone: 'qualified', qualifiedAt: ts('2026-08-05T10:00:00Z'), flags: [] },
-    'referrals/r7': { marketerId: 'mA', milestone: 'qualified', flags: [] }, // no qualifiedAt — must NOT count
-  });
-
-  await aggregateFoundingTailorsLeaderboardHandler({ db, now: () => new Date('2026-08-25T00:00:00Z') });
-
-  const aug = (await db.doc('leaderboards/2026-08').get()).data();
-  // Only r1 counts; r7 contributes zero points despite being qualified/non-blocked/program.
-  expect(aug.entries).toEqual([{ marketerId: 'mA', name: 'Ada Styles', points: 1 }]);
-});
-
-test('still writes current + current-month + alltime (all empty) when there are zero program marketers at all', async () => {
+test('still writes current + current-month + alltime (all empty) when there are zero program marketers', async () => {
   const { db } = makeFakeDb({});
 
   await expect(
@@ -166,17 +230,21 @@ test('writes the alltime board aggregated across all months, points-desc', async
   const { db } = makeFakeDb({
     'marketers/mA': { program: 'founding_tailors', name: 'Ada Styles', type: 'user' },
     'marketers/mB': { program: 'founding_tailors', name: 'Bola Wears', type: 'user' },
-    'referrals/r1': { marketerId: 'mA', milestone: 'qualified', qualifiedAt: ts('2026-07-05T10:00:00Z'), flags: [] },
-    'referrals/r2': { marketerId: 'mA', milestone: 'qualified', qualifiedAt: ts('2026-08-05T10:00:00Z'), flags: [] },
-    'referrals/r3': { marketerId: 'mB', milestone: 'qualified', qualifiedAt: ts('2026-08-06T10:00:00Z'), flags: [] },
+    // mA: qualified with 4 days spanning Jul->Aug → 5 points total (3 in Jul, 2 in Aug).
+    'referrals/r1': {
+      marketerId: 'mA', milestone: 'qualified', flags: [],
+      observedDayKeys: ['2026-07-30', '2026-07-31', '2026-08-01', '2026-08-02'],
+    },
+    // mB: activated with 1 day in Aug → 2 points (activation + day-1).
+    'referrals/r2': { marketerId: 'mB', milestone: 'activated', flags: [], observedDayKeys: ['2026-08-06'] },
   });
 
   await aggregateFoundingTailorsLeaderboardHandler({ db, now: () => new Date('2026-08-25T00:00:00Z') });
 
   const alltime = (await db.doc('leaderboards/alltime').get()).data();
   expect(alltime.entries).toEqual([
-    { marketerId: 'mA', name: 'Ada Styles', points: 2 },
-    { marketerId: 'mB', name: 'Bola Wears', points: 1 },
+    { marketerId: 'mA', name: 'Ada Styles', points: 5 },
+    { marketerId: 'mB', name: 'Bola Wears', points: 2 },
   ]);
 });
 

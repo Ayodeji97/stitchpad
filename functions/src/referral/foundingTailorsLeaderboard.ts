@@ -1,16 +1,17 @@
 // Founding Tailors leaderboard — daily aggregator.
 //
-// Reads only qualified, non-blocked referrals of program (`founding_tailors`)
-// user-referrers and buckets each into the Africa/Lagos calendar month of its
-// `qualifiedAt` stamp (added by reconcileReferrals — see
-// referralConstants.ts / reconcileReferrals.ts). Writes public leaderboard
-// docs the app can read directly (no callable round-trip needed to view the
-// board). The read-side callable is added in a later slice to this same file.
+// Awards TIERED points to program (`founding_tailors`) user-referrers from each
+// referral's `observedDayKeys` (the grader's ratcheted distinct active Lagos
+// days): +1 activation point at the first active day's month, plus +1 per active
+// day capped at QUALIFY_DISTINCT_DAYS — 5 points max. Blocking-flagged referrals
+// earn 0. Each point is bucketed into the Lagos month it was earned. Writes the
+// public `leaderboards/*` docs the app + web read directly. The read-side callable
+// lives below in this same file.
 
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
-import { REGION, MARKETERS, REFERRALS, REFERRAL_CODES, ACTIVE_DAY_TIMEZONE, hasBlockingFlag } from './referralConstants';
-import type { ReferralFlag, ReferralMilestone } from './referralConstants';
+import { REGION, MARKETERS, REFERRALS, REFERRAL_CODES, ACTIVE_DAY_TIMEZONE, QUALIFY_DISTINCT_DAYS, hasBlockingFlag } from './referralConstants';
+import type { ReferralFlag } from './referralConstants';
 import { FOUNDING_TAILORS_PROGRAM } from './getOrCreateMyReferralLink';
 
 export interface LeaderEntry { marketerId: string; name: string; points: number }
@@ -29,31 +30,43 @@ function sortEntries(map: Map<string, LeaderEntry>): LeaderEntry[] {
   return [...map.values()].sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
 }
 
+/** The Africa/Lagos calendar month (YYYY-MM) of a 'YYYY-MM-DD' Lagos day-key. */
+function monthOfDayKey(dayKey: string): string {
+  return dayKey.slice(0, 7);
+}
+
 export async function aggregateFoundingTailorsLeaderboardHandler(deps: AggregatorDeps): Promise<void> {
   // 1. Program user-referrers → id -> display name.
   const marketersSnap = await deps.db.collection(MARKETERS).where('program', '==', FOUNDING_TAILORS_PROGRAM).get();
   const names = new Map<string, string>();
   marketersSnap.forEach((d) => names.set(d.id, (d.data().name as string) ?? 'Tailor'));
 
-  // 2. Scan qualified referrals; keep only program referrers with no blocking flag.
-  const qualifiedSnap = await deps.db.collection(REFERRALS).where('milestone', '==', 'qualified').get();
+  // 2. Scan activated + qualified referrals; award TIERED points, each bucketed
+  //    into the Lagos month it was earned in. A referral is worth up to 5 points:
+  //    +1 activation (at the first active day's month) and +1 per active day
+  //    (capped at QUALIFY_DISTINCT_DAYS). Blocking-flagged referrals earn 0.
+  //    observedDayKeys are ratcheted 'YYYY-MM-DD' Lagos keys from the grader.
+  const referralsSnap = await deps.db.collection(REFERRALS).where('milestone', 'in', ['activated', 'qualified']).get();
   const byMonth = new Map<string, Map<string, LeaderEntry>>();
   const allTime = new Map<string, LeaderEntry>();
   const bump = (map: Map<string, LeaderEntry>, id: string) => {
     const e = map.get(id) ?? { marketerId: id, name: names.get(id) as string, points: 0 };
     e.points += 1; map.set(id, e);
   };
+  const award = (monthKey: string, id: string) => {
+    if (!byMonth.has(monthKey)) byMonth.set(monthKey, new Map());
+    bump(byMonth.get(monthKey) as Map<string, LeaderEntry>, id);
+    bump(allTime, id);
+  };
 
-  qualifiedSnap.forEach((d) => {
-    const r = d.data() as { marketerId: string; flags?: ReferralFlag[]; qualifiedAt?: { toMillis(): number }; milestone: ReferralMilestone };
+  referralsSnap.forEach((d) => {
+    const r = d.data() as { marketerId: string; flags?: ReferralFlag[]; observedDayKeys?: string[] };
     if (!names.has(r.marketerId)) return;                 // not a program referrer (e.g. affiliate)
-    if (hasBlockingFlag(r.flags)) return;                 // fraud-flagged → no point
-    const ms = r.qualifiedAt?.toMillis?.();
-    if (typeof ms !== 'number') return;                   // needs qualifiedAt (Task 1); pre-stamp docs skipped until next reconcile
-    const mk = monthKeyLagos(ms);
-    if (!byMonth.has(mk)) byMonth.set(mk, new Map());
-    bump(byMonth.get(mk) as Map<string, LeaderEntry>, r.marketerId);
-    bump(allTime, r.marketerId);
+    if (hasBlockingFlag(r.flags)) return;                 // fraud-flagged → 0 points
+    const days = [...(r.observedDayKeys ?? [])].sort().slice(0, QUALIFY_DISTINCT_DAYS);
+    if (days.length === 0) return;                        // no creditable active day yet → no anchor
+    award(monthOfDayKey(days[0]), r.marketerId);          // +1 activation, at the first active day's month
+    for (const day of days) award(monthOfDayKey(day), r.marketerId); // +1 per active day (already capped)
   });
 
   const nowTs = admin.firestore.Timestamp.fromDate(deps.now());
