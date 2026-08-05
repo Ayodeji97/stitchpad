@@ -1390,6 +1390,12 @@
     <string name="founding_tailors_how_point3">1 more point for each day they use the app, up to 4 days, in their first 2 weeks.</string>
     <string name="founding_tailors_how_point4">Installs and signups alone do not count. We reward real, working tailors.</string>
     <string name="founding_tailors_how_point5">Each point counts in the month it was earned. The top 3 each month win a free customized StitchPad shirt, and points bank toward free Pro months.</string>
+    <string name="founding_tailors_standing_title">Your standing</string>
+    <string name="founding_tailors_standing_this_month">This month</string>
+    <string name="founding_tailors_standing_all_time">All time</string>
+    <string name="founding_tailors_standing_points">%1$d points</string>
+    <string name="founding_tailors_standing_rank">#%1$d</string>
+    <string name="founding_tailors_standing_empty">Share your link to start earning.</string>
     <string name="settings_row_contact">Contact us on WhatsApp</string>
     <string name="settings_row_contact_subtitle">Get help and support</string>
     <string name="settings_row_rate_app">Rate StitchPad</string>

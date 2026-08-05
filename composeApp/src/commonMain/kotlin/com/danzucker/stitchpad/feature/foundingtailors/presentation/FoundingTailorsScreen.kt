@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.foundingtailors.presentation
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -26,6 +28,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import com.danzucker.stitchpad.ui.components.LoadingDots
@@ -43,6 +46,12 @@ import stitchpad.composeapp.generated.resources.founding_tailors_how_point4
 import stitchpad.composeapp.generated.resources.founding_tailors_how_point5
 import stitchpad.composeapp.generated.resources.founding_tailors_how_title
 import stitchpad.composeapp.generated.resources.founding_tailors_share_cta
+import stitchpad.composeapp.generated.resources.founding_tailors_standing_all_time
+import stitchpad.composeapp.generated.resources.founding_tailors_standing_empty
+import stitchpad.composeapp.generated.resources.founding_tailors_standing_points
+import stitchpad.composeapp.generated.resources.founding_tailors_standing_rank
+import stitchpad.composeapp.generated.resources.founding_tailors_standing_this_month
+import stitchpad.composeapp.generated.resources.founding_tailors_standing_title
 import stitchpad.composeapp.generated.resources.founding_tailors_subtitle
 import stitchpad.composeapp.generated.resources.founding_tailors_title
 import stitchpad.composeapp.generated.resources.founding_tailors_view_board
@@ -104,6 +113,41 @@ fun FoundingTailorsScreen(
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
+            state.standing?.let { standing ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(DesignTokens.space3))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .padding(DesignTokens.space4),
+                    verticalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+                ) {
+                    Text(
+                        text = stringResource(Res.string.founding_tailors_standing_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    StandingRow(
+                        label = stringResource(Res.string.founding_tailors_standing_this_month),
+                        points = standing.monthPoints,
+                        rank = standing.monthRank,
+                    )
+                    StandingRow(
+                        label = stringResource(Res.string.founding_tailors_standing_all_time),
+                        points = standing.allTimePoints,
+                        rank = standing.allTimeRank,
+                    )
+                    if (standing.monthPoints == 0 && standing.allTimePoints == 0) {
+                        Text(
+                            text = stringResource(Res.string.founding_tailors_standing_empty),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
 
             // Error slot — surfaces a failed link mint without blocking the retry
             // path (the share button re-enables once a link resolves).
@@ -177,9 +221,48 @@ fun FoundingTailorsScreen(
     }
 }
 
+@Composable
+private fun StandingRow(label: String, points: Int, rank: Int) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (rank > 0) {
+                Text(
+                    text = stringResource(Res.string.founding_tailors_standing_rank, rank),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Text(
+                text = stringResource(Res.string.founding_tailors_standing_points, points),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+    }
+}
+
 private val PREVIEW_STATE = FoundingTailorsState(
     isLoading = false,
     referralUrl = "https://link.getstitchpad.com/r/CODE0",
+    standing = com.danzucker.stitchpad.feature.referral.domain.FoundingTailorsStanding(
+        monthPoints = 2,
+        monthRank = 1,
+        allTimePoints = 9,
+        allTimeRank = 3,
+    ),
     error = null,
 )
 
