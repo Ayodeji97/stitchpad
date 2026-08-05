@@ -4,6 +4,7 @@ import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.referral.domain.AttributionOutcome
+import com.danzucker.stitchpad.feature.referral.domain.FoundingTailorsStanding
 import com.danzucker.stitchpad.feature.referral.domain.ReferralError
 import com.danzucker.stitchpad.feature.referral.domain.ReferralLink
 import com.danzucker.stitchpad.feature.referral.domain.ReferralRepository
@@ -78,6 +79,29 @@ internal class CloudFunctionsReferralRepository(
             }
             Result.Error(DataError.Network.UNKNOWN)
         }
+
+    override suspend fun getFoundingTailorsStanding(
+        code: String,
+    ): Result<FoundingTailorsStanding, DataError.Network> =
+        try {
+            val data = functions
+                .httpsCallable("getFoundingTailorsLeaderboard")
+                .invoke(FoundingTailorsStandingRequestDto(code = code))
+                .data<FoundingTailorsLeaderboardDto>()
+            Result.Success(
+                FoundingTailorsStanding(
+                    monthPoints = data.you?.points ?: 0,
+                    monthRank = data.you?.rank ?: 0,
+                    allTimePoints = data.youAllTime?.points ?: 0,
+                    allTimeRank = data.youAllTime?.rank ?: 0,
+                ),
+            )
+        } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
+            AppLogger.e(tag = TAG, throwable = e) {
+                "getFoundingTailorsStanding threw ${e::class.simpleName}: ${e.message}"
+            }
+            Result.Error(DataError.Network.UNKNOWN)
+        }
 }
 
 // Server message marker from functions/src/referral/referralConstants.ts
@@ -111,3 +135,24 @@ private data class MyReferralLinkDto(
     val url: String = "",
     val playUrl: String = "",
 )
+
+@Serializable
+private data class FoundingTailorsStandingRequestDto(val code: String)
+
+// Full response shape of getFoundingTailorsLeaderboard — EVERY field is declared so
+// GitLive's kotlinx deserialization never trips on an unknown key (matches the other
+// referral response DTOs). Only you/youAllTime are read.
+@Serializable
+private data class FoundingTailorsLeaderboardDto(
+    val updatedAt: Long = 0,
+    val monthId: String = "",
+    val top: List<StandingRowDto> = emptyList(),
+    val you: StandingEntryDto? = null,
+    val youAllTime: StandingEntryDto? = null,
+)
+
+@Serializable
+private data class StandingRowDto(val rank: Int = 0, val name: String = "", val points: Int = 0)
+
+@Serializable
+private data class StandingEntryDto(val rank: Int = 0, val points: Int = 0)
