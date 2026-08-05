@@ -340,3 +340,54 @@ test('falls back to monthKeyLagos(now) when leaderboards/current is missing', as
   expect(res.monthId).toBe(nowMonth);
   expect(res.top).toEqual([]);
 });
+
+test('resolves youAllTime rank+points from the alltime board', async () => {
+  const { db } = makeFakeDb({
+    'leaderboards/current': { monthId: '2026-08' },
+    'leaderboards/2026-08': {
+      monthId: '2026-08', updatedAt: ts('2026-08-25T00:00:00Z'),
+      entries: [
+        { marketerId: 'mA', name: 'Ada Styles', points: 3 },
+        { marketerId: 'mB', name: 'Bola Wears', points: 1 },
+      ],
+    },
+    'leaderboards/alltime': {
+      updatedAt: ts('2026-08-25T00:00:00Z'),
+      entries: [
+        { marketerId: 'mB', name: 'Bola Wears', points: 20 },
+        { marketerId: 'mA', name: 'Ada Styles', points: 12 },
+      ],
+    },
+    'referralCodes/CODEA': { marketerId: 'mA' },
+  });
+
+  const res = await getFoundingTailorsLeaderboardHandler({ code: 'CODEA' }, { db });
+
+  expect(res.you).toEqual({ rank: 1, points: 3 });         // current month
+  expect(res.youAllTime).toEqual({ rank: 2, points: 12 }); // lifetime (mB is #1 all time)
+});
+
+test('youAllTime is {rank:0,points:0} for a valid code absent from the alltime board', async () => {
+  const { db } = makeFakeDb({
+    'leaderboards/current': { monthId: '2026-08' },
+    'leaderboards/2026-08': { monthId: '2026-08', updatedAt: ts('2026-08-25T00:00:00Z'), entries: [] },
+    'leaderboards/alltime': { updatedAt: ts('2026-08-25T00:00:00Z'), entries: [] },
+    'referralCodes/CODEA': { marketerId: 'mA' },
+  });
+
+  const res = await getFoundingTailorsLeaderboardHandler({ code: 'CODEA' }, { db });
+
+  expect(res.you).toEqual({ rank: 0, points: 0 });
+  expect(res.youAllTime).toEqual({ rank: 0, points: 0 });
+});
+
+test('youAllTime is null for no code and for an unknown code', async () => {
+  const { db } = makeFakeDb({
+    'leaderboards/current': { monthId: '2026-08' },
+    'leaderboards/2026-08': { monthId: '2026-08', updatedAt: ts('2026-08-25T00:00:00Z'), entries: [] },
+    'leaderboards/alltime': { updatedAt: ts('2026-08-25T00:00:00Z'), entries: [] },
+  });
+
+  expect((await getFoundingTailorsLeaderboardHandler({}, { db })).youAllTime).toBeNull();
+  expect((await getFoundingTailorsLeaderboardHandler({ code: 'NOPE' }, { db })).youAllTime).toBeNull();
+});
