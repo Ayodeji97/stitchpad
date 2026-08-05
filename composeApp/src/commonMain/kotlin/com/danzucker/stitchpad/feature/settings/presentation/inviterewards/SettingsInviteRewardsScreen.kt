@@ -11,7 +11,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.CardGiftcard
 import androidx.compose.material.icons.outlined.EmojiEvents
-import androidx.compose.material.icons.outlined.PersonAddAlt
 import androidx.compose.material.icons.outlined.Redeem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -49,8 +48,6 @@ import stitchpad.composeapp.generated.resources.referral_code_settings_row
 import stitchpad.composeapp.generated.resources.referral_code_settings_subtitle
 import stitchpad.composeapp.generated.resources.settings_back_cd
 import stitchpad.composeapp.generated.resources.settings_invite_rewards_title
-import stitchpad.composeapp.generated.resources.settings_row_invite
-import stitchpad.composeapp.generated.resources.settings_row_invite_subtitle
 
 @Suppress("UnusedParameter")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -87,11 +84,15 @@ fun SettingsInviteRewardsScreen(
         ) {
             Spacer(Modifier.height(DesignTokens.space2))
             SettingsSectionCard {
+                // Founding Tailors leads: its coded share is the rewarded invite path
+                // (points + leaderboard + shirt), so it replaces the old plain
+                // "Invite a tailor" WhatsApp share, which earned nothing and was not
+                // even attributed.
                 SettingsRow(
-                    icon = Icons.Outlined.PersonAddAlt,
-                    label = stringResource(Res.string.settings_row_invite),
-                    subtitle = stringResource(Res.string.settings_row_invite_subtitle),
-                    onClick = { onAction(SettingsAction.OnInviteClick) },
+                    icon = Icons.Outlined.EmojiEvents,
+                    label = stringResource(Res.string.founding_tailors_title),
+                    subtitle = stringResource(Res.string.founding_tailors_entry_subtitle),
+                    onClick = { onAction(SettingsAction.OnFoundingTailorsClick) },
                     trailing = { SettingsRowChevron() },
                 )
                 SettingsRowDivider()
@@ -100,14 +101,6 @@ fun SettingsInviteRewardsScreen(
                     label = stringResource(Res.string.referral_code_settings_row),
                     subtitle = stringResource(Res.string.referral_code_settings_subtitle),
                     onClick = { onAction(SettingsAction.OnReferralCodeClick) },
-                    trailing = { SettingsRowChevron() },
-                )
-                SettingsRowDivider()
-                SettingsRow(
-                    icon = Icons.Outlined.EmojiEvents,
-                    label = stringResource(Res.string.founding_tailors_title),
-                    subtitle = stringResource(Res.string.founding_tailors_entry_subtitle),
-                    onClick = { onAction(SettingsAction.OnFoundingTailorsClick) },
                     trailing = { SettingsRowChevron() },
                 )
                 if (GIFTING_ENABLED) {
