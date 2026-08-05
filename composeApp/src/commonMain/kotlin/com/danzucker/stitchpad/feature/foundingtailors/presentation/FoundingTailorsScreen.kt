@@ -114,6 +114,22 @@ fun FoundingTailorsScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
+            // While the standing is being fetched, hold its place with a card-shaped
+            // loading placeholder so the card does not pop in abruptly. A failed
+            // fetch clears the flag and leaves nothing (best-effort, never an error).
+            if (state.isStandingLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(DesignTokens.space3))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .padding(vertical = DesignTokens.space6),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    LoadingDots()
+                }
+            }
+
             state.standing?.let { standing ->
                 Column(
                     modifier = Modifier
@@ -288,5 +304,21 @@ private fun FoundingTailorsScreenLightPreview() {
 private fun FoundingTailorsScreenDarkPreview() {
     StitchPadTheme(darkTheme = true) {
         FoundingTailorsScreen(state = PREVIEW_STATE, onAction = {})
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun FoundingTailorsScreenStandingLoadingPreview() {
+    StitchPadTheme(darkTheme = false) {
+        FoundingTailorsScreen(
+            state = FoundingTailorsState(
+                isLoading = false,
+                referralUrl = "https://link.getstitchpad.com/r/CODE0",
+                isStandingLoading = true,
+            ),
+            onAction = {},
+        )
     }
 }

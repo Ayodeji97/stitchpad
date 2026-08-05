@@ -99,9 +99,11 @@ class FoundingTailorsViewModel(
      * share, or leaderboard actions.
      */
     private suspend fun loadStanding(code: String) {
+        _state.update { it.copy(isStandingLoading = true) }
         when (val result = referralRepository.getFoundingTailorsStanding(code)) {
-            is Result.Success -> _state.update { it.copy(standing = result.data) }
-            is Result.Error -> Unit // leave standing null; never surface an error
+            is Result.Success -> _state.update { it.copy(isStandingLoading = false, standing = result.data) }
+            // Leave standing null and never surface an error; just stop the placeholder.
+            is Result.Error -> _state.update { it.copy(isStandingLoading = false) }
         }
     }
 
