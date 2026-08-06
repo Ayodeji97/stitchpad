@@ -63,6 +63,13 @@ data class SettingsState(
     val isActiveStaff: Boolean = false,
     val showLeaveWorkshopDialog: Boolean = false,
     val isLeavingWorkshop: Boolean = false,
+    /**
+     * Version label for the footer, e.g. "1.2.0 (595)". The build number makes
+     * support screenshots unambiguous: re-cut tester builds share a versionName
+     * and differ only in build number. Falls back to the bare version when the
+     * build number can't be read (the platform build number is nullable).
+     */
+    val appVersionLabel: String = "",
 ) {
 
     /** Settings community row shows only when remotely enabled with a usable link. */

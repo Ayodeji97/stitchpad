@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -48,6 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import com.danzucker.stitchpad.core.debug.isDebugBuild
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
@@ -78,6 +80,7 @@ import stitchpad.composeapp.generated.resources.gift_share_settings_subtitle
 import stitchpad.composeapp.generated.resources.referral_code_settings_row
 import stitchpad.composeapp.generated.resources.referral_code_settings_subtitle
 import stitchpad.composeapp.generated.resources.settings_back_cd
+import stitchpad.composeapp.generated.resources.settings_footer
 import stitchpad.composeapp.generated.resources.settings_leave_workshop
 import stitchpad.composeapp.generated.resources.settings_receipt_image_dark
 import stitchpad.composeapp.generated.resources.settings_receipt_image_light
@@ -179,6 +182,10 @@ fun SettingsScreen(
             } else {
                 SettingsLandingLegacy(state = state, onAction = onAction)
             }
+
+            // Support triage: a screenshot of Settings must identify the exact build
+            // the user is on, so the footer renders for every role and both layouts.
+            AppVersionFooter(appVersionLabel = state.appVersionLabel)
         }
 
         if (state.showSignOutDialog) {
@@ -733,6 +740,25 @@ private fun receiptImageStyleLabel(style: ReceiptImageStyle): String {
     return stringResource(labelRes)
 }
 
+/**
+ * Version footer at the very bottom of the scroll content. Renders for owners and
+ * staff alike on both the hub and legacy layouts: support triage relies on a
+ * Settings screenshot identifying the exact installed build.
+ */
+@Composable
+private fun AppVersionFooter(appVersionLabel: String) {
+    Spacer(Modifier.height(DesignTokens.space3))
+    Text(
+        text = stringResource(Res.string.settings_footer, appVersionLabel),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = DesignTokens.space4),
+    )
+}
+
 @Suppress("UnusedPrivateMember")
 @Preview
 @Composable
@@ -745,6 +771,7 @@ private fun SettingsScreenPreview() {
                 email = "folake@stitchpad.app",
                 whatsappNumber = "+234 803 555 0142",
                 avatarColorIndex = 0,
+                appVersionLabel = "1.2.0 (595)",
                 signInProvider = SignInProvider.EMAIL_PASSWORD,
                 maskedSignInIdentifier = "folake@stitchpad.app",
                 subscriptionTier = SubscriptionTier.FREE,
@@ -769,6 +796,7 @@ private fun SettingsScreenAppleProviderPreview() {
                 email = "folake@stitchpad.app",
                 whatsappNumber = "+234 803 555 0142",
                 avatarColorIndex = 3,
+                appVersionLabel = "1.2.0 (595)",
                 signInProvider = SignInProvider.APPLE,
                 maskedSignInIdentifier = "folake@privaterelay.appleid.com",
                 subscriptionTier = SubscriptionTier.PRO,
@@ -793,6 +821,7 @@ private fun SettingsScreenDarkPreview() {
                 email = "folake@stitchpad.app",
                 whatsappNumber = "+234 803 555 0142",
                 avatarColorIndex = 4,
+                appVersionLabel = "1.2.0 (595)",
                 signInProvider = SignInProvider.EMAIL_PASSWORD,
                 maskedSignInIdentifier = "folake@stitchpad.app",
                 subscriptionTier = SubscriptionTier.FREE,
@@ -816,6 +845,7 @@ private fun SettingsScreenHubPreview() {
                 email = "folake@stitchpad.app",
                 whatsappNumber = "+234 803 555 0142",
                 avatarColorIndex = 0,
+                appVersionLabel = "1.2.0 (595)",
                 signInProvider = SignInProvider.EMAIL_PASSWORD,
                 maskedSignInIdentifier = "folake@stitchpad.app",
                 subscriptionTier = SubscriptionTier.FREE,
@@ -841,6 +871,7 @@ private fun SettingsScreenHubDarkPreview() {
                 email = "folake@stitchpad.app",
                 whatsappNumber = "+234 803 555 0142",
                 avatarColorIndex = 4,
+                appVersionLabel = "1.2.0 (595)",
                 signInProvider = SignInProvider.EMAIL_PASSWORD,
                 maskedSignInIdentifier = "folake@stitchpad.app",
                 subscriptionTier = SubscriptionTier.PRO,
