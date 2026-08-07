@@ -1,0 +1,69 @@
+# StitchPad — E2E: sign in as the seeded owner (Fola) and land on real data.
+#
+# Run via:  ./scripts/e2e-ios.sh <UDID> .maestro/login.yaml
+# Expects the Firebase emulator seeded by functions/scripts/emulatorSetupStaff.js.
+
+appId: com.danzucker.stitchpad
+---
+- launchApp
+
+# The iOS Keychain survives `simctl uninstall`, so a previous session may still
+# be restored. Get to a signed-out state before testing sign-in.
+- runFlow:
+    when:
+      visible: "Use a different email"
+    commands:
+      - tapOn: "Use a different email"
+
+- runFlow:
+    when:
+      visible: "Sign in"
+    commands:
+      - tapOn:
+          text: "Sign in"
+          index: 0
+
+- assertVisible: "Welcome back!"
+
+# The field label and the field itself share the same accessibilityText —
+# index 0 is the label, index 1 is the editable field.
+- tapOn:
+    text: "Email"
+    index: 1
+- inputText: "fola@gmail.com"
+
+- tapOn:
+    text: "Password"
+    index: 1
+- inputText: "fola123"
+
+# Keyboard covers the Sign In button and Compose still reports it as tappable;
+# dismiss by tapping static copy first. `hideKeyboard` is unsupported on CMP.
+- tapOn: "Welcome back!"
+
+- tapOn:
+    text: "Sign In"
+    index: 0
+
+# iOS "Save Password?" (iCloud Keychain) can render above the app after a
+# password sign-in and swallow taps. e2e-ios.sh disables it on the simulator;
+# this guard is belt-and-braces for anyone running a flow by hand.
+# NOTE the casing: the system button is "Not Now", the app's is "Not now".
+- runFlow:
+    when:
+      visible: "Save Password?"
+    commands:
+      - tapOn: "Not Now"
+
+# The app's own notification-permission sheet covers the bottom nav. Keyed on the
+# sheet TITLE, not its button, so it cannot be confused with the system dialog.
+- runFlow:
+    when:
+      visible: "Never miss a deadline"
+    commands:
+      - tapOn: "Not now"
+
+# Assert on seeded data, not just "a screen appeared" — this proves auth AND
+# the Firestore read path in one assertion.
+- tapOn: "Customers"
+- assertVisible: "Folake Adebayo"

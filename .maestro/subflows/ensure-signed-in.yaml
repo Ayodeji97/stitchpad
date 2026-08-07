@@ -1,0 +1,62 @@
+# Idempotent: signs in as the seeded owner (Fola) if signed out, otherwise no-op.
+# Included by feature flows so each one can run standalone.
+appId: com.danzucker.stitchpad
+---
+- runFlow:
+    when:
+      visible: "Use a different email"
+    commands:
+      - tapOn: "Use a different email"
+
+- runFlow:
+    when:
+      visible: "Welcome to StitchPad"
+    commands:
+      - tapOn:
+          text: "Sign in"
+          index: 0
+
+- runFlow:
+    when:
+      visible: "Sign in"
+    commands:
+      - tapOn:
+          text: "Sign in"
+          index: 0
+
+- runFlow:
+    when:
+      visible: "Welcome back!"
+    commands:
+      - tapOn:
+          text: "Email"
+          index: 1
+      - inputText: "fola@gmail.com"
+      - tapOn:
+          text: "Password"
+          index: 1
+      - inputText: "fola123"
+      # Keyboard occludes Sign In; dismiss via static copy (hideKeyboard is
+      # unsupported on Compose Multiplatform).
+      - tapOn: "Welcome back!"
+      - tapOn:
+          text: "Sign In"
+          index: 0
+
+# iOS "Save Password?" (iCloud Keychain) can render above the app after a
+# password sign-in and swallow taps. e2e-ios.sh disables it on the simulator;
+# this guard is belt-and-braces for anyone running a flow by hand.
+# NOTE the casing: the system button is "Not Now", the app's is "Not now".
+- runFlow:
+    when:
+      visible: "Save Password?"
+    commands:
+      - tapOn: "Not Now"
+
+# The app's own notification-permission sheet covers the bottom nav. Keyed on the
+# sheet TITLE, not its button, so it cannot be confused with the system dialog.
+- runFlow:
+    when:
+      visible: "Never miss a deadline"
+    commands:
+      - tapOn: "Not now"
