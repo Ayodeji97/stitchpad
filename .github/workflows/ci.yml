@@ -146,6 +146,72 @@ jobs:
           min-coverage-overall: 0
           min-coverage-changed-files: 0
 
+  # ── Release smoke (R8) ────────────────────────────────────
+  # The only job that EXECUTES minified output. build-android compiles
+  # assembleDebug (never shrunk) and crash-check is a static source scanner, so
+  # before this existed nothing in CI could catch an R8 regression. 1.2.0
+  # (versionCode 595) shipped to testers 100% dead on launch — R8 had removed
+  # the reflectively-called constructors of five Firebase ComponentRegistrars,
+  # and Crashlytics could not report it because Crashlytics was one of them.
+  release-smoke:
+    runs-on: ubuntu-latest
+    needs: [detekt, secrets-scan, crash-check]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v6
+
+      # Same dummy config build-android uses. The app only needs it to be
+      # well-formed to boot to the logged-out screen; nothing here talks to a
+      # real backend, and the releaseSmoke variant skips the mapping upload.
+      - name: Create google-services.json for CI
+        run: |
+          cat > composeApp/google-services.json << 'GSEOF'
+          {
+            "project_info": { "project_number": "000000000000", "project_id": "stitchpad-ci", "storage_bucket": "stitchpad-ci.appspot.com" },
+            "client": [{ "client_info": { "mobilesdk_app_id": "1:000000000000:android:0000000000000000", "android_client_info": { "package_name": "com.danzucker.stitchpad" } }, "api_key": [{ "current_key": "CI_DUMMY_KEY" }] }],
+            "configuration_version": "1"
+          }
+          GSEOF
+
+      - name: Build minified APK
+        run: ./gradlew :composeApp:assembleReleaseSmoke
+
+      # KVM permissions — without it the emulator falls back to software
+      # rendering and takes many minutes to boot, or times out.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Launch minified build on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          # Matches the app's minSdk floor (32) while staying on an image that
+          # boots fast in CI. The crash class this guards is API-independent.
+          api-level: 33
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          ram-size: 4096M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash scripts/release-smoke.sh
+
+      - name: Upload smoke logcat on failure
+        uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: release-smoke-logcat
+          path: /tmp/release-smoke-logcat.txt
+          retention-days: 14
+
   # ── iOS ───────────────────────────────────────────────────
   build-ios:
     runs-on: macos-14
