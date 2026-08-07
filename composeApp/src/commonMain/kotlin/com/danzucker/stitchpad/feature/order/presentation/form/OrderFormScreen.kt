@@ -105,6 +105,7 @@ import com.danzucker.stitchpad.ui.components.FullScreenImageViewer
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.components.ThousandsSeparatorTransformation
+import com.danzucker.stitchpad.ui.components.rememberSanitizedTextFieldValue
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.BackHandler
@@ -807,12 +808,13 @@ private fun OrderItemCard(
             Spacer(Modifier.height(DesignTokens.space2))
 
             // Quantity
+            val quantity = rememberSanitizedTextFieldValue(item.quantity) { raw ->
+                val digits = raw.filter { it.isDigit() }.take(MAX_QUANTITY_DIGITS)
+                onAction(OrderFormAction.OnItemQuantityChange(item.id, digits))
+            }
             OutlinedTextField(
-                value = item.quantity,
-                onValueChange = { raw ->
-                    val digits = raw.filter { it.isDigit() }.take(MAX_QUANTITY_DIGITS)
-                    onAction(OrderFormAction.OnItemQuantityChange(item.id, digits))
-                },
+                value = quantity.value,
+                onValueChange = quantity.onValueChange,
                 label = { Text(stringResource(Res.string.order_form_quantity_label)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
@@ -823,12 +825,12 @@ private fun OrderItemCard(
             Spacer(Modifier.height(DesignTokens.space2))
 
             // Price
+            val price = rememberSanitizedTextFieldValue(item.price) { raw ->
+                onAction(OrderFormAction.OnItemPriceChange(item.id, raw.filter { it.isDigit() }))
+            }
             OutlinedTextField(
-                value = item.price,
-                onValueChange = { raw ->
-                    val digits = raw.filter { it.isDigit() }
-                    onAction(OrderFormAction.OnItemPriceChange(item.id, digits))
-                },
+                value = price.value,
+                onValueChange = price.onValueChange,
                 label = { Text(stringResource(Res.string.order_form_price_label)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 visualTransformation = ThousandsSeparatorTransformation,
@@ -1097,12 +1099,12 @@ private fun DetailsStep(
         Spacer(Modifier.height(DesignTokens.space4))
 
         // Deposit
+        val deposit = rememberSanitizedTextFieldValue(state.depositPaid) { raw ->
+            onAction(OrderFormAction.OnDepositChange(raw.filter { it.isDigit() }))
+        }
         OutlinedTextField(
-            value = state.depositPaid,
-            onValueChange = { raw ->
-                val digits = raw.filter { it.isDigit() }
-                onAction(OrderFormAction.OnDepositChange(digits))
-            },
+            value = deposit.value,
+            onValueChange = deposit.onValueChange,
             visualTransformation = ThousandsSeparatorTransformation,
             label = { Text(stringResource(Res.string.order_form_deposit_label)) },
             placeholder = { Text(stringResource(Res.string.order_form_deposit_placeholder)) },
@@ -1115,9 +1117,12 @@ private fun DetailsStep(
         Spacer(Modifier.height(DesignTokens.space3))
 
         // Discount
+        val discount = rememberSanitizedTextFieldValue(state.discount) { raw ->
+            onAction(OrderFormAction.OnDiscountChange(raw.filter { it.isDigit() }))
+        }
         OutlinedTextField(
-            value = state.discount,
-            onValueChange = { raw -> onAction(OrderFormAction.OnDiscountChange(raw.filter { it.isDigit() })) },
+            value = discount.value,
+            onValueChange = discount.onValueChange,
             label = { Text(stringResource(Res.string.order_form_discount_label)) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             visualTransformation = ThousandsSeparatorTransformation,

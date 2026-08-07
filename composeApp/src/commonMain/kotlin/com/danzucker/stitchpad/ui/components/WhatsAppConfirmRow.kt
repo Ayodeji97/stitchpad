@@ -69,9 +69,12 @@ fun WhatsAppConfirmRow(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                // The ViewModel keeps digits only and caps the length, so the caret
+                // has to follow what survived rather than what was typed.
+                val code = rememberSanitizedTextFieldValue(state.input, onCodeChange)
                 OutlinedTextField(
-                    value = state.input,
-                    onValueChange = onCodeChange,
+                    value = code.value,
+                    onValueChange = code.onValueChange,
                     label = { Text(stringResource(Res.string.whatsapp_confirm_input_label)) },
                     isError = state.error != null,
                     supportingText = state.error?.let { err -> { Text(stringResource(err)) } },

@@ -35,6 +35,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.danzucker.stitchpad.feature.settings.domain.DeletionReason
+import com.danzucker.stitchpad.ui.components.rememberSanitizedTextFieldValue
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.clearFocusOnTap
@@ -125,9 +126,11 @@ private fun ReasonSheetContent(
         }
 
         Spacer(Modifier.height(DesignTokens.space2))
+        // The ViewModel caps the length, so a full field can drop what was typed.
+        val notes = rememberSanitizedTextFieldValue(additionalNotes, onNotesChange)
         OutlinedTextField(
-            value = additionalNotes,
-            onValueChange = onNotesChange,
+            value = notes.value,
+            onValueChange = notes.onValueChange,
             placeholder = {
                 Text(stringResource(Res.string.delete_account_reason_notes_placeholder))
             },
