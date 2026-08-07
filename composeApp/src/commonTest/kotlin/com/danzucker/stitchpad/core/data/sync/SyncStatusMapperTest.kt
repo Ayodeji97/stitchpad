@@ -99,4 +99,72 @@ class SyncStatusMapperTest {
             awaitComplete()
         }
     }
+
+    @Test
+    fun backoff_grows_exponentially_and_is_capped() {
+        assertEquals(500L, backoffDelayMs(attempt = 0, initialMs = 500, maxMs = 60_000))
+        assertEquals(1_000L, backoffDelayMs(attempt = 1, initialMs = 500, maxMs = 60_000))
+        assertEquals(4_000L, backoffDelayMs(attempt = 3, initialMs = 500, maxMs = 60_000))
+        assertEquals(60_000L, backoffDelayMs(attempt = 30, initialMs = 500, maxMs = 60_000))
+        // Absurd attempt counts must not overflow into a negative or tiny delay.
+        assertEquals(60_000L, backoffDelayMs(attempt = Long.MAX_VALUE, initialMs = 500, maxMs = 60_000))
+    }
+
+    @Test
+    fun retry_emits_the_fallback_and_keeps_the_flow_alive_after_a_failure() = runTest {
+        var subscriptions = 0
+        val flaky = flow {
+            subscriptions++
+            if (subscriptions == 1) {
+                throw IllegalStateException("listener died")
+            }
+            emit(SyncStatus.OFFLINE)
+        }
+
+        flaky.retryWithFallback(
+            fallback = SyncStatus.SYNCED,
+            initialBackoffMs = 500,
+            maxBackoffMs = 60_000,
+            onError = { _, _ -> },
+        ).test {
+            // The failure must surface as the fallback, not as a thrown exception...
+            assertEquals(SyncStatus.SYNCED, awaitItem())
+            // ...and the flow must then RESUBSCRIBE and keep reporting real status.
+            // A bounded retry that gave up here would leave the banner permanently
+            // frozen for the rest of the session.
+            assertEquals(SyncStatus.OFFLINE, awaitItem())
+            awaitComplete()
+        }
+        assertEquals(2, subscriptions)
+    }
+
+    @Test
+    fun retry_survives_more_failures_than_any_bounded_budget_would_allow() = runTest {
+        var subscriptions = 0
+        val alwaysFailingUntilLate = flow {
+            subscriptions++
+            if (subscriptions <= FAILURES_BEYOND_A_BOUNDED_BUDGET) {
+                throw IllegalStateException("still down")
+            }
+            emit(SyncStatus.OFFLINE)
+        }
+
+        alwaysFailingUntilLate.retryWithFallback(
+            fallback = SyncStatus.SYNCED,
+            initialBackoffMs = 500,
+            maxBackoffMs = 60_000,
+            onError = { _, _ -> },
+        ).test {
+            repeat(FAILURES_BEYOND_A_BOUNDED_BUDGET) {
+                assertEquals(SyncStatus.SYNCED, awaitItem())
+            }
+            assertEquals(SyncStatus.OFFLINE, awaitItem())
+            awaitComplete()
+        }
+    }
+
+    private companion object {
+        /** Comfortably more than the 3-attempt budget this operator replaced. */
+        const val FAILURES_BEYOND_A_BOUNDED_BUDGET = 8
+    }
 }

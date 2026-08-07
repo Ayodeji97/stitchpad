@@ -3,12 +3,10 @@ package com.danzucker.stitchpad.core.data.sync
 import com.danzucker.stitchpad.core.domain.model.SyncStatus
 import com.danzucker.stitchpad.core.logging.AppLogger
 import dev.gitlive.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.retryWhen
 
 private const val USERS = "users"
 private const val TAG = "SyncStatusObserver"
@@ -43,40 +41,40 @@ class SyncStatusObserver(
             // perpetually restarted and never firing.
             .distinctUntilChanged()
             .debounceOffline(OFFLINE_DEBOUNCE_MS)
-            // A transient listener error (token refresh, a rules deploy, a quota
-            // blip) should not permanently freeze the banner: retryWhen resubscribes
-            // to the whole chain above with a short, capped backoff before we give
-            // up. Confirmed non-transient case: staff accounts can never read
+            // Survive listener failures rather than dying on them. This flow is
+            // collected once, for the life of the main screen, and never resubscribed
+            // — so a bounded retry would mean any outage outlasting the attempt
+            // budget silently killed the banner for the rest of the session, which is
+            // the very failure this feature exists to make visible. Each failure
+            // emits SYNCED (fail to invisible: a possibly-false "Offline" is worse
+            // than showing nothing) and then resubscribes after a capped backoff.
+            //
+            // Confirmed permanent case: staff accounts can never read
             // users/{ownerUid} (firestore.rules:146 is `allow read: if isOwner(uid)`),
-            // so this fires on every collection for every staff user — logged below
-            // so that is visible instead of silent.
-            .retryWhen { cause, attempt ->
-                val shouldRetry = attempt < MAX_RETRY_ATTEMPTS
+            // so this fires for every staff user. It settles into one quiet retry per
+            // MAX_RETRY_BACKOFF_MS and stays correctly invisible — logged, so it is
+            // discoverable rather than silent if it ever starts affecting owners too.
+            .retryWithFallback(
+                fallback = SyncStatus.SYNCED,
+                initialBackoffMs = INITIAL_RETRY_BACKOFF_MS,
+                maxBackoffMs = MAX_RETRY_BACKOFF_MS,
+            ) { cause, attempt ->
                 AppLogger.w(tag = TAG, throwable = cause) {
-                    "observe(userId=$userId) failed" +
-                        if (shouldRetry) {
-                            ", retrying (attempt ${attempt + 1}/$MAX_RETRY_ATTEMPTS)"
-                        } else {
-                            ", giving up after $MAX_RETRY_ATTEMPTS attempts"
-                        }
+                    "observe(userId=$userId) failed; hiding banner and retrying (attempt ${attempt + 1})"
                 }
-                if (shouldRetry) {
-                    delay(RETRY_BACKOFF_MS * (attempt + 1))
-                }
-                shouldRetry
             }
-            // Fail to invisible. Showing a possibly-false "Offline" is worse than
-            // showing nothing, and hiding preserves today's behaviour exactly.
+            // Safety net only — retryWithFallback never completes exceptionally, so
+            // this covers anything thrown outside the retried chain.
             .catch { throwable ->
                 AppLogger.e(tag = TAG, throwable = throwable) {
-                    "observe(userId=$userId) exhausted retries; hiding banner"
+                    "observe(userId=$userId) failed outside the retry path; hiding banner"
                 }
                 emit(SyncStatus.SYNCED)
             }
 
     private companion object {
         const val OFFLINE_DEBOUNCE_MS = 2_000L
-        const val MAX_RETRY_ATTEMPTS = 3L
-        const val RETRY_BACKOFF_MS = 500L
+        const val INITIAL_RETRY_BACKOFF_MS = 500L
+        const val MAX_RETRY_BACKOFF_MS = 60_000L
     }
 }
