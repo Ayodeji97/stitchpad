@@ -37,7 +37,10 @@ fun Customer.withContact(contact: CustomerContactDto?): Customer {
     )
 }
 
-fun CustomerDto.toCustomer(userId: String = ""): Customer = Customer(
+fun CustomerDto.toCustomer(
+    userId: String = "",
+    isPendingSync: Boolean = false,
+): Customer = Customer(
     id = id,
     userId = userId,
     name = name,
@@ -47,6 +50,7 @@ fun CustomerDto.toCustomer(userId: String = ""): Customer = Customer(
     createdAt = createdAt,
     slotState = CustomerSlotState.fromWire(slotState),
     lockedAt = lockedAt,
+    isPendingSync = isPendingSync,
 )
 
 fun Customer.toCustomerDto(): CustomerDto {
