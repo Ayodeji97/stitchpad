@@ -1,0 +1,47 @@
+# StitchPad — E2E smoke: create a customer.
+#
+# Run via:  ./scripts/e2e-ios.sh <UDID> .maestro/smoke-add-customer.yaml
+# Runs against the LOCAL Firebase emulator, never production.
+# See .maestro/README.md for the Compose Multiplatform gotchas encoded here.
+
+appId: com.danzucker.stitchpad
+---
+- launchApp
+- runFlow: subflows/ensure-signed-in.yaml
+
+- tapOn: "Customers"
+- assertVisible: "Search by name or phone…"
+# Seeded baseline — proves we are reading emulator data before we mutate it.
+- assertVisible: "Folake Adebayo"
+
+# "Add customer" also matches the dashboard quick-action, so pin the index.
+- tapOn:
+    text: "Add customer"
+    index: 0
+- assertVisible: "Add Customer"
+
+# Text fields have no testTag/resource-id — they are addressable only by their
+# placeholder copy. Changing a placeholder string WILL break this flow.
+- tapOn: "e.g. Amina Bello"
+- inputText: "Maestro Spike"
+
+- tapOn: "+234 801 234 5678"
+- inputText: "08099887766"
+
+# The soft keyboard overlays the Save button, but the Compose semantic node
+# still reports its unoccluded bounds — tapping Save here silently hits a
+# keyboard key instead. `hideKeyboard` is NOT supported on CMP, so dismiss by
+# tapping a static label.
+- tapOn: "EMAIL (OPTIONAL)"
+- assertVisible: "Save & Add Measurements"
+
+- tapOn: "Save & Add Measurements"
+
+# Always assert the DESTINATION. A "tap COMPLETED" log does not mean the tap
+# reached the app — an occluded tap still reports success.
+- assertVisible: "Add Measurements"
+
+# And assert the record actually persisted, not just that the screen changed.
+- tapOn: "Skip for now"
+- tapOn: "Customers"
+- assertVisible: "Maestro Spike"

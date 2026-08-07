@@ -65,8 +65,17 @@ async function main() {
   const now = Date.now();
 
   // Minimal owner user docs so both accounts function in the app.
-  await db.doc(`users/${uid}`).set({ name: FOLA.name, subscriptionTier: 'atelier', subscriptionStatus: 'active' }, { merge: true });
-  await db.doc(`users/${GABBY.uid}`).set({ name: GABBY.name, subscriptionTier: 'atelier', subscriptionStatus: 'active' }, { merge: true });
+  // `businessName` is REQUIRED: UserRepository.hasWorkshopProfile() gates purely on
+  // it being non-blank, so without it every sign-in lands on "Set up your workshop"
+  // instead of the dashboard — which blocks E2E flows and manual smoke alike.
+  await db.doc(`users/${uid}`).set(
+    { name: FOLA.name, businessName: 'Fola Atelier', subscriptionTier: 'atelier', subscriptionStatus: 'active' },
+    { merge: true },
+  );
+  await db.doc(`users/${GABBY.uid}`).set(
+    { name: GABBY.name, businessName: 'Gabby Couture', subscriptionTier: 'atelier', subscriptionStatus: 'active' },
+    { merge: true },
+  );
 
   // Gabby's active membership (rules' isActiveMember reads this).
   await db.doc(`users/${uid}/memberships/${GABBY.uid}`).set(

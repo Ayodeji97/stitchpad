@@ -1,0 +1,51 @@
+# Idempotent: signs in as the seeded owner (Fola) if signed out, otherwise no-op.
+# Included by feature flows so each one can run standalone.
+appId: com.danzucker.stitchpad
+---
+- runFlow:
+    when:
+      visible: "Use a different email"
+    commands:
+      - tapOn: "Use a different email"
+
+- runFlow:
+    when:
+      visible: "Welcome to StitchPad"
+    commands:
+      - tapOn:
+          text: "Sign in"
+          index: 0
+
+- runFlow:
+    when:
+      visible: "Sign in"
+    commands:
+      - tapOn:
+          text: "Sign in"
+          index: 0
+
+- runFlow:
+    when:
+      visible: "Welcome back!"
+    commands:
+      - tapOn:
+          text: "Email"
+          index: 1
+      - inputText: "fola@gmail.com"
+      - tapOn:
+          text: "Password"
+          index: 1
+      - inputText: "fola123"
+      # Keyboard occludes Sign In; dismiss via static copy (hideKeyboard is
+      # unsupported on Compose Multiplatform).
+      - tapOn: "Welcome back!"
+      - tapOn:
+          text: "Sign In"
+          index: 0
+
+# First-run interstitial covers the bottom nav.
+- runFlow:
+    when:
+      visible: "Not now"
+    commands:
+      - tapOn: "Not now"

@@ -1,0 +1,58 @@
+# StitchPad — E2E: sign in as the seeded owner (Fola) and land on real data.
+#
+# Run via:  ./scripts/e2e-ios.sh <UDID> .maestro/login.yaml
+# Expects the Firebase emulator seeded by functions/scripts/emulatorSetupStaff.js.
+
+appId: com.danzucker.stitchpad
+---
+- launchApp
+
+# The iOS Keychain survives `simctl uninstall`, so a previous session may still
+# be restored. Get to a signed-out state before testing sign-in.
+- runFlow:
+    when:
+      visible: "Use a different email"
+    commands:
+      - tapOn: "Use a different email"
+
+- runFlow:
+    when:
+      visible: "Sign in"
+    commands:
+      - tapOn:
+          text: "Sign in"
+          index: 0
+
+- assertVisible: "Welcome back!"
+
+# The field label and the field itself share the same accessibilityText —
+# index 0 is the label, index 1 is the editable field.
+- tapOn:
+    text: "Email"
+    index: 1
+- inputText: "fola@gmail.com"
+
+- tapOn:
+    text: "Password"
+    index: 1
+- inputText: "fola123"
+
+# Keyboard covers the Sign In button and Compose still reports it as tappable;
+# dismiss by tapping static copy first. `hideKeyboard` is unsupported on CMP.
+- tapOn: "Welcome back!"
+
+- tapOn:
+    text: "Sign In"
+    index: 0
+
+# First-run interstitials cover the bottom nav. Dismiss before navigating.
+- runFlow:
+    when:
+      visible: "Not now"
+    commands:
+      - tapOn: "Not now"
+
+# Assert on seeded data, not just "a screen appeared" — this proves auth AND
+# the Firestore read path in one assertion.
+- tapOn: "Customers"
+- assertVisible: "Folake Adebayo"
