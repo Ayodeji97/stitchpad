@@ -9,7 +9,7 @@
  *  - Gabby's custom claims { role:'staff', workshopUid:<Fola> } — the token claim
  *    that makes the app resolve her as active staff on Fola's tree.
  *  - Gabby's membership doc under Fola (status:'active') — the rules' isActiveMember
- *    reads this, so the Slice-8e-preview `allow list` lets her read Fola's orders.
+ *    reads this, so the Slice 8e `allow list` lets her read Fola's orders.
  *  - Minimal owner user docs + a realistic seed of Fola's customers/orders in the
  *    post-8d stripped shape (base clean, /private authoritative), matching the app.
  *

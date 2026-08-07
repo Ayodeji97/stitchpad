@@ -90,7 +90,9 @@ describe('isLegacyDepositIncomplete', () => {
     expect(isLegacyDepositIncomplete(order, money)).toBe(false);
   });
 
-  it('returns false when money.payments is absent', () => {
+  // Fail-safe: a mirror with no payments array cannot have absorbed the deposit,
+  // so an order with depositPaid > 0 is treated as incomplete and skipped.
+  it('returns true when money.payments is absent and the order has a deposit', () => {
     const order = { depositPaid: 5000 };
     const money = {};
     expect(isLegacyDepositIncomplete(order, money)).toBe(true);

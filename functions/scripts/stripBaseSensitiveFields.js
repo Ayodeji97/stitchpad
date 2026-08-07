@@ -90,7 +90,18 @@ async function isStamped(db, privatePath) {
 
 async function main() {
   const commit = process.argv.includes('--commit');
-  admin.initializeApp();
+  // This script is IRREVERSIBLE. Refuse to run unless the project is pinned
+  // explicitly, so ADC can never silently point it at the wrong Firestore.
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT;
+  if (!projectId) {
+    console.error(
+      'GOOGLE_CLOUD_PROJECT is not set. This script deletes base-doc fields and cannot be\n' +
+        'undone — re-run with the project pinned explicitly, e.g.\n' +
+        '  GOOGLE_CLOUD_PROJECT=stitchpad-30607 node scripts/stripBaseSensitiveFields.js',
+    );
+    process.exit(1);
+  }
+  admin.initializeApp({ projectId });
   const db = admin.firestore();
   const fieldValue = admin.firestore.FieldValue;
 

@@ -806,6 +806,18 @@ describe('active staff member access', () => {
     await assertFails(getDoc(doc(staffDb('chidi', 'alice'), 'users/alice/orders/withMoney')));
   });
 
+  // The GET guard must cover the SAME field set the strip script deletes
+  // (ORDER_MONEY_FIELDS) — a legacy order carrying only depositPaid /
+  // balanceRemaining is still money-bearing and must not reach staff.
+  it('is denied an order carrying only the legacy deposit/balance money fields', async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice/orders/withDeposit'), { status: 'PENDING', depositPaid: 2000 });
+      await setDoc(doc(admin, 'users/alice/orders/withBalance'), { status: 'PENDING', balanceRemaining: 3000 });
+    });
+    await assertFails(getDoc(doc(staffDb('chidi', 'alice'), 'users/alice/orders/withDeposit')));
+    await assertFails(getDoc(doc(staffDb('chidi', 'alice'), 'users/alice/orders/withBalance')));
+  });
+
   // Regression guard for the money/contact-wall LIST leak (2026-07-30 smoke): the
   // field-absence guard only gates single-doc GETs — Firestore rules are NOT query
   // filters, so a member LIST of the collection is not evaluated per-doc. Slice 8d

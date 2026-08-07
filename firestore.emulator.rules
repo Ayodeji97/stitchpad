@@ -326,11 +326,15 @@ service cloud.firestore {
         // observeOrders LIST returned the owner's totalPrice/payments/costs). Members
         // were denied LIST during the dual-write window; Slice 8e flipped it after the
         // 8d strip. GET keeps the guard.
+        // The guarded field set is exactly ORDER_MONEY_FIELDS in
+        // functions/scripts/stripBaseSensitiveFields.js — keep the two in lockstep.
         allow get: if isOwner(uid)
           || (isActiveMember(uid)
               && !('totalPrice' in resource.data)
               && !('discount' in resource.data)
               && !('discountReason' in resource.data)
+              && !('depositPaid' in resource.data)
+              && !('balanceRemaining' in resource.data)
               && !('payments' in resource.data)
               && !('costs' in resource.data));
         // Slice 8e: members may LIST — base docs are money-free (8d strip +
