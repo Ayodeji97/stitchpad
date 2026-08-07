@@ -16,6 +16,7 @@ import com.danzucker.stitchpad.feature.auth.presentation.login.LoginViewModel
 import com.danzucker.stitchpad.feature.auth.presentation.signup.SignUpViewModel
 import com.danzucker.stitchpad.feature.auth.presentation.verifyemail.EmailVerificationViewModel
 import com.danzucker.stitchpad.feature.branding.domain.BrandLogoValidator
+import com.danzucker.stitchpad.feature.main.presentation.SyncStatusViewModel
 import com.danzucker.stitchpad.feature.onboarding.presentation.workshop.WorkshopSetupViewModel
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.viewModel
@@ -53,4 +54,5 @@ val authPresentationModule = module {
     // from the graph and fail. Omitting it from the call list lets Kotlin's
     // default kick in (see WorkshopSetupViewModel.compressLogo).
     viewModel { WorkshopSetupViewModel(get(), get(), get(), get(), analytics = get(), celebrations = get()) }
+    viewModelOf(::SyncStatusViewModel)
 }
