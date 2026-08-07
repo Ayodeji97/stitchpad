@@ -808,19 +808,45 @@ describe('active staff member access', () => {
 
   // Regression guard for the money/contact-wall LIST leak (2026-07-30 smoke): the
   // field-absence guard only gates single-doc GETs — Firestore rules are NOT query
-  // filters, so a member LIST of the collection is not evaluated per-doc and would
-  // stream money/contact-bearing base docs over the wire during the dual-write
-  // window (the staff dashboard's observeOrders LIST did exactly this in prod). So
-  // `allow list` is owner-only until Slice 8 strips the base docs. GET keeps the gate.
-  it('cannot LIST the orders or customers collections (the GET-gate does not cover list)', async () => {
+  // filters, so a member LIST of the collection is not evaluated per-doc. Slice 8d
+  // strips money/contact off the base docs (with a version floor guaranteeing no
+  // base doc reaching this rule still carries them), so Slice 8e flips `allow list`
+  // open to active members. GET keeps its own field-absence guard as defence-in-depth.
+  it('can LIST stripped orders and customers collections (Slice 8e flip)', async () => {
     await asAdmin(async (admin) => {
-      // A dual-write-window doc: money/contact still on the base. A member LIST must
-      // not stream it — even though the collection also holds stripped docs.
-      await setDoc(doc(admin, 'users/alice/orders/withMoney'), { status: 'PENDING', totalPrice: 5000 });
-      await setDoc(doc(admin, 'users/alice/customers/withPhone'), { name: 'Bola', phone: '+234' });
+      // Base docs in the post-8d stripped shape: no money, no contact.
+      await setDoc(doc(admin, 'users/alice/orders/o-stripped'), {
+        customerName: 'Ada',
+        status: 'PENDING',
+        items: [{ id: 'i1', garmentType: 'Agbada' }],
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      await setDoc(doc(admin, 'users/alice/customers/c-stripped'), {
+        name: 'Ada',
+        slotState: 'active',
+        createdAt: 1,
+        updatedAt: 1,
+      });
     });
-    await assertFails(getDocs(collection(staffDb('chidi', 'alice'), 'users/alice/orders')));
-    await assertFails(getDocs(collection(staffDb('chidi', 'alice'), 'users/alice/customers')));
+    // NOTE: `allow list` has no per-doc field guard — rules are not query filters.
+    // The 8d strip + version floor are the guarantee that no base doc carries
+    // money/contact by the time this rule is deployed.
+    await assertSucceeds(getDocs(collection(staffDb('chidi', 'alice'), 'users/alice/orders')));
+    await assertSucceeds(getDocs(collection(staffDb('chidi', 'alice'), 'users/alice/customers')));
+  });
+
+  it('staff of another workshop still cannot LIST', async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice/orders/o1b'), {
+        customerName: 'Ada',
+        status: 'PENDING',
+        createdAt: 1,
+        updatedAt: 1,
+      });
+    });
+    await assertFails(getDocs(collection(staffDb('mallory', 'bob'), 'users/alice/orders')));
+    await assertFails(getDocs(collection(staffDb('mallory', 'bob'), 'users/alice/customers')));
   });
 
   it('owner can still LIST their own orders and customers (no regression)', async () => {
