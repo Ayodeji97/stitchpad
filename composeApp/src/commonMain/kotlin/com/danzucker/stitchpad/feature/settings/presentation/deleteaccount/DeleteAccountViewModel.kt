@@ -91,6 +91,9 @@ class DeleteAccountViewModel(
             is DeleteAccountAction.OnReauthPasswordChange -> _state.update {
                 it.copy(reauthPassword = action.value, reauthError = null)
             }
+            DeleteAccountAction.OnToggleReauthPasswordVisibility -> _state.update {
+                it.copy(isReauthPasswordVisible = !it.isReauthPasswordVisible)
+            }
             DeleteAccountAction.OnReauthConfirm -> reauthAndDelete()
             DeleteAccountAction.OnReauthCancel -> emit(DeleteAccountEvent.NavigateBack)
             DeleteAccountAction.OnForgotPassword -> sendPasswordReset()

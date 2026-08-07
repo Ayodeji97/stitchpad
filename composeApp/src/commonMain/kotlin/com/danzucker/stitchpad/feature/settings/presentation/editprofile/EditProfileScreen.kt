@@ -65,6 +65,7 @@ import com.danzucker.stitchpad.ui.components.BrandLogo
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.components.WhatsAppConfirmRow
+import com.danzucker.stitchpad.ui.components.rememberSanitizedTextFieldValue
 import com.danzucker.stitchpad.ui.text.platformTextStyleNoFontPadding
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -363,9 +364,13 @@ private fun ProfileTextField(
     val unused = unusedHint
 
     val focusManager = LocalFocusManager.current
+    // The ViewModel caps every one of these fields and filters the phone/WhatsApp
+    // and account-number ones down to a character class, so what comes back can be
+    // shorter than what was typed. Re-derive the caret from what survived.
+    val input = rememberSanitizedTextFieldValue(value, onValueChange)
     OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
+        value = input.value,
+        onValueChange = input.onValueChange,
         label = { Text(label) },
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
         keyboardActions = KeyboardActions(

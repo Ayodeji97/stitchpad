@@ -2,6 +2,9 @@ package com.danzucker.stitchpad.feature.settings.presentation.changepassword
 
 sealed interface ChangePasswordAction {
     data class OnReauthPasswordChange(val value: String) : ChangePasswordAction
+    data object OnToggleReauthPasswordVisibility : ChangePasswordAction
+    data object OnToggleNewPasswordVisibility : ChangePasswordAction
+    data object OnToggleConfirmPasswordVisibility : ChangePasswordAction
     data object OnReauthConfirm : ChangePasswordAction
     data object OnReauthDismiss : ChangePasswordAction
     data object OnForgotPassword : ChangePasswordAction

@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -20,12 +19,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
+import com.danzucker.stitchpad.ui.components.PasswordTextField
 import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.components.StitchPadButtonVariant
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -59,6 +56,8 @@ fun ReauthBottomSheet(
     email: String,
     password: String,
     onPasswordChange: (String) -> Unit,
+    isPasswordVisible: Boolean,
+    onTogglePasswordVisibility: () -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
     onForgotPassword: () -> Unit,
@@ -99,6 +98,8 @@ fun ReauthBottomSheet(
                     email = email,
                     password = password,
                     onPasswordChange = onPasswordChange,
+                    isPasswordVisible = isPasswordVisible,
+                    onTogglePasswordVisibility = onTogglePasswordVisibility,
                     errorText = errorText,
                 )
                 SignInProvider.APPLE,
@@ -153,6 +154,8 @@ private fun ReauthPasswordForm(
     email: String,
     password: String,
     onPasswordChange: (String) -> Unit,
+    isPasswordVisible: Boolean,
+    onTogglePasswordVisibility: () -> Unit,
     errorText: String?,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space3)) {
@@ -164,23 +167,14 @@ private fun ReauthPasswordForm(
             shape = RoundedCornerShape(DesignTokens.radiusMd),
             modifier = Modifier.fillMaxWidth(),
         )
-        OutlinedTextField(
+        PasswordTextField(
             value = password,
             onValueChange = onPasswordChange,
-            label = { Text(stringResource(Res.string.reauth_label_password)) },
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Password,
-                imeAction = ImeAction.Done,
-            ),
+            label = stringResource(Res.string.reauth_label_password),
+            isVisible = isPasswordVisible,
+            onToggleVisibility = onTogglePasswordVisibility,
             isError = errorText != null,
-            supportingText = if (errorText != null) {
-                { Text(errorText, color = MaterialTheme.colorScheme.error) }
-            } else {
-                null
-            },
-            shape = RoundedCornerShape(DesignTokens.radiusMd),
-            modifier = Modifier.fillMaxWidth(),
+            supportingText = errorText,
         )
     }
 }
@@ -230,6 +224,8 @@ private fun ReauthBottomSheetPreview() {
                 email = "folake@stitchpad.app",
                 password = "",
                 onPasswordChange = {},
+                isPasswordVisible = false,
+                onTogglePasswordVisibility = {},
                 errorText = null,
             )
         }

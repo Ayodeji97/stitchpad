@@ -14,6 +14,7 @@ data class ChangePasswordState(
     // Reauth phase
     val showReauthSheet: Boolean = true,
     val reauthPassword: String = "",
+    val isReauthPasswordVisible: Boolean = false,
     val reauthError: UiText? = null,
     val isReauthenticating: Boolean = false,
     val isReauthenticated: Boolean = false,
@@ -21,6 +22,8 @@ data class ChangePasswordState(
     // Form phase
     val newPassword: String = "",
     val confirmPassword: String = "",
+    val isNewPasswordVisible: Boolean = false,
+    val isConfirmPasswordVisible: Boolean = false,
     val newPasswordError: StringResource? = null,
     val confirmPasswordError: StringResource? = null,
     val isSubmitting: Boolean = false,

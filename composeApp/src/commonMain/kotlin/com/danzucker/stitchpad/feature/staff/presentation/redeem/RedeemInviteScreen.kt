@@ -177,8 +177,11 @@ fun RedeemInviteScreen(
             )
 
             OutlinedTextField(
-                value = formatInviteCode(state.code),
+                value = state.code,
                 onValueChange = { onAction(RedeemInviteAction.OnCodeChange(it)) },
+                // The "XXXX-XXXX" grouping is painted on, never stored — formatting
+                // the value itself desynced the caret from the text.
+                visualTransformation = InviteCodeVisualTransformation,
                 label = { Text(stringResource(Res.string.staff_join_code_label)) },
                 leadingIcon = { Icon(Icons.Outlined.Lock, contentDescription = null) },
                 singleLine = true,
@@ -238,10 +241,6 @@ fun RedeemInviteScreen(
         }
     }
 }
-
-/** "XXXX-XXXX" from a normalised code for readability; a short raw code is shown as-is. */
-private fun formatInviteCode(code: String): String =
-    if (code.length > 4) "${code.take(4)}-${code.drop(4)}" else code
 
 @Composable
 private fun StaffCrest(modifier: Modifier = Modifier) {

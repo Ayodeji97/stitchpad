@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.feature.freemium.presentation.cap.CustomerCapReachedSheet
 import com.danzucker.stitchpad.ui.components.StitchPadButton
+import com.danzucker.stitchpad.ui.components.rememberSanitizedTextFieldValue
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
@@ -333,6 +334,10 @@ private fun StitchPadField(
     )
     val interactionSource = remember { MutableInteractionSource() }
     var hasFocused by remember { mutableStateOf(false) }
+    // Callers reject input they don't want (a length cap, or the phone field's
+    // character class). Re-derive the caret from what survived instead of leaving
+    // it where the IME put it, or it drifts forward past every rejected keystroke.
+    val input = rememberSanitizedTextFieldValue(value, onValueChange)
     Column(modifier = modifier) {
         Text(
             text = label.uppercase(),
@@ -342,8 +347,8 @@ private fun StitchPadField(
             modifier = Modifier.padding(bottom = DesignTokens.space1)
         )
         BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
+            value = input.value,
+            onValueChange = input.onValueChange,
             singleLine = singleLine,
             minLines = minLines,
             maxLines = maxLines,

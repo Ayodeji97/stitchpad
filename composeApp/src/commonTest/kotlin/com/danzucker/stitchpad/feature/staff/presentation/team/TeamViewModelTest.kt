@@ -9,6 +9,7 @@ import com.danzucker.stitchpad.core.domain.staff.Membership
 import com.danzucker.stitchpad.core.domain.staff.StaffError
 import com.danzucker.stitchpad.core.domain.staff.StaffInvite
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -156,6 +157,85 @@ class TeamViewModelTest {
         val vm = buildViewModel()
         vm.onAction(TeamAction.OnDecline("staff-7"))
         assertEquals("staff-7", staffRepo.lastRevokedUid)
+    }
+
+    @Test
+    fun approveMarksTheRequestInFlightUntilTheCallReturns() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        staffRepo.decisionGate = gate
+        val vm = buildViewModel()
+
+        vm.onAction(TeamAction.OnApprove("staff-9"))
+        assertEquals(TeamDecision.APPROVE, vm.state.value.inFlightDecisions["staff-9"])
+
+        gate.complete(Unit)
+        assertNull(vm.state.value.inFlightDecisions["staff-9"])
+    }
+
+    @Test
+    fun declineMarksTheRequestInFlightUntilTheCallReturns() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        staffRepo.decisionGate = gate
+        val vm = buildViewModel()
+
+        vm.onAction(TeamAction.OnDecline("staff-7"))
+        assertEquals(TeamDecision.DECLINE, vm.state.value.inFlightDecisions["staff-7"])
+
+        gate.complete(Unit)
+        assertNull(vm.state.value.inFlightDecisions["staff-7"])
+    }
+
+    @Test
+    fun repeatedTapsWhileApprovingDoNotFireDuplicateRequests() = runTest {
+        staffRepo.decisionGate = CompletableDeferred()
+        val vm = buildViewModel()
+
+        vm.onAction(TeamAction.OnApprove("staff-9"))
+        vm.onAction(TeamAction.OnApprove("staff-9"))
+        vm.onAction(TeamAction.OnApprove("staff-9"))
+
+        assertEquals(1, staffRepo.approveCount)
+    }
+
+    @Test
+    fun decliningWhileApproveIsInFlightIsIgnored() = runTest {
+        staffRepo.decisionGate = CompletableDeferred()
+        val vm = buildViewModel()
+
+        vm.onAction(TeamAction.OnApprove("staff-9"))
+        vm.onAction(TeamAction.OnDecline("staff-9"))
+
+        assertEquals(1, staffRepo.approveCount)
+        assertEquals(0, staffRepo.revokeCount)
+        assertEquals(TeamDecision.APPROVE, vm.state.value.inFlightDecisions["staff-9"])
+    }
+
+    @Test
+    fun decisionsOnDifferentMembersRunIndependently() = runTest {
+        staffRepo.decisionGate = CompletableDeferred()
+        val vm = buildViewModel()
+
+        vm.onAction(TeamAction.OnApprove("staff-1"))
+        vm.onAction(TeamAction.OnDecline("staff-2"))
+
+        assertEquals(TeamDecision.APPROVE, vm.state.value.inFlightDecisions["staff-1"])
+        assertEquals(TeamDecision.DECLINE, vm.state.value.inFlightDecisions["staff-2"])
+    }
+
+    @Test
+    fun aFailedApproveClearsInFlightSoTheOwnerCanRetry() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        staffRepo.decisionGate = gate
+        staffRepo.approveResult = Result.Error(StaffError.NETWORK)
+        val vm = buildViewModel()
+
+        vm.onAction(TeamAction.OnApprove("staff-9"))
+        gate.complete(Unit)
+        assertNull(vm.state.value.inFlightDecisions["staff-9"])
+
+        staffRepo.decisionGate = null
+        vm.onAction(TeamAction.OnApprove("staff-9"))
+        assertEquals(2, staffRepo.approveCount)
     }
 
     @Test

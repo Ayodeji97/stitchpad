@@ -35,6 +35,7 @@ import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.ui.components.ThousandsSeparatorTransformation
+import com.danzucker.stitchpad.ui.components.rememberSanitizedTextFieldValue
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
@@ -131,9 +132,13 @@ private fun RecordPaymentSheetContent(
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            // The ViewModel keeps digits only, strips leading zeros, and caps the
+            // amount at the outstanding balance — all of which can shorten or
+            // replace what was typed, so the caret is re-derived from the result.
+            val amount = rememberSanitizedTextFieldValue(amountInput, onAmountChange)
             OutlinedTextField(
-                value = amountInput,
-                onValueChange = onAmountChange,
+                value = amount.value,
+                onValueChange = amount.onValueChange,
                 prefix = { Text(text = "₦") },
                 visualTransformation = ThousandsSeparatorTransformation,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),

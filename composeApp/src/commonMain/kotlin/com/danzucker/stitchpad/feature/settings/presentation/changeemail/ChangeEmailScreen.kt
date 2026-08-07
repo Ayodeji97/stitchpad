@@ -171,6 +171,10 @@ fun ChangeEmailScreen(
                 email = state.currentEmail,
                 password = state.reauthPassword,
                 onPasswordChange = { onAction(ChangeEmailAction.OnReauthPasswordChange(it)) },
+                isPasswordVisible = state.isReauthPasswordVisible,
+                onTogglePasswordVisibility = {
+                    onAction(ChangeEmailAction.OnToggleReauthPasswordVisibility)
+                },
                 onConfirm = { onAction(ChangeEmailAction.OnReauthConfirm) },
                 onDismiss = { onAction(ChangeEmailAction.OnReauthDismiss) },
                 onForgotPassword = { onAction(ChangeEmailAction.OnForgotPassword) },

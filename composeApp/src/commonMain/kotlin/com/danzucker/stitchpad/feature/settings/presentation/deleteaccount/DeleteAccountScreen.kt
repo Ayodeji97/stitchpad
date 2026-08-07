@@ -108,6 +108,10 @@ fun DeleteAccountScreen(
                 email = state.email,
                 password = state.reauthPassword,
                 onPasswordChange = { onAction(DeleteAccountAction.OnReauthPasswordChange(it)) },
+                isPasswordVisible = state.isReauthPasswordVisible,
+                onTogglePasswordVisibility = {
+                    onAction(DeleteAccountAction.OnToggleReauthPasswordVisibility)
+                },
                 onConfirm = { onAction(DeleteAccountAction.OnReauthConfirm) },
                 onDismiss = { onAction(DeleteAccountAction.OnReauthCancel) },
                 onForgotPassword = { onAction(DeleteAccountAction.OnForgotPassword) },

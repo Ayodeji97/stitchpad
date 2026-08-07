@@ -18,22 +18,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import com.danzucker.stitchpad.core.domain.model.CostCategory
 import com.danzucker.stitchpad.feature.order.presentation.detail.costCategoryOrder
 import com.danzucker.stitchpad.feature.order.presentation.detail.hint
 import com.danzucker.stitchpad.feature.order.presentation.detail.label
 import com.danzucker.stitchpad.ui.components.ThousandsSeparatorTransformation
+import com.danzucker.stitchpad.ui.components.rememberSanitizedTextFieldValue
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
@@ -121,10 +115,14 @@ private fun CostsEditorSheetContent(
 }
 
 /**
- * Bound to a local [TextFieldValue] rather than the raw VM-owned digit string directly —
- * binding a VM String straight to a TextField's `value` desyncs the cursor position on
- * every recomposition (see feedback_compose_textfieldvalue_cursor). The field only pushes
- * the digits-only text back up via [onAmountChange]; the VM never dictates cursor position.
+ * Bound through [rememberSanitizedTextFieldValue] rather than the raw VM-owned digit
+ * string directly — binding a VM String straight to a TextField's `value` desyncs the
+ * cursor position on every recomposition (see feedback_compose_textfieldvalue_cursor).
+ * The field only pushes the digits-only text back up via [onAmountChange]; the VM never
+ * dictates cursor position.
+ *
+ * Rows are emitted from a fixed category list, so each gets its own stable slot and
+ * therefore its own caret state — no key needed.
  */
 @Composable
 private fun CostAmountRow(
@@ -132,13 +130,10 @@ private fun CostAmountRow(
     digits: String,
     onAmountChange: (CostCategory, String) -> Unit,
 ) {
-    var fieldValue by remember(category) {
-        mutableStateOf(TextFieldValue(digits, TextRange(digits.length)))
-    }
-    LaunchedEffect(category, digits) {
-        if (fieldValue.text != digits) {
-            fieldValue = TextFieldValue(digits, TextRange(digits.length))
-        }
+    // Digits-only rejects characters mid-string; the helper re-derives the caret
+    // from what survived instead of leaving it where the IME put it.
+    val amount = rememberSanitizedTextFieldValue(digits) { raw ->
+        onAmountChange(category, raw.filter(Char::isDigit))
     }
 
     val hint = category.hint()
@@ -160,14 +155,8 @@ private fun CostAmountRow(
             )
         }
         OutlinedTextField(
-            value = fieldValue,
-            onValueChange = { newValue ->
-                val filtered = newValue.text.filter(Char::isDigit)
-                fieldValue = newValue.copy(text = filtered)
-                if (filtered != digits) {
-                    onAmountChange(category, filtered)
-                }
-            },
+            value = amount.value,
+            onValueChange = amount.onValueChange,
             prefix = { Text(text = "₦") },
             visualTransformation = ThousandsSeparatorTransformation,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),

@@ -55,6 +55,15 @@ class ChangePasswordViewModel(
             is ChangePasswordAction.OnReauthPasswordChange -> _state.update {
                 it.copy(reauthPassword = action.value, reauthError = null)
             }
+            ChangePasswordAction.OnToggleReauthPasswordVisibility -> _state.update {
+                it.copy(isReauthPasswordVisible = !it.isReauthPasswordVisible)
+            }
+            ChangePasswordAction.OnToggleNewPasswordVisibility -> _state.update {
+                it.copy(isNewPasswordVisible = !it.isNewPasswordVisible)
+            }
+            ChangePasswordAction.OnToggleConfirmPasswordVisibility -> _state.update {
+                it.copy(isConfirmPasswordVisible = !it.isConfirmPasswordVisible)
+            }
             ChangePasswordAction.OnReauthConfirm -> reauthenticate()
             ChangePasswordAction.OnReauthDismiss -> {
                 // See ChangeEmailViewModel for the same guard rationale: real
