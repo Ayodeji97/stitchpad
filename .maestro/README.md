@@ -14,9 +14,25 @@ customer write confirmed present in Firestore at the database level.
 xcrun simctl list devices available                        # find a UDID
 ```
 
-The script boots the Firestore + Auth emulators, seeds deterministic data,
-builds a debug app with `USE_FIREBASE_EMULATOR` flipped on, wipes the app +
-keychain, installs, and runs the flows.
+The script boots the Firestore + Auth emulators, **wipes them to a clean slate**,
+seeds deterministic data, builds a debug app with `USE_FIREBASE_EMULATOR` flipped
+on, wipes the app + keychain, installs, and runs the flows.
+
+The wipe is load-bearing, not hygiene. The seed script only writes its own
+`seed-*` documents, so records created by a previous run would survive — and an
+assertion like "the customer I just created is visible" would then pass against
+the stale row even if the create silently failed. Same false-green class as
+gotcha 1 below.
+
+Two guards come with that:
+
+- **A run lock.** Two concurrent runs would fight over the emulators — the first
+  to finish would stop them mid-flight for the second. A second run exits with a
+  clear message instead.
+- **`--reuse` is required to touch emulators this script did not start.** Those
+  belong to a manual session (e.g. the staff smoke runbook), and the wipe would
+  destroy that session's data. Emulators started elsewhere are never stopped by
+  this script.
 
 **Flows never run against production.** That is deliberate, not just tidiness —
 see "Silent offline mode" below.
@@ -72,9 +88,19 @@ Dismiss by tapping a static label instead (e.g. `- tapOn: "EMAIL (OPTIONAL)"`).
 Firebase Auth persists there, so reinstalling does *not* sign the user out and
 sign-in flows never see a login screen. Use `xcrun simctl keychain <UDID> reset`.
 
-**5. Interstitials interrupt flows.**
-A notification-permission sheet and an iOS bilingual-keyboard dialog both
-appeared mid-flow and covered controls. Guard with `runFlow: when: visible:`.
+**5. Interstitials interrupt flows — including nondeterministic system ones.**
+Three seen so far: the app's notification-permission sheet, an iOS
+bilingual-keyboard dialog, and iOS **"Save Password?"** (iCloud Keychain), which
+appears on Apple's own heuristics after a password sign-in. That last one made
+the login flow pass on one run and fail on the very next with identical inputs.
+
+`e2e-ios.sh` disables the password prompt on the simulator
+(`defaults write com.apple.Preferences AutoFillPasswords -bool false`) rather
+than racing it. Flows also guard defensively with `runFlow: when: visible:`.
+
+Watch the casing when guarding: the system dialog's button is **"Not Now"**, the
+app's sheet button is **"Not now"**. Key conditions off a sheet's *title* rather
+than its button text so the two cannot be confused.
 
 **6. No stable selectors anywhere.**
 `resource-id` and `text` are empty on every app node; everything lands in

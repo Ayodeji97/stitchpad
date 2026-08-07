@@ -45,10 +45,21 @@ appId: com.danzucker.stitchpad
     text: "Sign In"
     index: 0
 
-# First-run interstitials cover the bottom nav. Dismiss before navigating.
+# iOS "Save Password?" (iCloud Keychain) can render above the app after a
+# password sign-in and swallow taps. e2e-ios.sh disables it on the simulator;
+# this guard is belt-and-braces for anyone running a flow by hand.
+# NOTE the casing: the system button is "Not Now", the app's is "Not now".
 - runFlow:
     when:
-      visible: "Not now"
+      visible: "Save Password?"
+    commands:
+      - tapOn: "Not Now"
+
+# The app's own notification-permission sheet covers the bottom nav. Keyed on the
+# sheet TITLE, not its button, so it cannot be confused with the system dialog.
+- runFlow:
+    when:
+      visible: "Never miss a deadline"
     commands:
       - tapOn: "Not now"
 

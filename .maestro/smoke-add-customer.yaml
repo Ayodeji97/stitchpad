@@ -14,6 +14,12 @@ appId: com.danzucker.stitchpad
 # Seeded baseline — proves we are reading emulator data before we mutate it.
 - assertVisible: "Folake Adebayo"
 
+# Precondition: the record must NOT already exist, otherwise the assertion at the
+# end of this flow would pass against a leftover row from a previous run even if
+# the create silently failed. e2e-ios.sh wipes the emulator to guarantee this;
+# asserting it here means the flow still catches a dirty database on its own.
+- assertNotVisible: "Maestro Spike"
+
 # "Add customer" also matches the dashboard quick-action, so pin the index.
 - tapOn:
     text: "Add customer"
