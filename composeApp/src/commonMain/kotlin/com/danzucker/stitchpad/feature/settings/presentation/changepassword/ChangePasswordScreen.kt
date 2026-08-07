@@ -8,15 +8,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -32,12 +29,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.settings.presentation.components.ReauthBottomSheet
+import com.danzucker.stitchpad.ui.components.PasswordTextField
 import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -125,62 +121,40 @@ fun ChangePasswordScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
-                OutlinedTextField(
+                PasswordTextField(
                     value = state.newPassword,
                     onValueChange = { onAction(ChangePasswordAction.OnNewPasswordChange(it)) },
-                    enabled = !state.isSubmitting,
-                    label = { Text(stringResource(Res.string.change_password_label_new)) },
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password,
-                        imeAction = ImeAction.Next,
-                    ),
-                    isError = state.newPasswordError != null,
-                    supportingText = {
-                        state.newPasswordError?.let {
-                            Text(
-                                text = stringResource(it),
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
+                    label = stringResource(Res.string.change_password_label_new),
+                    isVisible = state.isNewPasswordVisible,
+                    onToggleVisibility = {
+                        onAction(ChangePasswordAction.OnToggleNewPasswordVisibility)
                     },
-                    singleLine = true,
-                    shape = RoundedCornerShape(DesignTokens.radiusMd),
+                    enabled = !state.isSubmitting,
+                    imeAction = ImeAction.Next,
+                    isError = state.newPasswordError != null,
+                    supportingText = state.newPasswordError?.let { stringResource(it) },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = MaterialTheme.colorScheme.surface,
                         unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                     ),
-                    modifier = Modifier.fillMaxWidth(),
                 )
 
-                OutlinedTextField(
+                PasswordTextField(
                     value = state.confirmPassword,
                     onValueChange = { onAction(ChangePasswordAction.OnConfirmPasswordChange(it)) },
-                    enabled = !state.isSubmitting,
-                    label = { Text(stringResource(Res.string.change_password_label_confirm)) },
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password,
-                        imeAction = ImeAction.Done,
-                    ),
-                    isError = state.confirmPasswordError != null,
-                    supportingText = {
-                        state.confirmPasswordError?.let {
-                            Text(
-                                text = stringResource(it),
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
+                    label = stringResource(Res.string.change_password_label_confirm),
+                    isVisible = state.isConfirmPasswordVisible,
+                    onToggleVisibility = {
+                        onAction(ChangePasswordAction.OnToggleConfirmPasswordVisibility)
                     },
-                    singleLine = true,
-                    shape = RoundedCornerShape(DesignTokens.radiusMd),
+                    enabled = !state.isSubmitting,
+                    imeAction = ImeAction.Done,
+                    isError = state.confirmPasswordError != null,
+                    supportingText = state.confirmPasswordError?.let { stringResource(it) },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = MaterialTheme.colorScheme.surface,
                         unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                     ),
-                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         }
@@ -192,6 +166,10 @@ fun ChangePasswordScreen(
                 email = state.email,
                 password = state.reauthPassword,
                 onPasswordChange = { onAction(ChangePasswordAction.OnReauthPasswordChange(it)) },
+                isPasswordVisible = state.isReauthPasswordVisible,
+                onTogglePasswordVisibility = {
+                    onAction(ChangePasswordAction.OnToggleReauthPasswordVisibility)
+                },
                 onConfirm = { onAction(ChangePasswordAction.OnReauthConfirm) },
                 onDismiss = { onAction(ChangePasswordAction.OnReauthDismiss) },
                 onForgotPassword = { onAction(ChangePasswordAction.OnForgotPassword) },

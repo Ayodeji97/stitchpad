@@ -19,6 +19,7 @@ data class ChangeEmailState(
     // Reauth phase
     val showReauthSheet: Boolean = true,
     val reauthPassword: String = "",
+    val isReauthPasswordVisible: Boolean = false,
     val reauthError: UiText? = null,
     val isReauthenticating: Boolean = false,
     val isReauthenticated: Boolean = false,

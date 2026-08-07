@@ -204,7 +204,11 @@ fun TeamScreen(
             } else {
                 SeatCard(state = state)
                 InviteButton(state = state, onAction = onAction)
-                PendingSection(pending = state.pending, onAction = onAction)
+                PendingSection(
+                    pending = state.pending,
+                    inFlightDecisions = state.inFlightDecisions,
+                    onAction = onAction,
+                )
                 ActiveSection(active = state.active, onAction = onAction)
             }
             Spacer(Modifier.height(DesignTokens.space8))
@@ -310,11 +314,19 @@ private fun CapHint(text: String) {
 }
 
 @Composable
-private fun PendingSection(pending: List<Membership>, onAction: (TeamAction) -> Unit) {
+private fun PendingSection(
+    pending: List<Membership>,
+    inFlightDecisions: Map<String, TeamDecision>,
+    onAction: (TeamAction) -> Unit,
+) {
     if (pending.isEmpty()) return
     SectionHeader(text = stringResource(Res.string.team_pending_header))
     pending.forEach { member ->
-        PendingCard(member = member, onAction = onAction)
+        PendingCard(
+            member = member,
+            decisionInFlight = inFlightDecisions[member.staffAuthUid],
+            onAction = onAction,
+        )
     }
 }
 
@@ -339,7 +351,11 @@ private fun SectionHeader(text: String) {
 }
 
 @Composable
-private fun PendingCard(member: Membership, onAction: (TeamAction) -> Unit) {
+private fun PendingCard(
+    member: Membership,
+    decisionInFlight: TeamDecision?,
+    onAction: (TeamAction) -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -359,14 +375,20 @@ private fun PendingCard(member: Membership, onAction: (TeamAction) -> Unit) {
                 .padding(top = DesignTokens.space3),
             horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
         ) {
+            // While either decision is in flight both buttons lock, so the owner
+            // can't approve and decline the same request in quick succession.
             StitchPadButton(
                 text = stringResource(Res.string.team_approve),
                 onClick = { onAction(TeamAction.OnApprove(member.staffAuthUid)) },
+                enabled = decisionInFlight == null,
+                isLoading = decisionInFlight == TeamDecision.APPROVE,
                 modifier = Modifier.weight(1f),
             )
             StitchPadButton(
                 text = stringResource(Res.string.team_decline),
                 onClick = { onAction(TeamAction.OnDecline(member.staffAuthUid)) },
+                enabled = decisionInFlight == null,
+                isLoading = decisionInFlight == TeamDecision.DECLINE,
                 variant = StitchPadButtonVariant.Secondary,
                 modifier = Modifier.weight(1f),
             )
