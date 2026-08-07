@@ -28,6 +28,56 @@ data class OrderDto(
     val updatedAt: Long = 0L
 )
 
+/**
+ * Money-free write shape of the base order doc (Slice 8d-1, stop-dual-write).
+ *
+ * The base order doc stops carrying money: `totalPrice`, `discount`, `discountReason`,
+ * the legacy `depositPaid`/`balanceRemaining`, `payments`, `costs`, and each item's
+ * `price` are DELIBERATELY absent so GitLive never writes them to base again. Money
+ * now lives only in `users/{uid}/orders/{oid}/private/money` ([OrderMoneyDto]).
+ *
+ * Reads still decode into the full [OrderDto] (money fields default to 0.0/empty when
+ * absent, then [com.danzucker.stitchpad.core.data.mapper.withMoney] folds `/private`
+ * back in), so legacy base docs that still carry money keep working via the fallback.
+ * This is the WRITE model only — never read into.
+ */
+@Serializable
+data class OrderBaseDto(
+    val id: String = "",
+    val customerId: String = "",
+    val customerName: String = "",
+    val status: String = "PENDING",
+    val subStatus: String? = null,
+    val priority: String = "NORMAL",
+    val deadline: Long? = null,
+    val notes: String? = null,
+    val archivedAt: Long? = null,
+    val items: List<OrderItemBaseDto> = emptyList(),
+    val statusHistory: List<StatusChangeDto> = emptyList(),
+    val createdAt: Long = 0L,
+    val updatedAt: Long = 0L,
+)
+
+/** Money-free write shape of a base order item (Slice 8d-1). Mirrors [OrderItemDto]
+ *  minus `price`, which relocates to [OrderMoneyDto.itemPrices]. */
+@Serializable
+data class OrderItemBaseDto(
+    val id: String = "",
+    val garmentType: String = "",
+    val customGarmentName: String? = null,
+    val description: String = "",
+    val quantity: Int = 1,
+    val measurementId: String? = null,
+    val fabricName: String? = null,
+    val styleImages: List<StyleImageRefDto> = emptyList(),
+    val fabricImages: List<FabricImageRefDto> = emptyList(),
+    val styleId: String? = null,
+    val stylePhotoUrl: String? = null,
+    val stylePhotoStoragePath: String? = null,
+    val fabricPhotoUrl: String? = null,
+    val fabricPhotoStoragePath: String? = null,
+)
+
 @Serializable
 data class OrderCostDto(
     val category: String = "OTHER",
