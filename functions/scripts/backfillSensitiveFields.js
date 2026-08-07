@@ -20,7 +20,12 @@
  * that point would OVERWRITE authoritative data with stale/empty values. So this
  * script reads each existing mirror FIRST and classifies it:
  *   - missing / unstamped (no or blank ownerId) → write the full mirror built from
- *     the base (correct for pre-8d-1 docs, where the base is still authoritative);
+ *     the base (correct for pre-8d-1 docs, where the base is still authoritative),
+ *     OVERLAID with whatever the unstamped mirror already holds. An unstamped mirror
+ *     is not necessarily empty: the 8d-1 client's recordPayment/updateCosts write
+ *     `payments`/`costs` to it with merge=true and DELIBERATELY no ownerId stamp, so
+ *     it can hold payments/costs NEWER than the base doc (which only got updatedAt
+ *     from those writes). See buildMoneyDocWithOverlay;
  *   - stamped but legacy-deposit-incomplete (orders only: base depositPaid > 0 and
  *     the MIRROR's payments have no `legacy-deposit` entry) → TARGETED heal that
  *     writes ONLY `payments`, prepending the synthesized deposit to the mirror's
@@ -108,13 +113,23 @@ function classifyOrderMirror(order, mirror) {
 }
 
 // Pure. Lockstep with migrateSensitiveFields.ts classifyCustomerMirror. Contact has
-// no legacy-field migration, so it is build-or-skip.
+// no legacy-field migration, so it is build-or-skip. No overlay is needed on the
+// customer create path: every client contact write goes through toCustomerContactDto,
+// which always stamps ownerId — an unstamped contact mirror can never hold newer data.
 function classifyCustomerMirror(_customer, mirror) {
   return isMirrorStamped(mirror) ? { action: 'skip' } : { action: 'create' };
 }
 
-// Lockstep with migrateSensitiveFields.ts buildMoneyDoc. Used ONLY for the
-// create path (missing/unstamped mirror), where the base doc is authoritative.
+// Pure. The usable dedup key of a payment entry: a non-blank string `id`.
+// Lockstep with migrateSensitiveFields.ts paymentId.
+function paymentId(payment) {
+  const id = payment && payment.id;
+  return typeof id === 'string' && id.length > 0 ? id : undefined;
+}
+
+// Lockstep with migrateSensitiveFields.ts buildMoneyDoc. Base-only build; the
+// create path calls buildMoneyDocWithOverlay, which layers any existing
+// (unstamped) mirror data on top of this.
 function buildMoneyDoc(order, ownerId, orderId) {
   const items = Array.isArray(order.items) ? order.items : [];
   const itemPrices = {};
@@ -139,6 +154,47 @@ function buildMoneyDoc(order, ownerId, orderId) {
     costs: Array.isArray(order.costs) ? order.costs : [],
     itemPrices,
   };
+}
+
+// Pure. The payload for the `create` path. Lockstep with
+// migrateSensitiveFields.ts buildMoneyDocWithOverlay.
+//
+// An UNSTAMPED mirror is still partially authoritative: the 8d-1 client's
+// recordPayment does `set({payments: arrayUnion(...)}, merge=true)` and updateCosts
+// does `set({costs: [...]}, merge=true)`, both create-if-absent and both without the
+// ownerId stamp (the completeness sentinel). Those writes put payments/costs on the
+// mirror that the base doc never received. Rebuilding wholly from the base would
+// discard them and then stamp the stale result as authoritative. So:
+//   - payments: base-derived payments (incl. legacy-deposit synthesis) FIRST, then
+//     any mirror payment whose id is not already present (union, base wins position);
+//   - costs: updateCosts writes the COMPLETE list, so a non-empty mirror costs array
+//     wins outright; an empty/absent one falls back to the base's;
+//   - everything else comes from the base, as before.
+// With no existing mirror this is exactly buildMoneyDoc.
+function buildMoneyDocWithOverlay(order, ownerId, orderId, existingMirror) {
+  const base = buildMoneyDoc(order, ownerId, orderId);
+  if (!existingMirror) {
+    return base;
+  }
+
+  const basePayments = Array.isArray(base.payments) ? base.payments : [];
+  const mirrorPayments = Array.isArray(existingMirror.payments) ? existingMirror.payments : [];
+  const seen = new Set(basePayments.map(paymentId).filter((id) => id !== undefined));
+  const extraPayments = [];
+  for (const p of mirrorPayments) {
+    const id = paymentId(p);
+    // Null / id-less mirror entries cannot be deduped safely — drop them.
+    if (id === undefined || seen.has(id)) continue;
+    seen.add(id);
+    extraPayments.push(p);
+  }
+
+  const mirrorCosts = Array.isArray(existingMirror.costs) ? existingMirror.costs : [];
+
+  return Object.assign({}, base, {
+    payments: basePayments.concat(extraPayments),
+    costs: mirrorCosts.length > 0 ? mirrorCosts : base.costs,
+  });
 }
 
 async function commitBatched(db, writes) {
@@ -218,10 +274,16 @@ async function main() {
       const moneyWrites = [];
       for (const d of ordersSnap.docs) {
         const path = `users/${uid}/orders/${d.id}/private/money`;
-        const plan = classifyOrderMirror(d.data(), await readMirror(db, path));
+        const mirror = await readMirror(db, path);
+        const plan = classifyOrderMirror(d.data(), mirror);
         if (plan.action === 'create') {
           counts.ordersMirrorCreated += 1;
-          moneyWrites.push({ ref: db.doc(path), data: buildMoneyDoc(d.data(), uid, d.id) });
+          // Overlay, not a bare rebuild: an unstamped mirror may already hold
+          // payments/costs the base doc never got (8d-1 partial client writes).
+          moneyWrites.push({
+            ref: db.doc(path),
+            data: buildMoneyDocWithOverlay(d.data(), uid, d.id, mirror),
+          });
         } else if (plan.action === 'healLegacyDeposit') {
           counts.ordersHealedLegacyDeposit += 1;
           console.warn(`HEAL legacy-deposit (payments only): ${path}`);
@@ -252,6 +314,8 @@ async function main() {
 module.exports = {
   buildContactDoc,
   buildMoneyDoc,
+  buildMoneyDocWithOverlay,
+  paymentId,
   buildLegacyDepositPayment,
   needsLegacyDeposit,
   isMirrorStamped,

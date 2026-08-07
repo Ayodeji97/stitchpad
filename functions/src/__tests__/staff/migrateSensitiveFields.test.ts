@@ -2,6 +2,7 @@ import * as functions from 'firebase-functions/v1';
 import {
   buildContactDoc,
   buildMoneyDoc,
+  buildMoneyDocWithOverlay,
   classifyCustomerMirror,
   classifyOrderMirror,
   isMirrorStamped,
@@ -191,6 +192,109 @@ describe('buildMoneyDoc', () => {
   });
 });
 
+// The `create` path payload. An UNSTAMPED mirror is not necessarily empty: the
+// 8d-1 client's recordPayment/updateCosts write payments/costs to it with
+// merge=true and no ownerId stamp, so it can hold data NEWER than the base doc.
+// Rebuilding wholly from base would discard those and stamp the stale result.
+describe('buildMoneyDocWithOverlay', () => {
+  const baseOrder = {
+    totalPrice: 40000,
+    discount: 5000,
+    discountReason: 'loyal',
+    payments: [{ id: 'p1', amount: 10000 }],
+    costs: [{ category: 'FABRIC', amount: 3000 }],
+    items: [{ id: 'i1', price: 1000 }],
+  };
+
+  it('is identical to buildMoneyDoc when no mirror exists', () => {
+    expect(buildMoneyDocWithOverlay(baseOrder, 'owner-1', 'o1', undefined)).toEqual(
+      buildMoneyDoc(baseOrder, 'owner-1', 'o1'),
+    );
+    expect(buildMoneyDocWithOverlay(baseOrder, 'owner-1', 'o1', null)).toEqual(
+      buildMoneyDoc(baseOrder, 'owner-1', 'o1'),
+    );
+  });
+
+  it('appends mirror-only payments after the base payments', () => {
+    const money = buildMoneyDocWithOverlay(baseOrder, 'owner-1', 'o1', {
+      payments: [{ id: 'p-new', amount: 7000 }],
+    });
+    expect(money.payments).toEqual([
+      { id: 'p1', amount: 10000 },
+      { id: 'p-new', amount: 7000 },
+    ]);
+    // Everything else is still base-derived and the doc is stamped.
+    expect(money.ownerId).toBe('owner-1');
+    expect(money.orderId).toBe('o1');
+    expect(money.totalPrice).toBe(40000);
+    expect(money.itemPrices).toEqual({ i1: 1000 });
+  });
+
+  it('still synthesizes the legacy deposit, then appends the mirror payment', () => {
+    const money = buildMoneyDocWithOverlay(
+      { depositPaid: 5000, createdAt: 1690000000, payments: [], items: [] },
+      'owner-1',
+      'o1',
+      { payments: [{ id: 'p-new', amount: 200 }] },
+    );
+    expect(money.payments).toEqual([
+      { id: 'legacy-deposit', amount: 5000, method: 'OTHER', type: 'DEPOSIT', recordedAt: 1690000000, note: null },
+      { id: 'p-new', amount: 200 },
+    ]);
+  });
+
+  it('does not duplicate a payment id present in both base and mirror (base entry wins)', () => {
+    const money = buildMoneyDocWithOverlay(baseOrder, 'owner-1', 'o1', {
+      payments: [
+        { id: 'p1', amount: 999999, note: 'mirror copy' },
+        { id: 'p-new', amount: 7000 },
+        { id: 'p-new', amount: 7000 },
+      ],
+    });
+    expect(money.payments).toEqual([
+      { id: 'p1', amount: 10000 },
+      { id: 'p-new', amount: 7000 },
+    ]);
+  });
+
+  it('tolerates a non-array/absent mirror payments field and skips null/id-less entries', () => {
+    expect(buildMoneyDocWithOverlay(baseOrder, 'owner-1', 'o1', {}).payments).toEqual([
+      { id: 'p1', amount: 10000 },
+    ]);
+    expect(
+      buildMoneyDocWithOverlay(baseOrder, 'owner-1', 'o1', { payments: 'nonsense' }).payments,
+    ).toEqual([{ id: 'p1', amount: 10000 }]);
+    expect(
+      buildMoneyDocWithOverlay(baseOrder, 'owner-1', 'o1', {
+        payments: [null, { amount: 1 }, { id: '', amount: 2 }, { id: 'p-new', amount: 3 }],
+      }).payments,
+    ).toEqual([
+      { id: 'p1', amount: 10000 },
+      { id: 'p-new', amount: 3 },
+    ]);
+  });
+
+  it('prefers non-empty mirror costs (updateCosts writes the complete list)', () => {
+    expect(
+      buildMoneyDocWithOverlay(baseOrder, 'owner-1', 'o1', {
+        costs: [{ category: 'TRIM', amount: 900 }],
+      }).costs,
+    ).toEqual([{ category: 'TRIM', amount: 900 }]);
+  });
+
+  it('falls back to base costs when the mirror costs are empty, absent, or malformed', () => {
+    expect(buildMoneyDocWithOverlay(baseOrder, 'owner-1', 'o1', { costs: [] }).costs).toEqual([
+      { category: 'FABRIC', amount: 3000 },
+    ]);
+    expect(buildMoneyDocWithOverlay(baseOrder, 'owner-1', 'o1', {}).costs).toEqual([
+      { category: 'FABRIC', amount: 3000 },
+    ]);
+    expect(buildMoneyDocWithOverlay(baseOrder, 'owner-1', 'o1', { costs: 3 }).costs).toEqual([
+      { category: 'FABRIC', amount: 3000 },
+    ]);
+  });
+});
+
 describe('isMirrorStamped', () => {
   it('is false for a missing mirror, and for one with a missing or blank ownerId', () => {
     expect(isMirrorStamped(undefined)).toBe(false);
@@ -289,6 +393,23 @@ describe('backfillSensitiveFields.js lockstep', () => {
     expect(backfillScript.buildMoneyDoc(order, 'o', 'o1')).toEqual(buildMoneyDoc(order, 'o', 'o1'));
     const customer = { phone: '+234', email: 'a@b.co' };
     expect(backfillScript.buildContactDoc(customer, 'o', 'c1')).toEqual(buildContactDoc(customer, 'o', 'c1'));
+  });
+
+  const overlayCases: Array<[any, any]> = [
+    [{ totalPrice: 100, payments: [{ id: 'p1', amount: 1 }], costs: [{ category: 'FABRIC', amount: 3 }] }, undefined],
+    [{ totalPrice: 100, payments: [{ id: 'p1', amount: 1 }] }, { payments: [{ id: 'p-new', amount: 2 }] }],
+    [{ totalPrice: 100, payments: [{ id: 'p1', amount: 1 }] }, { payments: [{ id: 'p1', amount: 999 }] }],
+    [{ depositPaid: 5000, createdAt: 7, payments: [] }, { payments: [{ id: 'p-new', amount: 2 }] }],
+    [{ totalPrice: 100, costs: [{ category: 'FABRIC', amount: 3 }] }, { costs: [{ category: 'TRIM', amount: 9 }] }],
+    [{ totalPrice: 100, costs: [{ category: 'FABRIC', amount: 3 }] }, { costs: [] }],
+    [{ totalPrice: 100 }, { payments: [null, { amount: 1 }, { id: '', amount: 2 }], costs: 'nope' }],
+    [{ totalPrice: 100 }, { ownerId: '', payments: 'nonsense' }],
+  ];
+
+  it.each(overlayCases)('overlays unstamped mirrors identically (case %#)', (order, mirror) => {
+    expect(backfillScript.buildMoneyDocWithOverlay(order, 'o', 'o1', mirror)).toEqual(
+      buildMoneyDocWithOverlay(order, 'o', 'o1', mirror),
+    );
   });
 });
 
@@ -413,5 +534,46 @@ describe('migrateSensitiveFieldsHandler', () => {
     expect(writes).toHaveLength(2);
     const money = writes.find((w) => w.path === 'users/u1/orders/o1/private/money');
     expect(money?.data).toEqual(buildMoneyDoc(sample.u1.orders.o1, 'u1', 'o1'));
+  });
+
+  // An unstamped mirror can be partially authoritative: 8d-1's recordPayment /
+  // updateCosts create it (merge=true) WITHOUT the ownerId stamp, so its
+  // payments/costs can be newer than the base doc's. The create path must overlay
+  // them, not discard them.
+  it('overlays an unstamped mirror\'s newer payments and costs onto the base build', async () => {
+    const { db, writes } = makeDb(
+      {
+        u1: {
+          customers: {},
+          orders: {
+            o1: {
+              totalPrice: 100,
+              payments: [{ id: 'p-old', amount: 10 }],
+              costs: [{ category: 'FABRIC', amount: 3 }],
+              items: [{ id: 'i1', price: 100 }],
+            },
+          },
+        },
+      },
+      {
+        'users/u1/orders/o1/private/money': {
+          payments: [{ id: 'p-old', amount: 10 }, { id: 'p-new', amount: 55 }],
+          costs: [{ category: 'TRIM', amount: 9 }],
+        },
+      },
+    );
+    const res = await migrateSensitiveFieldsHandler({ dryRun: false }, ctx(true), { db });
+    expect(res.ordersMirrorCreated).toBe(1);
+    expect(writes).toHaveLength(1);
+    expect(writes[0].data).toEqual({
+      ownerId: 'u1',
+      orderId: 'o1',
+      totalPrice: 100,
+      discount: 0,
+      discountReason: null,
+      payments: [{ id: 'p-old', amount: 10 }, { id: 'p-new', amount: 55 }],
+      costs: [{ category: 'TRIM', amount: 9 }],
+      itemPrices: { i1: 100 },
+    });
   });
 });

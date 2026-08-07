@@ -40,7 +40,10 @@ mutate production; the export is the only rollback for either.
       ```
       This build is mirror-first and safe to run post-8d-1: it reads each
       `/private` mirror first and only writes when the mirror is missing or
-      unstamped (full build from base), or when a stamped order mirror is still
+      unstamped (full build from base, **overlaid** with any payments/costs the
+      unstamped mirror already holds — 8d-1's `recordPayment`/`updateCosts` create
+      it without the `ownerId` stamp, so it can be newer than the base: payments are
+      unioned by id, non-empty mirror costs win), or when a stamped order mirror is still
       legacy-deposit-incomplete (**payments-only** heal, prepending the synthesized
       `legacy-deposit` onto the mirror's own payments). Stamped, complete mirrors
       are skipped entirely — it can no longer overwrite authoritative mirror data

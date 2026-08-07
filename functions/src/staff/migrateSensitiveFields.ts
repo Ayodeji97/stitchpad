@@ -17,7 +17,12 @@ const REGION = 'europe-west1';
 // after that point would OVERWRITE authoritative data with stale/empty values. So
 // this migration reads each existing mirror first and classifies it:
 //   - missing / unstamped (no ownerId) → build the full mirror from the base
-//     (pre-8d-1 doc: the base is still the source of truth for it);
+//     (pre-8d-1 doc: the base is still the source of truth for it), OVERLAID with
+//     whatever the unstamped mirror already holds. An unstamped mirror is not
+//     necessarily empty: the 8d-1 client's recordPayment/updateCosts write
+//     `payments`/`costs` to it with merge=true and DELIBERATELY no ownerId stamp, so
+//     it can hold payments/costs NEWER than the base doc (which only got updatedAt
+//     from those writes). See buildMoneyDocWithOverlay;
 //   - stamped but legacy-deposit-incomplete (orders only) → TARGETED heal that
 //     prepends the synthesized `legacy-deposit` payment to the MIRROR's own
 //     payments array and touches nothing else;
@@ -126,7 +131,10 @@ export function classifyOrderMirror(
 
 /**
  * Decide what the backfill may do to a customer's `/private/contact` mirror.
- * Contact has no legacy-field migration, so it is build-or-skip.
+ * Contact has no legacy-field migration, so it is build-or-skip. No overlay is
+ * needed on the customer create path: every client contact write goes through
+ * `toCustomerContactDto`, which always stamps `ownerId` — an unstamped contact
+ * mirror can never hold newer data than its base doc.
  */
 export function classifyCustomerMirror(
   _customer: admin.firestore.DocumentData,
@@ -155,14 +163,23 @@ export function buildContactDoc(
   };
 }
 
+/** The usable dedup key of a payment entry: a non-blank string `id`. */
+export function paymentId(
+  payment: admin.firestore.DocumentData | null | undefined,
+): string | undefined {
+  const id = payment?.id;
+  return typeof id === 'string' && id.length > 0 ? id : undefined;
+}
+
 /**
  * Owner-only money payload derived from a base order doc. Mirrors the client
  * `OrderMoneyDto`; `itemPrices` relocates each item's `price` keyed by item id.
  * Applies legacy deposit migration (Slice 8d-1): synthesizes a "legacy-deposit"
  * payment if depositPaid > 0 and no payment with that id exists.
  *
- * Used ONLY on the `create` path (missing/unstamped mirror), where the base doc
- * is still the source of truth. Never used to overwrite a stamped mirror.
+ * Base-only build. The `create` path calls `buildMoneyDocWithOverlay`, which
+ * layers any existing (unstamped) mirror data on top of this. Never used to
+ * overwrite a stamped mirror.
  */
 export function buildMoneyDoc(
   order: admin.firestore.DocumentData,
@@ -195,6 +212,63 @@ export function buildMoneyDoc(
     payments: migratedPayments,
     costs: Array.isArray(order.costs) ? order.costs : [],
     itemPrices,
+  };
+}
+
+/**
+ * The payload for the `create` path (missing / unstamped mirror).
+ *
+ * An UNSTAMPED mirror is still partially authoritative: the 8d-1 client's
+ * `recordPayment` does `set({payments: arrayUnion(...)}, merge=true)` and
+ * `updateCosts` does `set({costs: [...]}, merge=true)` — both create-if-absent and
+ * both without the `ownerId` stamp (the completeness sentinel). Those writes put
+ * payments/costs on the mirror that the base doc never received (it only got
+ * `updatedAt`). Rebuilding wholly from the base would discard them and then stamp
+ * the stale result as authoritative. So:
+ *   - payments: base-derived payments (incl. legacy-deposit synthesis) FIRST, then
+ *     any mirror payment whose id is not already present (union, base wins position);
+ *   - costs: `updateCosts` writes the COMPLETE list, so a non-empty mirror costs
+ *     array wins outright; an empty/absent one falls back to the base's;
+ *   - everything else comes from the base, as before.
+ * With no existing mirror this is exactly `buildMoneyDoc`.
+ */
+export function buildMoneyDocWithOverlay(
+  order: admin.firestore.DocumentData,
+  ownerId: string,
+  orderId: string,
+  existingMirror: admin.firestore.DocumentData | null | undefined,
+): Record<string, unknown> {
+  const base = buildMoneyDoc(order, ownerId, orderId);
+  if (!existingMirror) {
+    return base;
+  }
+
+  const basePayments: admin.firestore.DocumentData[] = Array.isArray(base.payments)
+    ? (base.payments as admin.firestore.DocumentData[])
+    : [];
+  const mirrorPayments: admin.firestore.DocumentData[] = Array.isArray(existingMirror.payments)
+    ? (existingMirror.payments as admin.firestore.DocumentData[])
+    : [];
+  const seen = new Set(
+    basePayments.map(paymentId).filter((id): id is string => id !== undefined),
+  );
+  const extraPayments: admin.firestore.DocumentData[] = [];
+  for (const p of mirrorPayments) {
+    const id = paymentId(p);
+    // Null / id-less mirror entries cannot be deduped safely — drop them.
+    if (id === undefined || seen.has(id)) continue;
+    seen.add(id);
+    extraPayments.push(p);
+  }
+
+  const mirrorCosts: admin.firestore.DocumentData[] = Array.isArray(existingMirror.costs)
+    ? (existingMirror.costs as admin.firestore.DocumentData[])
+    : [];
+
+  return {
+    ...base,
+    payments: basePayments.concat(extraPayments),
+    costs: mirrorCosts.length > 0 ? mirrorCosts : base.costs,
   };
 }
 
@@ -283,10 +357,13 @@ export async function migrateSensitiveFieldsHandler(
       }> = [];
       for (const d of ordersSnap.docs) {
         const ref = deps.db.doc(`users/${uid}/orders/${d.id}/private/money`);
-        const plan = classifyOrderMirror(d.data(), await readMirror(ref));
+        const mirror = await readMirror(ref);
+        const plan = classifyOrderMirror(d.data(), mirror);
         if (plan.action === 'create') {
           ordersMirrorCreated += 1;
-          moneyWrites.push({ ref, data: buildMoneyDoc(d.data(), uid, d.id) });
+          // Overlay, not a bare rebuild: an unstamped mirror may already hold
+          // payments/costs the base doc never got (8d-1 partial client writes).
+          moneyWrites.push({ ref, data: buildMoneyDocWithOverlay(d.data(), uid, d.id, mirror) });
         } else if (plan.action === 'healLegacyDeposit') {
           ordersHealedLegacyDeposit += 1;
           // Payments ONLY — every other field on the stamped mirror is authoritative.
