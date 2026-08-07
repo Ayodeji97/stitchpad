@@ -2,9 +2,11 @@ package com.danzucker.stitchpad.core.data.sync
 
 import app.cash.turbine.test
 import com.danzucker.stitchpad.core.domain.model.SyncStatus
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -53,6 +55,47 @@ class SyncStatusMapperTest {
     fun non_offline_statuses_are_not_delayed() = runTest {
         flowOf(SyncStatus.SYNCING).debounceOffline(delayMs = 2_000).test {
             assertEquals(SyncStatus.SYNCING, awaitItem())
+            awaitComplete()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun repeated_offline_emissions_within_the_window_keep_restarting_the_debounce() = runTest {
+        // Pins the hazard that motivates placing distinctUntilChanged BEFORE
+        // debounceOffline in SyncStatusObserver: debounceOffline is built on
+        // transformLatest, which restarts its delay window on EVERY element it
+        // receives -- including duplicates -- not just the first of a run. With
+        // includeMetadataChanges = true, Firestore can emit repeated OFFLINE
+        // snapshots while disconnected; without an upstream distinctUntilChanged
+        // to collapse those, the window here would be perpetually restarted and
+        // the banner would never appear -- the exact bug this feature exists to
+        // fix. Three re-emissions land 800ms apart, inside the 2s window, so no
+        // OFFLINE should surface until 2s after the LAST one, not 2s after the
+        // first.
+        val emissionIntervalMs = 800L
+        val windowMs = 2_000L
+        val source = flow {
+            repeat(3) {
+                emit(SyncStatus.OFFLINE)
+                delay(emissionIntervalMs)
+            }
+        }
+
+        source.debounceOffline(delayMs = windowMs).test {
+            // By this point all three emissions have landed (t=0, 800, 1600) and
+            // we are at t=2100 -- past a full window from the FIRST emission
+            // (t=2000) but short of a full window from the LAST one (t=3600).
+            // If the window were not restarting per-emission, the first
+            // emission's timer would already have fired here.
+            advanceTimeBy(emissionIntervalMs * 2 + 500)
+            expectNoEvents()
+
+            // Advance through the remainder of the window measured from the
+            // last emission (upstream has since completed at t=2400, so nothing
+            // new arrives to cancel this one).
+            advanceTimeBy(windowMs)
+            assertEquals(SyncStatus.OFFLINE, awaitItem())
             awaitComplete()
         }
     }

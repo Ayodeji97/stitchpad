@@ -44,6 +44,14 @@ appId: com.danzucker.stitchpad
 # .maestro/README.md gotcha 1 and the identical guard in
 # .maestro/smoke-add-customer.yaml.
 - assertVisible: "Search by name or phone…"
+# Precondition: the record must NOT already exist. Unlike smoke-add-customer.yaml
+# this flow is run by hand against an app that is deliberately not wiped between
+# runs, and its subject record by construction never syncs -- so a leftover
+# "Offline Ghost" from a previous manual run would still carry a live "Not
+# synced" badge in the local cache. Without this guard, running the flow twice
+# without redoing the full prelude (backend killed, app relaunched) would pass
+# green even if this run's create silently failed.
+- assertNotVisible: "Offline Ghost"
 - tapOn:
     text: "Add customer"
     index: 0

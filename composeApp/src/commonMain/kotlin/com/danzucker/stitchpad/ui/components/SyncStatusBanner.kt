@@ -1,12 +1,20 @@
 package com.danzucker.stitchpad.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -38,14 +46,34 @@ fun SyncStatusBanner(
         SyncStatus.SYNCING -> syncingMessage
         SyncStatus.OFFLINE -> offlineMessage
     }
-    AnimatedVisibility(visible = message != null) {
+
+    // `message` recomputes to null in the same recomposition that flips
+    // `visible` to false below, but AnimatedVisibility keeps rendering its
+    // content for the duration of the exit transition. Without holding onto
+    // the last real string, the banner would blank to an empty string and
+    // shrink/fade away with no text in it. Purely presentational — mirrors
+    // what AnimatedVisibility already does internally to keep exiting content
+    // on screen.
+    var lastMessage by remember { mutableStateOf(message) }
+    if (message != null) {
+        lastMessage = message
+    }
+
+    AnimatedVisibility(
+        visible = message != null,
+        // Non-scoped overload defaults to fadeIn()+expandIn() / fadeOut()+shrinkOut(),
+        // which also animates width. This is a full-width strip, so only height
+        // should animate.
+        enter = fadeIn() + expandVertically(),
+        exit = fadeOut() + shrinkVertically(),
+    ) {
         Surface(
             color = MaterialTheme.colorScheme.surfaceVariant,
             contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = modifier.fillMaxWidth(),
         ) {
             Text(
-                text = message.orEmpty(),
+                text = lastMessage.orEmpty(),
                 style = MaterialTheme.typography.labelMedium,
                 textAlign = TextAlign.Center,
                 modifier = Modifier

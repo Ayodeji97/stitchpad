@@ -77,8 +77,21 @@ New in `core/data/sync/SyncStatusObserver.kt`, provided as a Koin `single`.
 - Debounces the transition **into** `OFFLINE` by ~2s, so a cold start (whose
   first snapshot is always `isFromCache = true`) does not flash the banner.
   Transitions into `SYNCING`/`SYNCED` are emitted immediately.
-- On upstream error, emits `SYNCED` (hides the banner). Failing to *invisible*
-  preserves today's behaviour rather than showing a possibly-false "Offline".
+- On upstream error, retries a few times with a short backoff, then emits
+  `SYNCED` (hides the banner). Failing to *invisible* preserves today's
+  behaviour rather than showing a possibly-false "Offline". Every retry and
+  the final give-up are logged via `AppLogger` — this path is confirmed to
+  fire for every staff account, since staff cannot read `users/{ownerUid}`
+  (`firestore.rules:146`).
+
+**`SYNCING` is scoped to the watched document only.** `hasPendingWrites` on a
+`DocumentSnapshot` reflects that one document, and `SyncStatusObserver` only
+watches `users/{workshopUid}` — never the `customers`/`orders` subcollections
+writes actually land in. So `SYNCING` fires for direct writes to the user doc
+(branding, push token, workshop setup), not for the tailor's day-to-day
+customer/order writes. Those are covered separately by the per-row
+`isPendingSync` badge described below, which is the precise signal for that
+case.
 
 The pure mapping function is extracted so it is unit-testable without Firestore.
 
@@ -110,7 +123,7 @@ the normal case.
 | Status | Copy |
 |---|---|
 | `OFFLINE` | Offline — saved on this phone, will sync later |
-| `SYNCING` | Syncing… |
+| `SYNCING` | Syncing… (user document only — see note above; per-record state is the "Not synced" row badge) |
 
 Copy is reassuring rather than alarming: the data *is* safe locally and the
 offline-first behaviour is working as designed. The risk being communicated is
