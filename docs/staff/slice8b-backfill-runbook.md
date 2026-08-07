@@ -35,9 +35,14 @@ cd functions
 GOOGLE_CLOUD_PROJECT=stitchpad-30607 node scripts/backfillSensitiveFields.js
 ```
 
-Expect: `DRY RUN — users=<N> contactDocs=<C> moneyDocs=<M>`. Sanity-check `C`/`M`
-against the rough number of customers/orders in the project (Firestore console
-usage). If the counts look wildly off, stop and investigate before committing.
+Expect: `DRY RUN — users=<N> ordersMirrorCreated=<O> ordersHealedLegacyDeposit=<H>
+ordersAlreadyMirrored=<OA> customersMirrorCreated=<C> customersAlreadyMirrored=<CA>`.
+
+- On the **first** run, `MirrorCreated` ≈ the number of orders/customers in the
+  project (Firestore console usage). If it looks wildly off, stop and investigate.
+- On **later** runs the `AlreadyMirrored` counts should carry everything and both
+  `MirrorCreated` counts should be 0 — that is how you verify the mirrors are
+  complete before the Slice 8d strip.
 
 ### 2. Apply
 
@@ -45,7 +50,7 @@ usage). If the counts look wildly off, stop and investigate before committing.
 GOOGLE_CLOUD_PROJECT=stitchpad-30607 node scripts/backfillSensitiveFields.js --commit
 ```
 
-Expect: `COMMITTED — users=<N> contactDocs=<C> moneyDocs=<M>` with the same counts.
+Expect: `COMMITTED — …` with the same counts.
 
 ### 3. Verify
 
@@ -57,7 +62,13 @@ Expect: `COMMITTED — users=<N> contactDocs=<C> moneyDocs=<M>` with the same co
 
 ## Safety notes
 
-- **Idempotent**: safe to re-run. `merge:true` only fills gaps + refreshes `ownerId`.
+- **Idempotent and mirror-first**: safe to re-run, including after the 8d-1 client
+  ships. Each `/private` mirror is read first: a mirror that is missing or unstamped
+  (no/blank `ownerId`) is built from the base; a stamped order mirror that is still
+  legacy-deposit-incomplete gets a **payments-only** heal; a stamped, complete mirror
+  is skipped and never rewritten. Post-8d-1 the mirror is the only authoritative copy
+  of money/contact, so rebuilding it from the base doc would destroy data — the
+  classification above is what prevents that.
 - **No base mutation**: base order/customer docs are untouched — money/contact still
   live on the base during the dual-write window, so old app versions are unaffected.
 - **Reversible**: nothing here is destructive. (The irreversible step is the Slice 8d
