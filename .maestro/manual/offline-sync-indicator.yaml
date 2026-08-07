@@ -1,0 +1,56 @@
+# StitchPad — E2E regression: the app must SAY when data is not on the server.
+#
+# This guards the defect that prompted the sync indicator: with Firestore
+# unreachable the app accepted a save, navigated forward, and listed the record
+# identically to a synced one, with no signal of any kind.
+#
+# Run this one MANUALLY — it needs the Firestore backend killed mid-flow, which
+# scripts/e2e-ios.sh does not do. See .maestro/README.md.
+#
+#   ./scripts/e2e-ios.sh <UDID> .maestro/login.yaml   # get signed in first
+#   pkill -f "firebase emulators:start"               # kill the backend
+#   maestro --device <UDID> test .maestro/manual/offline-sync-indicator.yaml
+
+appId: com.danzucker.stitchpad
+---
+- launchApp
+- runFlow: ../subflows/ensure-signed-in.yaml
+
+# The banner must appear once Firestore is unreachable. Allow for the ~2s
+# cold-start debounce plus Firestore's own connection timeout.
+#
+# NOTE: the selector below is a regex, not a substring match -- Maestro's
+# plain-text selectors require a FULL match against the element's
+# accessibility text (Pattern.matches, not .find/.contains). The banner's
+# actual text is the full "Offline — saved on this phone, will sync later"
+# string, so a bare `visible: "Offline"` NEVER matches and silently times out
+# even though the banner is genuinely on screen the whole time -- confirmed by
+# hand: the plain string failed for a full 60s against an app that had been
+# showing the banner continuously (no relaunch, no wait), while `.*Offline.*`
+# against the identical screen passed immediately. Wrap any assertion against
+# formatted/composed UI text (this banner, not the exact-string badge below)
+# in `.*...*` for the same reason. See .maestro/README.md gotcha 8.
+- extendedWaitUntil:
+    visible: ".*Offline.*"
+    timeout: 30000
+
+- tapOn: "Customers"
+- tapOn:
+    text: "Add customer"
+    index: 0
+- assertVisible: "Add Customer"
+
+- tapOn: "e.g. Amina Bello"
+- inputText: "Offline Ghost"
+- tapOn: "+234 801 234 5678"
+- inputText: "08000000000"
+- tapOn: "EMAIL (OPTIONAL)"
+- tapOn: "Save & Add Measurements"
+- assertVisible: "Add Measurements"
+- tapOn: "Skip for now"
+
+# The record is listed, AND it is marked. Before this feature the first
+# assertion passed and the second had nothing to match.
+- tapOn: "Customers"
+- assertVisible: "Offline Ghost"
+- assertVisible: "Not synced"
