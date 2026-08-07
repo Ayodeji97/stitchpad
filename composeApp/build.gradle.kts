@@ -1,3 +1,4 @@
+import com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.Properties
 
@@ -178,6 +179,32 @@ android {
                 "proguard-rules.pro"
             )
             signingConfig = signingConfigs.getByName("release")
+        }
+
+        // R8 output is what ships, and nothing in CI used to execute it: the
+        // pipeline built only assembleDebug (unminified) and crash-check is a
+        // static source scanner. That gap let 1.2.0 (versionCode 595) reach
+        // testers with every Firebase ComponentRegistrar constructor shrunk
+        // away — a 100% startup crash that Crashlytics could not even report,
+        // because Crashlytics was one of the components R8 had removed.
+        //
+        // This variant exists purely so CI can install and launch a MINIFIED
+        // build. It is release in every way that affects R8 — same
+        // isMinifyEnabled, isShrinkResources and proguardFiles, inherited via
+        // initWith — and differs only in the two things that cannot work on a
+        // CI runner: it signs with the debug key (no release keystore in CI)
+        // and skips the Crashlytics mapping upload (CI's google-services.json
+        // is a dummy, so the upload task in the assemble graph would fail for
+        // an unrelated reason). Neither affects the shrinker's output.
+        //
+        // Never distribute this variant. See scripts/release-smoke.sh and the
+        // release-smoke job in .github/workflows/ci.yml.
+        create("releaseSmoke") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            configure<CrashlyticsExtension> {
+                mappingFileUploadEnabled = false
+            }
         }
     }
     compileOptions {

@@ -64,6 +64,26 @@
 -keepattributes SourceFile,LineNumberTable
 
 # ---------------------------------------------------------------------------
+# Firebase component discovery — LOAD-BEARING, guards a 100% startup crash.
+#
+# FirebaseInitProvider instantiates every ComponentRegistrar named in the merged
+# manifest reflectively, via its no-arg constructor. firebase-components ships
+# only `-keep class * implements ...ComponentRegistrar`, which under R8 FULL MODE
+# keeps the class but NOT its members — R8 sees no caller for <init>() and
+# shrinks it away. Discovery then throws NoSuchMethodException per registrar and
+# silently drops the component, so FirebaseCrashlytics.getInstance() in
+# StitchPadApplication.onCreate() NPEs and the app dies before first frame.
+#
+# Observed in 1.2.0 (versionCode 595) on Android: Crashlytics, AppCheck,
+# Messaging-ktx and Installations-ktx registrars all failed — push was dead too,
+# and Crashlytics could not report its own absence, so the crash reached testers
+# with no console signal. Verified by release smoke test on device + emulator.
+# ---------------------------------------------------------------------------
+-keep class * implements com.google.firebase.components.ComponentRegistrar {
+    <init>();
+}
+
+# ---------------------------------------------------------------------------
 # Coroutines — R8-safe, but silence the optional debug-probes reflection warning.
 # ---------------------------------------------------------------------------
 -dontwarn kotlinx.coroutines.**
