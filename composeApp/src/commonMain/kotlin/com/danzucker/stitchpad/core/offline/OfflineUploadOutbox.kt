@@ -245,9 +245,12 @@ class OfflineUploadOutbox(
             // Slice 8d-1 (stop-dual-write): write back the money-free base shape so an
             // image-upload completion never re-mirrors money onto the base doc (which
             // would re-appear after the Slice-8d strip). Money stays in /private/money,
-            // untouched by this image patch. Same replacement semantics as before —
-            // OrderDto never carried serverCreatedAt either, so rules behave the same.
-            set(docRef, dto.copy(items = updatedItems, updatedAt = nowMs()).toBaseDto())
+            // untouched by this image patch. merge = true for the same reasons as
+            // updateOrder: a replacement write would drop `serverCreatedAt` (rules
+            // reject that on a stamped doc) and would strip legacy base money before
+            // the guarded Slice-8d strip can handle it. GitLive encodes every
+            // OrderBaseDto field, so the items patch still lands field-for-field.
+            set(docRef, dto.copy(items = updatedItems, updatedAt = nowMs()).toBaseDto(), merge = true)
         }
         rememberCompletedUpload(job.storagePath, downloadUrl)
     }
