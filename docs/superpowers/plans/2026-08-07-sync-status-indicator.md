@@ -21,6 +21,16 @@
 - **Files with many `@Preview`s trip detekt's `TooManyFunctions`** — add `@file:Suppress("TooManyFunctions")` at the top of new component files that carry previews.
 - **Test names use underscores**, matching existing `commonTest` convention (e.g. `parses_the_https_universal_link`). Backtick names on JVM tolerate only letters, digits, spaces and hyphens.
 - **Run `./gradlew detekt` before each commit.** Tests: `./gradlew :composeApp:testDebugUnitTest`.
+- **Staging discipline — this is not optional.** The working tree contains unrelated
+  in-flight work by the repo owner (`docs/qa/`, `docs/staff/founding-tailors-*`,
+  `functions/scripts/foundingTailors*`, `preview/`, `docs/superpowers/plans/2026-08-04-*`).
+  **Never run `git add -A` or `git add .`** — stage only the exact paths named in
+  your task. A previous run of this workflow swept the owner's untracked files into
+  a task commit this way.
+- **Never run `git checkout <sha>`, `git rebase`, `git commit --amend`, or
+  `git stash`.** Subagents share one physical worktree and one HEAD; a stray
+  checkout detaches HEAD for every task that follows and scatters commits across
+  refs. Commit forward only, on the current branch.
 
 ---
 
@@ -928,8 +938,14 @@ git commit -m "feat(sync): mark unsynced rows in the customers and orders lists"
 ### Task 8: Maestro offline regression flow
 
 **Files:**
-- Create: `.maestro/offline-sync-indicator.yaml`
+- Create: `.maestro/manual/offline-sync-indicator.yaml`
 - Modify: `.maestro/README.md`
+
+**Why `manual/`:** `scripts/e2e-ios.sh` runs the whole `.maestro` directory and keeps
+the emulator alive throughout, so a flow that requires a dead backend cannot live in
+the default suite. Maestro's directory runner does not descend into subdirectories —
+`.maestro/subflows/` is already excluded this way, which is why the suite reports 2
+flows and not 3. Step 4 verifies that assumption still holds rather than trusting it.
 
 **Interfaces:**
 - Consumes: the shipped UI from Tasks 5-7, and `.maestro/subflows/ensure-signed-in.yaml`.
@@ -939,7 +955,7 @@ This is the payoff: the exact defect that prompted the feature becomes a guarded
 
 - [ ] **Step 1: Write the flow**
 
-Create `.maestro/offline-sync-indicator.yaml`:
+Create `.maestro/manual/offline-sync-indicator.yaml`:
 
 ```yaml
 # StitchPad — E2E regression: the app must SAY when data is not on the server.
@@ -953,7 +969,7 @@ Create `.maestro/offline-sync-indicator.yaml`:
 #
 #   ./scripts/e2e-ios.sh <UDID> .maestro/login.yaml   # get signed in first
 #   pkill -f "firebase emulators:start"               # kill the backend
-#   maestro --device <UDID> test .maestro/offline-sync-indicator.yaml
+#   maestro --device <UDID> test .maestro/manual/offline-sync-indicator.yaml
 
 appId: com.danzucker.stitchpad
 ---
@@ -994,7 +1010,7 @@ appId: com.danzucker.stitchpad
 ./scripts/e2e-ios.sh <SIM_UDID> .maestro/login.yaml
 pkill -f "firebase emulators:start"
 export PATH="$PATH:$HOME/.maestro/bin"
-maestro --device <SIM_UDID> test .maestro/offline-sync-indicator.yaml
+maestro --device <SIM_UDID> test .maestro/manual/offline-sync-indicator.yaml
 ```
 
 Expected: PASS.
@@ -1005,25 +1021,24 @@ Temporarily comment out the `- assertVisible: "Not synced"` line and re-run: it 
 
 A regression test you have never seen fail is not yet trusted.
 
-- [ ] **Step 4: Document it**
+- [ ] **Step 4: Verify the default suite still runs exactly two flows**
+
+Run: `./scripts/e2e-ios.sh <SIM_UDID>`
+
+Expected: **2/2 flows passed** — `login` and `smoke-add-customer` only. If the
+runner reports 3 flows, Maestro descended into `manual/` after all; in that case
+add an `--include-tags`/`--exclude-tags` filter or move the file outside
+`.maestro/` entirely, and say which you did in your report.
+
+- [ ] **Step 5: Document it**
 
 In `.maestro/README.md`, under "Running", add:
 
 ```markdown
-`offline-sync-indicator.yaml` is excluded from the default suite because it needs
-the Firestore backend killed mid-flow. Run it by hand — the header of that file
-has the three commands.
+`manual/offline-sync-indicator.yaml` is excluded from the default suite because it
+needs the Firestore backend killed mid-flow, which `e2e-ios.sh` never does. Run it
+by hand — the header of that file has the three commands.
 ```
-
-- [ ] **Step 5: Verify the default suite is unaffected**
-
-Run: `./scripts/e2e-ios.sh <SIM_UDID>`
-
-Expected: this now runs three flows and the new one will FAIL, because the default
-suite keeps the emulator alive. Move the file to `.maestro/manual/offline-sync-indicator.yaml`
-so the directory run does not pick it up, and update the paths in its header
-comment and in the README accordingly. Re-run `./scripts/e2e-ios.sh <SIM_UDID>`
-and confirm 2/2 pass.
 
 - [ ] **Step 6: Commit**
 
