@@ -2,12 +2,22 @@ import * as functions from 'firebase-functions/v1';
 import {
   buildContactDoc,
   buildMoneyDoc,
+  classifyCustomerMirror,
+  classifyOrderMirror,
+  isMirrorStamped,
   migrateSensitiveFieldsHandler,
 } from '../../staff/migrateSensitiveFields';
+/* eslint-disable @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports */
+const backfillScript = require('../../../scripts/backfillSensitiveFields.js');
+/* eslint-enable @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports */
 
 // Fake Firestore covering exactly what the migration uses: a single page of
-// users, per-user customers/orders subcollections, and batched merge-sets.
-function makeDb(users: Record<string, { customers?: Record<string, any>; orders?: Record<string, any> }>) {
+// users, per-user customers/orders subcollections, existing /private mirrors
+// (keyed by full path), and batched merge-sets.
+function makeDb(
+  users: Record<string, { customers?: Record<string, any>; orders?: Record<string, any> }>,
+  mirrors: Record<string, any> = {},
+) {
   const writes: Array<{ path: string; data: any; merge: boolean }> = [];
   const collection = (path: string) => {
     const col: any = {
@@ -32,7 +42,13 @@ function makeDb(users: Record<string, { customers?: Record<string, any>; orders?
   };
   const db: any = {
     collection,
-    doc: (path: string) => ({ path }),
+    doc: (path: string) => ({
+      path,
+      get: async () => ({
+        exists: Object.prototype.hasOwnProperty.call(mirrors, path),
+        data: () => mirrors[path],
+      }),
+    }),
     batch: () => {
       const ops: Array<{ path: string; data: any; merge: boolean }> = [];
       return {
@@ -175,6 +191,107 @@ describe('buildMoneyDoc', () => {
   });
 });
 
+describe('isMirrorStamped', () => {
+  it('is false for a missing mirror, and for one with a missing or blank ownerId', () => {
+    expect(isMirrorStamped(undefined)).toBe(false);
+    expect(isMirrorStamped(null)).toBe(false);
+    expect(isMirrorStamped({})).toBe(false);
+    expect(isMirrorStamped({ ownerId: '' })).toBe(false);
+    expect(isMirrorStamped({ ownerId: 42 as unknown as string })).toBe(false);
+  });
+
+  it('is true for a mirror carrying a non-blank ownerId', () => {
+    expect(isMirrorStamped({ ownerId: 'owner-1' })).toBe(true);
+  });
+});
+
+// The decision the backfill makes per doc. This is the C1 safety boundary: a
+// stamped mirror is authoritative post-8d-1 and must never be rebuilt from base.
+describe('classifyOrderMirror', () => {
+  const legacyOrder = { depositPaid: 5000, createdAt: 1690000000, totalPrice: 20000 };
+
+  it('creates when the mirror is missing', () => {
+    expect(classifyOrderMirror(legacyOrder, undefined)).toEqual({ action: 'create' });
+  });
+
+  it('creates when the mirror exists but is unstamped', () => {
+    expect(classifyOrderMirror(legacyOrder, { totalPrice: 1, payments: [] })).toEqual({ action: 'create' });
+    expect(classifyOrderMirror(legacyOrder, { ownerId: '', payments: [] })).toEqual({ action: 'create' });
+  });
+
+  it('skips a stamped mirror that already has the legacy deposit', () => {
+    expect(
+      classifyOrderMirror(legacyOrder, {
+        ownerId: 'owner-1',
+        payments: [{ id: 'legacy-deposit', amount: 5000 }],
+      }),
+    ).toEqual({ action: 'skip' });
+  });
+
+  it('skips a stamped mirror when the base has no legacy depositPaid', () => {
+    expect(classifyOrderMirror({ totalPrice: 20000 }, { ownerId: 'owner-1', payments: [] })).toEqual({
+      action: 'skip',
+    });
+  });
+
+  it('heals a stamped mirror by prepending the deposit to the MIRROR payments', () => {
+    expect(
+      classifyOrderMirror(legacyOrder, {
+        ownerId: 'owner-1',
+        totalPrice: 33333,
+        payments: [{ id: 'p-new', amount: 200 }],
+      }),
+    ).toEqual({
+      action: 'healLegacyDeposit',
+      payments: [
+        { id: 'legacy-deposit', amount: 5000, method: 'OTHER', type: 'DEPOSIT', recordedAt: 1690000000, note: null },
+        { id: 'p-new', amount: 200 },
+      ],
+    });
+  });
+});
+
+describe('classifyCustomerMirror', () => {
+  it('creates when missing or unstamped, skips when stamped', () => {
+    expect(classifyCustomerMirror({ phone: '+234' }, undefined)).toEqual({ action: 'create' });
+    expect(classifyCustomerMirror({ phone: '+234' }, { phone: 'stale' })).toEqual({ action: 'create' });
+    expect(classifyCustomerMirror({ phone: '+234' }, { ownerId: 'owner-1', phone: 'authoritative' })).toEqual({
+      action: 'skip',
+    });
+  });
+});
+
+// The standalone script is the mechanism actually run in production (ADC-based);
+// the callable is its in-cluster twin. Same inputs must yield the same decisions.
+describe('backfillSensitiveFields.js lockstep', () => {
+  const cases: Array<[any, any]> = [
+    [{ depositPaid: 5000, createdAt: 7 }, undefined],
+    [{ depositPaid: 5000, createdAt: 7 }, { ownerId: '', payments: [] }],
+    [{ depositPaid: 5000, createdAt: 7 }, { ownerId: 'o', payments: [{ id: 'x', amount: 1 }] }],
+    [{ depositPaid: 5000, createdAt: 7 }, { ownerId: 'o', payments: [{ id: 'legacy-deposit', amount: 5000 }] }],
+    [{ totalPrice: 10 }, { ownerId: 'o', payments: [] }],
+  ];
+
+  it.each(cases)('classifies order mirrors identically (case %#)', (order, mirror) => {
+    expect(backfillScript.classifyOrderMirror(order, mirror)).toEqual(classifyOrderMirror(order, mirror));
+  });
+
+  it('classifies customer mirrors identically', () => {
+    for (const mirror of [undefined, {}, { ownerId: '' }, { ownerId: 'o' }]) {
+      expect(backfillScript.classifyCustomerMirror({ phone: '+234' }, mirror)).toEqual(
+        classifyCustomerMirror({ phone: '+234' }, mirror),
+      );
+    }
+  });
+
+  it('builds identical money and contact payloads', () => {
+    const order = { totalPrice: 40000, depositPaid: 5000, createdAt: 7, items: [{ id: 'i1', price: 1000 }] };
+    expect(backfillScript.buildMoneyDoc(order, 'o', 'o1')).toEqual(buildMoneyDoc(order, 'o', 'o1'));
+    const customer = { phone: '+234', email: 'a@b.co' };
+    expect(backfillScript.buildContactDoc(customer, 'o', 'c1')).toEqual(buildContactDoc(customer, 'o', 'c1'));
+  });
+});
+
 describe('migrateSensitiveFieldsHandler', () => {
   const sample = {
     u1: {
@@ -194,7 +311,15 @@ describe('migrateSensitiveFieldsHandler', () => {
   it('dry-run (default) counts but writes nothing', async () => {
     const { db, writes } = makeDb(sample);
     const res = await migrateSensitiveFieldsHandler({}, ctx(true), { db });
-    expect(res).toEqual({ dryRun: true, users: 1, customersWritten: 1, ordersWritten: 1 });
+    expect(res).toEqual({
+      dryRun: true,
+      users: 1,
+      customersMirrorCreated: 1,
+      customersAlreadyMirrored: 0,
+      ordersMirrorCreated: 1,
+      ordersHealedLegacyDeposit: 0,
+      ordersAlreadyMirrored: 0,
+    });
     expect(writes).toHaveLength(0);
   });
 
@@ -206,5 +331,87 @@ describe('migrateSensitiveFieldsHandler', () => {
     expect(paths).toContain('users/u1/customers/c1/private/contact');
     expect(paths).toContain('users/u1/orders/o1/private/money');
     expect(writes.every((w) => w.merge)).toBe(true);
+  });
+
+  // Mirror-first safety: post-8d-1 the mirror is the ONLY authoritative store for
+  // money/contact, so a stamped complete mirror must never be rebuilt from the base.
+  it('leaves stamped, complete mirrors untouched', async () => {
+    const { db, writes } = makeDb(sample, {
+      'users/u1/customers/c1/private/contact': {
+        ownerId: 'u1',
+        customerId: 'c1',
+        phone: '+234-new',
+        email: 'new@x.co',
+        address: '1 New St',
+      },
+      'users/u1/orders/o1/private/money': {
+        ownerId: 'u1',
+        orderId: 'o1',
+        totalPrice: 999,
+        payments: [{ id: 'p-new', amount: 999 }],
+      },
+    });
+    const res = await migrateSensitiveFieldsHandler({ dryRun: false }, ctx(true), { db });
+    expect(writes).toHaveLength(0);
+    expect(res).toEqual({
+      dryRun: false,
+      users: 1,
+      customersMirrorCreated: 0,
+      customersAlreadyMirrored: 1,
+      ordersMirrorCreated: 0,
+      ordersHealedLegacyDeposit: 0,
+      ordersAlreadyMirrored: 1,
+    });
+  });
+
+  it('heals a stamped legacy-deposit-incomplete order mirror with a payments-only write', async () => {
+    const { db, writes } = makeDb(
+      {
+        u1: {
+          customers: {},
+          orders: { o1: { totalPrice: 100, depositPaid: 5000, createdAt: 1690000000, items: [] } },
+        },
+      },
+      {
+        'users/u1/orders/o1/private/money': {
+          ownerId: 'u1',
+          orderId: 'o1',
+          totalPrice: 12345,
+          discount: 500,
+          discountReason: 'authoritative',
+          payments: [{ id: 'p-new', amount: 200 }],
+          costs: [{ category: 'FABRIC', amount: 300 }],
+          itemPrices: { i1: 12345 },
+        },
+      },
+    );
+    const res = await migrateSensitiveFieldsHandler({ dryRun: false }, ctx(true), { db });
+    expect(res.ordersHealedLegacyDeposit).toBe(1);
+    expect(res.ordersMirrorCreated).toBe(0);
+    expect(res.ordersAlreadyMirrored).toBe(0);
+    expect(writes).toHaveLength(1);
+    const write = writes[0];
+    expect(write.path).toBe('users/u1/orders/o1/private/money');
+    expect(write.merge).toBe(true);
+    // ONLY payments — every other authoritative mirror field is left alone.
+    expect(Object.keys(write.data)).toEqual(['payments']);
+    // Prepended onto the MIRROR's payments, not the base doc's.
+    expect(write.data.payments).toEqual([
+      { id: 'legacy-deposit', amount: 5000, method: 'OTHER', type: 'DEPOSIT', recordedAt: 1690000000, note: null },
+      { id: 'p-new', amount: 200 },
+    ]);
+  });
+
+  it('rebuilds a mirror that exists but is unstamped (blank ownerId)', async () => {
+    const { db, writes } = makeDb(sample, {
+      'users/u1/customers/c1/private/contact': { ownerId: '', phone: 'stale' },
+      'users/u1/orders/o1/private/money': { ownerId: '', totalPrice: 1 },
+    });
+    const res = await migrateSensitiveFieldsHandler({ dryRun: false }, ctx(true), { db });
+    expect(res.customersMirrorCreated).toBe(1);
+    expect(res.ordersMirrorCreated).toBe(1);
+    expect(writes).toHaveLength(2);
+    const money = writes.find((w) => w.path === 'users/u1/orders/o1/private/money');
+    expect(money?.data).toEqual(buildMoneyDoc(sample.u1.orders.o1, 'u1', 'o1'));
   });
 });

@@ -9,15 +9,26 @@
  * `collectionGroup("private").where("ownerId","==",uid)` query. Docs the app wrote
  * itself already have the sub-doc + ownerId; legacy/seeded orders and customers
  * (created before the dual-write, or seeded via REST) do NOT — so the owner's app
- * falls back to base money/contact for them. This backfill creates/repairs the
+ * falls back to base money/contact for them. This backfill creates the missing
  * sub-docs (stamping ownerId + parent id) so the collection-group read is complete
  * before any future base-strip (Slice 8d).
  *
- * Idempotent and safe to re-run: writes with merge:true, so it only fills gaps and
- * refreshes ownerId; it never deletes base fields (the base-strip is a separate,
- * later, deliberate step).
+ * MIRROR-FIRST SAFETY (Slice 8e): after the 8d-1 client is adopted the /private
+ * mirror is the ONLY authoritative store for money and contact — the client stops
+ * writing them to the base doc (base gets `updatedAt` only) and the 8d strip
+ * removes them from the base entirely. Rebuilding a mirror from its base doc after
+ * that point would OVERWRITE authoritative data with stale/empty values. So this
+ * script reads each existing mirror FIRST and classifies it:
+ *   - missing / unstamped (no or blank ownerId) → write the full mirror built from
+ *     the base (correct for pre-8d-1 docs, where the base is still authoritative);
+ *   - stamped but legacy-deposit-incomplete (orders only: base depositPaid > 0 and
+ *     the MIRROR's payments have no `legacy-deposit` entry) → TARGETED heal that
+ *     writes ONLY `payments`, prepending the synthesized deposit to the mirror's
+ *     own payments array. Nothing else on the mirror is touched;
+ *   - stamped and complete → skipped entirely, never written.
+ * The extra read per doc is deliberate and acceptable for a one-off script.
  *
- * Field shape MUST stay in lockstep with buildMoneyDoc / buildContactDoc in
+ * Field shape and classification MUST stay in lockstep with
  * functions/src/staff/migrateSensitiveFields.ts (the callable equivalent) and with
  * the client OrderMoneyDto / CustomerContactDto.
  *
@@ -39,6 +50,7 @@ const admin = require('firebase-admin');
 
 const BATCH_LIMIT = 400;
 const USER_PAGE_SIZE = 200;
+const LEGACY_DEPOSIT_PAYMENT_ID = 'legacy-deposit';
 
 // Lockstep with migrateSensitiveFields.ts buildContactDoc.
 function buildContactDoc(customer, ownerId, customerId) {
@@ -51,9 +63,58 @@ function buildContactDoc(customer, ownerId, customerId) {
   };
 }
 
-// Lockstep with migrateSensitiveFields.ts buildMoneyDoc.
-// Applies legacy deposit migration (Slice 8d-1): synthesizes a "legacy-deposit"
-// payment if depositPaid > 0 and no payment with that id exists.
+// Pure. The synthesized payment standing in for a legacy `depositPaid`.
+// Lockstep with migrateSensitiveFields.ts buildLegacyDepositPayment and with
+// OrderMapper.kt migrateLegacyDeposit.
+function buildLegacyDepositPayment(order) {
+  return {
+    id: LEGACY_DEPOSIT_PAYMENT_ID,
+    amount: typeof order.depositPaid === 'number' ? order.depositPaid : 0,
+    method: 'OTHER',
+    type: 'DEPOSIT',
+    recordedAt: typeof order.createdAt === 'number' ? order.createdAt : 0,
+    note: null,
+  };
+}
+
+// Pure. True when the base order carries a legacy depositPaid > 0 that the given
+// payments array has not absorbed as a `legacy-deposit` entry yet.
+function needsLegacyDeposit(order, payments) {
+  const depositPaid = typeof order.depositPaid === 'number' ? order.depositPaid : 0;
+  return depositPaid > 0 && !payments.some((p) => p && p.id === LEGACY_DEPOSIT_PAYMENT_ID);
+}
+
+// Pure. A mirror is authoritative ("stamped") only if it exists with a non-blank
+// ownerId — the same completeness sentinel the strip script uses.
+function isMirrorStamped(mirror) {
+  const ownerId = mirror && mirror.ownerId;
+  return typeof ownerId === 'string' && ownerId.length > 0;
+}
+
+// Pure. Lockstep with migrateSensitiveFields.ts classifyOrderMirror.
+// Returns { action: 'create' } | { action: 'healLegacyDeposit', payments } | { action: 'skip' }.
+function classifyOrderMirror(order, mirror) {
+  if (!isMirrorStamped(mirror)) {
+    return { action: 'create' };
+  }
+  const mirrorPayments = Array.isArray(mirror.payments) ? mirror.payments : [];
+  if (needsLegacyDeposit(order, mirrorPayments)) {
+    return {
+      action: 'healLegacyDeposit',
+      payments: [buildLegacyDepositPayment(order)].concat(mirrorPayments),
+    };
+  }
+  return { action: 'skip' };
+}
+
+// Pure. Lockstep with migrateSensitiveFields.ts classifyCustomerMirror. Contact has
+// no legacy-field migration, so it is build-or-skip.
+function classifyCustomerMirror(_customer, mirror) {
+  return isMirrorStamped(mirror) ? { action: 'skip' } : { action: 'create' };
+}
+
+// Lockstep with migrateSensitiveFields.ts buildMoneyDoc. Used ONLY for the
+// create path (missing/unstamped mirror), where the base doc is authoritative.
 function buildMoneyDoc(order, ownerId, orderId) {
   const items = Array.isArray(order.items) ? order.items : [];
   const itemPrices = {};
@@ -63,24 +124,10 @@ function buildMoneyDoc(order, ownerId, orderId) {
     }
   }
 
-  // Lockstep with OrderMapper.kt migrateLegacyDeposit: if depositPaid > 0 and no
-  // "legacy-deposit" payment exists, prepend a synthesized payment entry.
   const payments = Array.isArray(order.payments) ? order.payments : [];
-  const depositPaid = typeof order.depositPaid === 'number' ? order.depositPaid : 0;
-  const createdAt = typeof order.createdAt === 'number' ? order.createdAt : 0;
-  const migratedPayments =
-    depositPaid > 0 && !payments.some((p) => p && p.id === 'legacy-deposit')
-      ? [
-          {
-            id: 'legacy-deposit',
-            amount: depositPaid,
-            method: 'OTHER',
-            type: 'DEPOSIT',
-            recordedAt: createdAt,
-            note: null,
-          },
-        ].concat(payments)
-      : payments;
+  const migratedPayments = needsLegacyDeposit(order, payments)
+    ? [buildLegacyDepositPayment(order)].concat(payments)
+    : payments;
 
   return {
     ownerId,
@@ -105,14 +152,34 @@ async function commitBatched(db, writes) {
   }
 }
 
+async function readMirror(db, path) {
+  const snap = await db.doc(path).get();
+  return snap.exists ? snap.data() : undefined;
+}
+
 async function main() {
   const commit = process.argv.includes('--commit');
-  admin.initializeApp({ projectId: process.env.GOOGLE_CLOUD_PROJECT });
+  // Fail loudly rather than letting ADC silently resolve some other project:
+  // this script writes to production Firestore.
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT;
+  if (!projectId) {
+    console.error(
+      'GOOGLE_CLOUD_PROJECT is not set. Re-run with the project pinned explicitly, e.g.\n' +
+        '  GOOGLE_CLOUD_PROJECT=stitchpad-30607 node scripts/backfillSensitiveFields.js',
+    );
+    process.exit(1);
+  }
+  admin.initializeApp({ projectId });
   const db = admin.firestore();
 
   let users = 0;
-  let contactsWritten = 0;
-  let moneyWritten = 0;
+  const counts = {
+    customersMirrorCreated: 0,
+    customersAlreadyMirrored: 0,
+    ordersMirrorCreated: 0,
+    ordersHealedLegacyDeposit: 0,
+    ordersAlreadyMirrored: 0,
+  };
 
   // Page the users query so a large production users collection can't exhaust
   // memory / hit RPC limits by materialising every user at once — matches the
@@ -132,21 +199,38 @@ async function main() {
       const uid = userDoc.id;
 
       const customersSnap = await db.collection(`users/${uid}/customers`).get();
-      const contactWrites = customersSnap.docs.map((d) => ({
-        ref: db.doc(`users/${uid}/customers/${d.id}/private/contact`),
-        data: buildContactDoc(d.data(), uid, d.id),
-      }));
-      contactsWritten += contactWrites.length;
+      const contactWrites = [];
+      for (const d of customersSnap.docs) {
+        const path = `users/${uid}/customers/${d.id}/private/contact`;
+        const plan = classifyCustomerMirror(d.data(), await readMirror(db, path));
+        if (plan.action === 'create') {
+          counts.customersMirrorCreated += 1;
+          contactWrites.push({ ref: db.doc(path), data: buildContactDoc(d.data(), uid, d.id) });
+        } else {
+          counts.customersAlreadyMirrored += 1;
+        }
+      }
       if (commit && contactWrites.length > 0) {
         await commitBatched(db, contactWrites);
       }
 
       const ordersSnap = await db.collection(`users/${uid}/orders`).get();
-      const moneyWrites = ordersSnap.docs.map((d) => ({
-        ref: db.doc(`users/${uid}/orders/${d.id}/private/money`),
-        data: buildMoneyDoc(d.data(), uid, d.id),
-      }));
-      moneyWritten += moneyWrites.length;
+      const moneyWrites = [];
+      for (const d of ordersSnap.docs) {
+        const path = `users/${uid}/orders/${d.id}/private/money`;
+        const plan = classifyOrderMirror(d.data(), await readMirror(db, path));
+        if (plan.action === 'create') {
+          counts.ordersMirrorCreated += 1;
+          moneyWrites.push({ ref: db.doc(path), data: buildMoneyDoc(d.data(), uid, d.id) });
+        } else if (plan.action === 'healLegacyDeposit') {
+          counts.ordersHealedLegacyDeposit += 1;
+          console.warn(`HEAL legacy-deposit (payments only): ${path}`);
+          // Payments ONLY — every other field on the stamped mirror is authoritative.
+          moneyWrites.push({ ref: db.doc(path), data: { payments: plan.payments } });
+        } else {
+          counts.ordersAlreadyMirrored += 1;
+        }
+      }
       if (commit && moneyWrites.length > 0) {
         await commitBatched(db, moneyWrites);
       }
@@ -156,15 +240,32 @@ async function main() {
 
   console.log(
     `${commit ? 'COMMITTED' : 'DRY RUN'} — users=${users} ` +
-      `contactDocs=${contactsWritten} moneyDocs=${moneyWritten}`,
+      `ordersMirrorCreated=${counts.ordersMirrorCreated} ` +
+      `ordersHealedLegacyDeposit=${counts.ordersHealedLegacyDeposit} ` +
+      `ordersAlreadyMirrored=${counts.ordersAlreadyMirrored} ` +
+      `customersMirrorCreated=${counts.customersMirrorCreated} ` +
+      `customersAlreadyMirrored=${counts.customersAlreadyMirrored}`,
   );
   if (!commit) console.log('Re-run with --commit to apply.');
 }
 
-main().then(
-  () => process.exit(0),
-  (err) => {
-    console.error(err);
-    process.exit(1);
-  },
-);
+module.exports = {
+  buildContactDoc,
+  buildMoneyDoc,
+  buildLegacyDepositPayment,
+  needsLegacyDeposit,
+  isMirrorStamped,
+  classifyOrderMirror,
+  classifyCustomerMirror,
+  LEGACY_DEPOSIT_PAYMENT_ID,
+};
+
+if (require.main === module) {
+  main().then(
+    () => process.exit(0),
+    (err) => {
+      console.error(err);
+      process.exit(1);
+    },
+  );
+}
