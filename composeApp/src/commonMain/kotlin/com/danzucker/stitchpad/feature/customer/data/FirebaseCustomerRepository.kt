@@ -111,14 +111,21 @@ class FirebaseCustomerRepository(
 
     override fun observeCustomers(userId: String): Flow<Result<List<Customer>, DataError.Network>> =
         combine(
-            firestore.collection("users").document(userId).collection("customers").snapshots(),
+            // includeMetadataChanges is what lets the badge CLEAR: without it, no new
+            // snapshot arrives when a queued write is acknowledged, so the row would
+            // stay marked "Not synced" until its content next changed.
+            firestore.collection("users").document(userId).collection("customers")
+                .snapshots(includeMetadataChanges = true),
             contactByCustomerId(userId),
         ) { snapshot, contacts ->
-            val customerDtos = snapshot.documents.mapNotNull { doc ->
-                decodeDocOrLog(tag = TAG, docId = doc.id) { doc.data<CustomerDto>() }
+            val decoded = snapshot.documents.mapNotNull { doc ->
+                val dto = decodeDocOrLog(tag = TAG, docId = doc.id) { doc.data<CustomerDto>() }
+                dto?.let { it to doc.metadata.hasPendingWrites }
             }
-            cacheActiveCustomerCount(userId, countActiveCustomers(customerDtos))
-            val customers = customerDtos.map { it.toCustomer(userId).withContact(contacts[it.id]) }
+            cacheActiveCustomerCount(userId, countActiveCustomers(decoded.map { it.first }))
+            val customers = decoded.map { (dto, isPending) ->
+                dto.toCustomer(userId, isPendingSync = isPending).withContact(contacts[dto.id])
+            }
             Result.Success(customers) as Result<List<Customer>, DataError.Network>
         }
             .catch { throwable ->

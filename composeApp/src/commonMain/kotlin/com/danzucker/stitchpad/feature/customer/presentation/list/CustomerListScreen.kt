@@ -75,6 +75,7 @@ import com.danzucker.stitchpad.feature.freemium.presentation.swap.SwapSheet
 import com.danzucker.stitchpad.feature.tutorials.domain.model.TutorialTopic
 import com.danzucker.stitchpad.feature.tutorials.presentation.hint.TutorialHintRoot
 import com.danzucker.stitchpad.ui.components.CustomerAvatar
+import com.danzucker.stitchpad.ui.components.PendingSyncBadge
 import com.danzucker.stitchpad.ui.components.StitchPadFab
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -755,6 +756,9 @@ private fun CustomerListItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            if (customer.isPendingSync) {
+                PendingSyncBadge(modifier = Modifier.padding(top = DesignTokens.space1))
+            }
         }
 
         IconButton(onClick = onOverflowClick) {
@@ -812,6 +816,41 @@ private fun CustomerListScreenFilledPreview() {
                     )
                 )
             ),
+            onAction = {}
+        )
+    }
+}
+
+private val customerPendingSyncPreviewCustomers = listOf(
+    Customer(
+        id = "1",
+        userId = "u1",
+        name = "Amina Bello",
+        phone = "+234 801 234 5678",
+        isPendingSync = true,
+    ),
+    Customer(id = "2", userId = "u1", name = "Chidi Okafor", phone = "+234 802 345 6789"),
+)
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun CustomerListScreenPendingSyncLightPreview() {
+    StitchPadTheme(darkTheme = false) {
+        CustomerListScreen(
+            state = CustomerListState(isLoading = false, customers = customerPendingSyncPreviewCustomers),
+            onAction = {}
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun CustomerListScreenPendingSyncDarkPreview() {
+    StitchPadTheme(darkTheme = true) {
+        CustomerListScreen(
+            state = CustomerListState(isLoading = false, customers = customerPendingSyncPreviewCustomers),
             onAction = {}
         )
     }

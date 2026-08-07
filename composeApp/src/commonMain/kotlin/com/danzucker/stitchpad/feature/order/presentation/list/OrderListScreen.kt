@@ -85,6 +85,7 @@ import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.order.presentation.garmentSummaryRes
 import com.danzucker.stitchpad.feature.tutorials.domain.model.TutorialTopic
 import com.danzucker.stitchpad.feature.tutorials.presentation.hint.TutorialHintRoot
+import com.danzucker.stitchpad.ui.components.PendingSyncBadge
 import com.danzucker.stitchpad.ui.components.StrikethroughPrice
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -770,6 +771,10 @@ private fun OrderListItem(
             Spacer(Modifier.height(2.dp))
 
             DeadlineLine(deadline = order.deadline, now = now, status = order.status)
+
+            if (order.isPendingSync) {
+                PendingSyncBadge(modifier = Modifier.padding(top = DesignTokens.space1))
+            }
         }
 
         // Money column — price, payment status, and profit. Hidden entirely for
@@ -971,6 +976,54 @@ private fun OrderListScreenFilledPreview() {
                     )
                 )
             ),
+            onAction = {}
+        )
+    }
+}
+
+private val orderPendingSyncPreviewOrders = listOf(
+    Order(
+        id = "1", userId = "u", customerId = "c1", customerName = "Fola Sunday",
+        items = listOf(
+            OrderItem(id = "i1", garmentType = GarmentType.CORSET, description = "", price = 40_000.0)
+        ),
+        status = OrderStatus.PENDING, priority = OrderPriority.NORMAL,
+        statusHistory = emptyList(),
+        totalPrice = 40_000.0,
+        deadline = null, notes = null, createdAt = 0L, updatedAt = 0L,
+        isPendingSync = true,
+    ),
+    Order(
+        id = "2", userId = "u", customerId = "c2", customerName = "Aina Paul",
+        items = listOf(
+            OrderItem(id = "i2", garmentType = GarmentType.SUIT, description = "", price = 20_000.0)
+        ),
+        status = OrderStatus.PENDING, priority = OrderPriority.NORMAL,
+        statusHistory = emptyList(),
+        totalPrice = 20_000.0,
+        deadline = null, notes = null, createdAt = 0L, updatedAt = 0L,
+    ),
+)
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun OrderListScreenPendingSyncLightPreview() {
+    StitchPadTheme(darkTheme = false) {
+        OrderListScreen(
+            state = OrderListState(isLoading = false, orders = orderPendingSyncPreviewOrders),
+            onAction = {}
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun OrderListScreenPendingSyncDarkPreview() {
+    StitchPadTheme(darkTheme = true) {
+        OrderListScreen(
+            state = OrderListState(isLoading = false, orders = orderPendingSyncPreviewOrders),
             onAction = {}
         )
     }

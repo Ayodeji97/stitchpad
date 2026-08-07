@@ -112,6 +112,11 @@ data class Order(
     val archivedAt: Long? = null,
     val createdAt: Long,
     val updatedAt: Long,
+    /**
+     * True when this record exists locally but Firestore has not acknowledged it yet.
+     * Derived from snapshot metadata at read time — never persisted.
+     */
+    val isPendingSync: Boolean = false,
 ) {
     /** Sum of all recorded payments. Replaces the prior persisted `depositPaid` field. */
     val depositPaid: Double get() = payments.sumOf { it.amount }

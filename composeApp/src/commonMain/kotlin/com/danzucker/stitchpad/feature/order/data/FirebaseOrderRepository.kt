@@ -244,13 +244,19 @@ class FirebaseOrderRepository(
     ): List<Order> = mapNotNull { doc ->
         decodeDocOrLog(tag = TAG, docId = doc.id) {
             doc.data<com.danzucker.stitchpad.core.data.dto.OrderDto>()
-                .toOrder(userId)
+                .toOrder(userId, isPendingSync = doc.metadata.hasPendingWrites)
                 .withLocalPendingImages()
         }
     }
 
     override fun observeOrders(userId: String): Flow<Result<List<Order>, DataError.Network>> =
-        combine(ordersCollection(userId).snapshots(), moneyByOrderId(userId)) { snapshot, money ->
+        combine(
+            // includeMetadataChanges is what lets the badge CLEAR: without it, no new
+            // snapshot arrives when a queued write is acknowledged, so the row would
+            // stay marked "Not synced" until its content next changed.
+            ordersCollection(userId).snapshots(includeMetadataChanges = true),
+            moneyByOrderId(userId),
+        ) { snapshot, money ->
             val orders = snapshot.documents.toOrders(userId)
                 .filter { it.archivedAt == null }
                 .map { it.withMoney(money[it.id]) }
@@ -264,7 +270,10 @@ class FirebaseOrderRepository(
     override fun observeArchivedOrders(
         userId: String,
     ): Flow<Result<List<Order>, DataError.Network>> =
-        combine(ordersCollection(userId).snapshots(), moneyByOrderId(userId)) { snapshot, money ->
+        combine(
+            ordersCollection(userId).snapshots(includeMetadataChanges = true),
+            moneyByOrderId(userId),
+        ) { snapshot, money ->
             val archived = snapshot.documents.toOrders(userId)
                 .filter { it.archivedAt != null }
                 .sortedByDescending { it.archivedAt }
