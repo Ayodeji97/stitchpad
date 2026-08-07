@@ -63,6 +63,16 @@ function buildCustomerStrip(customer, fieldValue) {
   return update;
 }
 
+// Pure. Guard against legacy-deposit-incomplete mirrors: returns true if the base
+// order has depositPaid > 0 but the money doc's payments array has no entry with
+// id === 'legacy-deposit'. Such a mirror would be incomplete (the deposit is only
+// in the base doc, not migrated to payments yet), so stripping would lose data.
+function isLegacyDepositIncomplete(order, money) {
+  const depositPaid = typeof order.depositPaid === 'number' ? order.depositPaid : 0;
+  const payments = Array.isArray(money.payments) ? money.payments : [];
+  return depositPaid > 0 && !payments.some((p) => p && p.id === 'legacy-deposit');
+}
+
 async function commitBatched(db, writes) {
   for (let i = 0; i < writes.length; i += BATCH_LIMIT) {
     const batch = db.batch();
@@ -89,6 +99,7 @@ async function main() {
     ordersStripped: 0,
     ordersClean: 0,
     ordersSkippedUnstamped: 0,
+    ordersSkippedLegacyDeposit: 0,
     customersStripped: 0,
     customersClean: 0,
     customersSkippedUnstamped: 0,
@@ -118,12 +129,20 @@ async function main() {
         const update = buildOrderStrip(orderDoc.data(), fieldValue);
         if (Object.keys(update).length === 0) {
           counts.ordersClean += 1;
-        } else if (await isStamped(db, `users/${uid}/orders/${orderDoc.id}/private/money`)) {
-          counts.ordersStripped += 1;
-          writes.push({ ref: orderDoc.ref, data: update });
         } else {
-          counts.ordersSkippedUnstamped += 1;
-          console.warn(`SKIP unstamped money: users/${uid}/orders/${orderDoc.id}`);
+          const moneyPrivatePath = `users/${uid}/orders/${orderDoc.id}/private/money`;
+          const moneySnap = await db.doc(moneyPrivatePath).get();
+          const isStampedCheck = moneySnap.exists && typeof moneySnap.get('ownerId') === 'string' && moneySnap.get('ownerId').length > 0;
+          if (!isStampedCheck) {
+            counts.ordersSkippedUnstamped += 1;
+            console.warn(`SKIP unstamped money: users/${uid}/orders/${orderDoc.id}`);
+          } else if (isLegacyDepositIncomplete(orderDoc.data(), moneySnap.data())) {
+            counts.ordersSkippedLegacyDeposit += 1;
+            console.warn(`SKIP legacy-deposit-incomplete money: users/${uid}/orders/${orderDoc.id}`);
+          } else {
+            counts.ordersStripped += 1;
+            writes.push({ ref: orderDoc.ref, data: update });
+          }
         }
       }
 
@@ -156,13 +175,13 @@ async function main() {
   console.log(
     `${label} — users=${users} ` +
       `ordersStripped=${counts.ordersStripped} ordersClean=${counts.ordersClean} ` +
-      `ordersSkippedUnstamped=${counts.ordersSkippedUnstamped} ` +
+      `ordersSkippedUnstamped=${counts.ordersSkippedUnstamped} ordersSkippedLegacyDeposit=${counts.ordersSkippedLegacyDeposit} ` +
       `customersStripped=${counts.customersStripped} customersClean=${counts.customersClean} ` +
       `customersSkippedUnstamped=${counts.customersSkippedUnstamped}`,
   );
 }
 
-module.exports = { buildOrderStrip, buildCustomerStrip, ORDER_MONEY_FIELDS, CUSTOMER_CONTACT_FIELDS };
+module.exports = { buildOrderStrip, buildCustomerStrip, isLegacyDepositIncomplete, ORDER_MONEY_FIELDS, CUSTOMER_CONTACT_FIELDS };
 
 if (require.main === module) {
   main().catch((err) => {

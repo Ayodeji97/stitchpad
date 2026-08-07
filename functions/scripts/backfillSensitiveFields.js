@@ -52,6 +52,8 @@ function buildContactDoc(customer, ownerId, customerId) {
 }
 
 // Lockstep with migrateSensitiveFields.ts buildMoneyDoc.
+// Applies legacy deposit migration (Slice 8d-1): synthesizes a "legacy-deposit"
+// payment if depositPaid > 0 and no payment with that id exists.
 function buildMoneyDoc(order, ownerId, orderId) {
   const items = Array.isArray(order.items) ? order.items : [];
   const itemPrices = {};
@@ -60,13 +62,33 @@ function buildMoneyDoc(order, ownerId, orderId) {
       itemPrices[item.id] = typeof item.price === 'number' ? item.price : 0;
     }
   }
+
+  // Lockstep with OrderMapper.kt migrateLegacyDeposit: if depositPaid > 0 and no
+  // "legacy-deposit" payment exists, prepend a synthesized payment entry.
+  const payments = Array.isArray(order.payments) ? order.payments : [];
+  const depositPaid = typeof order.depositPaid === 'number' ? order.depositPaid : 0;
+  const createdAt = typeof order.createdAt === 'number' ? order.createdAt : 0;
+  const migratedPayments =
+    depositPaid > 0 && !payments.some((p) => p && p.id === 'legacy-deposit')
+      ? [
+          {
+            id: 'legacy-deposit',
+            amount: depositPaid,
+            method: 'OTHER',
+            type: 'DEPOSIT',
+            recordedAt: createdAt,
+            note: null,
+          },
+        ].concat(payments)
+      : payments;
+
   return {
     ownerId,
     orderId,
     totalPrice: typeof order.totalPrice === 'number' ? order.totalPrice : 0,
     discount: typeof order.discount === 'number' ? order.discount : 0,
     discountReason: order.discountReason ?? null,
-    payments: Array.isArray(order.payments) ? order.payments : [],
+    payments: migratedPayments,
     costs: Array.isArray(order.costs) ? order.costs : [],
     itemPrices,
   };

@@ -55,6 +55,8 @@ export function buildContactDoc(
 /**
  * Owner-only money payload derived from a base order doc. Mirrors the client
  * `OrderMoneyDto`; `itemPrices` relocates each item's `price` keyed by item id.
+ * Applies legacy deposit migration (Slice 8d-1): synthesizes a "legacy-deposit"
+ * payment if depositPaid > 0 and no payment with that id exists.
  */
 export function buildMoneyDoc(
   order: admin.firestore.DocumentData,
@@ -68,6 +70,25 @@ export function buildMoneyDoc(
       itemPrices[item.id] = typeof item.price === 'number' ? item.price : 0;
     }
   }
+
+  // Lockstep with OrderMapper.kt migrateLegacyDeposit: if depositPaid > 0 and no
+  // "legacy-deposit" payment exists, prepend a synthesized payment entry.
+  const payments: admin.firestore.DocumentData[] = Array.isArray(order.payments) ? order.payments : [];
+  const depositPaid = typeof order.depositPaid === 'number' ? order.depositPaid : 0;
+  const createdAt = typeof order.createdAt === 'number' ? order.createdAt : 0;
+  const legacyPayment: admin.firestore.DocumentData = {
+    id: 'legacy-deposit',
+    amount: depositPaid,
+    method: 'OTHER',
+    type: 'DEPOSIT',
+    recordedAt: createdAt,
+    note: null,
+  };
+  const migratedPayments =
+    depositPaid > 0 && !payments.some((p) => p && p.id === 'legacy-deposit')
+      ? [legacyPayment].concat(payments)
+      : payments;
+
   return {
     // Slice 8a: ownerId scopes the owner's collectionGroup("private") read;
     // orderId joins the result back onto the base order.
@@ -76,7 +97,7 @@ export function buildMoneyDoc(
     totalPrice: typeof order.totalPrice === 'number' ? order.totalPrice : 0,
     discount: typeof order.discount === 'number' ? order.discount : 0,
     discountReason: order.discountReason ?? null,
-    payments: Array.isArray(order.payments) ? order.payments : [],
+    payments: migratedPayments,
     costs: Array.isArray(order.costs) ? order.costs : [],
     itemPrices,
   };

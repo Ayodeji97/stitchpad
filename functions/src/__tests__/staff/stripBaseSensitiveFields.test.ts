@@ -2,6 +2,7 @@
 const {
   buildOrderStrip,
   buildCustomerStrip,
+  isLegacyDepositIncomplete,
 } = require('../../../scripts/stripBaseSensitiveFields.js');
 /* eslint-enable @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports */
 
@@ -61,5 +62,37 @@ describe('buildCustomerStrip', () => {
 
   it('returns an empty map for an already-clean customer', () => {
     expect(buildCustomerStrip({ name: 'Ada', slotState: 'active' }, fieldValue)).toEqual({});
+  });
+});
+
+describe('isLegacyDepositIncomplete', () => {
+  it('returns true when order has depositPaid > 0 but money lacks legacy-deposit payment', () => {
+    const order = { depositPaid: 5000 };
+    const money = { payments: [] };
+    expect(isLegacyDepositIncomplete(order, money)).toBe(true);
+  });
+
+  it('returns false when money.payments contains a legacy-deposit entry', () => {
+    const order = { depositPaid: 5000 };
+    const money = { payments: [{ id: 'legacy-deposit', amount: 5000, type: 'DEPOSIT' }] };
+    expect(isLegacyDepositIncomplete(order, money)).toBe(false);
+  });
+
+  it('returns false when order.depositPaid is zero', () => {
+    const order = { depositPaid: 0 };
+    const money = { payments: [] };
+    expect(isLegacyDepositIncomplete(order, money)).toBe(false);
+  });
+
+  it('returns false when order.depositPaid is absent', () => {
+    const order = {};
+    const money = { payments: [] };
+    expect(isLegacyDepositIncomplete(order, money)).toBe(false);
+  });
+
+  it('returns false when money.payments is absent', () => {
+    const order = { depositPaid: 5000 };
+    const money = {};
+    expect(isLegacyDepositIncomplete(order, money)).toBe(true);
   });
 });

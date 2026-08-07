@@ -112,6 +112,67 @@ describe('buildMoneyDoc', () => {
       itemPrices: {},
     });
   });
+
+  it('synthesizes legacy-deposit payment for deposit-only legacy order', () => {
+    const money = buildMoneyDoc(
+      {
+        depositPaid: 5000,
+        payments: [],
+        createdAt: 1690000000,
+        items: [],
+      },
+      'owner-1',
+      'o1',
+    );
+    expect(money.payments).toEqual([
+      {
+        id: 'legacy-deposit',
+        amount: 5000,
+        method: 'OTHER',
+        type: 'DEPOSIT',
+        recordedAt: 1690000000,
+        note: null,
+      },
+    ]);
+  });
+
+  it('does not duplicate legacy-deposit payment if already present', () => {
+    const money = buildMoneyDoc(
+      {
+        depositPaid: 5000,
+        payments: [{ id: 'legacy-deposit', amount: 5000, method: 'OTHER', type: 'DEPOSIT' }],
+        createdAt: 1690000000,
+        items: [],
+      },
+      'owner-1',
+      'o1',
+    );
+    expect((money.payments as any[])).toHaveLength(1);
+    expect(((money.payments as any[])[0])).toEqual({ id: 'legacy-deposit', amount: 5000, method: 'OTHER', type: 'DEPOSIT' });
+  });
+
+  it('leaves payments unchanged when depositPaid is zero or absent', () => {
+    const money1 = buildMoneyDoc(
+      {
+        depositPaid: 0,
+        payments: [{ id: 'p1', amount: 1000 }],
+        items: [],
+      },
+      'owner-1',
+      'o1',
+    );
+    expect(money1.payments).toEqual([{ id: 'p1', amount: 1000 }]);
+
+    const money2 = buildMoneyDoc(
+      {
+        payments: [{ id: 'p1', amount: 1000 }],
+        items: [],
+      },
+      'owner-1',
+      'o1',
+    );
+    expect(money2.payments).toEqual([{ id: 'p1', amount: 1000 }]);
+  });
 });
 
 describe('migrateSensitiveFieldsHandler', () => {
