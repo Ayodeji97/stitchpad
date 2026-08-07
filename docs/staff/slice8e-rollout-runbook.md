@@ -6,19 +6,27 @@ Sequencing (from 8b/8c runbooks): 8a → 8b (backfill) → release 8d-1 client �
 
 ## Gate checklist — all YES before the strip
 
-- [ ] 8b backfill ran with `--commit` using THIS BRANCH'S build of the script
-      (functions/scripts/backfillSensitiveFields.js) and counts verified. Re-run
-      the backfill with `--commit` NOW using this branch's build to heal any
-      stamped-but-incomplete mirrors (legacy-deposit synthesis). Verify:
-      `node scripts/backfillSensitiveFields.js` dry run now reports every doc
-      already mirrored; spot-check `/private/money.ownerId` on a legacy order.
+- [ ] 8b backfill: Verify dry-run reports every doc already mirrored; spot-check
+      `/private/money.ownerId` on a legacy order.
+      ```bash
+      cd functions && GOOGLE_CLOUD_PROJECT=stitchpad-30607 node scripts/backfillSensitiveFields.js
+      ```
+      Re-run with `--commit` using this branch's build to heal stamped-but-incomplete
+      mirrors (legacy-deposit synthesis):
+      ```bash
+      cd functions && GOOGLE_CLOUD_PROJECT=stitchpad-30607 node scripts/backfillSensitiveFields.js --commit
+      ```
 - [ ] The 8d-1 client (branch `feat/staff-slice8d1-stop-dual-write`, merged in
       `feat/staff-slice8e`) is released on BOTH stores.
-- [ ] 8c floor set to the 8d-1 build numbers via
-      `ANDROID_FLOOR=<versionCode> IOS_FLOOR=<CFBundleVersion> GOOGLE_CLOUD_PROJECT=stitchpad-30607 node scripts/setUpdateFloor.js --commit`
-      and a below-floor build verifiably shows the force-update screen.
-- [ ] Firestore export taken:
-      `gcloud firestore export gs://stitchpad-30607.appspot.com/exports/pre-8d-strip-$(date +%Y%m%d) --project=stitchpad-30607`
+- [ ] 8c floor set to the 8d-1 build numbers; verify a below-floor build shows the
+      force-update screen:
+      ```bash
+      cd functions && ANDROID_FLOOR=<versionCode> IOS_FLOOR=<CFBundleVersion> GOOGLE_CLOUD_PROJECT=stitchpad-30607 node scripts/setUpdateFloor.js --commit
+      ```
+- [ ] Firestore export taken (save the operation folder name):
+      ```bash
+      gcloud firestore export gs://stitchpad-30607.appspot.com/exports/pre-8d-strip-$(date +%Y%m%d) --project=stitchpad-30607
+      ```
 
 ## Strip (irreversible)
 
@@ -44,8 +52,15 @@ Sequencing (from 8b/8c runbooks): 8a → 8b (backfill) → release 8d-1 client �
 
 - Rules: redeploy the previous `firestore.rules` (git revert of the Task 3
   commit) — staff lists go dark again, nothing else changes.
-- Strip: restore from the export
-  (`gcloud firestore import gs://…/pre-8d-strip-<date>`) — full-DB restore;
-  only for catastrophic data loss, expect to lose writes made since the export.
+- Strip: restore from the export — full-DB restore; only for catastrophic data
+  loss, expect to lose writes made since the export.
+  1. Find the operation folder created by the export:
+     ```bash
+     gsutil ls gs://stitchpad-30607.appspot.com/exports/pre-8d-strip-<date>/
+     ```
+  2. Import the discovered operation folder:
+     ```bash
+     gcloud firestore import gs://stitchpad-30607.appspot.com/exports/pre-8d-strip-<date>/<operation-subfolder> --project=stitchpad-30607
+     ```
 - Panic switch: set `staffFeatureEnabled: false` on `config/app` — every staff
   session resolves to owner-of-self and stops reading the workshop tree.
