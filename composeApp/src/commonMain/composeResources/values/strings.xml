@@ -1936,4 +1936,9 @@
     <string name="review_sentiment_love">Love it</string>
     <string name="review_sentiment_not_really">Not really</string>
     <string name="review_sentiment_dismiss_cd">Close</string>
+
+    <!-- Sync status -->
+    <string name="sync_status_offline">Offline — saved on this phone, will sync later</string>
+    <string name="sync_status_syncing">Syncing…</string>
+    <string name="sync_not_synced">Not synced</string>
 </resources>
