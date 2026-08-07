@@ -35,6 +35,15 @@ appId: com.danzucker.stitchpad
     timeout: 30000
 
 - tapOn: "Customers"
+# Always assert the DESTINATION before doing anything that depends on being
+# there. "Add customer" (below) matches BOTH the Dashboard quick action and
+# the Customers-screen FAB -- if this tap were occluded and silently missed,
+# the flow would stay on the Dashboard, `index: 0` would land on the quick
+# action instead, and it routes to the same Add Customer form, so the flow
+# would go green without ever proving Customers-tab navigation happened. See
+# .maestro/README.md gotcha 1 and the identical guard in
+# .maestro/smoke-add-customer.yaml.
+- assertVisible: "Search by name or phone…"
 - tapOn:
     text: "Add customer"
     index: 0
