@@ -34,6 +34,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -162,6 +163,18 @@ class CustomerListViewModelTest {
         val vm = createViewModel()
 
         assertTrue(vm.state.value.isActiveStaff)
+    }
+
+    // Slice 8e: staff LIST access is now unblocked server-side, so a repo error
+    // must surface exactly like it does for an owner — no more treating a
+    // denial as an empty list.
+    @Test
+    fun staffSession_surfacesListErrorsLikeOwner() = runTest {
+        activeWorkshopProvider.setSession(activeStaffSession)
+        customerRepository.shouldReturnError = DataError.Network.FORBIDDEN
+        val vm = createViewModel()
+
+        assertNotNull(vm.state.value.errorMessage)
     }
 
     @Test
