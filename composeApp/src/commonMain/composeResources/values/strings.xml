@@ -577,6 +577,7 @@
     <string name="order_empty_archived_subtitle">Orders you archive show up here. You can restore them anytime.</string>
     <string name="order_fab_cd">Add order</string>
     <string name="order_filter_all">All</string>
+    <string name="order_filter_my_work">My work</string>
     <string name="order_filter_archived">Archived</string>
     <string name="order_restore_cta">Restore</string>
     <string name="order_restored_snackbar">Order restored</string>

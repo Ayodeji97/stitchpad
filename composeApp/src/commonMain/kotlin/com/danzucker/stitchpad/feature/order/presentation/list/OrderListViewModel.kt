@@ -63,11 +63,17 @@ class OrderListViewModel(
     fun onAction(action: OrderListAction) {
         when (action) {
             is OrderListAction.OnStatusFilterChange -> {
-                _state.update {
-                    it.copy(
+                _state.update { state ->
+                    state.copy(
                         statusFilter = action.status,
                         showArchived = false,
-                        orders = filterAndSort(allOrders, action.status)
+                        orders = filterAndSort(
+                            allOrders,
+                            action.status,
+                            state.myWorkOnly,
+                            state.staffAuthUid,
+                            state.isActiveStaff,
+                        )
                     )
                 }
             }
@@ -114,16 +120,47 @@ class OrderListViewModel(
                 if (_state.value.isActiveStaff) return
                 _state.update { it.copy(showProfit = !it.showProfit) }
             }
+            OrderListAction.OnToggleMyWork -> toggleMyWork()
             OrderListAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
             }
         }
     }
 
+    // Staff-only filter — never rendered for an owner, but guarded here too so the action
+    // is inert even if dispatched (Slice 6c defense-in-depth precedent).
+    private fun toggleMyWork() {
+        if (!_state.value.isActiveStaff) return
+        _state.update { state ->
+            val myWorkOnly = !state.myWorkOnly
+            state.copy(
+                myWorkOnly = myWorkOnly,
+                // My work applies to the active list only — selecting it always brings the
+                // user back to the active view, mirroring the status filter chips' own
+                // showArchived reset.
+                showArchived = false,
+                orders = filterAndSort(
+                    allOrders,
+                    state.statusFilter,
+                    myWorkOnly,
+                    state.staffAuthUid,
+                    state.isActiveStaff,
+                )
+            )
+        }
+    }
+
     private fun observeActiveWorkshop() {
         viewModelScope.launch {
             activeWorkshopProvider.flow.collect { session ->
-                _state.update { it.copy(isActiveStaff = session.isActiveStaff) }
+                _state.update {
+                    it.copy(
+                        isActiveStaff = session.isActiveStaff,
+                        // Task 8: captured alongside isActiveStaff from the same session
+                        // collection — used by the "My work" filter to match assignedMemberId.
+                        staffAuthUid = session.authUid,
+                    )
+                }
             }
         }
     }
@@ -162,7 +199,13 @@ class OrderListViewModel(
                                     orders = if (state.showArchived) {
                                         state.orders
                                     } else {
-                                        filterAndSort(result.data, state.statusFilter)
+                                        filterAndSort(
+                                            result.data,
+                                            state.statusFilter,
+                                            state.myWorkOnly,
+                                            state.staffAuthUid,
+                                            state.isActiveStaff,
+                                        )
                                     },
                                     isLoading = false
                                 )
@@ -272,10 +315,26 @@ class OrderListViewModel(
         }
     }
 
-    private fun filterAndSort(orders: List<Order>, statusFilter: OrderStatus?): List<Order> {
-        val filtered = when (statusFilter) {
+    private fun filterAndSort(
+        orders: List<Order>,
+        statusFilter: OrderStatus?,
+        myWorkOnly: Boolean = false,
+        staffAuthUid: String? = null,
+        isActiveStaff: Boolean = false,
+    ): List<Order> {
+        val statusFiltered = when (statusFilter) {
             null -> orders.filter { it.status != OrderStatus.DELIVERED }
             else -> orders.filter { it.status == statusFilter }
+        }
+        // Task 8: "My work" narrows the active list to the signed-in staff member's own
+        // assignments. Requires isActiveStaff too (not just a non-null staffAuthUid) —
+        // a kill-switch revocation mid-session (staff -> owner-of-self) leaves myWorkOnly
+        // and staffAuthUid stale in state with no chip left to show or clear them; without
+        // this guard the ex-staff user's own order tree would silently stay filtered.
+        val filtered = if (myWorkOnly && isActiveStaff && staffAuthUid != null) {
+            statusFiltered.filter { it.assignedMemberId == staffAuthUid }
+        } else {
+            statusFiltered
         }
         // Reuse the triage comparator so same-deadline ties resolve identically in both the
         // triage-grouped and the chip-filtered views (createdAt desc = newest-first).
