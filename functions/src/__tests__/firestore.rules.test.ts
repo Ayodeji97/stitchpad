@@ -1224,6 +1224,8 @@ describe('active staff member access', () => {
         assignedMemberId: 'someone-else', assignedMemberName: 'Else',
       });
       await setDoc(doc(db, 'users/alice/orders/o-free'), { customerName: 'Ada', status: 'PENDING', createdAt: 1, updatedAt: 1 });
+      await setDoc(doc(db, 'users/alice/orders/o-free-money'), { customerName: 'Ada', status: 'PENDING', createdAt: 1, updatedAt: 1 });
+      await setDoc(doc(db, 'users/alice/orders/o-free-status'), { customerName: 'Ada', status: 'PENDING', createdAt: 1, updatedAt: 1 });
     });
     const staff = staffDb('chidi', 'alice');
     await assertFails(updateDoc(doc(staff, 'users/alice/orders/o-taken'), {
@@ -1234,6 +1236,18 @@ describe('active staff member access', () => {
     }));
     await assertFails(updateDoc(doc(staff, 'users/alice/orders/o-taken'), {
       assignedMemberId: deleteField(), assignedMemberName: deleteField(), updatedAt: 2,
+    }));
+    // The claim branch's hasOnly(['assignedMemberId','assignedMemberName','updatedAt'])
+    // IS the money/status wall for this branch — it carries no orderMoneyKeys()
+    // guard of its own. Pin it directly, each on its OWN fresh unassigned order so
+    // one wrongly-succeeding write can't mask the other's independent guard: a
+    // claim write may not smuggle a money field or a status field into the same
+    // commit.
+    await assertFails(updateDoc(doc(staff, 'users/alice/orders/o-free-money'), {
+      assignedMemberId: 'chidi', assignedMemberName: 'Chidi O', updatedAt: 2, totalPrice: 999,
+    }));
+    await assertFails(updateDoc(doc(staff, 'users/alice/orders/o-free-status'), {
+      assignedMemberId: 'chidi', assignedMemberName: 'Chidi O', updatedAt: 2, status: 'READY',
     }));
   });
 
