@@ -93,19 +93,36 @@ describe('approveStaffMemberHandler', () => {
     });
   });
 
-  it('when approve transaction fails (status changed to revoked), roster doc is not created and claims are rolled back', async () => {
-    // Pre-check rejects a revoked membership before setting any claim or
-    // entering the transaction, so both claim and roster doc remain untouched.
+  it('TOCTOU race: membership flipped to revoked between pre-check and tx, rolls back both claims and roster', async () => {
+    // Simulate TOCTOU race: membership passes pre-check as pending, but a
+    // concurrent cancel flips it to revoked before the transaction runs.
+    // The in-tx re-check at approveStaffMember.ts:68-69 catches it and throws.
+    // Because the fake now buffers writes, the roster doc is NOT created.
+    // The catch at line 74 rolls back the claim to null.
     const claims = makeClaimsRecorder();
     const { db, store } = makeStaffDb({
-      'users/alice/memberships/chidi': { status: 'revoked' },
+      'users/alice/memberships/chidi': { status: 'pending', staffName: 'Chidi O' },
     });
+
+    // Intercept runTransaction to simulate status flip mid-flight.
+    const origRunTx = db.runTransaction.bind(db);
+    db.runTransaction = async (fn: any) => {
+      // Between pre-check and in-tx, a concurrent cancel flips status to revoked.
+      store.set('users/alice/memberships/chidi', {
+        ...(store.get('users/alice/memberships/chidi') as object),
+        status: 'revoked',
+      });
+      return origRunTx(fn);
+    };
+
     await expect(
       approveStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), deps(db, claims)),
-    ).rejects.toMatchObject({ message: 'membership_revoked' });
-    // Pre-check rejected, so no claim was issued and no roster doc was created.
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+
+    // Because buffered writes were discarded, roster doc was NOT created.
     expect(store.has('users/alice/team/chidi')).toBe(false);
-    expect(claims.claims.has('chidi')).toBe(false);
+    // Claim was set before the tx, but rolled back in the catch.
+    expect(claims.claims.get('chidi')).toBeNull();
   });
 });
 
