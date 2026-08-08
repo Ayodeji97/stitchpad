@@ -90,6 +90,11 @@ class OrderDetailStaffGuardTest {
             OrderDetailAction.OnConfirmArchive,
             OrderDetailAction.OnDeleteClick,
             OrderDetailAction.OnConfirmDelete,
+            // Assignment (Task 7) — owner-only; OnClaimClick/OnDismissAssignSheet stay
+            // available to staff (checked separately below).
+            OrderDetailAction.OnAssignClick,
+            OrderDetailAction.OnAssignMember(memberId = "paul", memberName = "Paul"),
+            OrderDetailAction.OnUnassignClick,
         )
         restricted.forEach {
             assertTrue(it.isStaffRestricted(), "$it must be staff-restricted")
@@ -120,6 +125,19 @@ class OrderDetailStaffGuardTest {
             OrderDetailAction.OnSetDeadlineClick,
             OrderDetailAction.OnLinkMeasurementsClick,
             OrderDetailAction.OnViewMeasurementClick,
+        )
+        allowed.forEach {
+            assertFalse(it.isStaffRestricted(), "$it must stay available to staff")
+        }
+    }
+
+    // --- (d) staff self-claim stays available (Task 7) ---
+
+    @Test
+    fun claimClickAndDismissAssignSheet_areNotStaffRestricted() {
+        val allowed = listOf(
+            OrderDetailAction.OnClaimClick,
+            OrderDetailAction.OnDismissAssignSheet,
         )
         allowed.forEach {
             assertFalse(it.isStaffRestricted(), "$it must stay available to staff")

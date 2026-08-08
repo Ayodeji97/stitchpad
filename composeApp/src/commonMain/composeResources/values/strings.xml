@@ -1225,6 +1225,18 @@
     <string name="order_priority_high_pill">High</string>
     <string name="order_priority_rush_pill">Rush</string>
 
+    <!-- Assigned-to card (Task 7 / Slice 8e) -->
+    <string name="order_assign_section">Assigned to</string>
+    <string name="order_assign_unassigned_owner_hint">Not assigned yet</string>
+    <string name="order_assign_claim_cta">Claim this order</string>
+    <string name="order_assign_you">You</string>
+    <string name="order_assign_menu_cd">Assignment options</string>
+    <string name="order_assign_change">Change</string>
+    <string name="order_assign_unassign">Unassign</string>
+    <string name="order_assign_sheet_title">Assign to</string>
+    <string name="order_assign_sheet_empty">Add a team member from Team to assign work.</string>
+    <string name="order_assign_staff_fallback_name">Staff</string>
+
     <!-- Status transition sheet -->
     <string name="status_sheet_title">Move from &quot;%1$s&quot; to…</string>
     <string name="status_sheet_subtitle_pending">Move backward in the timeline</string>

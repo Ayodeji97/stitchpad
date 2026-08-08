@@ -110,6 +110,21 @@ sealed interface OrderDetailAction {
     data class OnDeadlineSelected(val epochMillis: Long) : OrderDetailAction
     data object OnDismissDatePickerDialog : OrderDetailAction
 
+    // Assignment (Task 7 / Slice 8e — owner picker, staff claim)
+
+    /** Owner: opens the roster picker sheet (also used to re-open it for "Change"). */
+    data object OnAssignClick : OrderDetailAction
+
+    /** Owner picks a roster member from the sheet. Never reachable by staff. */
+    data class OnAssignMember(val memberId: String, val memberName: String) : OrderDetailAction
+
+    /** Owner clears the assignment back to unassigned. Never reachable by staff. */
+    data object OnUnassignClick : OrderDetailAction
+
+    /** Staff claims an unassigned order for themselves (null -> self only). */
+    data object OnClaimClick : OrderDetailAction
+    data object OnDismissAssignSheet : OrderDetailAction
+
     // Misc
     data object OnErrorDismiss : OrderDetailAction
 }
@@ -123,7 +138,9 @@ sealed interface OrderDetailAction {
  * destructive delete/archive (both the arm-dialog AND confirm/execute actions — a
  * cold-start race can briefly show the affordance before isActiveStaff resolves, so
  * the confirm must be guarded too). NOT restricted: status advance, notes, styles,
- * measurements, deadline, and plain sheet/dialog dismisses.
+ * measurements, deadline, and plain sheet/dialog dismisses. Also restricted: the
+ * owner-only assignment actions (arm the picker, pick a member, unassign) — a staff
+ * member may only [OrderDetailAction.OnClaimClick] an unassigned order for themselves.
  */
 @Suppress("CyclomaticComplexMethod")
 internal fun OrderDetailAction.isStaffRestricted(): Boolean = when (this) {
@@ -165,6 +182,11 @@ internal fun OrderDetailAction.isStaffRestricted(): Boolean = when (this) {
     OrderDetailAction.OnConfirmArchive,
     OrderDetailAction.OnDeleteClick,
     OrderDetailAction.OnConfirmDelete,
+    // Assignment — owner-only (arm/pick/unassign); OnClaimClick and
+    // OnDismissAssignSheet fall through to the else branch, unrestricted.
+    OrderDetailAction.OnAssignClick,
+    is OrderDetailAction.OnAssignMember,
+    OrderDetailAction.OnUnassignClick,
     -> true
 
     else -> false
