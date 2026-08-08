@@ -12,17 +12,23 @@ import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.workshopUidOrNull
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class OrderListViewModel(
     private val orderRepository: OrderRepository,
     private val customerRepository: CustomerRepository,
@@ -122,72 +128,102 @@ class OrderListViewModel(
         }
     }
 
+    // Kill-switch / staff-revocation must bite mid-session, not on next restart
+    // (StitchPad exploration, 2026-08-08): the old `workshopUidOrNull()` one-shot
+    // read pinned this listener to whatever tree resolved at subscribe time.
+    // Re-subscribing on every `workshopUid` change (flatMapLatest cancels the
+    // previous Firestore listener before starting the new one) keeps the list
+    // correct for the LIVE session, not the one it started in.
     private fun observeOrders() {
         viewModelScope.launch {
-            val userId = activeWorkshopProvider.workshopUidOrNull() ?: run {
-                _state.update { it.copy(isLoading = false) }
-                return@launch
-            }
-            orderRepository.observeOrders(userId).collect { result ->
-                when (result) {
-                    is Result.Success -> {
-                        allOrders = result.data
+            activeWorkshopProvider.flow
+                .map { it.workshopUid.takeIf { uid -> uid.isNotBlank() } }
+                .distinctUntilChanged()
+                .flatMapLatest { workshopUid ->
+                    if (workshopUid == null) flowOf(null) else orderRepository.observeOrders(workshopUid)
+                }
+                .collect { result ->
+                    if (result == null) {
+                        allOrders = emptyList()
                         _state.update { state ->
                             state.copy(
-                                // Active updates never override the archived view.
-                                orders = if (state.showArchived) {
-                                    state.orders
-                                } else {
-                                    filterAndSort(result.data, state.statusFilter)
-                                },
-                                isLoading = false
+                                isLoading = false,
+                                orders = if (state.showArchived) state.orders else emptyList(),
                             )
                         }
+                        return@collect
                     }
-                    is Result.Error -> {
-                        _state.update { state ->
-                            state.copy(isLoading = false, errorMessage = result.error.toOrderUiText())
+                    when (result) {
+                        is Result.Success -> {
+                            allOrders = result.data
+                            _state.update { state ->
+                                state.copy(
+                                    // Active updates never override the archived view.
+                                    orders = if (state.showArchived) {
+                                        state.orders
+                                    } else {
+                                        filterAndSort(result.data, state.statusFilter)
+                                    },
+                                    isLoading = false
+                                )
+                            }
+                        }
+                        is Result.Error -> {
+                            _state.update { state ->
+                                state.copy(isLoading = false, errorMessage = result.error.toOrderUiText())
+                            }
                         }
                     }
                 }
-            }
         }
     }
 
     private fun observeArchivedOrders() {
         viewModelScope.launch {
-            val userId = activeWorkshopProvider.workshopUidOrNull() ?: run {
-                _state.update { it.copy(isArchivedLoading = false) }
-                return@launch
-            }
-            orderRepository.observeArchivedOrders(userId).collect { result ->
-                when (result) {
-                    is Result.Success -> {
-                        allArchivedOrders = result.data
+            activeWorkshopProvider.flow
+                .map { it.workshopUid.takeIf { uid -> uid.isNotBlank() } }
+                .distinctUntilChanged()
+                .flatMapLatest { workshopUid ->
+                    if (workshopUid == null) flowOf(null) else orderRepository.observeArchivedOrders(workshopUid)
+                }
+                .collect { result ->
+                    if (result == null) {
+                        allArchivedOrders = emptyList()
                         _state.update { state ->
                             state.copy(
                                 isArchivedLoading = false,
-                                orders = if (state.showArchived) result.data else state.orders
+                                orders = if (state.showArchived) emptyList() else state.orders,
                             )
                         }
+                        return@collect
                     }
-                    is Result.Error -> {
-                        // Clear loading so the view stops spinning. Surface the error
-                        // only while the archived view is open — on the active view the
-                        // active stream (same Firestore source) owns the error surface.
-                        _state.update { state ->
-                            state.copy(
-                                isArchivedLoading = false,
-                                errorMessage = if (state.showArchived) {
-                                    result.error.toOrderUiText()
-                                } else {
-                                    state.errorMessage
-                                },
-                            )
+                    when (result) {
+                        is Result.Success -> {
+                            allArchivedOrders = result.data
+                            _state.update { state ->
+                                state.copy(
+                                    isArchivedLoading = false,
+                                    orders = if (state.showArchived) result.data else state.orders
+                                )
+                            }
+                        }
+                        is Result.Error -> {
+                            // Clear loading so the view stops spinning. Surface the error
+                            // only while the archived view is open — on the active view the
+                            // active stream (same Firestore source) owns the error surface.
+                            _state.update { state ->
+                                state.copy(
+                                    isArchivedLoading = false,
+                                    errorMessage = if (state.showArchived) {
+                                        result.error.toOrderUiText()
+                                    } else {
+                                        state.errorMessage
+                                    },
+                                )
+                            }
                         }
                     }
                 }
-            }
         }
     }
 

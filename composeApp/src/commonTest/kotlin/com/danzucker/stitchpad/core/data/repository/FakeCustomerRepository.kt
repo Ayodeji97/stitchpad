@@ -7,6 +7,7 @@ import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 
 class FakeCustomerRepository : CustomerRepository {
@@ -20,8 +21,24 @@ class FakeCustomerRepository : CustomerRepository {
         get() = customersFlow.value
         set(value) { customersFlow.value = value }
 
+    /**
+     * Per-uid override streams (Slice 8e — kill-switch/session re-subscription
+     * tests): a uid opted in via [setCustomersFor] gets its OWN independent list
+     * so a test can simulate two different workshop trees live in the same VM.
+     * Any uid that never calls [setCustomersFor] keeps sharing [customersFlow]
+     * via [customersList] — every existing single-tenant test is unaffected.
+     */
+    private val perUidCustomersFlow = mutableMapOf<String, MutableStateFlow<List<Customer>>>()
+
+    fun setCustomersFor(userId: String, customers: List<Customer>) {
+        perUidCustomersFlow.getOrPut(userId) { MutableStateFlow(emptyList()) }.value = customers
+    }
+
+    private fun customersFlowFor(userId: String): StateFlow<List<Customer>> =
+        perUidCustomersFlow[userId] ?: customersFlow
+
     override fun observeCustomers(userId: String): Flow<Result<List<Customer>, DataError.Network>> =
-        customersFlow.map { list ->
+        customersFlowFor(userId).map { list ->
             shouldReturnError?.let { return@map Result.Error(it) }
             Result.Success(list)
         }

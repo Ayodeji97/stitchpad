@@ -71,6 +71,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
@@ -408,6 +409,31 @@ class DashboardViewModelTest {
         assertTrue(state.overdue.isEmpty())
         assertTrue(state.dueToday.isEmpty())
         assertEquals(1, assertNotNull(state.staffPipeline).inProgressTotal)
+    }
+
+    // Task 1 (staff phase2 assignment): kill-switch / revocation must bite mid-session —
+    // loadData's combine must not stay pinned to the workshop/role it started on.
+    @Test
+    fun killSwitchMidSession_reDerivesDashboardUnderNewSession() = runTest {
+        signIn()
+        becomeActiveStaff() // authUid = "staff-uid", workshopUid = "owner-uid"
+        orderRepository.setOrdersFor(
+            "owner-uid",
+            listOf(fakeOrder(id = "wip1", status = OrderStatus.IN_PROGRESS, deadline = null)),
+        )
+
+        val vm = createViewModel()
+        assertTrue(vm.state.value.isStaff)
+        assertEquals(1, assertNotNull(vm.state.value.staffPipeline).inProgressTotal)
+
+        // Kill switch drops the session to owner-of-self on the staffer's OWN (empty) tree.
+        activeWorkshopProvider.setSession(WorkshopSession.ownerOfSelf("staff-uid"))
+        runCurrent()
+
+        val state = vm.state.value
+        assertFalse(state.isStaff)
+        assertNull(state.staffPipeline)
+        assertEquals(DashboardUiState.BrandNew, state.uiState)
     }
 
     // --- Overdue bucket ---

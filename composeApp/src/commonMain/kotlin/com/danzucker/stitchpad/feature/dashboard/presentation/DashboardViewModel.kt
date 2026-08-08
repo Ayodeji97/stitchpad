@@ -42,6 +42,7 @@ import com.danzucker.stitchpad.feature.goals.domain.repository.WeeklyGoalReposit
 import com.danzucker.stitchpad.feature.measurement.presentation.entry.MeasurementEntryDestination
 import com.danzucker.stitchpad.feature.measurement.presentation.entry.MeasurementEntryResolver
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
@@ -51,8 +52,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -74,7 +78,7 @@ private const val ONE_DAY_MILLIS: Long = 24L * 60L * 60L * 1000L
 private const val PICKER_DISMISS_DELAY_MS = 450L
 private const val COUNT_FETCH_TIMEOUT_MS = 3_000L
 
-@OptIn(ExperimentalTime::class)
+@OptIn(ExperimentalTime::class, ExperimentalCoroutinesApi::class)
 @Suppress("TooManyFunctions", "LongParameterList")
 class DashboardViewModel(
     private val orderRepository: OrderRepository,
@@ -458,49 +462,67 @@ class DashboardViewModel(
         }
     }
 
+    // Kill-switch / staff-revocation must bite mid-session, not on next restart
+    // (StitchPad exploration, 2026-08-08): the old one-shot `awaitHydrated()` read
+    // pinned workshopUid/isStaff for the VM's whole lifetime. Re-deriving on every
+    // (workshopUid, isStaff) change — flatMapLatest cancels the previous combine
+    // (and its Firestore listeners) before starting the new one — keeps the
+    // dashboard correct for the LIVE session, not the one it started in.
     private fun loadData() {
         viewModelScope.launch {
             val authUser = authRepository.getCurrentUser() ?: run {
                 _state.update { it.copy(uiState = DashboardUiState.BrandNew) }
                 return@launch
             }
-            // Identity split: active staff read the OWNER's tree (workshopUid); an
-            // owner reads their own. authUser stays the signed-in identity, so the
-            // greeting name/avatar is always the person actually looking.
-            val session = activeWorkshopProvider.awaitHydrated()
-            val workshopUid = session.workshopUid.takeIf { it.isNotBlank() } ?: run {
-                _state.update { it.copy(uiState = DashboardUiState.BrandNew) }
-                return@launch
-            }
-            val isStaff = session.isActiveStaff
-            if (isStaff) {
-                // Publish staff identity up front so the header renders the staff
-                // variant (name + Staff pill + workshop) while the first snapshot loads.
-                _state.update {
-                    it.copy(isStaff = true, businessName = staffMembershipPrefs.workshopName.value)
-                }
-            }
             // Fire-and-forget: register the device's push token for this user.
             // The merge-write is idempotent so running on every cold start is safe.
             viewModelScope.launch { pushTokenRegistrar.registerForUser(authUser.id) }
-            // Orders/customers are scoped to workshopUid so active staff see the
-            // owner's book; the user doc stays on authUid (the signed-in person's
-            // own profile drives the greeting name + avatar). The Firestore user
-            // doc is in the combine so logo + workshop-name edits flow through live.
-            combine(
-                userRepository.observeUser(authUser.id).onStart { emit(null) },
-                orderRepository.observeOrders(workshopUid),
-                customerRepository.observeCustomers(workshopUid),
-                goalFlowFor(isStaff, workshopUid),
-            ) { firestoreUser, ordersResult, customersResult, goalResult ->
-                UserAndDashboardData(firestoreUser, ordersResult, customersResult, goalResult)
-            }.collect { combined ->
-                if (isStaff) {
-                    updateStaffState(authUser, combined)
-                } else {
-                    updateOwnerState(authUser, combined)
+
+            // Identity split: active staff read the OWNER's tree (workshopUid); an
+            // owner reads their own. authUser stays the signed-in identity, so the
+            // greeting name/avatar is always the person actually looking.
+            activeWorkshopProvider.flow
+                .map { session -> session.workshopUid.takeIf { it.isNotBlank() } to session.isActiveStaff }
+                .distinctUntilChanged()
+                .flatMapLatest { (workshopUid, isStaff) ->
+                    if (workshopUid == null) {
+                        flowOf(null)
+                    } else {
+                        if (isStaff) {
+                            // Publish staff identity up front so the header renders the staff
+                            // variant (name + Staff pill + workshop) while the first snapshot loads.
+                            _state.update {
+                                it.copy(isStaff = true, businessName = staffMembershipPrefs.workshopName.value)
+                            }
+                        }
+                        // Orders/customers are scoped to workshopUid so active staff see the
+                        // owner's book; the user doc stays on authUid (the signed-in person's
+                        // own profile drives the greeting name + avatar). The Firestore user
+                        // doc is in the combine so logo + workshop-name edits flow through live.
+                        combine(
+                            userRepository.observeUser(authUser.id).onStart { emit(null) },
+                            orderRepository.observeOrders(workshopUid),
+                            customerRepository.observeCustomers(workshopUid),
+                            goalFlowFor(isStaff, workshopUid),
+                        ) { firestoreUser, ordersResult, customersResult, goalResult ->
+                            DashboardLoadTick(
+                                isStaff = isStaff,
+                                data = UserAndDashboardData(firestoreUser, ordersResult, customersResult, goalResult),
+                            )
+                        }
+                    }
                 }
-            }
+                .collect { tick ->
+                    if (tick == null) {
+                        _state.update { it.copy(uiState = DashboardUiState.BrandNew) }
+                        return@collect
+                    }
+                    if (tick.isStaff) {
+                        updateStaffState(authUser, tick.data)
+                    } else {
+                        updateOwnerState(authUser, tick.data)
+                    }
+                }
         }
     }
 
@@ -653,6 +675,12 @@ class DashboardViewModel(
             it.copy(
                 uiState = uiState,
                 firstName = firstName,
+                // A prior tick may have been staff (kill-switch / revocation flipped
+                // the session mid-session) — clear both explicitly so the money wall
+                // holds at the state level, not just while `isStaff` composable guards
+                // are in effect.
+                isStaff = false,
+                staffPipeline = null,
                 businessName = workshopName,
                 businessLogoUrl = user.businessLogoUrl,
                 greeting = greeting,
@@ -739,6 +767,17 @@ private data class UserAndDashboardData(
     val ordersResult: Result<List<Order>, DataError.Network>,
     val customersResult: Result<List<Customer>, DataError.Network>,
     val goalResult: Result<WeeklyGoal?, DataError.Network>,
+)
+
+/**
+ * [loadData]'s flatMapLatest emits one of these per combine tick. [isStaff] rides
+ * along with the data (rather than being read from an outer closure) so a
+ * role flip mid-collection is dispatched with the role it was actually resolved
+ * under for THAT tick, not a stale value captured when the listener started.
+ */
+private data class DashboardLoadTick(
+    val isStaff: Boolean,
+    val data: UserAndDashboardData,
 )
 
 /**

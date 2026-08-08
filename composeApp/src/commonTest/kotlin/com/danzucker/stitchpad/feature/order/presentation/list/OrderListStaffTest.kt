@@ -18,11 +18,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -151,6 +153,45 @@ class OrderListStaffTest {
         orderRepository.ordersList = listOf(sampleOrder().copy(id = "trigger-emit"))
 
         assertNotNull(vm.state.value.errorMessage)
+    }
+
+    // --- Task 1 (staff phase2 assignment): kill-switch / revocation must bite
+    // mid-session — the listener must not stay pinned to the tree it started on. ---
+
+    @Test
+    fun workshopChangeMidSession_reSubscribesTheOrdersListener() = runTest {
+        setStaffSession() // workshopUid = "o"
+        orderRepository.setOrdersFor("o", listOf(sampleOrder().copy(id = "owned-by-o")))
+        orderRepository.setOrdersFor("s", listOf(sampleOrder().copy(id = "owned-by-s")))
+        val vm = createViewModel()
+        assertEquals(listOf("owned-by-o"), vm.state.value.orders.map { it.id })
+
+        // Kill switch drops the session to owner-of-self: workshopUid becomes the auth uid.
+        activeWorkshopProvider.setSession(WorkshopSession.ownerOfSelf("s"))
+        runCurrent()
+
+        assertEquals(listOf("owned-by-s"), vm.state.value.orders.map { it.id })
+    }
+
+    @Test
+    fun workshopChangeMidSession_reSubscribesTheArchivedOrdersListener() = runTest {
+        setStaffSession() // workshopUid = "o"
+        orderRepository.setOrdersFor(
+            "o",
+            listOf(sampleOrder().copy(id = "archived-by-o", archivedAt = 1L)),
+        )
+        orderRepository.setOrdersFor(
+            "s",
+            listOf(sampleOrder().copy(id = "archived-by-s", archivedAt = 1L)),
+        )
+        val vm = createViewModel()
+        vm.onAction(OrderListAction.OnShowArchived)
+        assertEquals(listOf("archived-by-o"), vm.state.value.orders.map { it.id })
+
+        activeWorkshopProvider.setSession(WorkshopSession.ownerOfSelf("s"))
+        runCurrent()
+
+        assertEquals(listOf("archived-by-s"), vm.state.value.orders.map { it.id })
     }
 
     private fun sampleOrder(): Order = Order(

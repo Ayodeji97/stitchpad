@@ -184,6 +184,23 @@ class CustomerListViewModelTest {
         assertTrue(vm.state.value.isActiveStaff)
     }
 
+    // Task 1 (staff phase2 assignment): kill-switch / revocation must bite mid-session —
+    // the customers listener must not stay pinned to the tree it started on.
+    @Test
+    fun workshopChangeMidSession_reSubscribesTheCustomersListener() = runTest {
+        activeWorkshopProvider.setSession(activeStaffSession) // workshopUid = "o"
+        customerRepository.setCustomersFor("o", listOf(fakeCustomer(id = "owned-by-o")))
+        customerRepository.setCustomersFor("s", listOf(fakeCustomer(id = "owned-by-s")))
+        val vm = createViewModel()
+        assertEquals(listOf("owned-by-o"), vm.state.value.customers.map { it.id })
+
+        // Kill switch drops the session to owner-of-self: workshopUid becomes the auth uid.
+        activeWorkshopProvider.setSession(WorkshopSession.ownerOfSelf("s"))
+        runCurrent()
+
+        assertEquals(listOf("owned-by-s"), vm.state.value.customers.map { it.id })
+    }
+
     // Slice 8e: staff LIST access is now unblocked server-side, so a repo error
     // must surface exactly like it does for an owner — no more treating a
     // denial as an empty list.

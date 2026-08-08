@@ -11,6 +11,7 @@ import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 
 class FakeOrderRepository : OrderRepository {
@@ -24,6 +25,22 @@ class FakeOrderRepository : OrderRepository {
     var ordersList: List<Order>
         get() = ordersFlow.value
         set(value) { ordersFlow.value = value }
+
+    /**
+     * Per-uid override streams (Slice 8e — kill-switch/session re-subscription
+     * tests): a uid opted in via [setOrdersFor] gets its OWN independent list so
+     * a test can simulate two different workshop trees ("o" vs "s") live in the
+     * same VM. Any uid that never calls [setOrdersFor] keeps sharing [ordersFlow]
+     * via [ordersList] — every existing single-tenant test is unaffected.
+     */
+    private val perUidOrdersFlow = mutableMapOf<String, MutableStateFlow<List<Order>>>()
+
+    fun setOrdersFor(userId: String, orders: List<Order>) {
+        perUidOrdersFlow.getOrPut(userId) { MutableStateFlow(emptyList()) }.value = orders
+    }
+
+    private fun ordersFlowFor(userId: String): StateFlow<List<Order>> =
+        perUidOrdersFlow[userId] ?: ordersFlow
 
     var lastCreatedOrder: Order? = null
     var lastUpdatedOrder: Order? = null
@@ -40,7 +57,7 @@ class FakeOrderRepository : OrderRepository {
     private var nextIdSuffix = 0
 
     override fun observeOrders(userId: String): Flow<Result<List<Order>, DataError.Network>> =
-        ordersFlow.map { list ->
+        ordersFlowFor(userId).map { list ->
             shouldReturnError?.let { return@map Result.Error(it) }
             // Mirror FirebaseOrderRepository's archive filter so VM tests
             // see the same observable surface as production.
@@ -50,7 +67,7 @@ class FakeOrderRepository : OrderRepository {
     override fun observeArchivedOrders(
         userId: String,
     ): Flow<Result<List<Order>, DataError.Network>> =
-        ordersFlow.map { list ->
+        ordersFlowFor(userId).map { list ->
             (archivedError ?: shouldReturnError)?.let { return@map Result.Error(it) }
             Result.Success(
                 list.filter { it.archivedAt != null }.sortedByDescending { it.archivedAt }

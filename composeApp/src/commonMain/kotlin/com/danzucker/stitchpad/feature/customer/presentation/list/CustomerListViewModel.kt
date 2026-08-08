@@ -16,11 +16,16 @@ import com.danzucker.stitchpad.feature.customer.presentation.toCustomerUiText
 import com.danzucker.stitchpad.feature.freemium.domain.FreemiumRepository
 import com.danzucker.stitchpad.feature.measurement.presentation.entry.MeasurementEntryDestination
 import com.danzucker.stitchpad.feature.measurement.presentation.entry.MeasurementEntryResolver
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -32,6 +37,7 @@ import stitchpad.composeapp.generated.resources.customer_delete_pending_orders_l
 
 private const val SHEET_DISMISS_DELAY_MS = 450L
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class CustomerListViewModel(
     private val customerRepository: CustomerRepository,
     private val orderRepository: OrderRepository,
@@ -206,35 +212,53 @@ class CustomerListViewModel(
         }
     }
 
+    // Kill-switch / staff-revocation must bite mid-session, not on next restart
+    // (StitchPad exploration, 2026-08-08): re-subscribe on every `workshopUid`
+    // change instead of pinning the listener to a one-shot read. flatMapLatest
+    // cancels the previous Firestore listener before starting the new one.
     private fun observeCustomers() {
         viewModelScope.launch {
-            val userId = activeWorkshopProvider.workshopUidOrNull() ?: run {
-                _state.update { it.copy(isLoading = false) }
-                return@launch
-            }
-            customerRepository.observeCustomers(userId).collect { result ->
-                when (result) {
-                    is Result.Success -> {
-                        val (active, locked) = result.data.partition {
-                            it.slotState == CustomerSlotState.ACTIVE
-                        }
-                        allCustomers = active
-                        allLockedCustomers = locked
+            activeWorkshopProvider.flow
+                .map { it.workshopUid.takeIf { uid -> uid.isNotBlank() } }
+                .distinctUntilChanged()
+                .flatMapLatest { workshopUid ->
+                    if (workshopUid == null) flowOf(null) else customerRepository.observeCustomers(workshopUid)
+                }
+                .collect { result ->
+                    if (result == null) {
+                        allCustomers = emptyList()
+                        allLockedCustomers = emptyList()
                         _state.update { state ->
                             state.copy(
-                                customers = filterCustomers(active, state.searchQuery),
-                                lockedCustomers = filterCustomers(locked, state.searchQuery),
-                                isLoading = false
+                                customers = emptyList(),
+                                lockedCustomers = emptyList(),
+                                isLoading = false,
                             )
                         }
+                        return@collect
                     }
-                    is Result.Error -> {
-                        _state.update { state ->
-                            state.copy(isLoading = false, errorMessage = result.error.toCustomerUiText())
+                    when (result) {
+                        is Result.Success -> {
+                            val (active, locked) = result.data.partition {
+                                it.slotState == CustomerSlotState.ACTIVE
+                            }
+                            allCustomers = active
+                            allLockedCustomers = locked
+                            _state.update { state ->
+                                state.copy(
+                                    customers = filterCustomers(active, state.searchQuery),
+                                    lockedCustomers = filterCustomers(locked, state.searchQuery),
+                                    isLoading = false
+                                )
+                            }
+                        }
+                        is Result.Error -> {
+                            _state.update { state ->
+                                state.copy(isLoading = false, errorMessage = result.error.toCustomerUiText())
+                            }
                         }
                     }
                 }
-            }
         }
     }
 
@@ -287,29 +311,45 @@ class CustomerListViewModel(
         }
     }
 
+    // Same re-subscription fix as observeCustomers — this listener backs the
+    // delete-guard's active-order count, so pinning it to a one-shot uid would
+    // let a post-kill-switch delete run against the WRONG tree's stale counts.
     private fun observeOrders() {
         viewModelScope.launch {
-            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
-            orderRepository.observeOrders(userId).collect { result ->
-                when (result) {
-                    is Result.Success -> {
-                        activeOrderCountByCustomerId = result.data
-                            .filter { it.status != OrderStatus.DELIVERED }
-                            .groupingBy { it.customerId }
-                            .eachCount()
-                        _state.update { it.copy(ordersLoaded = true, ordersLoadFailed = false) }
+            activeWorkshopProvider.flow
+                .map { it.workshopUid.takeIf { uid -> uid.isNotBlank() } }
+                .distinctUntilChanged()
+                .flatMapLatest { workshopUid ->
+                    if (workshopUid == null) flowOf(null) else orderRepository.observeOrders(workshopUid)
+                }
+                .collect { result ->
+                    if (result == null) {
+                        // No addressable tree (signed out / workshop switch in flight): drop the
+                        // cached counts and require a fresh Success under the new tree before the
+                        // delete guard trusts them again — mirrors the Result.Error caution below.
+                        activeOrderCountByCustomerId = emptyMap()
+                        _state.update { it.copy(ordersLoaded = false) }
+                        return@collect
                     }
-                    is Result.Error -> {
-                        // Don't flip ordersLoaded — `activeOrderCountByCustomerId` is still
-                        // empty/stale, and FirebaseCustomerRepository.deleteCustomer is a single-
-                        // doc delete with no cascade, so allowing deletion here would orphan any
-                        // active orders on the customer. ordersLoadFailed surfaces a specific
-                        // snackbar so the user understands why delete is blocked, distinct from
-                        // the "still loading" first-emission case.
-                        _state.update { it.copy(ordersLoadFailed = true) }
+                    when (result) {
+                        is Result.Success -> {
+                            activeOrderCountByCustomerId = result.data
+                                .filter { it.status != OrderStatus.DELIVERED }
+                                .groupingBy { it.customerId }
+                                .eachCount()
+                            _state.update { it.copy(ordersLoaded = true, ordersLoadFailed = false) }
+                        }
+                        is Result.Error -> {
+                            // Don't flip ordersLoaded — `activeOrderCountByCustomerId` is still
+                            // empty/stale, and FirebaseCustomerRepository.deleteCustomer is a single-
+                            // doc delete with no cascade, so allowing deletion here would orphan any
+                            // active orders on the customer. ordersLoadFailed surfaces a specific
+                            // snackbar so the user understands why delete is blocked, distinct from
+                            // the "still loading" first-emission case.
+                            _state.update { it.copy(ordersLoadFailed = true) }
+                        }
                     }
                 }
-            }
         }
     }
 
