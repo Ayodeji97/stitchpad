@@ -82,18 +82,54 @@ rules are not query filters, so any base doc still carrying money/contact
 the first list query. Non-zero on any of the five counts ⇒ do not deploy; fix and
 re-run the strip cycle first.
 
+### What else this deploy ships: the base-doc money/contact write-deny
+
+The same `firestore.rules` also **denies money/contact keys on every client write
+to a base order/customer doc** — `create` rejects any payload containing
+`totalPrice`/`discount`/`discountReason`/`depositPaid`/`balanceRemaining`/
+`payments`/`costs` (orders) or `phone`/`email`/`address` (customers), and the
+owner `update` branch rejects any write whose `affectedKeys()` touches them.
+Legacy fields already stored on a doc may **remain** (untouched keys aren't
+"affected", so honest edits of a not-yet-stripped doc still succeed) — the
+Admin-SDK strip is what removes them, and it bypasses rules.
+
+Two consequences, both load-bearing:
+
+- **The post-flip monitoring below becomes a backstop, not the only defence.** A
+  queued offline write from a pre-8d-1 build now bounces with
+  `permission-denied` when it flushes, instead of landing on the base doc and
+  leaking to staff LIST until the next re-strip. That offline edit is **lost** —
+  the SDK drops the mutation and the user is not told. Accepted trade: the window
+  is small (below-floor clients are already blocked from new edits by the UI
+  gate) and silent re-contamination of the money/contact wall is worse.
+- **These rules must NOT be deployed before the 8c version floor is enforced.**
+  A pre-8d-1 client writes money/contact on *every* save (GitLive encodes the
+  full DTO), so deploying early breaks saving wholesale for anyone not yet
+  updated. The floor gate is already gate item 2 at the top of this runbook —
+  confirm it is live and that both stores show the 8d-1 build before deploying.
+
 1. `firebase deploy --only firestore:rules --project=stitchpad-30607`
 2. Verify on devices: staff account's Orders + Customers lists populate; no
    money or contact visible anywhere on the staff build; owner unaffected.
+3. Verify on an **owner** device (8d-1+): creating and editing an order and a
+   customer still succeeds, and money/contact still round-trip (they now write
+   only to `/private`). A `permission-denied` here means a below-floor build is
+   still in play — roll the rules back (see Rollback) and re-check the floor.
 
 ## Post-flip monitoring (re-contamination watch)
 
 The 8c version floor is a **UI gate, not a write block**: a below-floor client
 that has queued offline writes will still flush them when it reconnects (the
 Firestore SDK replays its local mutation queue regardless of what screen the app
-is showing). Those replayed writes use the OLD base-doc shape, so they can put
-money/contact fields back onto base docs *after* the strip — and LIST will then
-serve them to staff.
+is showing). Those replayed writes use the OLD base-doc shape, so they *would*
+put money/contact fields back onto base docs after the strip — and LIST would
+then serve them to staff.
+
+**As of this deploy those writes are rejected by the rules** (see "What else this
+deploy ships" above), so re-contamination should be impossible. Keep the checks
+below anyway: they confirm the deny is actually working, and they still catch
+contamination from any non-client writer (an Admin-SDK script, a Console edit, or
+a Cloud Function that bypasses rules).
 
 - After an adoption window (**1–2 weeks post-flip**), re-run the strip **DRY RUN**:
   ```bash
@@ -104,17 +140,20 @@ serve them to staff.
   until everything reads zero.
 - Repeat the check on a slower cadence until two consecutive runs are clean.
 
-**Follow-up (not this branch):** a rules-level *deny* of money/contact keys on
-base order/customer writes (reject any `create`/`update` whose
-`request.resource.data` contains `totalPrice`/`payments`/`costs`/`depositPaid`/
-`balanceRemaining`/`phone`/`email`/`address`) would close this permanently, making
-re-contamination impossible instead of merely detectable. It is out of scope here
-because it must not ship until every writing client is confirmed 8d-1+.
+**Shipped in this deploy (was previously deferred):** the rules-level *deny* of
+money/contact keys on base order/customer writes. It closes re-contamination
+permanently rather than leaving it merely detectable. It is safe to ship here
+precisely because the gate above already requires the 8c version floor to be
+enforced and the 8d-1 build to be live on both stores — i.e. every writing client
+is confirmed 8d-1+. See "What else this deploy ships" under Rules flip.
 
 ## Rollback
 
 - Rules: redeploy the previous `firestore.rules` (git revert of the Task 3
-  commit) — staff lists go dark again, nothing else changes.
+  commit) — staff lists go dark again, and the base-doc money/contact write-deny
+  lifts, so below-floor clients can save (and re-contaminate) again. If you roll
+  back for that reason, resume the post-flip monitoring below as the sole defence
+  until the floor is fixed and the rules are redeployed.
 - Strip: restore from the export — full-DB restore; only for catastrophic data
   loss, expect to lose writes made since the export.
   1. Find the operation folder created by the export:

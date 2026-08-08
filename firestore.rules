@@ -143,6 +143,21 @@ service cloud.firestore {
           : true;
       }
 
+      // ── Slice 8e: base docs must stay money/contact-free ──────────────────
+      // After the Slice-8d strip, order money lives ONLY in
+      // orders/{oid}/private/money and customer contact ONLY in
+      // customers/{cid}/private/contact. These two key lists are exactly
+      // ORDER_MONEY_FIELDS / CUSTOMER_CONTACT_FIELDS in
+      // functions/scripts/stripBaseSensitiveFields.js, and exactly the sets the
+      // staff GET field-absence guards below check — keep all three in lockstep.
+      function orderMoneyKeys() {
+        return ['totalPrice', 'discount', 'discountReason', 'depositPaid',
+                'balanceRemaining', 'payments', 'costs'];
+      }
+      function customerContactKeys() {
+        return ['phone', 'email', 'address'];
+      }
+
       allow read: if isOwner(uid);
 
       // Client-side delete is denied to prevent welcome-window replay.
@@ -276,8 +291,19 @@ service cloud.firestore {
         // version floor). Rules are not query filters; the strip is the guard.
         // The field-absence guard on `get` above stays as defence-in-depth.
         allow list: if isOwner(uid) || isActiveMember(uid);
-        allow create: if activityCreateOk();
-        allow update: if isOwner(uid) && serverCreatedAtProtectedOnUpdate() && activityCreatedAtStableOnUpdate();
+        // Slice 8e: a base customer doc may never be created carrying contact.
+        // Post-8d-1 clients write CustomerBaseDto (no phone/email/address); a
+        // pre-8d-1 client — including one flushing writes queued offline before
+        // the version floor took hold — always carries all three keys (GitLive
+        // encodes defaults), so rejecting them atomically bounces the whole
+        // write instead of letting it re-contaminate the doc.
+        allow create: if activityCreateOk()
+          && !request.resource.data.keys().hasAny(customerContactKeys());
+        // Slice 8e: keyed on affectedKeys(), so legacy contact already stored on
+        // a doc may REMAIN (an untouched field is not "affected") but can never be
+        // (re)written. The Admin-SDK strip removes it and is not subject to rules.
+        allow update: if isOwner(uid) && serverCreatedAtProtectedOnUpdate() && activityCreatedAtStableOnUpdate()
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(customerContactKeys());
         allow delete: if isOwner(uid);
 
         match /measurements/{measurementId} {
@@ -341,11 +367,27 @@ service cloud.firestore {
         // version floor). Rules are not query filters; the strip is the guard.
         // The field-absence guard on `get` above stays as defence-in-depth.
         allow list: if isOwner(uid) || isActiveMember(uid);
-        allow create: if activityCreateOk();
-        // Owner: full update. Active staff: may ONLY advance production status —
-        // status/subStatus/statusHistory/updatedAt — never money, customer, or
-        // items, and still can't backdate the server-stamp fields.
-        allow update: if (isOwner(uid) && serverCreatedAtProtectedOnUpdate() && activityCreatedAtStableOnUpdate())
+        // Slice 8e: a base order doc may never be created carrying money.
+        // items[].price can't be inspected by rules (rules cannot iterate an
+        // array), but that is not a gap in practice: every legacy full-DTO write
+        // that would carry items[].price ALSO carries the top-level money keys —
+        // GitLive encodes OrderDto's defaults, so totalPrice/discount/depositPaid/
+        // balanceRemaining/payments/costs are always present on the wire. Rejecting
+        // the top-level keys therefore bounces the whole write atomically, items
+        // included. Post-8d-1 clients write OrderBaseDto, which has neither.
+        allow create: if activityCreateOk()
+          && !request.resource.data.keys().hasAny(orderMoneyKeys());
+        // Owner: full update EXCEPT the money keys. Active staff: may ONLY advance
+        // production status — status/subStatus/statusHistory/updatedAt — never
+        // money, customer, or items, and still can't backdate the server-stamp
+        // fields (its hasOnly already excludes money, so it needs no extra guard).
+        //
+        // Slice 8e (owner branch): keyed on affectedKeys(), so legacy money already
+        // stored on a base doc may REMAIN untouched — an honest edit of a
+        // not-yet-stripped doc still succeeds — but may never be (re)written. The
+        // Admin-SDK strip (stripBaseSensitiveFields.js) removes it and bypasses rules.
+        allow update: if (isOwner(uid) && serverCreatedAtProtectedOnUpdate() && activityCreatedAtStableOnUpdate()
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(orderMoneyKeys()))
           || (
             isActiveMember(uid)
             && request.resource.data.diff(resource.data).affectedKeys()

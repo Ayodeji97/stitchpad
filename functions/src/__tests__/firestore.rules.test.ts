@@ -724,6 +724,198 @@ describe('activity docs — createdAt frozen once stamped', () => {
   });
 });
 
+// Slice 8e: base order/customer docs must never (re)gain money/contact fields
+// from ANY client write — including offline writes queued by a pre-8d-1 build and
+// flushed after the strip (the version floor is a UI gate, not a write block).
+// This is the permanent close of the re-contamination window; the post-flip strip
+// dry-run monitoring is now a backstop, not the only defence.
+//
+// These rules must NOT be deployed before the 8c version floor is enforced: a
+// pre-8d-1 client writes money/contact on every save and would break wholesale.
+describe('Slice 8e: money/contact denied on base-doc client writes', () => {
+  const now = Date.now();
+
+  describe('orders — money keys', () => {
+    it('DENIES an owner create carrying totalPrice (legacy full-DTO write)', async () => {
+      await assertFails(
+        setDoc(doc(db('alice'), 'users/alice/orders/o_money_create'), {
+          customerName: 'Ada',
+          status: 'PENDING',
+          createdAt: now - 60_000,
+          serverCreatedAt: serverTimestamp(),
+          totalPrice: 40000,
+        }),
+      );
+    });
+
+    // Every top-level money key is guarded, not just totalPrice — a legacy DTO
+    // encodes all of them, but a hand-rolled write could carry only one.
+    it('DENIES an owner create carrying any single money key', async () => {
+      const keys = ['discount', 'discountReason', 'depositPaid', 'balanceRemaining', 'payments', 'costs'];
+      const values: Record<string, unknown> = {
+        discount: 500, discountReason: 'loyal', depositPaid: 2000,
+        balanceRemaining: 3000, payments: [], costs: [],
+      };
+      for (const key of keys) {
+        await assertFails(
+          setDoc(doc(db('alice'), `users/alice/orders/o_money_${key}`), {
+            status: 'PENDING', createdAt: now - 60_000, [key]: values[key],
+          }),
+        );
+      }
+    });
+
+    it('allows a money-free owner create (the post-8d-1 OrderBaseDto shape)', async () => {
+      await assertSucceeds(
+        setDoc(doc(db('alice'), 'users/alice/orders/o_money_free'), {
+          customerName: 'Ada',
+          status: 'PENDING',
+          items: [{ id: 'i1', garmentType: 'Agbada' }],
+          createdAt: now - 60_000,
+          updatedAt: now - 60_000,
+          serverCreatedAt: serverTimestamp(),
+        }),
+      );
+    });
+
+    it('DENIES an owner update that touches payments', async () => {
+      await asAdmin(async (admin) => {
+        await setDoc(doc(admin, 'users/alice/orders/o_money_upd'), {
+          status: 'PENDING', createdAt: now - 60_000, serverCreatedAt: serverTimestamp(),
+        });
+      });
+      await assertFails(
+        updateDoc(doc(db('alice'), 'users/alice/orders/o_money_upd'), {
+          payments: [{ id: 'p1', amount: 5000 }],
+        }),
+      );
+      await assertFails(
+        updateDoc(doc(db('alice'), 'users/alice/orders/o_money_upd'), { totalPrice: 40000 }),
+      );
+    });
+
+    // The key property of the affectedKeys() formulation: legacy money already on
+    // a base doc may REMAIN (the strip, an Admin-SDK job, is what removes it) while
+    // an honest money-free edit of that same doc still goes through.
+    it('allows a money-free owner update of a doc that STILL carries legacy money', async () => {
+      await asAdmin(async (admin) => {
+        await setDoc(doc(admin, 'users/alice/orders/o_money_legacy'), {
+          status: 'PENDING',
+          notes: 'old',
+          totalPrice: 40000,
+          payments: [{ id: 'p1', amount: 5000 }],
+          createdAt: now - 60_000,
+          serverCreatedAt: serverTimestamp(),
+        });
+      });
+      await assertSucceeds(
+        updateDoc(doc(db('alice'), 'users/alice/orders/o_money_legacy'), {
+          status: 'IN_PROGRESS', notes: 'new', updatedAt: now,
+        }),
+      );
+      // ...but rewriting the legacy money it still carries is denied.
+      await assertFails(
+        updateDoc(doc(db('alice'), 'users/alice/orders/o_money_legacy'), { totalPrice: 1 }),
+      );
+    });
+
+    // The merge-set edit path (FirebaseOrderRepository.updateOrder) resends the
+    // full OrderBaseDto. Values that are byte-identical are not "affected", so a
+    // merge write is only rejected when it actually carries money.
+    it('allows the merge-set updateOrder path on a legacy money-bearing doc', async () => {
+      await asAdmin(async (admin) => {
+        await setDoc(doc(admin, 'users/alice/orders/o_money_merge'), {
+          status: 'PENDING', totalPrice: 40000, createdAt: now - 60_000,
+          serverCreatedAt: serverTimestamp(),
+        });
+      });
+      await assertSucceeds(
+        setDoc(doc(db('alice'), 'users/alice/orders/o_money_merge'),
+          { status: 'DONE', updatedAt: now }, { merge: true }),
+      );
+    });
+  });
+
+  describe('customers — contact keys', () => {
+    it('DENIES an owner create carrying phone (legacy full-DTO write)', async () => {
+      await assertFails(
+        setDoc(doc(db('alice'), 'users/alice/customers/c_contact_create'), {
+          name: 'Ada',
+          createdAt: now - 60_000,
+          serverCreatedAt: serverTimestamp(),
+          phone: '+2348011112222',
+        }),
+      );
+    });
+
+    it('DENIES an owner create carrying email or address', async () => {
+      await assertFails(
+        setDoc(doc(db('alice'), 'users/alice/customers/c_contact_email'), {
+          name: 'Ada', createdAt: now - 60_000, email: 'ada@example.com',
+        }),
+      );
+      await assertFails(
+        setDoc(doc(db('alice'), 'users/alice/customers/c_contact_addr'), {
+          name: 'Ada', createdAt: now - 60_000, address: '1 Broad St',
+        }),
+      );
+    });
+
+    it('allows a contact-free owner create (the post-8d-1 CustomerBaseDto shape)', async () => {
+      await assertSucceeds(
+        setDoc(doc(db('alice'), 'users/alice/customers/c_contact_free'), {
+          name: 'Ada',
+          slotState: 'active',
+          createdAt: now - 60_000,
+          updatedAt: now - 60_000,
+          serverCreatedAt: serverTimestamp(),
+        }),
+      );
+    });
+
+    it('DENIES an owner update that touches phone', async () => {
+      await asAdmin(async (admin) => {
+        await setDoc(doc(admin, 'users/alice/customers/c_contact_upd'), {
+          name: 'Ada', createdAt: now - 60_000, serverCreatedAt: serverTimestamp(),
+        });
+      });
+      await assertFails(
+        updateDoc(doc(db('alice'), 'users/alice/customers/c_contact_upd'), { phone: '+234' }),
+      );
+    });
+
+    it('allows a contact-free owner update of a doc that STILL carries legacy contact', async () => {
+      await asAdmin(async (admin) => {
+        await setDoc(doc(admin, 'users/alice/customers/c_contact_legacy'), {
+          name: 'Ada', phone: '+234', email: 'ada@example.com',
+          createdAt: now - 60_000, serverCreatedAt: serverTimestamp(),
+        });
+      });
+      await assertSucceeds(
+        updateDoc(doc(db('alice'), 'users/alice/customers/c_contact_legacy'), {
+          name: 'Ada B', updatedAt: now,
+        }),
+      );
+      await assertFails(
+        updateDoc(doc(db('alice'), 'users/alice/customers/c_contact_legacy'), { phone: '+999' }),
+      );
+    });
+  });
+
+  // The wall itself is unchanged: money/contact still belong in /private, and the
+  // owner must still be able to write them there.
+  it('the owner can still write money and contact to the /private sub-docs', async () => {
+    await assertSucceeds(
+      setDoc(doc(db('alice'), 'users/alice/orders/o_money_free/private/money'),
+        { ownerId: 'alice', totalPrice: 40000, payments: [], costs: [] }),
+    );
+    await assertSucceeds(
+      setDoc(doc(db('alice'), 'users/alice/customers/c_contact_free/private/contact'),
+        { ownerId: 'alice', phone: '+234', email: null, address: null }),
+    );
+  });
+});
+
 // Owner + Staff feature: money and customer contact live in owner-only
 // /private sub-docs. These rules ship WITH the dual-write (Slice 2) so the
 // new owner-client writes aren't default-denied; being isOwner-only they also
