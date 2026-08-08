@@ -674,6 +674,9 @@ fun DashboardScreen(
                     state = state,
                     onAction = onAction,
                     modifier = contentModifier,
+                    // Staff has no FAB, but the scrollable content still needs clearance
+                    // above the bottom nav or the pipeline section sits flush against it.
+                    bottomPadding = NO_FAB_BOTTOM_PADDING,
                 )
             } else {
                 when (state.uiState) {

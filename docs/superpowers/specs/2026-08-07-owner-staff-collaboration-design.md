@@ -132,10 +132,17 @@ Sub-roles ("staff admin"), per-permission editor, staff activity log, comments/m
    order (owner request from device smoke testing). Requires: staff order-update
    whitelist extended to `items` (safe post-strip — base items are money-free),
    Storage rules granting staff upload access to the owner's media paths, the
-   upload-outbox path verified under a staff session, and tests. Until it ships,
-   the staff order-detail UI shows "Add style / Add fabric photo" affordances that
-   the rules deny — gate them on role as part of this slice. Fold into Phase 2
+   upload-outbox path verified under a staff session, and tests. Fold into Phase 2
    (assignment), which also expands staff write scope.
+   **Broader finding from the same session:** the staff order-detail screen shows
+   several affordances the status-only rules whitelist denies — "Add style",
+   "Add fabric photo", the due-date edit pencil, and the Notes field. Each fails
+   silently (offline-queued write rejected server-side). Phase 2 must include a
+   systematic role-gating audit of the order-detail (and any other staff-reachable
+   screen) against the rules whitelist: hide or disable every affordance staff
+   cannot complete, and decide per-affordance whether to grant it instead
+   (product call so far: due date stays owner-only — it is a customer commitment;
+   styles/fabrics become staff-editable; notes TBD).
 2. **Storage emulator in the smoke setup** — `firebase.emulator.json` covers only
    Auth + Firestore, so app image uploads go to production Storage and fail with
    403 (emulator-issued token), making image sync appear broken locally. Add the
