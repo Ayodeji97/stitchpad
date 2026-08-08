@@ -54,6 +54,7 @@ class FakeOrderRepository : OrderRepository {
     var lastNotesUpdate: Pair<String, String?>? = null
     var lastArchivedOrderId: String? = null
     var lastUnarchivedOrderId: String? = null
+    var lastAssignment: Triple<String, String?, String?>? = null
     private var nextIdSuffix = 0
 
     override fun observeOrders(userId: String): Flow<Result<List<Order>, DataError.Network>> =
@@ -213,6 +214,20 @@ class FakeOrderRepository : OrderRepository {
         lastUnarchivedOrderId = orderId
         ordersFlow.value = ordersFlow.value.map { existing ->
             if (existing.id == orderId) existing.copy(archivedAt = null) else existing
+        }
+        return Result.Success(Unit)
+    }
+
+    override suspend fun assignOrder(
+        userId: String,
+        orderId: String,
+        memberId: String?,
+        memberName: String?,
+    ): EmptyResult<DataError.Network> {
+        shouldReturnError?.let { return Result.Error(it) }
+        lastAssignment = Triple(orderId, memberId, memberName)
+        ordersFlow.value = ordersFlow.value.map { existing ->
+            if (existing.id == orderId) existing.copy(assignedMemberId = memberId, assignedMemberName = memberName) else existing
         }
         return Result.Success(Unit)
     }

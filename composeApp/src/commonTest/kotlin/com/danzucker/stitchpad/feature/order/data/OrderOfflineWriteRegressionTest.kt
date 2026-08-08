@@ -218,6 +218,20 @@ class OrderOfflineWriteRegressionTest {
     }
 
     @Test
+    fun orderAssignmentWriteFields_touchesOnlyAssignmentAndUpdatedAt() {
+        val fields = orderAssignmentWriteFields(memberId = "m1", memberName = "Chidi O", now = 42L)
+        assertEquals(setOf("assignedMemberId", "assignedMemberName", "updatedAt"), fields.keys)
+        assertEquals("m1", fields["assignedMemberId"])
+    }
+
+    @Test
+    fun orderAssignmentWriteFields_unassignWritesExplicitNulls() {
+        val fields = orderAssignmentWriteFields(memberId = null, memberName = null, now = 42L)
+        assertEquals(setOf("assignedMemberId", "assignedMemberName", "updatedAt"), fields.keys)
+        assertEquals(null, fields["assignedMemberId"])
+    }
+
+    @Test
     fun ownedOrderStoragePaths_collectsLegacyAndMultiImagePathsWithoutDuplicates() {
         val order = order(
             item = OrderItem(
