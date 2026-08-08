@@ -199,6 +199,41 @@ class OrderListStaffTest {
         assertEquals(listOf("archived-by-s"), vm.state.value.orders.map { it.id })
     }
 
+    // --- Slice 8e Bugbot follow-up: the kill-switch tests above only prove the
+    // listener re-subscribes — both trees' data were ready the instant flatMapLatest
+    // switched, so `allOrders`/state never had a chance to show A's stale rows. Force
+    // that window open with a fake flow that genuinely hasn't emitted yet, and keep
+    // the STAFF role constant across the switch (no role-change nav redirect to mask
+    // the gap) — this is a pure multi-workshop switch. ---
+
+    @Test
+    fun workshopSwitchMidSession_resetsOrdersBeforeNewTreeDataLands() = runTest {
+        setStaffSession() // authUid = "s", workshopUid = "o"
+        orderRepository.setOrdersFor("o", listOf(sampleOrder().copy(id = "owned-by-o")))
+        val vm = createViewModel()
+        assertEquals(listOf("owned-by-o"), vm.state.value.orders.map { it.id })
+
+        // "o2"'s listener genuinely hasn't produced a first snapshot yet.
+        orderRepository.setOrdersPendingFor("o2")
+        activeWorkshopProvider.setSession(
+            WorkshopSession(
+                authUid = "s",
+                workshopUid = "o2",
+                role = StaffRole.STAFF,
+                membershipStatus = MembershipStatus.ACTIVE,
+            ),
+        )
+        runCurrent()
+
+        // Must not still show "o"'s stale rows while "o2" hasn't emitted.
+        assertEquals(emptyList(), vm.state.value.orders)
+
+        orderRepository.emitOrdersFor("o2", listOf(sampleOrder().copy(id = "owned-by-o2")))
+        runCurrent()
+
+        assertEquals(listOf("owned-by-o2"), vm.state.value.orders.map { it.id })
+    }
+
     // --- Task 8: "My work" filter chip — staff filters the ACTIVE list to their own
     // assignments (assignedMemberId == the signed-in authUid). ---
 

@@ -201,6 +201,40 @@ class CustomerListViewModelTest {
         assertEquals(listOf("owned-by-s"), vm.state.value.customers.map { it.id })
     }
 
+    // Slice 8e Bugbot follow-up: the kill-switch test above only proves the listener
+    // re-subscribes — both trees' data were ready the instant flatMapLatest switched,
+    // so `allCustomers`/state never had a chance to show A's stale rows. Force that
+    // window open with a fake flow that genuinely hasn't emitted yet, and keep the
+    // STAFF role constant across the switch (no role-change nav redirect to mask the
+    // gap) — this is a pure multi-workshop switch.
+    @Test
+    fun workshopSwitchMidSession_resetsCustomersBeforeNewTreeDataLands() = runTest {
+        activeWorkshopProvider.setSession(activeStaffSession) // authUid = "s", workshopUid = "o"
+        customerRepository.setCustomersFor("o", listOf(fakeCustomer(id = "owned-by-o")))
+        val vm = createViewModel()
+        assertEquals(listOf("owned-by-o"), vm.state.value.customers.map { it.id })
+
+        // "o2"'s listener genuinely hasn't produced a first snapshot yet.
+        customerRepository.setCustomersPendingFor("o2")
+        activeWorkshopProvider.setSession(
+            WorkshopSession(
+                authUid = "s",
+                workshopUid = "o2",
+                role = StaffRole.STAFF,
+                membershipStatus = MembershipStatus.ACTIVE,
+            ),
+        )
+        runCurrent()
+
+        // Must not still show "o"'s stale rows while "o2" hasn't emitted.
+        assertEquals(emptyList(), vm.state.value.customers)
+
+        customerRepository.emitCustomersFor("o2", listOf(fakeCustomer(id = "owned-by-o2")))
+        runCurrent()
+
+        assertEquals(listOf("owned-by-o2"), vm.state.value.customers.map { it.id })
+    }
+
     // Slice 8e: staff LIST access is now unblocked server-side, so a repo error
     // must surface exactly like it does for an owner — no more treating a
     // denial as an empty list.

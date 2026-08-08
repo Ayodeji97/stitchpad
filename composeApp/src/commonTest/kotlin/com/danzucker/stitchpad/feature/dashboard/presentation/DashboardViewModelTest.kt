@@ -455,6 +455,45 @@ class DashboardViewModelTest {
         assertEquals(DashboardUiState.BrandNew, state.uiState)
     }
 
+    // Slice 8e Bugbot follow-up: the kill-switch test above only proves loadData's
+    // combine re-derives — the NEW ("staff-uid", empty) tree was ready the instant
+    // flatMapLatest switched, so state never had a chance to show the OLD tree's
+    // stale pipeline count. Force that window open with a fake orders flow that
+    // genuinely hasn't emitted yet, and keep the STAFF role constant across the
+    // switch (no sign-out / role-change redirect to mask the gap) — this is a pure
+    // multi-workshop switch.
+    @Test
+    fun workshopSwitchMidSession_resetsStaffPipelineBeforeNewTreeDataLands() = runTest {
+        signIn()
+        becomeActiveStaff("owner-uid") // authUid = "staff-uid"
+        orderRepository.setOrdersFor(
+            "owner-uid",
+            listOf(fakeOrder(id = "wip1", status = OrderStatus.IN_PROGRESS, deadline = null)),
+        )
+        val vm = createViewModel()
+        assertTrue(vm.state.value.isStaff)
+        assertEquals(1, assertNotNull(vm.state.value.staffPipeline).inProgressTotal)
+
+        // "owner-uid-2"'s orders listener genuinely hasn't produced a first
+        // snapshot yet — the staffer switches to a DIFFERENT workshop while
+        // staying STAFF the whole time.
+        orderRepository.setOrdersPendingFor("owner-uid-2")
+        becomeActiveStaff("owner-uid-2")
+        runCurrent()
+
+        // Must not still show "owner-uid"'s stale pipeline count while
+        // "owner-uid-2" hasn't emitted.
+        assertNull(vm.state.value.staffPipeline)
+
+        orderRepository.emitOrdersFor(
+            "owner-uid-2",
+            listOf(fakeOrder(id = "wip2", status = OrderStatus.IN_PROGRESS, deadline = null)),
+        )
+        runCurrent()
+
+        assertEquals(1, assertNotNull(vm.state.value.staffPipeline).inProgressTotal)
+    }
+
     // --- Overdue bucket ---
 
     @Test

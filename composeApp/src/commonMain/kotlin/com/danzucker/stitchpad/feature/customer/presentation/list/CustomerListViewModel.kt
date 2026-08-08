@@ -2,9 +2,11 @@ package com.danzucker.stitchpad.feature.customer.presentation.list
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
+import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
@@ -19,6 +21,7 @@ import com.danzucker.stitchpad.feature.measurement.presentation.entry.Measuremen
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collect
@@ -52,6 +55,13 @@ class CustomerListViewModel(
     private var hasLoadedInitialData = false
     private var allCustomers: List<Customer> = emptyList()
     private var allLockedCustomers: List<Customer> = emptyList()
+
+    // Tracks the workshopUid each listener last subscribed under, so a genuine
+    // A -> B switch (not the first-ever subscribe, and not a transition to/from
+    // null — already handled by the `workshopUid == null` branch below) can be
+    // told apart from a cold start. See the reset note in observeCustomers.
+    private var lastCustomersWorkshopUid: String? = null
+    private var lastOrdersWorkshopUid: String? = null
 
     private val _state = MutableStateFlow(CustomerListState())
 
@@ -222,7 +232,20 @@ class CustomerListViewModel(
                 .map { it.workshopUid.takeIf { uid -> uid.isNotBlank() } }
                 .distinctUntilChanged()
                 .flatMapLatest { workshopUid ->
-                    if (workshopUid == null) flowOf(null) else customerRepository.observeCustomers(workshopUid)
+                    // A -> B (both non-null, different uids): flatMapLatest cancels A's
+                    // listener and starts B's, but B's first snapshot can take a beat to
+                    // arrive — without this, `allCustomers`/state keep showing A's rows in
+                    // the meantime, which is only masked today by the role-change nav
+                    // redirect. Emit the same null sentinel the sign-out branch already
+                    // uses so the reset logic isn't duplicated. Skipped on cold start
+                    // (lastCustomersWorkshopUid == null) so first load doesn't flash empty.
+                    val isWorkshopSwitch = lastCustomersWorkshopUid != null &&
+                        workshopUid != null &&
+                        workshopUid != lastCustomersWorkshopUid
+                    lastCustomersWorkshopUid = workshopUid
+                    val liveFlow: Flow<Result<List<Customer>, DataError.Network>?> =
+                        if (workshopUid == null) flowOf(null) else customerRepository.observeCustomers(workshopUid)
+                    if (isWorkshopSwitch) liveFlow.onStart { emit(null) } else liveFlow
                 }
                 .collect { result ->
                     if (result == null) {
@@ -320,7 +343,15 @@ class CustomerListViewModel(
                 .map { it.workshopUid.takeIf { uid -> uid.isNotBlank() } }
                 .distinctUntilChanged()
                 .flatMapLatest { workshopUid ->
-                    if (workshopUid == null) flowOf(null) else orderRepository.observeOrders(workshopUid)
+                    // Same workshop-switch reset as observeCustomers above, mirrored for
+                    // the delete-guard's order-count cache.
+                    val isWorkshopSwitch = lastOrdersWorkshopUid != null &&
+                        workshopUid != null &&
+                        workshopUid != lastOrdersWorkshopUid
+                    lastOrdersWorkshopUid = workshopUid
+                    val liveFlow: Flow<Result<List<Order>, DataError.Network>?> =
+                        if (workshopUid == null) flowOf(null) else orderRepository.observeOrders(workshopUid)
+                    if (isWorkshopSwitch) liveFlow.onStart { emit(null) } else liveFlow
                 }
                 .collect { result ->
                     if (result == null) {

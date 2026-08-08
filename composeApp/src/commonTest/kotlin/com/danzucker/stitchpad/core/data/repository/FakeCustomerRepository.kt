@@ -6,6 +6,7 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -34,8 +35,32 @@ class FakeCustomerRepository : CustomerRepository {
         perUidCustomersFlow.getOrPut(userId) { MutableStateFlow(emptyList()) }.value = customers
     }
 
-    private fun customersFlowFor(userId: String): StateFlow<List<Customer>> =
-        perUidCustomersFlow[userId] ?: customersFlow
+    /**
+     * [setCustomersFor]'s StateFlow always replays a value (even its default
+     * empty one) to a new subscriber, so it can't represent a workshop tree
+     * whose listener genuinely HASN'T produced a first snapshot yet — the
+     * exact window a workshop-switch reset (Slice 8e) needs to prove itself
+     * against. A uid opted in here gets a no-replay flow instead;
+     * [emitCustomersFor] delivers its first (and any later) snapshot once the
+     * test is ready.
+     */
+    private val pendingCustomersFlow = mutableMapOf<String, MutableSharedFlow<List<Customer>>>()
+
+    fun setCustomersPendingFor(userId: String) {
+        pendingCustomersFlow.getOrPut(userId) { MutableSharedFlow(replay = 0, extraBufferCapacity = 1) }
+    }
+
+    fun emitCustomersFor(userId: String, customers: List<Customer>) {
+        val pending = pendingCustomersFlow[userId]
+        if (pending != null) {
+            pending.tryEmit(customers)
+        } else {
+            setCustomersFor(userId, customers)
+        }
+    }
+
+    private fun customersFlowFor(userId: String): Flow<List<Customer>> =
+        pendingCustomersFlow[userId] ?: perUidCustomersFlow[userId] ?: customersFlow
 
     override fun observeCustomers(userId: String): Flow<Result<List<Customer>, DataError.Network>> =
         customersFlowFor(userId).map { list ->

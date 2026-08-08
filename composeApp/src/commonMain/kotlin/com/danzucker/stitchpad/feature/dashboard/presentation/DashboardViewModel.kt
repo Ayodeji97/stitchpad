@@ -109,6 +109,13 @@ class DashboardViewModel(
     // something any screen renders directly.
     private var latestCustomers: List<Customer> = emptyList()
 
+    // Tracks the workshopUid loadData()'s combine last subscribed under, so a
+    // genuine A -> B switch (not the first-ever subscribe, and not a
+    // transition to/from null — already handled by the `workshopUid == null`
+    // branch below) can be told apart from a cold start. See the reset note
+    // in loadData().
+    private var lastLoadDataWorkshopUid: String? = null
+
     private val _events = Channel<DashboardEvent>()
     val events = _events.receiveAsFlow()
 
@@ -493,6 +500,18 @@ class DashboardViewModel(
                 }
                 .distinctUntilChanged()
                 .flatMapLatest { (workshopUid, isStaff, staffAuthUid) ->
+                    // A -> B (both non-null, different uids): flatMapLatest cancels A's
+                    // combine and starts B's, but the combine can't produce a tick until
+                    // ALL four of its flows have emitted at least once under the new
+                    // uid — until then this stays stale on A's last tick, which is only
+                    // masked today by the role-change nav redirect. Emit the same null
+                    // sentinel the sign-out branch already uses so the reset logic isn't
+                    // duplicated. Skipped on cold start (lastLoadDataWorkshopUid == null)
+                    // so first load doesn't flash BrandNew before the real data lands.
+                    val isWorkshopSwitch = lastLoadDataWorkshopUid != null &&
+                        workshopUid != null &&
+                        workshopUid != lastLoadDataWorkshopUid
+                    lastLoadDataWorkshopUid = workshopUid
                     if (workshopUid == null) {
                         flowOf(null)
                     } else {
@@ -507,7 +526,7 @@ class DashboardViewModel(
                         // owner's book; the user doc stays on authUid (the signed-in person's
                         // own profile drives the greeting name + avatar). The Firestore user
                         // doc is in the combine so logo + workshop-name edits flow through live.
-                        combine(
+                        val combined: Flow<DashboardLoadTick?> = combine(
                             userRepository.observeUser(authUser.id).onStart { emit(null) },
                             orderRepository.observeOrders(workshopUid),
                             customerRepository.observeCustomers(workshopUid),
@@ -519,11 +538,12 @@ class DashboardViewModel(
                                 data = UserAndDashboardData(firestoreUser, ordersResult, customersResult, goalResult),
                             )
                         }
+                        if (isWorkshopSwitch) combined.onStart { emit(null) } else combined
                     }
                 }
                 .collect { tick ->
                     if (tick == null) {
-                        _state.update { it.copy(uiState = DashboardUiState.BrandNew) }
+                        resetOrderAndCustomerDerivedState()
                         return@collect
                     }
                     if (tick.isStaff) {
@@ -532,6 +552,49 @@ class DashboardViewModel(
                         updateOwnerState(authUser, tick.data)
                     }
                 }
+        }
+    }
+
+    /**
+     * Handles loadData()'s null tick — hit both when signed out (workshopUid
+     * null, the whole screen navigates away so this was historically a
+     * `uiState`-only reset) and by [loadData]'s isWorkshopSwitch sentinel,
+     * which fires mid-session while this screen stays put. Leaving every
+     * other order/customer-derived field untouched in that second case would
+     * keep showing the PREVIOUS tree's pipeline counts, buckets, and focus
+     * card under the new (loading) uiState/staffPipeline. `staffPipeline =
+     * null` doubles as the staff loading sentinel; every other field here
+     * just matches DashboardState()'s own default for that field.
+     */
+    private fun resetOrderAndCustomerDerivedState() {
+        latestCustomers = emptyList()
+        _state.update {
+            it.copy(
+                uiState = DashboardUiState.BrandNew,
+                staffPipeline = null,
+                staffMineCount = 0,
+                overdue = emptyList(),
+                dueToday = emptyList(),
+                ready = emptyList(),
+                outstandingAmount = 0.0,
+                outstandingOrderCount = 0,
+                outstandingOverdueCount = 0,
+                nextBestActions = emptyList(),
+                pipelineInProgress = emptyList(),
+                pipelineInProgressTotal = 0,
+                pipelinePending = emptyList(),
+                pipelinePendingTotal = 0,
+                focusVariant = FocusVariant.Quiet,
+                focusHeadline = null,
+                focusSupporting = null,
+                focusCtaLabel = null,
+                focusCtaSubtitle = null,
+                focusSectionLabel = null,
+                reconnectCandidates = emptyList(),
+                customerReady = null,
+                firstOrderSetup = null,
+                weeklyGoal = null,
+            )
         }
     }
 
