@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.order.data
 
 import com.danzucker.stitchpad.core.data.decodeDocOrLog
 import com.danzucker.stitchpad.core.data.dto.OrderCostDto
+import com.danzucker.stitchpad.core.data.dto.OrderDto
 import com.danzucker.stitchpad.core.data.dto.OrderMoneyDto
 import com.danzucker.stitchpad.core.data.dto.PaymentDto
 import com.danzucker.stitchpad.core.data.dto.StatusChangeDto
@@ -41,6 +42,23 @@ import kotlin.uuid.Uuid
 
 private const val TAG = "OrderRepo"
 private const val LEGACY_DEPOSIT_PAYMENT_ID = "legacy-deposit"
+
+/**
+ * Stamps the authoritative Firestore *document* id onto a decoded [OrderDto].
+ *
+ * The `id` FIELD inside the document is only a mirror of the path and can be missing,
+ * blank, or stale (hand-edited doc, partial import, a `set(..., merge = true)` written
+ * before the field existed). Such a doc decodes as `id = ""`, and the Orders list keys
+ * its LazyColumn rows by order id — so TWO id-less docs in one workshop threw
+ * `IllegalArgumentException: Key "" was already used` and hard-crashed the whole screen
+ * (found in device smoke testing). Blank ids also broke the `/private/money` join, which
+ * is keyed by order id.
+ *
+ * Applied at every read/decode site so the DTO identity can never disagree with the path.
+ * Pure + internal so the invariant is unit-testable without a Firestore fake.
+ */
+internal fun OrderDto.withDocumentId(docId: String): OrderDto =
+    if (id == docId) this else copy(id = docId)
 
 internal fun applyCompletedOrderUploadPatches(
     order: Order,
@@ -255,7 +273,8 @@ class FirebaseOrderRepository(
         userId: String,
     ): List<Order> = mapNotNull { doc ->
         decodeDocOrLog(tag = TAG, docId = doc.id) {
-            doc.data<com.danzucker.stitchpad.core.data.dto.OrderDto>()
+            doc.data<OrderDto>()
+                .withDocumentId(doc.id)
                 .toOrder(userId)
                 .withLocalPendingImages()
         }
@@ -299,7 +318,7 @@ class FirebaseOrderRepository(
             if (!snapshot.exists) {
                 Result.Error(DataError.Network.NOT_FOUND) as Result<Order, DataError.Network>
             } else {
-                val dto = snapshot.data<com.danzucker.stitchpad.core.data.dto.OrderDto>()
+                val dto = snapshot.data<OrderDto>().withDocumentId(snapshot.id)
                 Result.Success(
                     dto.toOrder(userId).withLocalPendingImages().withMoney(money),
                 ) as Result<Order, DataError.Network>
@@ -317,7 +336,7 @@ class FirebaseOrderRepository(
         return try {
             val doc = ordersCollection(userId).document(orderId).get()
             if (!doc.exists) return Result.Error(DataError.Network.NOT_FOUND)
-            val dto = doc.data<com.danzucker.stitchpad.core.data.dto.OrderDto>()
+            val dto = doc.data<OrderDto>().withDocumentId(doc.id)
             // Prefer the owner-only money sub-doc; fall back to the base doc's money
             // when it's missing (legacy/seeded order) or the read fails.
             val money = runCatching {

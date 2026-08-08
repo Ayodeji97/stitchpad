@@ -28,6 +28,22 @@ import kotlinx.coroutines.flow.map
 private const val TAG = "CustomerRepo"
 
 /**
+ * Stamps the authoritative Firestore *document* id onto a decoded [CustomerDto].
+ *
+ * See the order-side twin
+ * ([com.danzucker.stitchpad.feature.order.data.withDocumentId]): the `id` FIELD is only a
+ * mirror of the path and may be missing/blank/stale, decoding as `id = ""`. The Customers
+ * list keys its LazyColumn rows by customer id, so two id-less docs crashed the screen
+ * with `IllegalArgumentException: Key "" was already used`, and the `/private/contact`
+ * join (keyed by customer id) silently missed too.
+ *
+ * Applied at every read/decode site. Pure + internal so it is unit-testable without a
+ * Firestore fake.
+ */
+internal fun CustomerDto.withDocumentId(docId: String): CustomerDto =
+    if (id == docId) this else copy(id = docId)
+
+/**
  * Counts the number of ACTIVE-slot customers in [dtos].
  * LOCKED customers are excluded — they don't consume active cap.
  *
@@ -129,7 +145,9 @@ class FirebaseCustomerRepository(
             contactByCustomerId(userId),
         ) { snapshot, contacts ->
             val customerDtos = snapshot.documents.mapNotNull { doc ->
-                decodeDocOrLog(tag = TAG, docId = doc.id) { doc.data<CustomerDto>() }
+                decodeDocOrLog(tag = TAG, docId = doc.id) {
+                    doc.data<CustomerDto>().withDocumentId(doc.id)
+                }
             }
             cacheActiveCustomerCount(userId, countActiveCustomers(customerDtos))
             val customers = customerDtos.map { it.toCustomer(userId).withContact(contacts[it.id]) }
@@ -152,7 +170,7 @@ class FirebaseCustomerRepository(
             if (!snapshot.exists) {
                 Result.Error(DataError.Network.NOT_FOUND) as Result<Customer, DataError.Network>
             } else {
-                val dto = snapshot.data<CustomerDto>()
+                val dto = snapshot.data<CustomerDto>().withDocumentId(snapshot.id)
                 Result.Success(dto.toCustomer(userId).withContact(contact))
             }
         }
@@ -174,7 +192,7 @@ class FirebaseCustomerRepository(
                 .document(customerId)
                 .get()
             if (!doc.exists) return Result.Error(DataError.Network.NOT_FOUND)
-            val dto = doc.data<CustomerDto>()
+            val dto = doc.data<CustomerDto>().withDocumentId(doc.id)
             // Prefer the owner-only contact sub-doc; fall back to the base doc's
             // contact when it's missing (legacy/seeded customer) or the read fails.
             val contact = runCatching {
