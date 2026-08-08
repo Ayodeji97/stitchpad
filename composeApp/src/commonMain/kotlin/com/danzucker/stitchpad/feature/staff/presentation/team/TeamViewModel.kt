@@ -6,9 +6,12 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.error.onFailure
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
 import com.danzucker.stitchpad.core.domain.staff.StaffInvite
+import com.danzucker.stitchpad.core.domain.staff.TeamMember
 import com.danzucker.stitchpad.core.domain.staff.repository.StaffRepository
+import com.danzucker.stitchpad.core.domain.staff.repository.TeamRosterRepository
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
+import com.danzucker.stitchpad.feature.staff.presentation.toTeamRosterUiText
 import com.danzucker.stitchpad.feature.staff.presentation.toUiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,6 +33,7 @@ import kotlin.time.Clock
  */
 class TeamViewModel(
     private val staffRepository: StaffRepository,
+    private val teamRosterRepository: TeamRosterRepository,
     private val authRepository: AuthRepository,
     private val nowMillis: () -> Long = { Clock.System.now().toEpochMilliseconds() },
 ) : ViewModel() {
@@ -42,8 +46,10 @@ class TeamViewModel(
 
     init {
         observeTeam()
+        observeRoster()
     }
 
+    @Suppress("CyclomaticComplexMethod")
     fun onAction(action: TeamAction) {
         when (action) {
             TeamAction.OnBackClick -> emit(TeamEvent.NavigateBack)
@@ -56,6 +62,15 @@ class TeamViewModel(
             is TeamAction.OnRevokeClick -> _state.update { it.copy(revokeTarget = action.member) }
             TeamAction.OnConfirmRevoke -> onConfirmRevoke()
             TeamAction.OnDismissRevokeDialog -> _state.update { it.copy(revokeTarget = null) }
+            TeamAction.OnAddMemberClick -> _state.update { it.copy(showAddMemberSheet = true, addMemberName = "") }
+            is TeamAction.OnAddMemberNameChange -> _state.update { it.copy(addMemberName = action.name) }
+            TeamAction.OnConfirmAddMember -> onConfirmAddMember()
+            TeamAction.OnDismissAddMember -> _state.update {
+                it.copy(showAddMemberSheet = false, addMemberName = "", renameTarget = null)
+            }
+            is TeamAction.OnRenameMember -> _state.update { it.copy(renameTarget = action.member) }
+            is TeamAction.OnConfirmRename -> onConfirmRename(action.name)
+            is TeamAction.OnArchiveMember -> onArchiveMember(action.member)
             TeamAction.OnErrorDismiss -> _state.update { it.copy(errorMessage = null) }
         }
     }
@@ -82,6 +97,62 @@ class TeamViewModel(
                         it.copy(isLoading = false, errorMessage = result.error.toUiText())
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * The roster listener (STAFF + NAMED rows) is independent of [observeTeam]'s
+     * memberships listener — it's a different collection and the only source of
+     * truth for name-only placeholders, which have no [Membership] at all.
+     */
+    private fun observeRoster() {
+        viewModelScope.launch {
+            val workshopUid = authRepository.getCurrentUser()?.id ?: return@launch
+            teamRosterRepository.observeTeam(workshopUid).collect { result ->
+                when (result) {
+                    // Unlike observeTeam's Success branch, this does NOT clear errorMessage:
+                    // it's a second, independent listener sharing one field, and the screen
+                    // already auto-dismisses a shown error (see TeamRoot's LaunchedEffect) —
+                    // clearing here too would risk this listener's success racing ahead of
+                    // the membership listener's error and swallowing it before it's shown.
+                    is Result.Success -> _state.update { it.copy(roster = result.data) }
+                    is Result.Error -> _state.update { it.copy(errorMessage = result.error.toTeamRosterUiText()) }
+                }
+            }
+        }
+    }
+
+    private fun onConfirmAddMember() {
+        val name = _state.value.addMemberName.trim()
+        if (name.isBlank()) return
+        _state.update { it.copy(showAddMemberSheet = false, addMemberName = "") }
+        viewModelScope.launch {
+            val workshopUid = authRepository.getCurrentUser()?.id ?: return@launch
+            teamRosterRepository.addNamedMember(workshopUid, name).onFailure { error ->
+                _events.send(TeamEvent.ShowSnackbar(error.toTeamRosterUiText()))
+            }
+        }
+    }
+
+    private fun onConfirmRename(rawName: String) {
+        val target = _state.value.renameTarget ?: return
+        _state.update { it.copy(renameTarget = null) }
+        val name = rawName.trim()
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            val workshopUid = authRepository.getCurrentUser()?.id ?: return@launch
+            teamRosterRepository.renameMember(workshopUid, target.id, name).onFailure { error ->
+                _events.send(TeamEvent.ShowSnackbar(error.toTeamRosterUiText()))
+            }
+        }
+    }
+
+    private fun onArchiveMember(member: TeamMember) {
+        viewModelScope.launch {
+            val workshopUid = authRepository.getCurrentUser()?.id ?: return@launch
+            teamRosterRepository.archiveMember(workshopUid, member.id).onFailure { error ->
+                _events.send(TeamEvent.ShowSnackbar(error.toTeamRosterUiText()))
             }
         }
     }

@@ -1897,6 +1897,15 @@
     <string name="team_revoke_dialog_body">%1$s will lose access to your workshop right away. You can invite them again later.</string>
     <string name="team_revoke_dialog_confirm">Remove</string>
     <string name="team_revoke_dialog_cancel">Cancel</string>
+    <string name="team_roster_header">Team roster</string>
+    <string name="team_add_member">Add member</string>
+    <string name="team_add_member_sheet_title">Add a team member</string>
+    <string name="team_member_name_label">Name</string>
+    <string name="team_member_name_placeholder">e.g. Ngozi Eze</string>
+    <string name="team_member_linked">Linked account</string>
+    <string name="team_rename">Rename</string>
+    <string name="team_rename_sheet_title">Rename member</string>
+    <string name="team_archive">Archive</string>
 
     <!-- Staff onboarding (Owner + Staff feature) -->
     <string name="staff_sign_out">Sign out</string>

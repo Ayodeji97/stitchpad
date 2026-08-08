@@ -1,13 +1,18 @@
 package com.danzucker.stitchpad.feature.staff.presentation.team
 
 import app.cash.turbine.test
+import com.danzucker.stitchpad.core.data.repository.FakeTeamRosterRepository
 import com.danzucker.stitchpad.core.data.staff.FakeStaffRepository
+import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
 import com.danzucker.stitchpad.core.domain.staff.Membership
 import com.danzucker.stitchpad.core.domain.staff.StaffError
 import com.danzucker.stitchpad.core.domain.staff.StaffInvite
+import com.danzucker.stitchpad.core.domain.staff.TeamMember
+import com.danzucker.stitchpad.core.domain.staff.TeamMemberKind
+import com.danzucker.stitchpad.core.domain.staff.TeamMemberStatus
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -30,6 +35,7 @@ import kotlin.test.assertTrue
 class TeamViewModelTest {
 
     private lateinit var staffRepo: FakeStaffRepository
+    private lateinit var rosterRepo: FakeTeamRosterRepository
     private lateinit var authRepo: FakeAuthRepository
 
     private val fixedNow = 1_700_000_000_000L
@@ -39,6 +45,7 @@ class TeamViewModelTest {
     fun setup() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         staffRepo = FakeStaffRepository()
+        rosterRepo = FakeTeamRosterRepository()
         authRepo = FakeAuthRepository()
         authRepo.currentUser = User(
             id = "owner-1",
@@ -56,6 +63,7 @@ class TeamViewModelTest {
 
     private fun buildViewModel() = TeamViewModel(
         staffRepository = staffRepo,
+        teamRosterRepository = rosterRepo,
         authRepository = authRepo,
         nowMillis = { fixedNow },
     )
@@ -66,6 +74,13 @@ class TeamViewModelTest {
         staffName = uid.replaceFirstChar { it.uppercase() },
         status = status,
     )
+
+    private fun rosterMember(
+        id: String,
+        name: String = id,
+        kind: TeamMemberKind = TeamMemberKind.NAMED,
+        status: TeamMemberStatus = TeamMemberStatus.ACTIVE,
+    ) = TeamMember(id = id, name = name, kind = kind, colorSeed = 0, status = status)
 
     @Test
     fun membershipsSplitIntoPendingAndActiveAndDropRevoked() {
@@ -274,5 +289,126 @@ class TeamViewModelTest {
         val vm = buildViewModel()
         assertFalse(vm.state.value.isLoading)
         assertNull(staffRepo.lastObservedOwnerUid)
+    }
+
+    // ---- Roster (name-only members) ----
+
+    @Test
+    fun rosterFlowPopulatesStateRoster() {
+        rosterRepo.seedMembers(
+            listOf(
+                rosterMember("staff-1", "Gabby Okoro", kind = TeamMemberKind.STAFF),
+                rosterMember("named-1", "Ngozi Eze"),
+            ),
+        )
+        val vm = buildViewModel()
+        assertEquals(setOf("staff-1", "named-1"), vm.state.value.roster.map { it.id }.toSet())
+    }
+
+    @Test
+    fun activeRosterExcludesArchivedRows() {
+        rosterRepo.seedMembers(
+            listOf(
+                rosterMember("named-1", "Ngozi Eze"),
+                rosterMember("named-2", "Tayo Ade", status = TeamMemberStatus.ARCHIVED),
+            ),
+        )
+        val vm = buildViewModel()
+        assertEquals(listOf("named-1"), vm.state.value.activeRoster.map { it.id })
+    }
+
+    @Test
+    fun onAddMemberClickOpensSheetAndClearsPreviousDraft() {
+        val vm = buildViewModel()
+        vm.onAction(TeamAction.OnAddMemberNameChange("stale draft"))
+        vm.onAction(TeamAction.OnAddMemberClick)
+        assertTrue(vm.state.value.showAddMemberSheet)
+        assertEquals("", vm.state.value.addMemberName)
+    }
+
+    @Test
+    fun onAddMemberNameChangeUpdatesState() {
+        val vm = buildViewModel()
+        vm.onAction(TeamAction.OnAddMemberNameChange("Ngozi"))
+        assertEquals("Ngozi", vm.state.value.addMemberName)
+    }
+
+    @Test
+    fun onConfirmAddMemberWithBlankNameIsNoOp() {
+        val vm = buildViewModel()
+        vm.onAction(TeamAction.OnAddMemberClick)
+        vm.onAction(TeamAction.OnAddMemberNameChange("   "))
+        vm.onAction(TeamAction.OnConfirmAddMember)
+        assertNull(rosterRepo.lastAddedName)
+        assertTrue(vm.state.value.showAddMemberSheet)
+    }
+
+    @Test
+    fun onConfirmAddMemberWithRealNameCallsAddNamedMemberAndClosesSheet() {
+        val vm = buildViewModel()
+        vm.onAction(TeamAction.OnAddMemberClick)
+        vm.onAction(TeamAction.OnAddMemberNameChange("Ngozi Eze"))
+        vm.onAction(TeamAction.OnConfirmAddMember)
+        assertEquals("Ngozi Eze", rosterRepo.lastAddedName)
+        assertFalse(vm.state.value.showAddMemberSheet)
+        assertEquals("", vm.state.value.addMemberName)
+    }
+
+    @Test
+    fun onConfirmAddMemberErrorEmitsSnackbar() = runTest {
+        rosterRepo.operationError = DataError.Network.UNKNOWN
+        val vm = buildViewModel()
+        vm.onAction(TeamAction.OnAddMemberNameChange("Ngozi Eze"))
+        vm.events.test {
+            vm.onAction(TeamAction.OnConfirmAddMember)
+            assertIs<TeamEvent.ShowSnackbar>(awaitItem())
+        }
+    }
+
+    @Test
+    fun onRenameMemberArmsRenameTargetAndOnDismissAddMemberClearsIt() {
+        val target = rosterMember("named-1", "Ngozi Eze")
+        val vm = buildViewModel()
+        vm.onAction(TeamAction.OnRenameMember(target))
+        assertEquals(target, vm.state.value.renameTarget)
+
+        vm.onAction(TeamAction.OnDismissAddMember)
+        assertNull(vm.state.value.renameTarget)
+    }
+
+    @Test
+    fun onConfirmRenameCallsRenameMemberAndClearsTarget() {
+        val target = rosterMember("named-1", "Ngozi Eze")
+        val vm = buildViewModel()
+        vm.onAction(TeamAction.OnRenameMember(target))
+        vm.onAction(TeamAction.OnConfirmRename("Ngozi A. Eze"))
+        assertEquals("named-1", rosterRepo.lastRenamedMemberId)
+        assertEquals("Ngozi A. Eze", rosterRepo.lastRenamedName)
+        assertNull(vm.state.value.renameTarget)
+    }
+
+    @Test
+    fun onConfirmRenameWithBlankNameIsNoOpButStillClearsTarget() {
+        val target = rosterMember("named-1", "Ngozi Eze")
+        val vm = buildViewModel()
+        vm.onAction(TeamAction.OnRenameMember(target))
+        vm.onAction(TeamAction.OnConfirmRename("   "))
+        assertNull(rosterRepo.lastRenamedMemberId)
+        assertNull(vm.state.value.renameTarget)
+    }
+
+    @Test
+    fun onArchiveMemberCallsArchiveMember() {
+        val target = rosterMember("named-1", "Ngozi Eze")
+        val vm = buildViewModel()
+        vm.onAction(TeamAction.OnArchiveMember(target))
+        assertEquals("named-1", rosterRepo.lastArchivedMemberId)
+    }
+
+    @Test
+    fun rosterErrorSurfacesErrorMessage() {
+        rosterRepo.observeError = DataError.Network.UNKNOWN
+        val vm = buildViewModel()
+        assertNotNull(vm.state.value.errorMessage)
     }
 }

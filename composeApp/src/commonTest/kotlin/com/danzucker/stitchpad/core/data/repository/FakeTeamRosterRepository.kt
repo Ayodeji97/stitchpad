@@ -32,7 +32,11 @@ class FakeTeamRosterRepository : TeamRosterRepository {
 
     override fun observeTeam(workshopUid: String): Flow<Result<List<TeamMember>, DataError.Network>> =
         _members.asStateFlow().map { current ->
-            observeError?.let { Result.Error(it) } ?: Result.Success(current)
+            observeError?.let { Result.Error(it) }
+                // Mirror the interface's documented sort (active first, then name) — the
+                // real Firestore-backed impl sorts server-side; this fake previously
+                // passed the seed order through unsorted.
+                ?: Result.Success(current.sortedWith(compareBy({ it.status }, { it.name })))
         }
 
     override suspend fun addNamedMember(workshopUid: String, name: String): EmptyResult<DataError.Network> {

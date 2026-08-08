@@ -1,8 +1,11 @@
 package com.danzucker.stitchpad.feature.staff.presentation
 
+import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.staff.StaffError
 import com.danzucker.stitchpad.core.presentation.UiText
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.error_no_internet
+import stitchpad.composeapp.generated.resources.error_unknown
 import stitchpad.composeapp.generated.resources.staff_error_already_member
 import stitchpad.composeapp.generated.resources.staff_error_cannot_join_own
 import stitchpad.composeapp.generated.resources.staff_error_generic
@@ -27,4 +30,14 @@ fun StaffError.toUiText(): UiText = when (this) {
     StaffError.UNAUTHENTICATED,
     StaffError.UNKNOWN,
     -> UiText.StringResourceText(Res.string.staff_error_generic)
+}
+
+/**
+ * Maps a [DataError.Network] from [com.danzucker.stitchpad.core.domain.staff.repository.TeamRosterRepository]
+ * calls to a user-facing message. Feature-specific `toXUiText()` per the codebase convention
+ * (see CustomerErrorMapping/StyleErrorMapping) rather than a shared `DataError.Network.toUiText()`.
+ */
+fun DataError.Network.toTeamRosterUiText(): UiText = when (this) {
+    DataError.Network.NO_INTERNET -> UiText.StringResourceText(Res.string.error_no_internet)
+    else -> UiText.StringResourceText(Res.string.error_unknown)
 }

@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -35,6 +37,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -49,6 +52,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,14 +62,20 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
 import com.danzucker.stitchpad.core.domain.staff.Membership
+import com.danzucker.stitchpad.core.domain.staff.TeamMember
+import com.danzucker.stitchpad.core.domain.staff.TeamMemberKind
+import com.danzucker.stitchpad.core.domain.staff.TeamMemberStatus
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.buildWhatsAppUrl
+import com.danzucker.stitchpad.ui.components.MemberAvatar
 import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.components.StitchPadButtonVariant
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -78,7 +88,10 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.team_active_header_count
+import stitchpad.composeapp.generated.resources.team_add_member
+import stitchpad.composeapp.generated.resources.team_add_member_sheet_title
 import stitchpad.composeapp.generated.resources.team_approve
+import stitchpad.composeapp.generated.resources.team_archive
 import stitchpad.composeapp.generated.resources.team_back_cd
 import stitchpad.composeapp.generated.resources.team_decline
 import stitchpad.composeapp.generated.resources.team_empty_body
@@ -92,14 +105,20 @@ import stitchpad.composeapp.generated.resources.team_invite_share_link
 import stitchpad.composeapp.generated.resources.team_invite_sheet_sub
 import stitchpad.composeapp.generated.resources.team_invite_sheet_title
 import stitchpad.composeapp.generated.resources.team_invite_whatsapp_message
+import stitchpad.composeapp.generated.resources.team_member_linked
 import stitchpad.composeapp.generated.resources.team_member_menu_cd
+import stitchpad.composeapp.generated.resources.team_member_name_label
+import stitchpad.composeapp.generated.resources.team_member_name_placeholder
 import stitchpad.composeapp.generated.resources.team_pending_header
+import stitchpad.composeapp.generated.resources.team_rename
+import stitchpad.composeapp.generated.resources.team_rename_sheet_title
 import stitchpad.composeapp.generated.resources.team_revoke
 import stitchpad.composeapp.generated.resources.team_revoke_dialog_body
 import stitchpad.composeapp.generated.resources.team_revoke_dialog_cancel
 import stitchpad.composeapp.generated.resources.team_revoke_dialog_confirm
 import stitchpad.composeapp.generated.resources.team_revoke_dialog_title
 import stitchpad.composeapp.generated.resources.team_role_staff
+import stitchpad.composeapp.generated.resources.team_roster_header
 import stitchpad.composeapp.generated.resources.team_seats_full_hint
 import stitchpad.composeapp.generated.resources.team_seats_full_note
 import stitchpad.composeapp.generated.resources.team_seats_label
@@ -211,6 +230,10 @@ fun TeamScreen(
                 )
                 ActiveSection(active = state.active, onAction = onAction)
             }
+            // Outside the isEmpty branch: named roster members are independent of the
+            // seat-capped staff invite flow above, so "Add member" must stay reachable
+            // even when the owner has zero staff memberships (isEmpty == true).
+            RosterSection(roster = state.activeRoster, onAction = onAction)
             Spacer(Modifier.height(DesignTokens.space8))
         }
     }
@@ -221,6 +244,14 @@ fun TeamScreen(
 
     state.revokeTarget?.let { member ->
         RevokeDialog(member = member, onAction = onAction)
+    }
+
+    if (state.showAddMemberSheet) {
+        AddMemberSheet(name = state.addMemberName, onAction = onAction)
+    }
+
+    state.renameTarget?.let { target ->
+        RenameMemberSheet(target = target, onAction = onAction)
     }
 }
 
@@ -339,6 +370,28 @@ private fun ActiveSection(active: List<Membership>, onAction: (TeamAction) -> Un
     }
 }
 
+/**
+ * Name-only + staff roster rows, plus the "Add member" CTA. Unlike [PendingSection] and
+ * [ActiveSection] this always renders (even with an empty [roster]) — named members are
+ * independent of the seat-capped staff invite flow, so the CTA to add one must stay reachable.
+ */
+@Composable
+private fun RosterSection(roster: List<TeamMember>, onAction: (TeamAction) -> Unit) {
+    SectionHeader(text = stringResource(Res.string.team_roster_header))
+    roster.forEach { member ->
+        RosterMemberRow(member = member, onAction = onAction)
+    }
+    StitchPadButton(
+        text = stringResource(Res.string.team_add_member),
+        onClick = { onAction(TeamAction.OnAddMemberClick) },
+        variant = StitchPadButtonVariant.Secondary,
+        leadingIcon = Icons.Outlined.PersonAdd,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = DesignTokens.space2),
+    )
+}
+
 @Composable
 private fun SectionHeader(text: String) {
     Text(
@@ -432,6 +485,176 @@ private fun ActiveMemberRow(member: Membership, onAction: (TeamAction) -> Unit) 
                     },
                 )
             }
+        }
+    }
+}
+
+/**
+ * One roster row. Mirrors [ActiveMemberRow]'s dropdown-menu pattern, but only NAMED members
+ * get one (rename/archive) — STAFF rows show a "linked account" caption instead, since their
+ * lifecycle is revoke (via [ActiveSection] above), not archive.
+ */
+@Composable
+private fun RosterMemberRow(member: TeamMember, onAction: (TeamAction) -> Unit) {
+    var menuOpen by remember { mutableStateOf(false) }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = DesignTokens.space3)
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(DesignTokens.radiusLg))
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant,
+                shape = RoundedCornerShape(DesignTokens.radiusLg),
+            )
+            .padding(DesignTokens.space3),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        MemberAvatar(name = member.name, colorSeed = member.colorSeed)
+        Text(
+            text = member.name,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = DesignTokens.space3),
+        )
+        if (member.kind == TeamMemberKind.STAFF) {
+            Text(
+                text = stringResource(Res.string.team_member_linked),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            Box {
+                IconButton(onClick = { menuOpen = true }) {
+                    Icon(
+                        imageVector = Icons.Filled.MoreVert,
+                        contentDescription = stringResource(Res.string.team_member_menu_cd),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(Res.string.team_rename)) },
+                        onClick = {
+                            menuOpen = false
+                            onAction(TeamAction.OnRenameMember(member))
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(Res.string.team_archive)) },
+                        onClick = {
+                            menuOpen = false
+                            onAction(TeamAction.OnArchiveMember(member))
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddMemberSheet(name: String, onAction: (TeamAction) -> Unit) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = { onAction(TeamAction.OnDismissAddMember) },
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.background,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = DesignTokens.space5)
+                .padding(bottom = DesignTokens.space8),
+        ) {
+            Text(
+                text = stringResource(Res.string.team_add_member_sheet_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(DesignTokens.space4))
+            OutlinedTextField(
+                // State-driven per MVI: the ViewModel owns addMemberName, unlike the
+                // rename sheet below (no OnRenameNameChange action in the contract).
+                value = name,
+                onValueChange = { onAction(TeamAction.OnAddMemberNameChange(it)) },
+                label = { Text(stringResource(Res.string.team_member_name_label)) },
+                placeholder = { Text(stringResource(Res.string.team_member_name_placeholder)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { onAction(TeamAction.OnConfirmAddMember) }),
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(DesignTokens.radiusMd),
+            )
+            Spacer(Modifier.height(DesignTokens.space4))
+            StitchPadButton(
+                text = stringResource(Res.string.team_add_member),
+                onClick = { onAction(TeamAction.OnConfirmAddMember) },
+                enabled = name.isNotBlank(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RenameMemberSheet(target: TeamMember, onAction: (TeamAction) -> Unit) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    // Local TextFieldValue (not VM state, unlike AddMemberSheet): the contract has no
+    // OnRenameNameChange action, only OnConfirmRename(String) — mirrors StyleFoldersScreen's
+    // FolderNameSheet, which avoids the cursor-desync VM-owned-string would cause here too.
+    var textValue by rememberSaveable(target.id, stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue(target.name))
+    }
+    ModalBottomSheet(
+        onDismissRequest = { onAction(TeamAction.OnDismissAddMember) },
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.background,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = DesignTokens.space5)
+                .padding(bottom = DesignTokens.space8),
+        ) {
+            Text(
+                text = stringResource(Res.string.team_rename_sheet_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(DesignTokens.space4))
+            OutlinedTextField(
+                value = textValue,
+                onValueChange = { textValue = it },
+                label = { Text(stringResource(Res.string.team_member_name_label)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        val trimmed = textValue.text.trim()
+                        if (trimmed.isNotBlank()) onAction(TeamAction.OnConfirmRename(trimmed))
+                    },
+                ),
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(DesignTokens.radiusMd),
+            )
+            Spacer(Modifier.height(DesignTokens.space4))
+            StitchPadButton(
+                text = stringResource(Res.string.team_rename),
+                onClick = {
+                    val trimmed = textValue.text.trim()
+                    if (trimmed.isNotBlank()) onAction(TeamAction.OnConfirmRename(trimmed))
+                },
+                enabled = textValue.text.isNotBlank(),
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }
@@ -710,6 +933,20 @@ private val samplePending = Membership(
     staffName = "Tunde Bakare",
     status = MembershipStatus.PENDING,
 )
+private val sampleStaffRosterMember = TeamMember(
+    id = "uid-gabby",
+    name = "Gabby Okoro",
+    kind = TeamMemberKind.STAFF,
+    colorSeed = 1,
+    status = TeamMemberStatus.ACTIVE,
+)
+private val sampleNamedRosterMember = TeamMember(
+    id = "fake-member-0",
+    name = "Ngozi Eze",
+    kind = TeamMemberKind.NAMED,
+    colorSeed = 4,
+    status = TeamMemberStatus.ACTIVE,
+)
 
 @Suppress("UnusedPrivateMember")
 @Preview
@@ -721,6 +958,7 @@ private fun TeamScreenPopulatedPreview() {
                 isLoading = false,
                 pending = listOf(samplePending),
                 active = listOf(sampleActive),
+                roster = listOf(sampleStaffRosterMember, sampleNamedRosterMember),
             ),
             onAction = {},
             snackbarHostState = remember { SnackbarHostState() },
@@ -738,5 +976,25 @@ private fun TeamScreenEmptyDarkPreview() {
             onAction = {},
             snackbarHostState = remember { SnackbarHostState() },
         )
+    }
+}
+
+/** Dedicated roster-section preview with mixed staff/named members, per task-6 brief. */
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun RosterSectionPreview() {
+    StitchPadTheme {
+        Column(
+            modifier = Modifier
+                .background(MaterialTheme.colorScheme.background)
+                .fillMaxWidth()
+                .padding(DesignTokens.space5),
+        ) {
+            RosterSection(
+                roster = listOf(sampleStaffRosterMember, sampleNamedRosterMember),
+                onAction = {},
+            )
+        }
     }
 }
