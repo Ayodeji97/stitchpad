@@ -57,7 +57,7 @@ class FirebaseTeamRosterRepository(
                             doc.data<TeamMemberDto>().toTeamMember(doc.id)
                         }
                     }
-                    .sortedWith(compareBy({ it.status }, { it.name }))
+                    .sortedWith(compareBy({ it.status }, { it.name.lowercase() }))
                 Result.Success(members) as Result<List<TeamMember>, DataError.Network>
             }
             .catch { throwable ->

@@ -1,5 +1,7 @@
 package com.danzucker.stitchpad.feature.order.presentation.detail
 
+import com.danzucker.stitchpad.core.domain.session.WorkshopSession
+
 /**
  * Pure decision logic behind the order-detail "Assigned to" card (Task 7 / Slice 8e).
  * Kept outside [OrderDetailViewModel] so it's directly unit-testable — the ViewModel
@@ -33,3 +35,18 @@ internal fun resolveClaimDisplayName(
     profileName?.trim()?.takeIf { it.isNotBlank() }
         ?: email?.trim()?.takeIf { it.isNotBlank() }
         ?: fallback
+
+/**
+ * Whether [OrderDetailViewModel.observeActiveWorkshop] should (re)subscribe to the live
+ * roster for [session]. Only an owner session with a resolvable tree qualifies:
+ * - Staff never see the picker (Task 7) regardless of [WorkshopSession.workshopUid].
+ * - A signed-out emission ([WorkshopSession.signedOut]) resolves to an OWNER role with a
+ *   blank [WorkshopSession.workshopUid] — without this guard, calling
+ *   `observeRoster("")` reaches `firestore.collection("users").document("")`, which throws
+ *   `IllegalArgumentException` uncaught inside `viewModelScope`. This case is reachable in
+ *   practice: a retained detail VM (kept alive across bottom-tab switches by Compose Nav's
+ *   `saveState`) is still subscribed to [WorkshopSession] when the user signs out, so the
+ *   signed-out placeholder lands here before the VM itself is torn down.
+ */
+internal fun shouldObserveRoster(session: WorkshopSession): Boolean =
+    !session.isActiveStaff && session.workshopUid.isNotBlank()

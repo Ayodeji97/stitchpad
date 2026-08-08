@@ -1191,6 +1191,7 @@ private fun OrderDetailContent(
                 isAssignedToSelf = state.isActiveStaff &&
                     order.assignedMemberId != null &&
                     order.assignedMemberId == state.staffAuthUid,
+                roster = state.roster,
                 onAssignClick = { onAction(OrderDetailAction.OnAssignClick) },
                 onClaimClick = { onAction(OrderDetailAction.OnClaimClick) },
                 onUnassignClick = { onAction(OrderDetailAction.OnUnassignClick) },

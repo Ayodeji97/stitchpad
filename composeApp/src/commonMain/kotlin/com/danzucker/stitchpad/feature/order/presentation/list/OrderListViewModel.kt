@@ -178,7 +178,11 @@ class OrderListViewModel(
                         isActiveStaff = session.isActiveStaff,
                         // Task 8: captured alongside isActiveStaff from the same session
                         // collection — used by the "My work" filter to match assignedMemberId.
-                        staffAuthUid = session.authUid,
+                        // Staff-only, mirroring OrderDetailState.staffAuthUid's contract — the
+                        // filterAndSort guard above already requires isActiveStaff before
+                        // reading this, so behavior is unchanged; this just keeps an owner
+                        // session from carrying a staffAuthUid value that's never staff.
+                        staffAuthUid = session.authUid.takeIf { session.isActiveStaff },
                     )
                 }
             }

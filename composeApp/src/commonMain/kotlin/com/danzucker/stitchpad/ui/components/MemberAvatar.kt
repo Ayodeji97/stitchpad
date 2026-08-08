@@ -41,6 +41,20 @@ private val MEMBER_ACCENT_HUES = listOf(
 fun memberColor(seed: Int): Color = MEMBER_ACCENT_HUES[seed.mod(MEMBER_ACCENT_HUES.size)]
 
 /**
+ * Fallback avatar color seed for call sites that have no roster to resolve
+ * [com.danzucker.stitchpad.core.domain.staff.TeamMember.colorSeed] from — e.g. an order-list
+ * row, which only has [com.danzucker.stitchpad.core.domain.model.Order.assignedMemberId] /
+ * `assignedMemberName`, never the roster itself.
+ *
+ * Hashes the id (preferred — never edited) or, failing that, the name, so a rename alone
+ * doesn't reshuffle the hue. This is deliberately NOT the same hue a roster-resolved seed
+ * would produce for the same member; callers that *do* have the roster (the assignee card,
+ * the picker sheet, the Team screen) MUST resolve [TeamMember.colorSeed][com.danzucker.stitchpad.core.domain.staff.TeamMember.colorSeed]
+ * from it instead of calling this, or the same member renders two different hues at once.
+ */
+fun fallbackMemberColorSeed(memberId: String?, memberName: String?): Int = (memberId ?: memberName).hashCode()
+
+/**
  * Initials-on-a-solid-accent avatar for a team roster row (staff or name-only). Reused by
  * the assignment picker (Task 7) so a tailor's color stays consistent everywhere they show up.
  */

@@ -821,24 +821,35 @@ class OrderDetailViewModel(
                         staffAuthUid = if (session.isActiveStaff) session.authUid else null,
                     )
                 }
-                if (session.isActiveStaff) {
-                    // Staff never see the picker (Task 7): no roster subscription, and
-                    // drop any stale rows left over from a role flip mid-session.
-                    rosterJob?.cancel()
-                    rosterJob = null
-                    loadedRosterWorkshopUid = null
-                    _state.update { it.copy(roster = emptyList()) }
-                } else {
+                // shouldObserveRoster covers both the staff case (Task 7: no picker, so no
+                // subscription) and a signed-out emission (WorkshopSession.signedOut() has
+                // a blank workshopUid) — a retained detail VM survives bottom-tab switches
+                // via Compose Nav's saveState, so it can still be collecting this flow when
+                // the user signs out. Calling observeRoster("") would otherwise crash with
+                // an uncaught IllegalArgumentException from
+                // firestore.collection("users").document(""). In both non-observing cases
+                // we drop any stale rows left over from the prior session/role.
+                if (shouldObserveRoster(session)) {
                     observeRoster(session.workshopUid)
+                } else {
+                    clearRosterSubscription()
                 }
             }
         }
     }
 
+    private fun clearRosterSubscription() {
+        rosterJob?.cancel()
+        rosterJob = null
+        loadedRosterWorkshopUid = null
+        _state.update { it.copy(roster = emptyList()) }
+    }
+
     /** Owner-only live roster for the assignment picker (Task 7). Active members only —
      *  [com.danzucker.stitchpad.core.domain.staff.repository.TeamRosterRepository.observeTeam]
      *  already returns archived rows too (so historical assignments keep resolving a name
-     *  elsewhere), but the PICKER must only offer someone still on the team. */
+     *  elsewhere), but the PICKER must only offer someone still on the team. Guarded at the
+     *  call site by [shouldObserveRoster] — never invoked with a blank workshopUid. */
     private fun observeRoster(workshopUid: String) {
         if (loadedRosterWorkshopUid == workshopUid) return
         loadedRosterWorkshopUid = workshopUid

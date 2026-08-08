@@ -45,6 +45,7 @@ import com.danzucker.stitchpad.core.domain.staff.TeamMember
 import com.danzucker.stitchpad.core.domain.staff.TeamMemberKind
 import com.danzucker.stitchpad.core.domain.staff.TeamMemberStatus
 import com.danzucker.stitchpad.ui.components.MemberAvatar
+import com.danzucker.stitchpad.ui.components.fallbackMemberColorSeed
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
@@ -69,9 +70,14 @@ import stitchpad.composeapp.generated.resources.order_assign_you
  * - Assigned + staff: the same chip, read-only — "You" when [isAssignedToSelf], the
  *   colleague's name otherwise. No overflow: staff can view but never reassign.
  *
- * [assignedMemberId] is only used to derive a stable avatar color (so a member keeps the
- * same hue everywhere they appear, matching [MemberAvatar]'s seed contract) — it is never
- * shown as text.
+ * [assignedMemberId] is only used to derive a stable avatar color — it is never shown as
+ * text. The seed itself is roster-resolved when possible: when [roster] (the owner's live
+ * active-member list, Task 7) contains a member matching [assignedMemberId], its stored
+ * [com.danzucker.stitchpad.core.domain.staff.TeamMember.colorSeed] is used, matching the
+ * hue shown in the assignment picker sheet ([OrderAssignPickerSheet]) and the Team screen.
+ * Only when the roster has no match (staff sessions, which never receive a roster; or an
+ * archived member no longer in the active list) does this fall back to
+ * [fallbackMemberColorSeed]'s stable hash of the id/name.
  */
 @Composable
 fun OrderAssigneeCard(
@@ -82,6 +88,7 @@ fun OrderAssigneeCard(
     onAssignClick: () -> Unit,
     onClaimClick: () -> Unit,
     onUnassignClick: () -> Unit,
+    roster: List<TeamMember> = emptyList(),
     modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(DesignTokens.radiusLg)
@@ -121,6 +128,7 @@ fun OrderAssigneeCard(
                     memberName = assignedMemberName,
                     isActiveStaff = isActiveStaff,
                     isAssignedToSelf = isAssignedToSelf,
+                    roster = roster,
                     onAssignClick = onAssignClick,
                     onUnassignClick = onUnassignClick,
                 )
@@ -168,13 +176,20 @@ private fun AssignedMemberRow(
     memberName: String,
     isActiveStaff: Boolean,
     isAssignedToSelf: Boolean,
+    roster: List<TeamMember>,
     onAssignClick: () -> Unit,
     onUnassignClick: () -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
-    // Stable per-member hue: prefer the id (never edited) over the name (can be renamed
-    // from Team) so a reassignment/rename elsewhere doesn't visually reshuffle the chip.
-    val colorSeed = remember(memberId, memberName) { (memberId ?: memberName).hashCode() }
+    // Prefer the roster's own colorSeed (same hue the picker sheet and Team screen show for
+    // this member) when it's resolvable by id; owner sessions always have the roster, so
+    // this is the common path there. Staff sessions never receive a roster (Task 7), and an
+    // archived member has dropped out of the active-only list this VM exposes, so both fall
+    // back to fallbackMemberColorSeed's stable hash of the id (or the name).
+    val colorSeed = remember(memberId, memberName, roster) {
+        roster.firstOrNull { it.id == memberId }?.colorSeed
+            ?: fallbackMemberColorSeed(memberId, memberName)
+    }
     val displayName = if (isActiveStaff && isAssignedToSelf) {
         stringResource(Res.string.order_assign_you)
     } else {

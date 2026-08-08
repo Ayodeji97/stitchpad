@@ -7,6 +7,9 @@ import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.StatusChange
+import com.danzucker.stitchpad.core.domain.session.MembershipStatus
+import com.danzucker.stitchpad.core.domain.session.StaffRole
+import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -149,6 +152,66 @@ class OrderAssignmentTest {
         assertEquals(
             "Staff",
             resolveClaimDisplayName(profileName = null, email = null, fallback = "Staff"),
+        )
+    }
+
+    // --- shouldObserveRoster: guards OrderDetailViewModel.observeActiveWorkshop's owner
+    // branch against calling observeRoster(""), which crashes uncaught
+    // (firestore.collection("users").document("") throws IllegalArgumentException).
+    // See its KDoc for the retained-VM-survives-sign-out scenario this closes. ---
+
+    @Test
+    fun `owner session with a resolved workshopUid should observe the roster`() {
+        assertTrue(shouldObserveRoster(WorkshopSession.ownerOfSelf(authUid = "owner-1")))
+    }
+
+    @Test
+    fun `signed-out session never observes the roster`() {
+        // WorkshopSession.signedOut() is ownerOfSelf("") — OWNER role, blank workshopUid.
+        // This is the exact shape that used to crash: a retained detail VM signs out mid
+        // -session and this emission reaches observeActiveWorkshop's owner branch.
+        assertFalse(shouldObserveRoster(WorkshopSession.signedOut()))
+    }
+
+    @Test
+    fun `any owner session with a blank workshopUid never observes the roster`() {
+        // Not just the canonical signedOut() placeholder — any owner session with a blank
+        // workshopUid must be guarded, however it was constructed.
+        assertFalse(
+            shouldObserveRoster(
+                WorkshopSession(authUid = "a", workshopUid = "", role = StaffRole.OWNER, membershipStatus = null),
+            ),
+        )
+    }
+
+    @Test
+    fun `active staff session never observes the roster even with a resolved workshopUid`() {
+        assertFalse(
+            shouldObserveRoster(
+                WorkshopSession(
+                    authUid = "staff-1",
+                    workshopUid = "owner-1",
+                    role = StaffRole.STAFF,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun `pending staff session is not active staff and does observe the roster`() {
+        // role == STAFF but membershipStatus != ACTIVE means isActiveStaff is false —
+        // shouldObserveRoster only excludes staff via isActiveStaff, so this (unusual, but
+        // possible mid-approval) shape falls through to the workshopUid check.
+        assertTrue(
+            shouldObserveRoster(
+                WorkshopSession(
+                    authUid = "staff-1",
+                    workshopUid = "owner-1",
+                    role = StaffRole.STAFF,
+                    membershipStatus = MembershipStatus.PENDING,
+                ),
+            ),
         )
     }
 }

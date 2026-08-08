@@ -265,9 +265,11 @@ class OrderListStaffTest {
         vm.onAction(OrderListAction.OnToggleMyWork)
         assertEquals(listOf("mine"), vm.state.value.orders.map { it.id })
 
-        // Kill switch: role flips to owner-of-self on the same authUid. myWorkOnly and
-        // staffAuthUid are left stale in state (no chip left to clear them), but the
-        // ex-staff user's own order tree must not stay silently filtered by them.
+        // Kill switch: role flips to owner-of-self on the same authUid. myWorkOnly is left
+        // stale in state (no chip left to clear it) — staffAuthUid, by contrast, is
+        // recomputed to null the moment isActiveStaff flips false (owner sessions never
+        // carry one) — but either way the ex-staff user's own order tree must not stay
+        // silently filtered.
         activeWorkshopProvider.setSession(WorkshopSession.ownerOfSelf("s"))
         runCurrent()
 

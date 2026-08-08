@@ -88,6 +88,7 @@ import com.danzucker.stitchpad.feature.tutorials.presentation.hint.TutorialHintR
 import com.danzucker.stitchpad.ui.components.MemberAvatar
 import com.danzucker.stitchpad.ui.components.PendingSyncBadge
 import com.danzucker.stitchpad.ui.components.StrikethroughPrice
+import com.danzucker.stitchpad.ui.components.fallbackMemberColorSeed
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
@@ -830,15 +831,15 @@ private fun OrderListItem(
 
 /**
  * Small initials-avatar + name for the assignee on an order row (Task 8). The list only
- * has [Order.assignedMemberId]/[Order.assignedMemberName] — not the roster's
- * [com.danzucker.stitchpad.core.domain.staff.TeamMember.colorSeed] — so the avatar color
- * seed is derived the same way [com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderAssigneeCard]
- * does on the detail screen: hash of the id (falls back to the name), never re-derived from
- * a display value that can change, so a rename doesn't reshuffle the hue.
+ * has [Order.assignedMemberId]/[Order.assignedMemberName] — not the roster — so unlike
+ * [com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderAssigneeCard]
+ * (which resolves the roster's stored `colorSeed` by id when it has one), a list row always
+ * falls back to [fallbackMemberColorSeed]'s hash of the id (or the name), never re-derived
+ * from a display value that can change, so a rename doesn't reshuffle the hue.
  */
 @Composable
 private fun OrderRowAssignee(memberId: String?, memberName: String) {
-    val colorSeed = remember(memberId, memberName) { (memberId ?: memberName).hashCode() }
+    val colorSeed = remember(memberId, memberName) { fallbackMemberColorSeed(memberId, memberName) }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(DesignTokens.space1),

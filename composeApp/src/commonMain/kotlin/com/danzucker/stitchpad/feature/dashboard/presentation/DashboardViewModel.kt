@@ -688,11 +688,12 @@ class DashboardViewModel(
                 uiState = uiState,
                 firstName = firstName,
                 // A prior tick may have been staff (kill-switch / revocation flipped
-                // the session mid-session) — clear both explicitly so the money wall
+                // the session mid-session) — clear all three explicitly so the money wall
                 // holds at the state level, not just while `isStaff` composable guards
                 // are in effect.
                 isStaff = false,
                 staffPipeline = null,
+                staffMineCount = 0,
                 businessName = workshopName,
                 businessLogoUrl = user.businessLogoUrl,
                 greeting = greeting,
