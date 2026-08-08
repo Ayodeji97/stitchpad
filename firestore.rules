@@ -298,18 +298,20 @@ service cloud.firestore {
         // encodes defaults), so rejecting them atomically bounces the whole
         // write instead of letting it re-contaminate the doc.
         //
-        // The stamp-only guard: createCustomer is TWO writes — set(dto) then
-        // set({serverCreatedAt}, merge=true). When write #1 bounces off the contact
-        // deny above, write #2 would otherwise land as an independent CREATE holding
-        // nothing but serverCreatedAt — a blank stub in the owner's and staff lists.
-        // A legitimate create always carries the full DTO, and the stamp normally
-        // executes as an UPDATE because write #1 already created the doc (offline
-        // queues preserve per-client write order, so the stamp can never legitimately
-        // arrive first). A serverCreatedAt-only create is therefore always the
-        // orphaned second half of a denied create.
+        // Do NOT add a `!keys().hasOnly(['serverCreatedAt'])` stamp-only guard here.
+        // It was tried and reverted: createCustomer is set(dto) then
+        // set({serverCreatedAt}, merge=true) issued back-to-back, and the client SDK
+        // ships both in ONE atomic commit in which the stamp op is graded as a CREATE
+        // carrying only serverCreatedAt (the doc does not exist in the state that op
+        // is evaluated against). The guard therefore denied the stamp, and with it the
+        // whole commit — every createCustomer failed, no doc at all (caught in device
+        // smoke testing against the emulator).
+        // The stub it was meant to stop is already handled by that same atomicity: an
+        // old client's contact-bearing create and its stamp share a commit, so the
+        // denied create takes the stamp down with it and no blank doc lands. Only a
+        // rare cross-commit orphan remains; that is accepted and sweepable.
         allow create: if activityCreateOk()
-          && !request.resource.data.keys().hasAny(customerContactKeys())
-          && !request.resource.data.keys().hasOnly(['serverCreatedAt']);
+          && !request.resource.data.keys().hasAny(customerContactKeys());
         // Slice 8e: keyed on affectedKeys(), so legacy contact already stored on
         // a doc may REMAIN (an untouched field is not "affected") but can never be
         // (re)written. The Admin-SDK strip removes it and is not subject to rules.
@@ -387,18 +389,20 @@ service cloud.firestore {
         // the top-level keys therefore bounces the whole write atomically, items
         // included. Post-8d-1 clients write OrderBaseDto, which has neither.
         //
-        // The stamp-only guard: createOrder is TWO writes — set(dto) then
-        // set({serverCreatedAt}, merge=true). When write #1 bounces off the money
-        // deny above, write #2 would otherwise land as an independent CREATE holding
-        // nothing but serverCreatedAt — a blank order stub in the owner's and staff
-        // lists. A legitimate create always carries the full DTO, and the stamp
-        // normally executes as an UPDATE because write #1 already created the doc
-        // (offline queues preserve per-client write order, so the stamp can never
-        // legitimately arrive first). A serverCreatedAt-only create is therefore
-        // always the orphaned second half of a denied create.
+        // Do NOT add a `!keys().hasOnly(['serverCreatedAt'])` stamp-only guard here.
+        // It was tried and reverted: createOrder is set(dto) then
+        // set({serverCreatedAt}, merge=true) issued back-to-back, and the client SDK
+        // ships both in ONE atomic commit in which the stamp op is graded as a CREATE
+        // carrying only serverCreatedAt (the doc does not exist in the state that op
+        // is evaluated against). The guard therefore denied the stamp, and with it the
+        // whole commit — every createOrder failed, no order at all (caught in device
+        // smoke testing against the emulator).
+        // The stub it was meant to stop is already handled by that same atomicity: an
+        // old client's money-bearing create and its stamp share a commit, so the
+        // denied create takes the stamp down with it and no blank order lands. Only a
+        // rare cross-commit orphan remains; that is accepted and sweepable.
         allow create: if activityCreateOk()
-          && !request.resource.data.keys().hasAny(orderMoneyKeys())
-          && !request.resource.data.keys().hasOnly(['serverCreatedAt']);
+          && !request.resource.data.keys().hasAny(orderMoneyKeys());
         // Owner: full update EXCEPT the money keys. Active staff: may ONLY advance
         // production status — status/subStatus/statusHistory/updatedAt — never
         // money, customer, or items, and still can't backdate the server-stamp

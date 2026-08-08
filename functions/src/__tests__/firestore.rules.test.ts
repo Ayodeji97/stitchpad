@@ -20,6 +20,7 @@ import {
   Timestamp,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 
 /**
@@ -903,28 +904,10 @@ describe('Slice 8e: money/contact denied on base-doc client writes', () => {
   });
 
   // createOrder/createCustomer are TWO writes: set(dto) then
-  // set({serverCreatedAt}, merge=true). When a below-floor client's write #1 bounces
-  // off the money/contact deny above, write #2 must not land on its own as an
-  // independent CREATE — that would leave a blank serverCreatedAt-only stub in the
-  // owner's and staff lists. The stamp legitimately runs as an UPDATE, because
-  // write #1 created the doc first (offline queues preserve per-client order).
-  describe('stamp-only stub creates', () => {
-    it('DENIES a serverCreatedAt-only create on orders (orphaned write #2)', async () => {
-      await assertFails(
-        setDoc(doc(db('alice'), 'users/alice/orders/o_stub'), {
-          serverCreatedAt: serverTimestamp(),
-        }, { merge: true }),
-      );
-    });
-
-    it('DENIES a serverCreatedAt-only create on customers (orphaned write #2)', async () => {
-      await assertFails(
-        setDoc(doc(db('alice'), 'users/alice/customers/c_stub'), {
-          serverCreatedAt: serverTimestamp(),
-        }, { merge: true }),
-      );
-    });
-
+  // set({serverCreatedAt}, merge=true). Both halves must go through — whether the
+  // stamp reaches the rules engine as an UPDATE (doc already created) or as a
+  // CREATE (see the stamp-only cases below).
+  describe('the two-step create + stamp', () => {
     it('allows the legit two-step createOrder: money-free create, then the stamp merge', async () => {
       const ref = doc(db('alice'), 'users/alice/orders/o_two_step');
       await assertSucceeds(
@@ -953,6 +936,68 @@ describe('Slice 8e: money/contact denied on base-doc client writes', () => {
       await assertSucceeds(
         setDoc(ref, { serverCreatedAt: serverTimestamp() }, { merge: true }),
       );
+    });
+  });
+
+  // The stamp op, when the rules engine grades it as a CREATE. The client's
+  // create is set(baseDto) + set({serverCreatedAt}, merge=true) issued
+  // back-to-back; on the Android/GitLive path the stamp op reaches the rules
+  // engine as a create whose payload is only serverCreatedAt (the doc does not
+  // exist in the state that op is graded against), and the commit is atomic — so
+  // denying this shape denies the whole create. It must be ALLOWED.
+  describe('the serverCreatedAt-only stamp write', () => {
+    it('allows a stamp-only create on orders (the client stamp op graded as a create)', async () => {
+      await assertSucceeds(
+        setDoc(doc(db('alice'), 'users/alice/orders/o_stamp_only'), {
+          serverCreatedAt: serverTimestamp(),
+        }, { merge: true }),
+      );
+    });
+
+    it('allows a stamp-only create on customers (the client stamp op graded as a create)', async () => {
+      await assertSucceeds(
+        setDoc(doc(db('alice'), 'users/alice/customers/c_stamp_only'), {
+          serverCreatedAt: serverTimestamp(),
+        }, { merge: true }),
+      );
+    });
+  });
+
+  // End-to-end shape of the client's create: base doc + stamp in one commit.
+  // NOTE on coverage — this pair does NOT reproduce the device failure on its
+  // own: the JS SDK folds two writes to the same doc inside a WriteBatch into a
+  // single mutation, so the stamp never reaches the rules engine as its own op
+  // here and these two passed even with the stamp-only-create guard in place.
+  // The guard's actual bite is pinned by the stamp-only create tests above, which
+  // were red before it was removed. Keep both: this pair is the app-shaped smoke
+  // check, those are the discriminating regression pin.
+  describe('the client create+stamp batch (writeBatch, as the app writes)', () => {
+    it('allows the createOrder batch: base create + serverCreatedAt stamp in one commit', async () => {
+      const aliceDb = db('alice');
+      const batch = writeBatch(aliceDb);
+      const ref = doc(aliceDb, 'users/alice/orders/batch-create');
+      batch.set(ref, {
+        customerName: 'Ada',
+        status: 'PENDING',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      batch.set(ref, { serverCreatedAt: serverTimestamp() }, { merge: true });
+      await assertSucceeds(batch.commit());
+    });
+
+    it('allows the createCustomer batch: base create + serverCreatedAt stamp in one commit', async () => {
+      const aliceDb = db('alice');
+      const batch = writeBatch(aliceDb);
+      const ref = doc(aliceDb, 'users/alice/customers/batch-create');
+      batch.set(ref, {
+        name: 'Ada',
+        slotState: 'active',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      batch.set(ref, { serverCreatedAt: serverTimestamp() }, { merge: true });
+      await assertSucceeds(batch.commit());
     });
   });
 

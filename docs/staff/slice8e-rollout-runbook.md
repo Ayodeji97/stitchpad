@@ -102,6 +102,16 @@ Two consequences, both load-bearing:
   the SDK drops the mutation and the user is not told. Accepted trade: the window
   is small (below-floor clients are already blocked from new edits by the UI
   gate) and silent re-contamination of the money/contact wall is worse.
+
+  A bounced create does **not** leave a half-written doc behind. `createOrder`/
+  `createCustomer` are two writes — `set(dto)` then
+  `set({serverCreatedAt}, merge=true)` — and the SDK ships them in one atomic
+  commit, so denying the money/contact-bearing create denies the stamp with it and
+  no blank `serverCreatedAt`-only stub lands. (The rules do **not** separately
+  deny stamp-only creates: a guard doing that was tried and reverted because it
+  also denied the current client's own create commit — see the comment on the
+  `allow create` blocks.) Only the rare case where the two halves end up in
+  *different* commits can orphan a stub; that is accepted and sweepable.
 - **These rules must NOT be deployed before the 8c version floor is enforced.**
   A pre-8d-1 client writes money/contact on *every* save (GitLive encodes the
   full DTO), so deploying early breaks saving wholesale for anyone not yet
