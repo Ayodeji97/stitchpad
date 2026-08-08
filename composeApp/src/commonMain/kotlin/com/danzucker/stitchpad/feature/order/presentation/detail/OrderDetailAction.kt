@@ -137,10 +137,22 @@ sealed interface OrderDetailAction {
  * if a stray tap reaches the VM. Also restricted: create/edit/duplicate and the
  * destructive delete/archive (both the arm-dialog AND confirm/execute actions — a
  * cold-start race can briefly show the affordance before isActiveStaff resolves, so
- * the confirm must be guarded too). NOT restricted: status advance, notes, styles,
- * measurements, deadline, and plain sheet/dialog dismisses. Also restricted: the
- * owner-only assignment actions (arm the picker, pick a member, unassign) — a staff
- * member may only [OrderDetailAction.OnClaimClick] an unassigned order for themselves.
+ * the confirm must be guarded too). NOT restricted: status advance, and plain
+ * sheet/dialog dismisses. Also restricted: the owner-only assignment actions (arm the
+ * picker, pick a member, unassign) — a staff member may only
+ * [OrderDetailAction.OnClaimClick] an unassigned order for themselves.
+ *
+ * Phase 2 affordance audit: rules whitelist staff writes to status+claim only. Each
+ * write path below is guarded at both the arm-dialog/draft-mutate step AND the
+ * save/confirm step; plain dismiss/cancel actions stay reachable since they mutate
+ * nothing:
+ *  - Due date is OWNER-ONLY (2026-08-08 product decision) — staff can still SEE the
+ *    due date, just not open the picker or confirm a new one.
+ *  - Notes editing is staff-denied for now — staff can still see existing notes.
+ *  - Measurements-link is staff-denied for now — staff can still view a linked
+ *    measurement ([OrderDetailAction.OnViewMeasurementClick] stays unrestricted).
+ *  - Garment media (add/remove style photo, add/remove fabric photo, add fabric
+ *    name) is staff-denied until Phase 2b — existing photos stay viewable.
  */
 @Suppress("CyclomaticComplexMethod")
 internal fun OrderDetailAction.isStaffRestricted(): Boolean = when (this) {
@@ -187,6 +199,27 @@ internal fun OrderDetailAction.isStaffRestricted(): Boolean = when (this) {
     OrderDetailAction.OnAssignClick,
     is OrderDetailAction.OnAssignMember,
     OrderDetailAction.OnUnassignClick,
+    // Due date — owner-only (2026-08-08 product decision). The date stays visible;
+    // only opening the picker / confirming a new one is guarded.
+    OrderDetailAction.OnSetDeadlineClick,
+    is OrderDetailAction.OnDeadlineSelected,
+    // Notes editing — staff-denied for now. Existing notes stay readable.
+    OrderDetailAction.OnNotesEditClick,
+    is OrderDetailAction.OnNotesDraftChange,
+    OrderDetailAction.OnNotesSaveClick,
+    // Measurements-link — staff-denied for now. Viewing a linked measurement
+    // ([OrderDetailAction.OnViewMeasurementClick]) stays unrestricted.
+    OrderDetailAction.OnLinkMeasurementsClick,
+    is OrderDetailAction.OnSelectMeasurement,
+    // Garment media — staff-denied until Phase 2b. Existing photos stay viewable.
+    is OrderDetailAction.OnAddStyleClick,
+    is OrderDetailAction.OnAddStylePhoto,
+    is OrderDetailAction.OnRemoveStyleImage,
+    is OrderDetailAction.OnAddFabricPhoto,
+    is OrderDetailAction.OnRemoveFabricImage,
+    OrderDetailAction.OnAddFabricNameClick,
+    is OrderDetailAction.OnFabricNameDraftChange,
+    OrderDetailAction.OnSaveFabricName,
     -> true
 
     else -> false

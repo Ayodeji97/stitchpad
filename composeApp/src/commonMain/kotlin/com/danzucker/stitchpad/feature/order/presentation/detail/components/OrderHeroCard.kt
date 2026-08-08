@@ -340,12 +340,17 @@ private fun PaymentBlock(
                         isOverdue = isOverdue,
                         status = status,
                         onEditClick = onSetDeadlineClick,
+                        isActiveStaff = isActiveStaff,
                     )
-                } else {
+                } else if (!isActiveStaff) {
+                    // Task 10: due date is OWNER-ONLY (2026-08-08 product decision).
+                    // A staff session never sees the "Set deadline" CTA — there is no
+                    // deadline yet, and staff can't set one (the rules deny the
+                    // write). If a deadline IS set, staff still sees it above, just
+                    // without the edit pencil (see DueDateSection).
                     SetDeadlineCta(onClick = onSetDeadlineClick)
                 }
-                // Balance + total is money — hidden for active staff (Slice 6c). The
-                // deadline above stays so staff can still see + edit the due date.
+                // Balance + total is money — hidden for active staff (Slice 6c).
                 if (!isActiveStaff) {
                     BalanceSection(
                         balanceRemaining = balanceRemaining,
@@ -533,6 +538,10 @@ private fun DueDateSection(
     isOverdue: Boolean,
     status: OrderStatus,
     onEditClick: () -> Unit,
+    // Task 10: due date is OWNER-ONLY (2026-08-08 product decision) — the rules
+    // deny a staff write to `deadline`. Staff still SEES the due date; only the
+    // edit pencil / tap-to-edit affordance is gated off.
+    isActiveStaff: Boolean,
 ) {
     val dateColor = if (isOverdue) DesignTokens.error500 else MaterialTheme.colorScheme.onSurfaceVariant
     val dateIcon = when {
@@ -545,10 +554,17 @@ private fun DueDateSection(
     // The whole due-date row is tappable so a deadline can be changed after it's
     // been set (previously the date was read-only and only the empty-state CTA
     // opened the picker). A trailing pencil makes the affordance discoverable.
+    // Staff gets neither: no click target, no pencil, date text only.
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(DesignTokens.radiusFull))
-            .clickable(onClick = onEditClick, onClickLabel = editLabel, role = Role.Button)
+            .then(
+                if (isActiveStaff) {
+                    Modifier
+                } else {
+                    Modifier.clickable(onClick = onEditClick, onClickLabel = editLabel, role = Role.Button)
+                },
+            )
             .padding(horizontal = DesignTokens.space2, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -564,12 +580,14 @@ private fun DueDateSection(
             style = MaterialTheme.typography.bodySmall,
             color = dateColor,
         )
-        Icon(
-            imageVector = Icons.Default.Edit,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(13.dp),
-        )
+        if (!isActiveStaff) {
+            Icon(
+                imageVector = Icons.Default.Edit,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(13.dp),
+            )
+        }
     }
 }
 
@@ -1111,6 +1129,86 @@ private fun OrderHeroCardNullSecondaryPreview() {
             onCallClick = {},
             onAddPhoneClick = {},
             onCustomerClick = {},
+        )
+    }
+}
+
+/**
+ * Staff variant (Task 10): due date stays visible with NO edit pencil / tap target —
+ * due date is owner-only. Money block, reach-out chips and CTA row are already
+ * staff-suppressed elsewhere (Slice 6c).
+ */
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun OrderHeroCardStaffWithDeadlinePreview() {
+    StitchPadTheme {
+        OrderHeroCard(
+            garmentTypeIcon = Icons.Default.Build,
+            garmentName = "Vintage Buba",
+            customerName = "Adewale Paul",
+            status = OrderStatus.IN_PROGRESS,
+            subStatus = OrderSubStatus.SEWING,
+            priority = OrderPriority.NORMAL,
+            isOverdue = false,
+            overdueDaysAgo = 0,
+            dueLabel = UiText.DynamicString("Due 30 Apr"),
+            totalPrice = 75000.0,
+            balanceRemaining = 60000.0,
+            discount = 0.0,
+            cta = resolvePrimaryCta(
+                status = OrderStatus.IN_PROGRESS,
+                subStatus = OrderSubStatus.SEWING,
+                isOverdue = false,
+                balanceRemaining = 60000.0,
+            ),
+            phone = "+2348012345678",
+            onPrimaryCta = {},
+            onSecondaryCta = {},
+            onSetDeadlineClick = {},
+            onWhatsAppClick = {},
+            onCallClick = {},
+            onAddPhoneClick = {},
+            onCustomerClick = {},
+            isActiveStaff = true,
+        )
+    }
+}
+
+/** Staff variant, no deadline set (Task 10): no "Set deadline" CTA — staff can't set one. */
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun OrderHeroCardStaffNoDeadlinePreview() {
+    StitchPadTheme {
+        OrderHeroCard(
+            garmentTypeIcon = Icons.Default.Inventory2,
+            garmentName = "Agbada",
+            customerName = "Gose Wale",
+            status = OrderStatus.PENDING,
+            subStatus = null,
+            priority = OrderPriority.NORMAL,
+            isOverdue = false,
+            overdueDaysAgo = 0,
+            dueLabel = null,
+            totalPrice = 40000.0,
+            balanceRemaining = 0.0,
+            discount = 0.0,
+            cta = resolvePrimaryCta(
+                status = OrderStatus.PENDING,
+                subStatus = null,
+                isOverdue = false,
+                balanceRemaining = 0.0,
+            ),
+            phone = "+2348012345678",
+            onPrimaryCta = {},
+            onSecondaryCta = {},
+            onSetDeadlineClick = {},
+            onWhatsAppClick = {},
+            onCallClick = {},
+            onAddPhoneClick = {},
+            onCustomerClick = {},
+            isActiveStaff = true,
         )
     }
 }
