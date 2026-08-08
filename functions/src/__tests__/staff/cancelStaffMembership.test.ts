@@ -72,4 +72,14 @@ describe('cancelStaffMembershipHandler', () => {
     await cancelStaffMembershipHandler({ workshopUid: 'alice' }, authedCtx('chidi'), deps(db));
     expect(store.get('users/alice/team/chidi')).toMatchObject({ status: 'archived', name: 'Chidi O' });
   });
+
+  it('cancel of a pending member (no roster doc) does not create a stub', async () => {
+    // Pending members are never approved, so no roster doc exists yet.
+    // Cancelling them should not create a malformed stub roster doc.
+    const { db, store } = makeStaffDb({
+      'users/alice/memberships/chidi': { status: 'pending' },
+    });
+    await cancelStaffMembershipHandler({ workshopUid: 'alice' }, authedCtx('chidi'), deps(db));
+    expect(store.has('users/alice/team/chidi')).toBe(false);
+  });
 });

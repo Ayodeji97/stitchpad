@@ -92,6 +92,21 @@ describe('approveStaffMemberHandler', () => {
       name: 'Chidi O', kind: 'staff', status: 'active', colorSeed: 3,
     });
   });
+
+  it('when approve transaction fails (status changed to revoked), roster doc is not created and claims are rolled back', async () => {
+    // Pre-check rejects a revoked membership before setting any claim or
+    // entering the transaction, so both claim and roster doc remain untouched.
+    const claims = makeClaimsRecorder();
+    const { db, store } = makeStaffDb({
+      'users/alice/memberships/chidi': { status: 'revoked' },
+    });
+    await expect(
+      approveStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), deps(db, claims)),
+    ).rejects.toMatchObject({ message: 'membership_revoked' });
+    // Pre-check rejected, so no claim was issued and no roster doc was created.
+    expect(store.has('users/alice/team/chidi')).toBe(false);
+    expect(claims.claims.has('chidi')).toBe(false);
+  });
 });
 
 describe('revokeStaffMemberHandler', () => {
@@ -139,5 +154,15 @@ describe('revokeStaffMemberHandler', () => {
     });
     await revokeStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), deps(db));
     expect(store.get('users/alice/team/chidi')).toMatchObject({ status: 'archived', name: 'Chidi O' });
+  });
+
+  it('revoke of a pending member (no roster doc) does not create a stub', async () => {
+    // Pending members are never approved, so no roster doc exists yet.
+    // Revoking them should not create a malformed stub roster doc.
+    const { db, store } = makeStaffDb({
+      'users/alice/memberships/chidi': { status: 'pending' },
+    });
+    await revokeStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), deps(db));
+    expect(store.has('users/alice/team/chidi')).toBe(false);
   });
 });

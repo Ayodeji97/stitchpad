@@ -44,11 +44,15 @@ export async function revokeStaffMemberHandler(
   await deps.setClaims(staffAuthUid, null);
 
   try {
-    await deps.db.doc(teamMemberDocPath(ownerUid, staffAuthUid)).set(
+    await deps.db.doc(teamMemberDocPath(ownerUid, staffAuthUid)).update(
       { status: 'archived', updatedAt: nowMs },
-      { merge: true },
     );
-  } catch { /* roster archive is best-effort; attribution stays resolvable either way */ }
+  } catch {
+    // Roster archive is best-effort. If the roster doc is missing (e.g. member
+    // was revoked before ever being approved), update() throws and we swallow
+    // it rather than create a stub. Attribution for never-approved members isn't
+    // resolvable anyway, and a stub roster doc would pollute the team namespace.
+  }
 
   return { staffAuthUid, status: 'revoked' };
 }
