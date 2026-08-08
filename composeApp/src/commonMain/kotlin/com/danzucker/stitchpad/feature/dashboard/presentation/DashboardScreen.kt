@@ -274,7 +274,7 @@ internal fun firstOrderChecklistSteps(setup: FirstOrderSetupUi): List<SetupStep>
 @Composable
 fun DashboardRoot(
     onNavigateToOrderDetail: (String) -> Unit,
-    onNavigateToOrders: () -> Unit,
+    onNavigateToOrders: (String?) -> Unit,
     onNavigateToToCollect: () -> Unit,
     onNavigateToOrderForm: () -> Unit,
     onNavigateToEditOrder: (String) -> Unit,
@@ -474,7 +474,7 @@ private fun handleDashboardEvent(
     signature: String,
     whatsAppLauncher: WhatsAppLauncher,
     onNavigateToOrderDetail: (String) -> Unit,
-    onNavigateToOrders: () -> Unit,
+    onNavigateToOrders: (String?) -> Unit,
     onNavigateToToCollect: () -> Unit,
     onNavigateToOrderForm: () -> Unit,
     onNavigateToEditOrder: (String) -> Unit,
@@ -494,7 +494,7 @@ private fun handleDashboardEvent(
 ) {
     when (event) {
         is DashboardEvent.NavigateToOrderDetail -> onNavigateToOrderDetail(event.orderId)
-        DashboardEvent.NavigateToOrders -> onNavigateToOrders()
+        is DashboardEvent.NavigateToOrders -> onNavigateToOrders(event.filter)
         DashboardEvent.NavigateToToCollect -> onNavigateToToCollect()
         DashboardEvent.NavigateToOrderForm -> onNavigateToOrderForm()
         is DashboardEvent.NavigateToEditOrder -> onNavigateToEditOrder(event.orderId)

@@ -486,7 +486,7 @@ private fun MainNavGraph(
                 onOrderCreated = {
                     // After a fresh create, land on the Orders list instead of
                     // popping back to the launch point (e.g. the dashboard FAB).
-                    navController.navigate(OrderListRoute) {
+                    navController.navigate(OrderListRoute()) {
                         popUpTo<OrderFormRoute> { inclusive = true }
                         launchSingleTop = true
                     }
@@ -546,8 +546,8 @@ private fun MainNavGraph(
                 onNavigateToOrderDetail = { orderId ->
                     navController.navigate(OrderDetailRoute(orderId = orderId))
                 },
-                onNavigateToOrders = {
-                    navController.navigate(OrderListRoute) {
+                onNavigateToOrders = { filter ->
+                    navController.navigate(OrderListRoute(initialFilter = filter)) {
                         launchSingleTop = true
                     }
                 },

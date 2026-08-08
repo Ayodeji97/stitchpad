@@ -42,6 +42,9 @@ sealed interface DashboardAction {
     /** Opens the Orders tab filtered to pending / not-started orders. */
     data object OnViewPipelineNotStartedClick : DashboardAction
 
+    /** Staff dashboard: tapped the "Mine" count tile — opens the Orders tab filtered to my work. */
+    data object OnViewMyWorkClick : DashboardAction
+
     /** Opens the full reconnect list (trailing chevron in ReconnectChipStrip). */
     data object OnViewReconnectClick : DashboardAction
 

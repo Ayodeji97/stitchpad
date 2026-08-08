@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.order.presentation.list
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
@@ -32,14 +33,28 @@ import kotlinx.coroutines.launch
 class OrderListViewModel(
     private val orderRepository: OrderRepository,
     private val customerRepository: CustomerRepository,
-    private val activeWorkshopProvider: ActiveWorkshopProvider
+    private val activeWorkshopProvider: ActiveWorkshopProvider,
+    savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
     private var hasLoadedInitialData = false
     private var allOrders: List<Order> = emptyList()
     private var allArchivedOrders: List<Order> = emptyList()
 
-    private val _state = MutableStateFlow(OrderListState())
+    // Task 9 (staff-phase2-assignment): seeds the list's filter from
+    // OrderListRoute.initialFilter — e.g. a dashboard tile deep-linking straight
+    // into "in progress" or "my work" instead of landing on the unfiltered list.
+    // Only these two are consumed today; "overdue"/"due-today" have no matching
+    // filter in OrderListState yet (see OrderListFilter's kdoc) so they fall
+    // through to the `else` and leave the list unfiltered, same as null.
+    private val initialFilter: String? = savedStateHandle["initialFilter"]
+
+    private val _state = MutableStateFlow(
+        OrderListState(
+            statusFilter = if (initialFilter == OrderListFilter.IN_PROGRESS) OrderStatus.IN_PROGRESS else null,
+            myWorkOnly = initialFilter == OrderListFilter.MY_WORK,
+        )
+    )
 
     private val _events = Channel<OrderListEvent>()
     val events = _events.receiveAsFlow()

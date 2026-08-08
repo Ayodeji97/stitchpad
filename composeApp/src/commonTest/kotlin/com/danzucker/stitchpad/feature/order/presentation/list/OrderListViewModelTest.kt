@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.order.presentation.list
 
+import androidx.lifecycle.SavedStateHandle
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
 import com.danzucker.stitchpad.core.domain.error.DataError
@@ -84,11 +85,14 @@ class OrderListViewModelTest {
         updatedAt = 0L,
     )
 
-    private fun TestScope.createViewModel(): OrderListViewModel {
+    private fun TestScope.createViewModel(
+        savedStateHandle: SavedStateHandle = SavedStateHandle(),
+    ): OrderListViewModel {
         val vm = OrderListViewModel(
             orderRepository = orderRepository,
             customerRepository = customerRepository,
             activeWorkshopProvider = activeWorkshopProvider,
+            savedStateHandle = savedStateHandle,
         )
         // Subscribe so the state flow's onStart loads orders + customers.
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }

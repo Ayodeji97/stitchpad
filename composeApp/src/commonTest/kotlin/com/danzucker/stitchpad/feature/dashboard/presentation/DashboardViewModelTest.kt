@@ -39,6 +39,7 @@ import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.MeasurementsPickerRow
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
+import com.danzucker.stitchpad.feature.order.presentation.list.OrderListFilter
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestActionType
 import com.danzucker.stitchpad.feature.goals.data.FakeWeeklyGoalRepository
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
@@ -393,6 +394,24 @@ class DashboardViewModelTest {
         assertEquals(1, pipeline.ready)
     }
 
+    // Task 9 (staff-phase2-assignment): the "Mine" count tile — orders assigned to
+    // THIS session's authUid, computed alongside the other staff counts.
+    @Test
+    fun activeStaffMember_populatesMineCount() = runTest {
+        signIn()
+        becomeActiveStaff() // authUid = "staff-uid", workshopUid = "owner-uid"
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "mine1", deadline = null).copy(assignedMemberId = "staff-uid"),
+            fakeOrder(id = "mine2", deadline = null).copy(assignedMemberId = "staff-uid"),
+            fakeOrder(id = "not-mine", deadline = null).copy(assignedMemberId = "other-staffer"),
+            fakeOrder(id = "unassigned", deadline = null),
+        )
+
+        val vm = createViewModel()
+
+        assertEquals(2, vm.state.value.staffMineCount)
+    }
+
     @Test
     fun activeStaffMember_withNoUrgentWork_hasEmptyQueueButPipeline() = runTest {
         signIn()
@@ -721,6 +740,47 @@ class DashboardViewModelTest {
         val vm = createViewModel()
         vm.onAction(DashboardAction.OnViewDueTodayClick)
         assertIs<DashboardEvent.NavigateToOrders>(vm.events.first())
+    }
+
+    // --- Task 9 (staff-phase2-assignment): PR-A2 debt — tiles now pass a filter
+    // through NavigateToOrders. Overdue/Due-today stay unfiltered (no deadline
+    // filter exists in OrderListState yet); In-progress and the new Mine tile
+    // get their own filter strings, consumed by OrderListViewModel's seeding. ---
+
+    @Test
+    fun staffOverdueTile_leavesFilterNull() = runTest {
+        signIn()
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnViewOverdueClick)
+        val event = assertIs<DashboardEvent.NavigateToOrders>(vm.events.first())
+        assertNull(event.filter)
+    }
+
+    @Test
+    fun staffDueTodayTile_leavesFilterNull() = runTest {
+        signIn()
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnViewDueTodayClick)
+        val event = assertIs<DashboardEvent.NavigateToOrders>(vm.events.first())
+        assertNull(event.filter)
+    }
+
+    @Test
+    fun staffInProgressTile_emitsNavigateToOrdersWithInProgressFilter() = runTest {
+        signIn()
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnViewPipelineInProgressClick)
+        val event = assertIs<DashboardEvent.NavigateToOrders>(vm.events.first())
+        assertEquals(OrderListFilter.IN_PROGRESS, event.filter)
+    }
+
+    @Test
+    fun onViewMyWorkClick_emitsNavigateToOrdersWithMyWorkFilter() = runTest {
+        signIn()
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnViewMyWorkClick)
+        val event = assertIs<DashboardEvent.NavigateToOrders>(vm.events.first())
+        assertEquals(OrderListFilter.MY_WORK, event.filter)
     }
 
     @Test

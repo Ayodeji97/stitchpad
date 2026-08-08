@@ -42,6 +42,7 @@ import com.danzucker.stitchpad.feature.goals.domain.repository.WeeklyGoalReposit
 import com.danzucker.stitchpad.feature.measurement.presentation.entry.MeasurementEntryDestination
 import com.danzucker.stitchpad.feature.measurement.presentation.entry.MeasurementEntryResolver
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
+import com.danzucker.stitchpad.feature.order.presentation.list.OrderListFilter
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -219,15 +220,20 @@ class DashboardViewModel(
                     DashboardEvent.NavigateToOrderDetail(action.action.orderId)
                 }
             )
-            DashboardAction.OnSeeAllClick -> emitEvent(DashboardEvent.NavigateToOrders)
+            DashboardAction.OnSeeAllClick -> emitEvent(DashboardEvent.NavigateToOrders())
             DashboardAction.OnOutstandingClick -> emitEvent(DashboardEvent.NavigateToToCollect)
-            DashboardAction.OnViewAllOrdersClick -> emitEvent(DashboardEvent.NavigateToOrders)
-            // Staff count-tile taps open the Orders list. PR-A2 will pass a status/deadline
-            // filter through NavigateToOrders so each tile lands on its own filtered view.
-            DashboardAction.OnViewOverdueClick -> emitEvent(DashboardEvent.NavigateToOrders)
-            DashboardAction.OnViewDueTodayClick -> emitEvent(DashboardEvent.NavigateToOrders)
-            DashboardAction.OnViewPipelineInProgressClick -> emitEvent(DashboardEvent.NavigateToOrders)
-            DashboardAction.OnViewPipelineNotStartedClick -> emitEvent(DashboardEvent.NavigateToOrders)
+            DashboardAction.OnViewAllOrdersClick -> emitEvent(DashboardEvent.NavigateToOrders())
+            // PR-A2 debt paid (Task 9, staff-phase2-assignment): tile taps now pass a filter
+            // through NavigateToOrders so each lands on its own filtered Orders view. Overdue
+            // and Due-today stay unfiltered — OrderListViewModel has no deadline filter yet,
+            // and inventing one is out of scope here (brief explicitly reserves it).
+            DashboardAction.OnViewOverdueClick -> emitEvent(DashboardEvent.NavigateToOrders())
+            DashboardAction.OnViewDueTodayClick -> emitEvent(DashboardEvent.NavigateToOrders())
+            DashboardAction.OnViewPipelineInProgressClick ->
+                emitEvent(DashboardEvent.NavigateToOrders(filter = OrderListFilter.IN_PROGRESS))
+            DashboardAction.OnViewPipelineNotStartedClick -> emitEvent(DashboardEvent.NavigateToOrders())
+            DashboardAction.OnViewMyWorkClick ->
+                emitEvent(DashboardEvent.NavigateToOrders(filter = OrderListFilter.MY_WORK))
             DashboardAction.OnViewReconnectClick -> emitEvent(DashboardEvent.NavigateToCustomers)
             DashboardAction.OnNewOrderClick,
             DashboardAction.OnCreateOrderClick,
@@ -482,9 +488,11 @@ class DashboardViewModel(
             // owner reads their own. authUser stays the signed-in identity, so the
             // greeting name/avatar is always the person actually looking.
             activeWorkshopProvider.flow
-                .map { session -> session.workshopUid.takeIf { it.isNotBlank() } to session.isActiveStaff }
+                .map { session ->
+                    Triple(session.workshopUid.takeIf { it.isNotBlank() }, session.isActiveStaff, session.authUid)
+                }
                 .distinctUntilChanged()
-                .flatMapLatest { (workshopUid, isStaff) ->
+                .flatMapLatest { (workshopUid, isStaff, staffAuthUid) ->
                     if (workshopUid == null) {
                         flowOf(null)
                     } else {
@@ -507,6 +515,7 @@ class DashboardViewModel(
                         ) { firestoreUser, ordersResult, customersResult, goalResult ->
                             DashboardLoadTick(
                                 isStaff = isStaff,
+                                staffAuthUid = staffAuthUid,
                                 data = UserAndDashboardData(firestoreUser, ordersResult, customersResult, goalResult),
                             )
                         }
@@ -518,7 +527,7 @@ class DashboardViewModel(
                         return@collect
                     }
                     if (tick.isStaff) {
-                        updateStaffState(authUser, tick.data)
+                        updateStaffState(authUser, tick.staffAuthUid, tick.data)
                     } else {
                         updateOwnerState(authUser, tick.data)
                     }
@@ -573,7 +582,7 @@ class DashboardViewModel(
      * their defaults, so the staff view is money-free at the STATE level, not
      * merely hidden in the composable.
      */
-    private fun updateStaffState(authUser: User, combined: UserAndDashboardData) {
+    private fun updateStaffState(authUser: User, staffAuthUid: String, combined: UserAndDashboardData) {
         val ordersResult = combined.ordersResult
         val orders = (ordersResult as? Result.Success)?.data ?: emptyList()
         val today = Instant.fromEpochMilliseconds(nowMillis())
@@ -594,6 +603,9 @@ class DashboardViewModel(
                 overdue = buckets.overdue.map { row -> row.moneyFree() },
                 dueToday = buckets.dueToday.map { row -> row.moneyFree() },
                 staffPipeline = StaffPipelineCalculator.compute(orders),
+                // "Mine" count tile — orders assigned to THIS session's authUid, not the
+                // whole workshop's roster (mirrors OrderListViewModel's "My work" match).
+                staffMineCount = orders.count { order -> order.assignedMemberId == staffAuthUid },
                 errorMessage = (ordersResult as? Result.Error)?.error?.toDashboardUiText(),
             )
         }
@@ -777,6 +789,7 @@ private data class UserAndDashboardData(
  */
 private data class DashboardLoadTick(
     val isStaff: Boolean,
+    val staffAuthUid: String,
     val data: UserAndDashboardData,
 )
 

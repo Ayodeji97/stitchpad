@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.order.presentation.list
 
+import androidx.lifecycle.SavedStateHandle
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
 import com.danzucker.stitchpad.core.domain.error.DataError
@@ -27,6 +28,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -66,11 +68,14 @@ class OrderListStaffTest {
         )
     }
 
-    private fun TestScope.createViewModel(): OrderListViewModel {
+    private fun TestScope.createViewModel(
+        savedStateHandle: SavedStateHandle = SavedStateHandle(),
+    ): OrderListViewModel {
         val vm = OrderListViewModel(
             orderRepository = orderRepository,
             customerRepository = customerRepository,
             activeWorkshopProvider = activeWorkshopProvider,
+            savedStateHandle = savedStateHandle,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -283,6 +288,84 @@ class OrderListStaffTest {
         vm.onAction(OrderListAction.OnToggleMyWork)
 
         assertFalse(vm.state.value.myWorkOnly)
+        assertEquals(listOf("o1"), vm.state.value.orders.map { it.id })
+    }
+
+    // --- Task 9 (staff-phase2-assignment): seed statusFilter/myWorkOnly from
+    // OrderListRoute.initialFilter (a dashboard tile deep-linking into a filtered view). ---
+
+    @Test
+    fun seededWithMyWorkFilter_startsWithMyWorkOnlyTrue() = runTest {
+        setStaffSession()
+        val vm = createViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("initialFilter" to OrderListFilter.MY_WORK)),
+        )
+
+        assertTrue(vm.state.value.myWorkOnly)
+    }
+
+    @Test
+    fun seededWithInProgressFilter_startsWithInProgressStatusFilter() = runTest {
+        val vm = createViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("initialFilter" to OrderListFilter.IN_PROGRESS)),
+        )
+
+        assertEquals(OrderStatus.IN_PROGRESS, vm.state.value.statusFilter)
+    }
+
+    @Test
+    fun seededWithNoFilter_leavesDefaultsUnchanged() = runTest {
+        val vm = createViewModel()
+
+        assertFalse(vm.state.value.myWorkOnly)
+        assertNull(vm.state.value.statusFilter)
+    }
+
+    @Test
+    fun seededWithUnrecognizedFilter_leavesDefaultsUnchanged() = runTest {
+        // "overdue"/"due-today" have no matching filter yet — must not crash or
+        // half-apply; the list stays unfiltered exactly like a null initialFilter.
+        val vm = createViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("initialFilter" to OrderListFilter.OVERDUE)),
+        )
+
+        assertFalse(vm.state.value.myWorkOnly)
+        assertNull(vm.state.value.statusFilter)
+    }
+
+    @Test
+    fun seededMyWorkFilter_actuallyFiltersTheOrdersOnceStaffSessionLands() = runTest {
+        // The seeded flag must survive observeActiveWorkshop's isActiveStaff/staffAuthUid
+        // update (a separate _state.update call) and still narrow the active list once
+        // the staff session resolves — not just sit inert in state.
+        setStaffSession() // authUid = "s"
+        orderRepository.ordersList = listOf(
+            sampleOrder().copy(id = "mine", assignedMemberId = "s"),
+            sampleOrder().copy(id = "not-mine", assignedMemberId = "other"),
+        )
+
+        val vm = createViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("initialFilter" to OrderListFilter.MY_WORK)),
+        )
+
+        assertTrue(vm.state.value.myWorkOnly)
+        assertEquals(listOf("mine"), vm.state.value.orders.map { it.id })
+    }
+
+    @Test
+    fun seededMyWorkFilter_forOwnerSession_doesNotFilter() = runTest {
+        // Guard precedent from Task 8: myWorkOnly only bites with isActiveStaff +
+        // a resolved staffAuthUid. A seeded flag on an owner session must not
+        // silently narrow the owner's own order list.
+        orderRepository.ordersList = listOf(
+            sampleOrder().copy(id = "o1", assignedMemberId = "someone-else"),
+        )
+
+        val vm = createViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("initialFilter" to OrderListFilter.MY_WORK)),
+        )
+
+        assertTrue(vm.state.value.myWorkOnly)
         assertEquals(listOf("o1"), vm.state.value.orders.map { it.id })
     }
 

@@ -905,6 +905,7 @@
     <string name="dashboard_staff_tile_overdue">Overdue</string>
     <string name="dashboard_staff_tile_due_today">Due today</string>
     <string name="dashboard_staff_tile_in_progress">In progress</string>
+    <string name="dashboard_staff_tile_mine">Mine</string>
     <string name="dashboard_staff_tile_view">View</string>
     <string name="dashboard_staff_workshop_count">%1$d in workshop</string>
     <string name="dashboard_staff_needs_attention">Needs attention</string>

@@ -35,6 +35,9 @@ data class DashboardState(
     // the "In progress" tile. Null until the staff dashboard's first data load
     // completes — doubles as the staff loading sentinel (isStaff && null = spinner).
     val staffPipeline: StaffPipelineCounts? = null,
+    // Staff-only: count of orders currently assigned to the signed-in staff member
+    // (Order.assignedMemberId == the session's authUid) — drives the "Mine" count tile.
+    val staffMineCount: Int = 0,
     val overdue: List<DashboardOrderRow> = emptyList(),
     val dueToday: List<DashboardOrderRow> = emptyList(),
     val ready: List<DashboardOrderRow> = emptyList(),
