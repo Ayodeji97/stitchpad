@@ -353,6 +353,24 @@ class OrderListStaffTest {
     }
 
     @Test
+    fun seededMyWorkFilter_isVisibleFromStateValueBeforeAnySubscriber() = runTest {
+        // Regression: `state`'s stateIn(initialValue = ...) must mirror the seeded
+        // `_state` construction, not a bare `OrderListState()`. With
+        // SharingStarted.WhileSubscribed, `state.value` read before the first
+        // collector attaches returns stateIn's own initialValue, never `_state`'s —
+        // so this must be asserted WITHOUT going through `createViewModel()`'s
+        // `backgroundScope.launch { vm.state.collect {} }` subscription.
+        val vm = OrderListViewModel(
+            orderRepository = orderRepository,
+            customerRepository = customerRepository,
+            activeWorkshopProvider = activeWorkshopProvider,
+            savedStateHandle = SavedStateHandle(mapOf("initialFilter" to OrderListFilter.MY_WORK)),
+        )
+
+        assertTrue(vm.state.value.myWorkOnly)
+    }
+
+    @Test
     fun seededMyWorkFilter_forOwnerSession_doesNotFilter() = runTest {
         // Guard precedent from Task 8: myWorkOnly only bites with isActiveStaff +
         // a resolved staffAuthUid. A seeded flag on an owner session must not

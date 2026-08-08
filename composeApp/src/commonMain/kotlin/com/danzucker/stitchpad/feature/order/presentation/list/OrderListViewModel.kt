@@ -71,7 +71,12 @@ class OrderListViewModel(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = OrderListState()
+            // Must mirror the seeded `_state` above (not a bare `OrderListState()`) — with
+            // WhileSubscribed, a `state.value` read before the first collector attaches
+            // returns THIS initial value, not `_state`'s. Reading `_state.value` here
+            // (rather than duplicating the seed expression) makes the two impossible to
+            // drift apart, unlike a second independently-maintained literal.
+            initialValue = _state.value
         )
 
     @Suppress("CyclomaticComplexMethod", "ReturnCount")
