@@ -125,3 +125,21 @@ House rules: repository methods return `Result<T, DataError>`; presentation maps
 ## 8. Out of scope
 
 Sub-roles ("staff admin"), per-permission editor, staff activity log, comments/messaging, multi-assignee, rename-sweep function, staff profile screens.
+
+## 9. Follow-ups discovered in Phase 1 smoke testing (2026-08-08)
+
+1. **Staff garment media** — staff should be able to add style/fabric photos to an
+   order (owner request from device smoke testing). Requires: staff order-update
+   whitelist extended to `items` (safe post-strip — base items are money-free),
+   Storage rules granting staff upload access to the owner's media paths, the
+   upload-outbox path verified under a staff session, and tests. Until it ships,
+   the staff order-detail UI shows "Add style / Add fabric photo" affordances that
+   the rules deny — gate them on role as part of this slice. Fold into Phase 2
+   (assignment), which also expands staff write scope.
+2. **Storage emulator in the smoke setup** — `firebase.emulator.json` covers only
+   Auth + Firestore, so app image uploads go to production Storage and fail with
+   403 (emulator-issued token), making image sync appear broken locally. Add the
+   Storage emulator + client wiring in `connectFirebaseEmulatorsIfEnabled`, and
+   note it in the smoke runbook. Also consider committing a debug-source-set
+   `network_security_config.xml` (cleartext to 10.0.2.2) so Android emulator smoke
+   works without recreating the local-only file each time.
