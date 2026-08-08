@@ -167,8 +167,9 @@ function buildMoneyDoc(order, ownerId, orderId) {
 // discard them and then stamp the stale result as authoritative. So:
 //   - payments: base-derived payments (incl. legacy-deposit synthesis) FIRST, then
 //     any mirror payment whose id is not already present (union, base wins position);
-//   - costs: updateCosts writes the COMPLETE list, so a non-empty mirror costs array
-//     wins outright; an empty/absent one falls back to the base's;
+//   - costs: updateCosts writes the COMPLETE list, so whenever the mirror carries a
+//     costs array it wins outright — including an EMPTY one, which is a legitimate
+//     "cleared every cost" state. Only an absent/malformed key falls back to the base's;
 //   - everything else comes from the base, as before.
 // With no existing mirror this is exactly buildMoneyDoc.
 function buildMoneyDocWithOverlay(order, ownerId, orderId, existingMirror) {
@@ -189,11 +190,15 @@ function buildMoneyDocWithOverlay(order, ownerId, orderId, existingMirror) {
     extraPayments.push(p);
   }
 
-  const mirrorCosts = Array.isArray(existingMirror.costs) ? existingMirror.costs : [];
+  // Presence-based, NOT length-based: updateCosts writes the complete list, so an
+  // empty array on the mirror is a legitimate "cleared every cost" state and must win
+  // over the base. Only an absent (or malformed) costs key means "never written"
+  // — e.g. a recordPayment-only mirror — and falls back to the base's costs.
+  const mirrorHasCosts = Array.isArray(existingMirror.costs);
 
   return Object.assign({}, base, {
     payments: basePayments.concat(extraPayments),
-    costs: mirrorCosts.length > 0 ? mirrorCosts : base.costs,
+    costs: mirrorHasCosts ? existingMirror.costs : base.costs,
   });
 }
 

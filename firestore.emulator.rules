@@ -297,8 +297,19 @@ service cloud.firestore {
         // the version floor took hold — always carries all three keys (GitLive
         // encodes defaults), so rejecting them atomically bounces the whole
         // write instead of letting it re-contaminate the doc.
+        //
+        // The stamp-only guard: createCustomer is TWO writes — set(dto) then
+        // set({serverCreatedAt}, merge=true). When write #1 bounces off the contact
+        // deny above, write #2 would otherwise land as an independent CREATE holding
+        // nothing but serverCreatedAt — a blank stub in the owner's and staff lists.
+        // A legitimate create always carries the full DTO, and the stamp normally
+        // executes as an UPDATE because write #1 already created the doc (offline
+        // queues preserve per-client write order, so the stamp can never legitimately
+        // arrive first). A serverCreatedAt-only create is therefore always the
+        // orphaned second half of a denied create.
         allow create: if activityCreateOk()
-          && !request.resource.data.keys().hasAny(customerContactKeys());
+          && !request.resource.data.keys().hasAny(customerContactKeys())
+          && !request.resource.data.keys().hasOnly(['serverCreatedAt']);
         // Slice 8e: keyed on affectedKeys(), so legacy contact already stored on
         // a doc may REMAIN (an untouched field is not "affected") but can never be
         // (re)written. The Admin-SDK strip removes it and is not subject to rules.
@@ -375,8 +386,19 @@ service cloud.firestore {
         // balanceRemaining/payments/costs are always present on the wire. Rejecting
         // the top-level keys therefore bounces the whole write atomically, items
         // included. Post-8d-1 clients write OrderBaseDto, which has neither.
+        //
+        // The stamp-only guard: createOrder is TWO writes — set(dto) then
+        // set({serverCreatedAt}, merge=true). When write #1 bounces off the money
+        // deny above, write #2 would otherwise land as an independent CREATE holding
+        // nothing but serverCreatedAt — a blank order stub in the owner's and staff
+        // lists. A legitimate create always carries the full DTO, and the stamp
+        // normally executes as an UPDATE because write #1 already created the doc
+        // (offline queues preserve per-client write order, so the stamp can never
+        // legitimately arrive first). A serverCreatedAt-only create is therefore
+        // always the orphaned second half of a denied create.
         allow create: if activityCreateOk()
-          && !request.resource.data.keys().hasAny(orderMoneyKeys());
+          && !request.resource.data.keys().hasAny(orderMoneyKeys())
+          && !request.resource.data.keys().hasOnly(['serverCreatedAt']);
         // Owner: full update EXCEPT the money keys. Active staff: may ONLY advance
         // production status — status/subStatus/statusHistory/updatedAt — never
         // money, customer, or items, and still can't backdate the server-stamp

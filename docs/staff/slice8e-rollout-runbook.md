@@ -105,7 +105,7 @@ Two consequences, both load-bearing:
 - **These rules must NOT be deployed before the 8c version floor is enforced.**
   A pre-8d-1 client writes money/contact on *every* save (GitLive encodes the
   full DTO), so deploying early breaks saving wholesale for anyone not yet
-  updated. The floor gate is already gate item 2 at the top of this runbook —
+  updated. The version-floor gate in the checklist above already covers this —
   confirm it is live and that both stores show the 8d-1 build before deploying.
 
 1. `firebase deploy --only firestore:rules --project=stitchpad-30607`
@@ -152,7 +152,7 @@ is confirmed 8d-1+. See "What else this deploy ships" under Rules flip.
 - Rules: redeploy the previous `firestore.rules` (git revert of the Task 3
   commit) — staff lists go dark again, and the base-doc money/contact write-deny
   lifts, so below-floor clients can save (and re-contaminate) again. If you roll
-  back for that reason, resume the post-flip monitoring below as the sole defence
+  back for that reason, resume the post-flip monitoring above as the sole defence
   until the floor is fixed and the rules are redeployed.
 - Strip: restore from the export — full-DB restore; only for catastrophic data
   loss, expect to lose writes made since the export.

@@ -274,7 +274,7 @@ describe('buildMoneyDocWithOverlay', () => {
     ]);
   });
 
-  it('prefers non-empty mirror costs (updateCosts writes the complete list)', () => {
+  it('prefers mirror costs whenever the key is present (updateCosts writes the complete list)', () => {
     expect(
       buildMoneyDocWithOverlay(baseOrder, 'owner-1', 'o1', {
         costs: [{ category: 'TRIM', amount: 900 }],
@@ -282,13 +282,19 @@ describe('buildMoneyDocWithOverlay', () => {
     ).toEqual([{ category: 'TRIM', amount: 900 }]);
   });
 
-  it('falls back to base costs when the mirror costs are empty, absent, or malformed', () => {
-    expect(buildMoneyDocWithOverlay(baseOrder, 'owner-1', 'o1', { costs: [] }).costs).toEqual([
-      { category: 'FABRIC', amount: 3000 },
-    ]);
+  // Presence, not length: `updateCosts` writes the complete list, so an empty array
+  // is a deliberate "cleared every cost" and must not be resurrected from the base.
+  it('lets EMPTY mirror costs win over the base costs (a cleared list is a real state)', () => {
+    expect(buildMoneyDocWithOverlay(baseOrder, 'owner-1', 'o1', { costs: [] }).costs).toEqual([]);
+  });
+
+  it('falls back to base costs only when the mirror costs key is absent or malformed', () => {
     expect(buildMoneyDocWithOverlay(baseOrder, 'owner-1', 'o1', {}).costs).toEqual([
       { category: 'FABRIC', amount: 3000 },
     ]);
+    expect(
+      buildMoneyDocWithOverlay(baseOrder, 'owner-1', 'o1', { payments: [] }).costs,
+    ).toEqual([{ category: 'FABRIC', amount: 3000 }]);
     expect(buildMoneyDocWithOverlay(baseOrder, 'owner-1', 'o1', { costs: 3 }).costs).toEqual([
       { category: 'FABRIC', amount: 3000 },
     ]);

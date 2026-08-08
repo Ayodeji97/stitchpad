@@ -902,6 +902,60 @@ describe('Slice 8e: money/contact denied on base-doc client writes', () => {
     });
   });
 
+  // createOrder/createCustomer are TWO writes: set(dto) then
+  // set({serverCreatedAt}, merge=true). When a below-floor client's write #1 bounces
+  // off the money/contact deny above, write #2 must not land on its own as an
+  // independent CREATE — that would leave a blank serverCreatedAt-only stub in the
+  // owner's and staff lists. The stamp legitimately runs as an UPDATE, because
+  // write #1 created the doc first (offline queues preserve per-client order).
+  describe('stamp-only stub creates', () => {
+    it('DENIES a serverCreatedAt-only create on orders (orphaned write #2)', async () => {
+      await assertFails(
+        setDoc(doc(db('alice'), 'users/alice/orders/o_stub'), {
+          serverCreatedAt: serverTimestamp(),
+        }, { merge: true }),
+      );
+    });
+
+    it('DENIES a serverCreatedAt-only create on customers (orphaned write #2)', async () => {
+      await assertFails(
+        setDoc(doc(db('alice'), 'users/alice/customers/c_stub'), {
+          serverCreatedAt: serverTimestamp(),
+        }, { merge: true }),
+      );
+    });
+
+    it('allows the legit two-step createOrder: money-free create, then the stamp merge', async () => {
+      const ref = doc(db('alice'), 'users/alice/orders/o_two_step');
+      await assertSucceeds(
+        setDoc(ref, {
+          customerName: 'Ada',
+          status: 'PENDING',
+          createdAt: now - 60_000,
+          updatedAt: now - 60_000,
+        }),
+      );
+      await assertSucceeds(
+        setDoc(ref, { serverCreatedAt: serverTimestamp() }, { merge: true }),
+      );
+    });
+
+    it('allows the legit two-step createCustomer: contact-free create, then the stamp merge', async () => {
+      const ref = doc(db('alice'), 'users/alice/customers/c_two_step');
+      await assertSucceeds(
+        setDoc(ref, {
+          name: 'Ada',
+          slotState: 'active',
+          createdAt: now - 60_000,
+          updatedAt: now - 60_000,
+        }),
+      );
+      await assertSucceeds(
+        setDoc(ref, { serverCreatedAt: serverTimestamp() }, { merge: true }),
+      );
+    });
+  });
+
   // The wall itself is unchanged: money/contact still belong in /private, and the
   // owner must still be able to write them there.
   it('the owner can still write money and contact to the /private sub-docs', async () => {
