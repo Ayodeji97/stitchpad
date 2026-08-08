@@ -4,6 +4,7 @@ import com.danzucker.stitchpad.core.config.domain.repository.AppConfigRepository
 import com.danzucker.stitchpad.core.data.entitlement.UserDocEntitlementsProvider
 import com.danzucker.stitchpad.core.data.session.FirebaseActiveWorkshopProvider
 import com.danzucker.stitchpad.core.data.session.MembershipStatusDto
+import com.danzucker.stitchpad.core.data.sync.SyncStatusObserver
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
@@ -64,6 +65,7 @@ val coreModule = module {
             appScope = get<CoroutineScope>(qualifier = named("offlineWriteAppScope")),
         )
     }
+    single { SyncStatusObserver(firestore = get()) }
     single<EntitlementsProvider> {
         UserDocEntitlementsProvider(
             auth = get(),

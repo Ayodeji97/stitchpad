@@ -109,8 +109,10 @@ import com.danzucker.stitchpad.navigation.TeamRoute
 import com.danzucker.stitchpad.navigation.ToCollectRoute
 import com.danzucker.stitchpad.navigation.TutorialPlayerRoute
 import com.danzucker.stitchpad.navigation.UpgradeRoute
+import com.danzucker.stitchpad.ui.components.SyncStatusBanner
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun MainRoot(
@@ -181,6 +183,10 @@ fun MainRoot(
     val session by activeWorkshopProvider.flow.collectAsStateWithLifecycle()
     val tabs = BottomNavItem.forRole(session.role)
 
+    // Single collection site for the global sync flow — see SyncStatusViewModel kdoc.
+    val syncStatusViewModel: SyncStatusViewModel = koinViewModel()
+    val syncStatus by syncStatusViewModel.state.collectAsStateWithLifecycle()
+
     val showBottomBar = tabs.any { item ->
         currentDestination?.hasRoute(item.route::class) == true
     } || currentDestination?.hasRoute<CustomerDetailRoute>() == true
@@ -240,14 +246,19 @@ fun MainRoot(
             }
         }
     ) { innerPadding ->
-        MainNavGraph(
-            navController = innerNavController,
-            onSignedOut = onSignedOut,
-            onNavigateToDebugMenu = onNavigateToDebugMenu,
+        Column(
             modifier = Modifier
                 .padding(innerPadding)
                 .consumeWindowInsets(innerPadding)
-        )
+        ) {
+            SyncStatusBanner(status = syncStatus)
+            MainNavGraph(
+                navController = innerNavController,
+                onSignedOut = onSignedOut,
+                onNavigateToDebugMenu = onNavigateToDebugMenu,
+                modifier = Modifier.weight(1f)
+            )
+        }
     }
 }
 

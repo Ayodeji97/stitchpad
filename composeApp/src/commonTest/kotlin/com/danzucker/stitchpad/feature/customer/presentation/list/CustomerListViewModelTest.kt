@@ -148,6 +148,25 @@ class CustomerListViewModelTest {
         }
     }
 
+    // --- Per-row pending-sync state (snapshot metadata -> Customer.isPendingSync) ---
+
+    @Test
+    fun pending_customers_reach_the_list_state_marked() = runTest {
+        val pending = Customer(
+            id = "c1",
+            userId = "u1",
+            name = "Offline Ghost",
+            phone = "08000000000",
+            isPendingSync = true,
+        )
+        val vm = createViewModel()
+        customerRepository.customersList = listOf(pending)
+        runCurrent()
+
+        val row = vm.state.value.customers.first { it.id == "c1" }
+        assertTrue(row.isPendingSync)
+    }
+
     // --- Staff read-only contact guards (Slice 6c) ---
 
     private val activeStaffSession = WorkshopSession(

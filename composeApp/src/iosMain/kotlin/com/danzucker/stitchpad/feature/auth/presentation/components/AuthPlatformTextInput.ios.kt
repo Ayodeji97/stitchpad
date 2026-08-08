@@ -97,14 +97,48 @@ internal actual fun AuthPlatformTextInput(
                 string = placeholder,
                 attributes = mapOf<Any?, Any>(NSForegroundColorAttributeName to placeholderColor),
             )
-            if (field.text.orEmpty() != value) {
-                field.text = value
-            }
+            syncText(field, value)
         },
         onRelease = { field ->
             focusController.unregister(field)
         },
     )
+}
+
+/**
+ * Pushes the hoisted [value] into the native field without sending the caret to
+ * the end.
+ *
+ * Assigning `UITextField.text` discards `selectedTextRange`, so UIKit re-anchors
+ * the caret after the last character. Typing faster than the state round-trips
+ * makes that fire constantly: a recomposition carrying the previous keystroke's
+ * value arrives while the field already holds the newer text, the assignment
+ * runs, and the caret visibly snaps to the back. Restoring the offset afterwards
+ * keeps it where the user left it.
+ *
+ * The caret is restored by absolute offset rather than by the length delta,
+ * because the values reaching this field are stored verbatim — a shorter [value]
+ * means a stale echo (older text), not a rejected character. A caller that
+ * filters characters mid-string would want the delta instead.
+ */
+@OptIn(ExperimentalForeignApi::class)
+private fun syncText(field: UITextField, value: String) {
+    val current = field.text.orEmpty()
+    if (current == value) return
+
+    // Offset from the START of the text, so edits after the caret don't move it.
+    val caret = field.selectedTextRange?.let { range ->
+        field.offsetFromPosition(field.beginningOfDocument, range.end)
+    }
+    field.text = value
+
+    // Null while the field isn't first responder — nothing to restore.
+    if (caret == null) return
+    // Clamp so a shorter value never asks UIKit for a position past the end.
+    val target = caret.coerceIn(0L, value.length.toLong())
+    field.positionFromPosition(field.beginningOfDocument, offset = target)?.let { position ->
+        field.selectedTextRange = field.textRangeFromPosition(position, toPosition = position)
+    }
 }
 
 private class AuthTextFieldCoordinator : NSObject(), UITextFieldDelegateProtocol {

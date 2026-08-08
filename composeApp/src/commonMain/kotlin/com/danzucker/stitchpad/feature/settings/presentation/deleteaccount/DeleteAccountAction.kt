@@ -12,6 +12,7 @@ sealed interface DeleteAccountAction {
     data object OnReasonCancel : DeleteAccountAction
 
     data class OnReauthPasswordChange(val value: String) : DeleteAccountAction
+    data object OnToggleReauthPasswordVisibility : DeleteAccountAction
     data object OnReauthConfirm : DeleteAccountAction
     data object OnReauthCancel : DeleteAccountAction
     data object OnForgotPassword : DeleteAccountAction

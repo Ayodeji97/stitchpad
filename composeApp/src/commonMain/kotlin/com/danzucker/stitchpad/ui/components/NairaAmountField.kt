@@ -28,9 +28,14 @@ fun NairaAmountField(
     isError: Boolean = false,
     enabled: Boolean = true,
 ) {
+    // Digits-only rejects characters mid-string, so the caret has to be re-derived
+    // from what survived rather than left where the IME put it.
+    val input = rememberSanitizedTextFieldValue(value) { raw ->
+        onValueChange(raw.filter { it.isDigit() })
+    }
     OutlinedTextField(
-        value = value,
-        onValueChange = { raw -> onValueChange(raw.filter { it.isDigit() }) },
+        value = input.value,
+        onValueChange = input.onValueChange,
         visualTransformation = ThousandsSeparatorTransformation,
         label = label,
         placeholder = placeholder,

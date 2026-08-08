@@ -56,6 +56,9 @@ class ChangeEmailViewModel(
             is ChangeEmailAction.OnReauthPasswordChange -> _state.update {
                 it.copy(reauthPassword = action.value, reauthError = null)
             }
+            ChangeEmailAction.OnToggleReauthPasswordVisibility -> _state.update {
+                it.copy(isReauthPasswordVisible = !it.isReauthPasswordVisible)
+            }
             ChangeEmailAction.OnReauthConfirm -> reauthenticate()
             ChangeEmailAction.OnReauthDismiss -> {
                 // Only treat dismiss as "user canceled" when reauth hasn't

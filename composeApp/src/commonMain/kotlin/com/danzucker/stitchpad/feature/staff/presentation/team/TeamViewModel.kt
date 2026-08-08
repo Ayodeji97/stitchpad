@@ -51,8 +51,8 @@ class TeamViewModel(
             TeamAction.OnDismissInviteSheet -> _state.update { it.copy(invite = null) }
             TeamAction.OnCopyCode -> onCopyCode()
             TeamAction.OnShareLink -> onShareLink()
-            is TeamAction.OnApprove -> onApprove(action.staffAuthUid)
-            is TeamAction.OnDecline -> onDecline(action.staffAuthUid)
+            is TeamAction.OnApprove -> onDecision(action.staffAuthUid, TeamDecision.APPROVE)
+            is TeamAction.OnDecline -> onDecision(action.staffAuthUid, TeamDecision.DECLINE)
             is TeamAction.OnRevokeClick -> _state.update { it.copy(revokeTarget = action.member) }
             TeamAction.OnConfirmRevoke -> onConfirmRevoke()
             TeamAction.OnDismissRevokeDialog -> _state.update { it.copy(revokeTarget = null) }
@@ -125,19 +125,29 @@ class TeamViewModel(
         emit(TeamEvent.ShareViaWhatsApp("$JOIN_LINK_BASE${invite.code}"))
     }
 
-    private fun onApprove(staffAuthUid: String) {
+    /**
+     * Resolves one pending request, marking it in flight so the card's buttons can
+     * show progress and stop accepting taps.
+     *
+     * Guard re-entrancy the same way [onInvite] does: the call is a Firestore
+     * round-trip with no local echo, so an impatient owner tapping twice would
+     * otherwise fire a duplicate approve/revoke.
+     */
+    private fun onDecision(staffAuthUid: String, decision: TeamDecision) {
+        if (_state.value.inFlightDecisions.containsKey(staffAuthUid)) return
+        _state.update { it.copy(inFlightDecisions = it.inFlightDecisions + (staffAuthUid to decision)) }
         viewModelScope.launch {
-            staffRepository.approve(staffAuthUid).onFailure { error ->
-                _events.send(TeamEvent.ShowSnackbar(error.toUiText()))
+            val result = when (decision) {
+                TeamDecision.APPROVE -> staffRepository.approve(staffAuthUid)
+                TeamDecision.DECLINE -> staffRepository.revoke(staffAuthUid)
             }
-        }
-    }
-
-    private fun onDecline(staffAuthUid: String) {
-        viewModelScope.launch {
-            staffRepository.revoke(staffAuthUid).onFailure { error ->
-                _events.send(TeamEvent.ShowSnackbar(error.toUiText()))
-            }
+            // Clear BEFORE emitting: _events is a rendezvous channel, so the send
+            // parks until the screen collects it. Emitting first would leave the
+            // buttons spinning indefinitely whenever nothing is listening.
+            // On success the memberships listener drops the row anyway; clearing
+            // unconditionally is what makes a FAILED decision tappable again.
+            _state.update { it.copy(inFlightDecisions = it.inFlightDecisions - staffAuthUid) }
+            result.onFailure { error -> _events.send(TeamEvent.ShowSnackbar(error.toUiText())) }
         }
     }
 

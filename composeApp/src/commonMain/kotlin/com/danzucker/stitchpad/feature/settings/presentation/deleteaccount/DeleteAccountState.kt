@@ -23,6 +23,7 @@ data class DeleteAccountState(
     val additionalNotes: String = "",
 
     val reauthPassword: String = "",
+    val isReauthPasswordVisible: Boolean = false,
     val reauthError: UiText? = null,
     val isReauthenticating: Boolean = false,
 ) {

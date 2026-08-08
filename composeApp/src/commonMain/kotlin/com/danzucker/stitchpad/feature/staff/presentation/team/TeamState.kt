@@ -18,6 +18,12 @@ data class TeamState(
     val isGeneratingInvite: Boolean = false,
     val revokeTarget: Membership? = null,
     val errorMessage: UiText? = null,
+    /**
+     * Approve/decline calls currently in flight, keyed by staffAuthUid. Approving
+     * is a Firestore round-trip with no local echo, so without this the buttons
+     * stayed idle and invited a second tap that fired a duplicate request.
+     */
+    val inFlightDecisions: Map<String, TeamDecision> = emptyMap(),
 ) {
     /** Pending requests count against seats too — a pending member holds a seat. */
     val seatsUsed: Int get() = pending.size + active.size
@@ -31,6 +37,9 @@ data class TeamState(
         const val DEFAULT_SEAT_CAP = 2
     }
 }
+
+/** Which way an owner resolved a pending join request. */
+enum class TeamDecision { APPROVE, DECLINE }
 
 /**
  * A freshly minted invite as shown in the invite sheet. [displayCode] renders the

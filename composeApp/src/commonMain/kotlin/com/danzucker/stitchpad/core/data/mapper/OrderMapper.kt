@@ -55,7 +55,7 @@ fun migrateLegacyDeposit(
 
 private const val LEGACY_DEPOSIT_PAYMENT_ID = "legacy-deposit"
 
-fun OrderDto.toOrder(userId: String): Order {
+fun OrderDto.toOrder(userId: String, isPendingSync: Boolean = false): Order {
     val parsedStatus = runCatching { OrderStatus.valueOf(status) }
         .getOrDefault(OrderStatus.PENDING)
     val parsedSubStatus = if (parsedStatus == OrderStatus.IN_PROGRESS) {
@@ -90,6 +90,7 @@ fun OrderDto.toOrder(userId: String): Order {
         archivedAt = archivedAt,
         createdAt = createdAt,
         updatedAt = updatedAt,
+        isPendingSync = isPendingSync,
     )
 }
 

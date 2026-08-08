@@ -14,6 +14,10 @@ customer write confirmed present in Firestore at the database level.
 xcrun simctl list devices available                        # find a UDID
 ```
 
+`manual/offline-sync-indicator.yaml` is excluded from the default suite because it
+needs the Firestore backend killed mid-flow, which `e2e-ios.sh` never does. Run it
+by hand — the header of that file has the three commands.
+
 The script boots the Firestore + Auth emulators, **wipes them to a clean slate**,
 seeds deterministic data, builds a debug app with `USE_FIREBASE_EMULATOR` flipped
 on, wipes the app + keychain, installs, and runs the flows.
@@ -114,6 +118,20 @@ than as an upfront codebase-wide sweep.
 Tappable cards expose a concatenated parent node and individual children, and
 form labels share text with their field. One string can match several nodes —
 pin with `index:`.
+
+**8. Plain-text selectors require a FULL match, not a substring.**
+`visible: "Offline"` against a banner whose actual accessibility text is
+"Offline — saved on this phone, will sync later" fails — silently and
+indefinitely, right up to the configured timeout — even though the banner is
+on screen the entire time. Maestro compiles the string as a regex and matches
+it with `Pattern.matches` (whole string), not `.find`/`.contains`. Confirmed by
+hand: the bare string failed for 60s straight against an app that had been
+showing the target text continuously with no relaunch, while `.*Offline.*`
+against the identical screen passed on the very first poll. Any assertion
+against formatted or composed UI text (a sentence, not a short exact label)
+needs `.*...*` wrapping. Short exact-match labels ("Add Customer", "Not
+synced", a customer's plain name) are unaffected — they equal the whole node
+text already.
 
 ## Debugging
 
