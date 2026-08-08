@@ -1,6 +1,6 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
-import { REGION, MembershipStatus, membershipDocPath } from './staffConstants';
+import { REGION, MembershipStatus, membershipDocPath, teamMemberDocPath } from './staffConstants';
 import { StaffClaimsDeps } from './approveStaffMember';
 
 export interface CancelStaffMembershipRequest {
@@ -57,6 +57,13 @@ export async function cancelStaffMembershipHandler(
   } catch {
     // Best-effort: a missing/failed delete must not fail the leave.
   }
+
+  try {
+    await deps.db.doc(teamMemberDocPath(workshopUid, staffAuthUid)).set(
+      { status: 'archived', updatedAt: nowMs },
+      { merge: true },
+    );
+  } catch { /* roster archive is best-effort; attribution stays resolvable either way */ }
 
   return { workshopUid, status: 'revoked' };
 }

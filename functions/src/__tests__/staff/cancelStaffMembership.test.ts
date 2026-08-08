@@ -63,4 +63,13 @@ describe('cancelStaffMembershipHandler', () => {
     // bola untouched.
     expect(store.get('users/alice/memberships/bola')).toMatchObject({ status: 'active' });
   });
+
+  it('cancel archives the caller own roster doc', async () => {
+    const { db, store } = makeStaffDb({
+      'users/alice/memberships/chidi': { status: 'active' },
+      'users/alice/team/chidi': { name: 'Chidi O', kind: 'staff', status: 'active', colorSeed: 5 },
+    });
+    await cancelStaffMembershipHandler({ workshopUid: 'alice' }, authedCtx('chidi'), deps(db));
+    expect(store.get('users/alice/team/chidi')).toMatchObject({ status: 'archived', name: 'Chidi O' });
+  });
 });

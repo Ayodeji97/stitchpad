@@ -1,6 +1,6 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
-import { REGION, MembershipStatus, membershipDocPath } from './staffConstants';
+import { REGION, MembershipStatus, membershipDocPath, teamMemberDocPath } from './staffConstants';
 import { StaffClaimsDeps } from './approveStaffMember';
 
 export interface RevokeStaffMemberRequest {
@@ -42,6 +42,13 @@ export async function revokeStaffMemberHandler(
   // continued access until token expiry if the doc update failed.)
   await ref.update({ status: 'revoked', revokedAt: nowMs, claimsRefreshAt: nowMs });
   await deps.setClaims(staffAuthUid, null);
+
+  try {
+    await deps.db.doc(teamMemberDocPath(ownerUid, staffAuthUid)).set(
+      { status: 'archived', updatedAt: nowMs },
+      { merge: true },
+    );
+  } catch { /* roster archive is best-effort; attribution stays resolvable either way */ }
 
   return { staffAuthUid, status: 'revoked' };
 }

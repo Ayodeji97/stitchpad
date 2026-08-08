@@ -69,6 +69,29 @@ describe('approveStaffMemberHandler', () => {
     expect(store.get('users/alice/memberships/chidi')).toMatchObject({ status: 'pending' });
     expect(claims.claims.get('chidi')).toBeNull();
   });
+
+  it('approve creates the staff roster doc in the same transaction', async () => {
+    const claims = makeClaimsRecorder();
+    const { db, store } = makeStaffDb({
+      'users/alice/memberships/chidi': { status: 'pending', staffName: 'Chidi O' },
+    });
+    await approveStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), deps(db, claims));
+    expect(store.get('users/alice/team/chidi')).toMatchObject({
+      name: 'Chidi O', kind: 'staff', status: 'active',
+    });
+    expect(typeof (store.get('users/alice/team/chidi') as { colorSeed?: number }).colorSeed).toBe('number');
+  });
+
+  it('re-approve after cancel reactivates the roster doc via merge', async () => {
+    const { db, store } = makeStaffDb({
+      'users/alice/memberships/chidi': { status: 'pending', staffName: 'Chidi O' },
+      'users/alice/team/chidi': { name: 'Chidi O', kind: 'staff', status: 'archived', colorSeed: 3 },
+    });
+    await approveStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), deps(db));
+    expect(store.get('users/alice/team/chidi')).toMatchObject({
+      name: 'Chidi O', kind: 'staff', status: 'active', colorSeed: 3,
+    });
+  });
 });
 
 describe('revokeStaffMemberHandler', () => {
@@ -107,5 +130,14 @@ describe('revokeStaffMemberHandler', () => {
       }),
     ).rejects.toThrow('claims_backend_down');
     expect(store.get('users/alice/memberships/chidi')).toMatchObject({ status: 'revoked' });
+  });
+
+  it('revoke archives the roster doc but keeps it resolvable', async () => {
+    const { db, store } = makeStaffDb({
+      'users/alice/memberships/chidi': { status: 'active' },
+      'users/alice/team/chidi': { name: 'Chidi O', kind: 'staff', status: 'active', colorSeed: 3 },
+    });
+    await revokeStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), deps(db));
+    expect(store.get('users/alice/team/chidi')).toMatchObject({ status: 'archived', name: 'Chidi O' });
   });
 });
