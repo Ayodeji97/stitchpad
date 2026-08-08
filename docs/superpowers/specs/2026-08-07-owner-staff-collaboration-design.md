@@ -143,7 +143,15 @@ Sub-roles ("staff admin"), per-permission editor, staff activity log, comments/m
    cannot complete, and decide per-affordance whether to grant it instead
    (product call so far: due date stays owner-only — it is a customer commitment;
    styles/fabrics become staff-editable; notes TBD).
-2. **Storage emulator in the smoke setup** — `firebase.emulator.json` covers only
+2. **Kill switch is not live** — flipping `config/app.staffFeatureEnabled` to
+   `false` did NOT drop an active staff session; it only took effect after an app
+   restart (verified in emulator smoke, both directions). The config doc IS a live
+   snapshot listener combined into `FirebaseActiveWorkshopProvider`, so something
+   between the listener and the session resolution fails to propagate mid-session.
+   The code comments and rollout runbook describe the switch as instant — either
+   fix the propagation or re-document the switch as restart-latency. Investigate
+   before relying on it as a production panic button.
+3. **Storage emulator in the smoke setup** — `firebase.emulator.json` covers only
    Auth + Firestore, so app image uploads go to production Storage and fail with
    403 (emulator-issued token), making image sync appear broken locally. Add the
    Storage emulator + client wiring in `connectFirebaseEmulatorsIfEnabled`, and
