@@ -152,6 +152,62 @@ internal fun orderPaymentBaseWriteFields(now: Long): Map<String, Any?> = mapOf(
     "updatedAt" to now,
 )
 
+/**
+ * Non-payment half of [FirebaseOrderRepository.updateOrder]'s `/private/money` write —
+ * every [OrderMoneyDto] field EXCEPT `payments`, which [orderMoneyMergeWrite] unions on top.
+ *
+ * These fields stay REPLACE-whole (the edit screen is authoritative for them): clearing the
+ * costs list or a discount is a legitimate state the tailor can express, and costs are
+ * re-enterable analytics data. `payments` are money records with no client-side edit or
+ * delete path at all, so they get union semantics instead — see [orderMoneyMergeWrite].
+ *
+ * Values are primitive maps/lists, never @Serializable DTOs: gitlive hands raw map writes
+ * (and `FieldValue.arrayUnion` elements) straight to the native SDK, which rejects Kotlin
+ * data classes on iOS — same constraint as [PaymentDto.toFirestoreMap].
+ */
+internal fun orderMoneyMergeFields(money: OrderMoneyDto): Map<String, Any?> = mapOf(
+    "ownerId" to money.ownerId,
+    "orderId" to money.orderId,
+    "totalPrice" to money.totalPrice,
+    "discount" to money.discount,
+    "discountReason" to money.discountReason,
+    "costs" to money.costs.map { it.toFirestoreMap() },
+    "itemPrices" to money.itemPrices,
+)
+
+/**
+ * Full `/private/money` merge payload for [FirebaseOrderRepository.updateOrder].
+ *
+ * Payments are appended with an array-union instead of being replaced, because the
+ * in-memory [Order] is NOT a complete view of the mirror's payments: `recordPayment` on a
+ * legacy order that has no mirror yet writes an UNSTAMPED partial mirror (no `ownerId` —
+ * the completeness sentinel), and [com.danzucker.stitchpad.core.data.mapper.withMoney]
+ * deliberately ignores unstamped mirrors, so that payment never reaches the Order the
+ * owner then edits. A replace-set here therefore deleted real payments permanently
+ * (Cursor Bugbot, PR #350). Union is lossless because payments are append-only on the
+ * client — there is no edit or delete path — and it mirrors the 8b backfill's overlay
+ * semantics, which likewise unions mirror payments by id over the base doc.
+ *
+ * When the order has no payments the `payments` key is OMITTED entirely so the merge
+ * leaves whatever the mirror already holds untouched (an empty union would be a no-op,
+ * but writing nothing keeps the intent explicit and the payload minimal).
+ *
+ * [paymentsArrayUnion] is injected so the whole payload — including the empty-payments
+ * branch — is unit-testable without a Firestore fake; the call site passes
+ * `FieldValue.arrayUnion`.
+ */
+internal fun orderMoneyMergeWrite(
+    money: OrderMoneyDto,
+    paymentsArrayUnion: (List<Map<String, Any?>>) -> Any,
+): Map<String, Any?> {
+    val payments = money.payments.map { it.toFirestoreMap() }
+    return if (payments.isEmpty()) {
+        orderMoneyMergeFields(money)
+    } else {
+        orderMoneyMergeFields(money) + ("payments" to paymentsArrayUnion(payments))
+    }
+}
+
 @Suppress("TooManyFunctions")
 class FirebaseOrderRepository(
     private val firestore: FirebaseFirestore,
@@ -383,6 +439,8 @@ class FirebaseOrderRepository(
         return Result.Success(Unit)
     }
 
+    @Suppress("SpreadOperator") // GitLive's FieldValue.arrayUnion only accepts vararg Any;
+    // spreading the tested helper's list keeps orderMoneyMergeWrite the actual write path.
     override suspend fun updateOrder(
         userId: String,
         order: Order
@@ -401,8 +459,18 @@ class FirebaseOrderRepository(
             // and the full money is re-mirrored to /private/money below.
             ordersCollection(userId).document(order.id)
                 .set(order.withCompletedUploadPatches().toOrderBaseDto(), merge = true)
-            // Full-money mirror; order carries the current money so a replace is correct.
-            orderMoneyDoc(userId, order.id).set(order.toOrderMoneyDto(userId))
+            // Money mirror: MERGE, never replace. Everything but `payments` is
+            // replace-whole from the (authoritative) edit screen; `payments` are
+            // array-unioned because the in-memory order cannot see payments that live
+            // only in an unstamped partial mirror written by recordPayment on a
+            // mirror-less legacy order — replacing here deleted them for good
+            // (Cursor Bugbot, PR #350). See orderMoneyMergeWrite's KDoc.
+            orderMoneyDoc(userId, order.id).set(
+                orderMoneyMergeWrite(order.toOrderMoneyDto(userId)) { payments ->
+                    FieldValue.arrayUnion(*payments.toTypedArray())
+                },
+                merge = true,
+            )
         }
         if (!accepted) {
             return Result.Error(DataError.Network.UNKNOWN)

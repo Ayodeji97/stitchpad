@@ -11,6 +11,8 @@ import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
+import com.danzucker.stitchpad.core.data.dto.OrderCostDto
+import com.danzucker.stitchpad.core.data.dto.OrderMoneyDto
 import com.danzucker.stitchpad.core.data.dto.PaymentDto
 import com.danzucker.stitchpad.core.data.dto.StatusChangeDto
 import com.danzucker.stitchpad.core.domain.model.StatusChange
@@ -118,6 +120,92 @@ class OrderOfflineWriteRegressionTest {
         assertFalse(fields.containsKey("payments"))
         assertFalse(fields.containsKey("depositPaid"))
     }
+
+    // Regression (Cursor Bugbot, PR #350): updateOrder used to REPLACE the /private/money
+    // mirror. A legacy order with no mirror + recordPayment produces an UNSTAMPED partial
+    // mirror that the read path (Order.withMoney) ignores — so the in-memory Order never
+    // carries that payment, and the replace deleted it for good. The merge payload must
+    // therefore carry every money field EXCEPT payments, which are unioned separately.
+    @Test
+    fun orderMoneyMergeFields_containsEveryMoneyFieldExceptPayments() {
+        val fields = orderMoneyMergeFields(money())
+
+        assertEquals(
+            setOf("ownerId", "orderId", "totalPrice", "discount", "discountReason", "costs", "itemPrices"),
+            fields.keys,
+        )
+        assertEquals("user-1", fields["ownerId"])
+        assertEquals("order-1", fields["orderId"])
+        assertEquals(12_000.0, fields["totalPrice"])
+        assertEquals(500.0, fields["discount"])
+        assertEquals("loyal customer", fields["discountReason"])
+        // Costs stay replace-whole (clearing costs is a legitimate state) and must be
+        // primitive maps — gitlive rejects @Serializable DTOs inside raw map writes on iOS.
+        assertEquals(
+            listOf(mapOf<String, Any?>("category" to "FABRIC", "amount" to 3_000.0, "note" to null)),
+            fields["costs"],
+        )
+        assertEquals(mapOf("item-1" to 12_000.0), fields["itemPrices"])
+        assertAllValuesAreFirestorePrimitives(
+            fields.filterKeys { it !in setOf("costs", "itemPrices") },
+        )
+    }
+
+    @Test
+    fun orderMoneyMergeFields_neverContainsPayments() {
+        val fields = orderMoneyMergeFields(money(payments = listOf(paymentDto("pay-1"))))
+
+        assertFalse(fields.containsKey("payments"))
+    }
+
+    // Empty payments must OMIT the key entirely: writing an empty union (or an empty list)
+    // would be pointless at best and clobbering at worst — merge has to leave whatever the
+    // unstamped mirror already holds untouched.
+    @Test
+    fun orderMoneyMergeWrite_omitsPaymentsKeyWhenOrderHasNoPayments() {
+        val fields = orderMoneyMergeWrite(money(payments = emptyList())) { error("must not be called") }
+
+        assertFalse(fields.containsKey("payments"))
+        assertEquals(orderMoneyMergeFields(money(payments = emptyList())), fields)
+    }
+
+    @Test
+    fun orderMoneyMergeWrite_unionsPaymentsAsPrimitiveMapsWhenPresent() {
+        var unioned: List<Map<String, Any?>>? = null
+
+        val fields = orderMoneyMergeWrite(
+            money(payments = listOf(paymentDto("pay-1"), paymentDto("pay-2"))),
+        ) { payments ->
+            unioned = payments
+            "array-union"
+        }
+
+        assertEquals("array-union", fields["payments"])
+        assertEquals(listOf("pay-1", "pay-2"), unioned?.map { it["id"] })
+        unioned?.forEach { assertAllValuesAreFirestorePrimitives(it) }
+    }
+
+    private fun money(
+        payments: List<PaymentDto> = emptyList(),
+    ): OrderMoneyDto = OrderMoneyDto(
+        ownerId = "user-1",
+        orderId = "order-1",
+        totalPrice = 12_000.0,
+        discount = 500.0,
+        discountReason = "loyal customer",
+        payments = payments,
+        costs = listOf(OrderCostDto(category = "FABRIC", amount = 3_000.0, note = null)),
+        itemPrices = mapOf("item-1" to 12_000.0),
+    )
+
+    private fun paymentDto(id: String): PaymentDto = PaymentDto(
+        id = id,
+        amount = 5_000.0,
+        method = "CASH",
+        type = "DEPOSIT",
+        recordedAt = 1_700_000_000_000L,
+        note = null,
+    )
 
     private fun assertAllValuesAreFirestorePrimitives(map: Map<String, Any?>) {
         map.forEach { (key, value) ->

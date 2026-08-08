@@ -49,6 +49,11 @@ mutate production; the export is the only rollback for either.
       are skipped entirely — it can no longer overwrite authoritative mirror data
       with a stale/empty base doc. Counts must match the dry run.
       Re-run the dry run afterwards: the heal/create counts must now be 0.
+      Run this mirror-first `--commit` again at RELEASE time as well (not only
+      before the strip): it stamps every legacy mirror, closing the window in
+      which an 8d-1 client can create unstamped partial mirrors — the shape the
+      read path ignores and that write-path bugs (e.g. the `updateOrder` money
+      replace fixed on PR #350) silently feed on.
 - [ ] Spot-check `/private/money.ownerId` on a legacy order in the console.
 
 ## Strip (irreversible)
