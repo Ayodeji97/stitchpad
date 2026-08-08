@@ -1,16 +1,20 @@
 # Slice 8 — local emulator staff smoke-test runbook
 
 Exercise the full **staff** experience against real, seeded data on the **local
-Firebase emulators** — including the future Slice-8e `allow list` rule that lights
-staff up — **without touching production**. This is the safe way to catch staff-UI
+Firebase emulators** — including the Slice-8e `allow list` rule that unblocks staff
+LIST reads — **without touching production**. This is the safe way to catch staff-UI
 issues on real data before any prod flip.
 
 ## What this gives you
 - Firestore + Auth emulators running locally (isolated, throwaway).
-- The **Slice-8e-preview rules** (`firestore.emulator.rules`: members may LIST).
+- The emulator rules (`firestore.emulator.rules`), byte-identical to the deployed
+  `firestore.rules` as of Slice 8e Task 3: active members may LIST orders/customers.
+  The two-file mechanism (emulator rules vs. deployed rules) stays in place for
+  previewing future rule changes, even though the two files currently match.
 - Seeded workshop: Fola (owner) with 4 customers + 6 orders across every stage, in
-  the full dual-write shape; Gabby (staff) with the `role=staff` claim + an active
-  membership doc.
+  the post-8d stripped shape (base docs carry no money/contact — those live only in
+  `/private/money` and `/private/contact`, matching what the client writes); Gabby
+  (staff) with the `role=staff` claim + an active membership doc.
 - A debug app pointed at the emulators, so you can sign in as **Gabby** and see the
   staff dashboard / Orders / Customers populated with real data.
 
@@ -26,7 +30,8 @@ issues on real data before any prod flip.
 firebase emulators:start --config firebase.emulator.json
 ```
 This serves Firestore on `:8080`, Auth on `:9099`, and the Emulator UI on `:4000`,
-using `firestore.emulator.rules` (the 8e-preview rules). Leave it running.
+using `firestore.emulator.rules` (byte-identical to the deployed `firestore.rules`).
+Leave it running.
 
 ### 2. Seed users, claims, membership, and data (second terminal)
 ```
@@ -52,13 +57,21 @@ release build can never talk to the emulator.
 
 ### 4. Smoke-test
 - Sign in as **gabby@gmail.com / gabby123** → the **staff** experience with real
-  data: money-free dashboard (overdue/due-today/pipeline), read-only Orders &
-  Customers, reduced Settings, Leave workshop. Exercise every screen; watch for
-  crashes/layout issues that only appear with real data.
-- Sign in as **fola@gmail.com / fola123** → the **owner** view (money via `/private`).
+  data: money-free dashboard (overdue/due-today/pipeline), and **populated,
+  read-only Orders & Customers lists** (the 4 seeded customers, 6 seeded orders).
+  No money amounts appear anywhere (no totals, no deposits/balances, no payments),
+  and no contact fields (`phone`/`email`/`address`) appear on customer rows —
+  because the seeded base docs no longer carry them. Reduced Settings, Leave
+  workshop. Exercise every screen; watch for crashes/layout issues that only
+  appear with real data.
+- Sign in as **fola@gmail.com / fola123** → the **owner** view still sees money
+  (totals, deposits, balances) via `/private/money`, and full contact info via
+  `/private/contact`.
 - Try the **kill-switch** (#326): in the Emulator UI (`:4000`) set
   `config/app.staffFeatureEnabled = false` → Gabby drops to the owner-of-self empty
   shell. Set it back to `true` → staff experience returns.
+- If staff lists are empty, check the membership doc status is `active` and the
+  claims were set by the seeder.
 
 ### 5. Clean up
 - Flip `USE_FIREBASE_EMULATOR` back to `false` before committing / building anything
@@ -68,8 +81,12 @@ release build can never talk to the emulator.
   to persist a session).
 
 ## Notes
-- The emulator base docs still carry money (no Slice-8d strip here); the staff UI
-  strips money at render, so this faithfully tests the staff *experience*. The
-  money-free-base guarantee is covered separately by the rules unit tests.
-- `firestore.emulator.rules` is the ONLY place the 8e `allow list` flip lives — it
-  is deliberately NOT in the deployed `firestore.rules` until Slice 8d/8e ship.
+- The seeded base docs are money/contact-free (Slice 8d strip applied at seed time),
+  matching what the client actually writes — so this faithfully tests the staff
+  *and* owner read paths, not just the UI's own money-stripping. The money-free-base
+  guarantee is covered separately by the rules unit tests.
+- `firestore.emulator.rules` and `firestore.rules` are byte-identical as of Slice 8e
+  Task 3 — the `allow list` for active members is live in both. The separate
+  emulator-rules file is kept as a mechanism for previewing future rule changes
+  before they're promoted to the deployed file, not because the two currently
+  differ.

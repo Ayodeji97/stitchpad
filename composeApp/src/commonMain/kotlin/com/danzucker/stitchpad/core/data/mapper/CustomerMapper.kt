@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.core.data.mapper
 
+import com.danzucker.stitchpad.core.data.dto.CustomerBaseDto
 import com.danzucker.stitchpad.core.data.dto.CustomerContactDto
 import com.danzucker.stitchpad.core.data.dto.CustomerDto
 import com.danzucker.stitchpad.core.domain.model.Customer
@@ -51,6 +52,23 @@ fun CustomerDto.toCustomer(
     slotState = CustomerSlotState.fromWire(slotState),
     lockedAt = lockedAt,
     isPendingSync = isPendingSync,
+)
+
+/**
+ * Contact-free base-write projection (Slice 8d-1, stop-dual-write). Derives the base
+ * doc shape from [toCustomerDto] (single source of truth for slot/createdAt/updatedAt
+ * mapping), then drops phone/email/address so GitLive stops writing them to base.
+ * Contact goes to `/private/contact` via [toCustomerContactDto]; see [CustomerBaseDto].
+ */
+fun Customer.toCustomerBaseDto(): CustomerBaseDto = toCustomerDto().toBaseDto()
+
+fun CustomerDto.toBaseDto(): CustomerBaseDto = CustomerBaseDto(
+    id = id,
+    name = name,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+    slotState = slotState,
+    lockedAt = lockedAt,
 )
 
 fun Customer.toCustomerDto(): CustomerDto {

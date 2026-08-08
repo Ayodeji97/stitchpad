@@ -146,17 +146,7 @@ class OrderListViewModel(
                     }
                     is Result.Error -> {
                         _state.update { state ->
-                            // Active staff have no orders-LIST access until the base docs
-                            // are stripped (Slice 8): the money wall denies the collection
-                            // read. Treat that denial as an empty queue, not an error, so
-                            // staff see the empty state instead of "something went wrong".
-                            // Owners still surface real errors.
-                            if (state.isActiveStaff) {
-                                allOrders = emptyList()
-                                state.copy(isLoading = false, orders = emptyList(), errorMessage = null)
-                            } else {
-                                state.copy(isLoading = false, errorMessage = result.error.toOrderUiText())
-                            }
+                            state.copy(isLoading = false, errorMessage = result.error.toOrderUiText())
                         }
                     }
                 }
@@ -185,16 +175,14 @@ class OrderListViewModel(
                         // Clear loading so the view stops spinning. Surface the error
                         // only while the archived view is open — on the active view the
                         // active stream (same Firestore source) owns the error surface.
-                        // Active staff: the LIST is denied until Slice 8, so treat it as
-                        // empty rather than surfacing an error (see observeOrders above).
                         _state.update { state ->
                             state.copy(
                                 isArchivedLoading = false,
-                                errorMessage = when {
-                                    state.isActiveStaff -> null
-                                    state.showArchived -> result.error.toOrderUiText()
-                                    else -> state.errorMessage
-                                }
+                                errorMessage = if (state.showArchived) {
+                                    result.error.toOrderUiText()
+                                } else {
+                                    state.errorMessage
+                                },
                             )
                         }
                     }

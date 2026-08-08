@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.order.presentation.list
 
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
+import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
@@ -23,6 +24,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -124,6 +126,31 @@ class OrderListStaffTest {
         vm.onAction(OrderListAction.OnDeleteOrderClick(sampleOrder()))
 
         assertTrue(vm.state.value.showDeleteDialog)
+    }
+
+    // --- Slice 8e: staff LIST access is now unblocked server-side, so a repo
+    // error must surface exactly like it does for an owner — no more treating
+    // a denial as an empty queue. ---
+
+    @Test
+    fun staffSession_surfacesListErrorsLikeOwner() = runTest {
+        setStaffSession()
+        orderRepository.shouldReturnError = DataError.Network.FORBIDDEN
+        val vm = createViewModel()
+
+        assertNotNull(vm.state.value.errorMessage)
+    }
+
+    @Test
+    fun staffSession_surfacesArchivedErrorsLikeOwner() = runTest {
+        setStaffSession()
+        val vm = createViewModel()
+        vm.onAction(OrderListAction.OnShowArchived)
+
+        orderRepository.archivedError = DataError.Network.FORBIDDEN
+        orderRepository.ordersList = listOf(sampleOrder().copy(id = "trigger-emit"))
+
+        assertNotNull(vm.state.value.errorMessage)
     }
 
     private fun sampleOrder(): Order = Order(

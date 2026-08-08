@@ -143,6 +143,21 @@ service cloud.firestore {
           : true;
       }
 
+      // ── Slice 8e: base docs must stay money/contact-free ──────────────────
+      // After the Slice-8d strip, order money lives ONLY in
+      // orders/{oid}/private/money and customer contact ONLY in
+      // customers/{cid}/private/contact. These two key lists are exactly
+      // ORDER_MONEY_FIELDS / CUSTOMER_CONTACT_FIELDS in
+      // functions/scripts/stripBaseSensitiveFields.js, and exactly the sets the
+      // staff GET field-absence guards below check — keep all three in lockstep.
+      function orderMoneyKeys() {
+        return ['totalPrice', 'discount', 'discountReason', 'depositPaid',
+                'balanceRemaining', 'payments', 'costs'];
+      }
+      function customerContactKeys() {
+        return ['phone', 'email', 'address'];
+      }
+
       allow read: if isOwner(uid);
 
       // Client-side delete is denied to prevent welcome-window replay.
@@ -262,22 +277,46 @@ service cloud.firestore {
         // GET vs LIST: the field-absence guard on `resource.data` only reliably gates
         // single-doc GETs — Firestore security rules are NOT query filters, so a member
         // LIST of the collection is NOT blocked per-doc and would stream contact-bearing
-        // base docs over the wire during the dual-write window (verified in smoke). So
-        // members are denied LIST until Slice 8 strips contact from the base docs; then
-        // flip `allow list` to `isOwner(uid) || isActiveMember(uid)` (docs are clean, no
-        // field guard needed). GET keeps the field-absence guard (works, and lets a
-        // member fetch an already-stripped doc). Owner lists always.
+        // base docs over the wire during the dual-write window (verified in smoke).
+        // Members were denied LIST during the dual-write window; Slice 8e flipped it
+        // after the 8d strip (docs are clean, no field guard needed). GET keeps the
+        // field-absence guard (works, and lets a member fetch an already-stripped doc).
+        // Owner lists always.
         allow get: if isOwner(uid)
           || (isActiveMember(uid)
               && !('phone' in resource.data)
               && !('email' in resource.data)
               && !('address' in resource.data));
-        // EMULATOR ONLY (Slice 8e preview): members may LIST once the base docs are
-        // money/contact-free. This is the flip that lights up the staff experience;
-        // NOT deployed to prod until Slice 8d strips the base docs.
+        // Slice 8e: members may LIST — base docs are contact-free (8d strip +
+        // version floor). Rules are not query filters; the strip is the guard.
+        // The field-absence guard on `get` above stays as defence-in-depth.
         allow list: if isOwner(uid) || isActiveMember(uid);
-        allow create: if activityCreateOk();
-        allow update: if isOwner(uid) && serverCreatedAtProtectedOnUpdate() && activityCreatedAtStableOnUpdate();
+        // Slice 8e: a base customer doc may never be created carrying contact.
+        // Post-8d-1 clients write CustomerBaseDto (no phone/email/address); a
+        // pre-8d-1 client — including one flushing writes queued offline before
+        // the version floor took hold — always carries all three keys (GitLive
+        // encodes defaults), so rejecting them atomically bounces the whole
+        // write instead of letting it re-contaminate the doc.
+        //
+        // Do NOT add a `!keys().hasOnly(['serverCreatedAt'])` stamp-only guard here.
+        // It was tried and reverted: createCustomer is set(dto) then
+        // set({serverCreatedAt}, merge=true) issued back-to-back, and the client SDK
+        // ships both in ONE atomic commit in which the stamp op is graded as a CREATE
+        // carrying only serverCreatedAt (the doc does not exist in the state that op
+        // is evaluated against). The guard therefore denied the stamp, and with it the
+        // whole commit — every createCustomer failed, no doc at all (caught in device
+        // smoke testing against the emulator).
+        // The stub it was meant to stop is already handled by that same atomicity: an
+        // old client's contact-bearing create and its stamp share a commit, so the
+        // denied create takes the stamp down with it and no blank doc lands. Only a
+        // rare cross-commit orphan remains; that is accepted and sweepable.
+        allow create: if activityCreateOk()
+          && !request.resource.data.keys().hasAny(customerContactKeys());
+        // Slice 8e: keyed on affectedKeys(), so legacy contact already stored on
+        // a doc may REMAIN (an untouched field is not "affected") but can never be
+        // (re)written. The Admin-SDK strip removes it and is not subject to rules.
+        allow update: if isOwner(uid) && serverCreatedAtProtectedOnUpdate() && activityCreatedAtStableOnUpdate()
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(customerContactKeys());
         allow delete: if isOwner(uid);
 
         match /measurements/{measurementId} {
@@ -323,25 +362,58 @@ service cloud.firestore {
         // GET vs LIST: same as customers above — the field-absence guard only reliably
         // gates single-doc GETs; a member LIST is not filtered per-doc and would stream
         // money-bearing base docs over the wire (verified in smoke: the staff dashboard
-        // observeOrders LIST returned the owner's totalPrice/payments/costs). So members
-        // are denied LIST until Slice 8 strips money from the base docs, then flip
-        // `allow list` to `isOwner(uid) || isActiveMember(uid)`. GET keeps the guard.
+        // observeOrders LIST returned the owner's totalPrice/payments/costs). Members
+        // were denied LIST during the dual-write window; Slice 8e flipped it after the
+        // 8d strip. GET keeps the guard.
+        // The guarded field set is exactly ORDER_MONEY_FIELDS in
+        // functions/scripts/stripBaseSensitiveFields.js — keep the two in lockstep.
         allow get: if isOwner(uid)
           || (isActiveMember(uid)
               && !('totalPrice' in resource.data)
               && !('discount' in resource.data)
               && !('discountReason' in resource.data)
+              && !('depositPaid' in resource.data)
+              && !('balanceRemaining' in resource.data)
               && !('payments' in resource.data)
               && !('costs' in resource.data));
-        // EMULATOR ONLY (Slice 8e preview): members may LIST once the base docs are
-        // money/contact-free. This is the flip that lights up the staff experience;
-        // NOT deployed to prod until Slice 8d strips the base docs.
+        // Slice 8e: members may LIST — base docs are money-free (8d strip +
+        // version floor). Rules are not query filters; the strip is the guard.
+        // The field-absence guard on `get` above stays as defence-in-depth.
         allow list: if isOwner(uid) || isActiveMember(uid);
-        allow create: if activityCreateOk();
-        // Owner: full update. Active staff: may ONLY advance production status —
-        // status/subStatus/statusHistory/updatedAt — never money, customer, or
-        // items, and still can't backdate the server-stamp fields.
-        allow update: if (isOwner(uid) && serverCreatedAtProtectedOnUpdate() && activityCreatedAtStableOnUpdate())
+        // Slice 8e: a base order doc may never be created carrying money.
+        // items[].price can't be inspected by rules (rules cannot iterate an
+        // array), but that is not a gap in practice: every legacy full-DTO write
+        // that would carry items[].price ALSO carries the top-level money keys —
+        // GitLive encodes OrderDto's defaults, so totalPrice/discount/depositPaid/
+        // balanceRemaining/payments/costs are always present on the wire. Rejecting
+        // the top-level keys therefore bounces the whole write atomically, items
+        // included. Post-8d-1 clients write OrderBaseDto, which has neither.
+        //
+        // Do NOT add a `!keys().hasOnly(['serverCreatedAt'])` stamp-only guard here.
+        // It was tried and reverted: createOrder is set(dto) then
+        // set({serverCreatedAt}, merge=true) issued back-to-back, and the client SDK
+        // ships both in ONE atomic commit in which the stamp op is graded as a CREATE
+        // carrying only serverCreatedAt (the doc does not exist in the state that op
+        // is evaluated against). The guard therefore denied the stamp, and with it the
+        // whole commit — every createOrder failed, no order at all (caught in device
+        // smoke testing against the emulator).
+        // The stub it was meant to stop is already handled by that same atomicity: an
+        // old client's money-bearing create and its stamp share a commit, so the
+        // denied create takes the stamp down with it and no blank order lands. Only a
+        // rare cross-commit orphan remains; that is accepted and sweepable.
+        allow create: if activityCreateOk()
+          && !request.resource.data.keys().hasAny(orderMoneyKeys());
+        // Owner: full update EXCEPT the money keys. Active staff: may ONLY advance
+        // production status — status/subStatus/statusHistory/updatedAt — never
+        // money, customer, or items, and still can't backdate the server-stamp
+        // fields (its hasOnly already excludes money, so it needs no extra guard).
+        //
+        // Slice 8e (owner branch): keyed on affectedKeys(), so legacy money already
+        // stored on a base doc may REMAIN untouched — an honest edit of a
+        // not-yet-stripped doc still succeeds — but may never be (re)written. The
+        // Admin-SDK strip (stripBaseSensitiveFields.js) removes it and bypasses rules.
+        allow update: if (isOwner(uid) && serverCreatedAtProtectedOnUpdate() && activityCreatedAtStableOnUpdate()
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(orderMoneyKeys()))
           || (
             isActiveMember(uid)
             && request.resource.data.diff(resource.data).affectedKeys()

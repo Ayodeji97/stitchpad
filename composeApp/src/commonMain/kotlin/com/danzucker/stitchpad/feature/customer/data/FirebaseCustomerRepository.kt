@@ -4,6 +4,7 @@ import com.danzucker.stitchpad.core.data.decodeDocOrLog
 import com.danzucker.stitchpad.core.data.dto.CustomerContactDto
 import com.danzucker.stitchpad.core.data.dto.CustomerDto
 import com.danzucker.stitchpad.core.data.mapper.toCustomer
+import com.danzucker.stitchpad.core.data.mapper.toCustomerBaseDto
 import com.danzucker.stitchpad.core.data.mapper.toCustomerContactDto
 import com.danzucker.stitchpad.core.data.mapper.toCustomerDto
 import com.danzucker.stitchpad.core.data.mapper.withContact
@@ -25,6 +26,22 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 
 private const val TAG = "CustomerRepo"
+
+/**
+ * Stamps the authoritative Firestore *document* id onto a decoded [CustomerDto].
+ *
+ * See the order-side twin
+ * ([com.danzucker.stitchpad.feature.order.data.withDocumentId]): the `id` FIELD is only a
+ * mirror of the path and may be missing/blank/stale, decoding as `id = ""`. The Customers
+ * list keys its LazyColumn rows by customer id, so two id-less docs crashed the screen
+ * with `IllegalArgumentException: Key "" was already used`, and the `/private/contact`
+ * join (keyed by customer id) silently missed too.
+ *
+ * Applied at every read/decode site. Pure + internal so it is unit-testable without a
+ * Firestore fake.
+ */
+internal fun CustomerDto.withDocumentId(docId: String): CustomerDto =
+    if (id == docId) this else copy(id = docId)
 
 /**
  * Counts the number of ACTIVE-slot customers in [dtos].
@@ -52,6 +69,19 @@ internal fun shouldBlockActiveCustomerCreate(
     entitlementsHydrated: Boolean = true,
 ): Boolean =
     entitlementsHydrated && cachedActiveCount != null && cachedActiveCount >= customerCap
+
+/**
+ * Editable base-doc fields for [FirebaseCustomerRepository.updateCustomer]'s merge
+ * (Slice 8d-1, stop-dual-write). Only the non-sensitive `name` + `updatedAt`:
+ * phone/email/address now live solely in `/private/contact`, so the base customer doc
+ * stops carrying contact. slotState/lockedAt are server-owned and never written here.
+ * Extracted as a pure helper so the "no contact on the base update" invariant is
+ * asserted in commonTest without a Firestore fake.
+ */
+internal fun customerBaseUpdateFields(dto: CustomerDto): Map<String, Any?> = mapOf(
+    "name" to dto.name,
+    "updatedAt" to dto.updatedAt,
+)
 
 class FirebaseCustomerRepository(
     private val firestore: FirebaseFirestore,
@@ -119,7 +149,9 @@ class FirebaseCustomerRepository(
             contactByCustomerId(userId),
         ) { snapshot, contacts ->
             val decoded = snapshot.documents.mapNotNull { doc ->
-                val dto = decodeDocOrLog(tag = TAG, docId = doc.id) { doc.data<CustomerDto>() }
+                val dto = decodeDocOrLog(tag = TAG, docId = doc.id) {
+                    doc.data<CustomerDto>().withDocumentId(doc.id)
+                }
                 dto?.let { it to doc.metadata.hasPendingWrites }
             }
             cacheActiveCustomerCount(userId, countActiveCustomers(decoded.map { it.first }))
@@ -145,7 +177,7 @@ class FirebaseCustomerRepository(
             if (!snapshot.exists) {
                 Result.Error(DataError.Network.NOT_FOUND) as Result<Customer, DataError.Network>
             } else {
-                val dto = snapshot.data<CustomerDto>()
+                val dto = snapshot.data<CustomerDto>().withDocumentId(snapshot.id)
                 Result.Success(dto.toCustomer(userId).withContact(contact))
             }
         }
@@ -167,7 +199,7 @@ class FirebaseCustomerRepository(
                 .document(customerId)
                 .get()
             if (!doc.exists) return Result.Error(DataError.Network.NOT_FOUND)
-            val dto = doc.data<CustomerDto>()
+            val dto = doc.data<CustomerDto>().withDocumentId(doc.id)
             // Prefer the owner-only contact sub-doc; fall back to the base doc's
             // contact when it's missing (legacy/seeded customer) or the read fails.
             val contact = runCatching {
@@ -194,7 +226,9 @@ class FirebaseCustomerRepository(
             firestore.collection("users").document(userId).collection("customers")
                 .document(customer.id)
         }
-        val dto = customer.toCustomerDto().copy(id = docRef.id)
+        // Slice 8d-1 (stop-dual-write): base doc is contact-free; contact goes only to
+        // the /private/contact sub-doc below via toCustomerContactDto.
+        val dto = customer.toCustomerBaseDto().copy(id = docRef.id)
         if (CustomerSlotState.fromWire(dto.slotState) == CustomerSlotState.ACTIVE) {
             val cap = entitlements.current().customerCap
             val activeCount = cachedActiveCustomerCounts.value[userId]
@@ -242,13 +276,9 @@ class FirebaseCustomerRepository(
             .collection("customers")
             .document(customer.id)
         val dto = customer.toCustomerDto()
-        val editableFields = mapOf(
-            "name" to dto.name,
-            "phone" to dto.phone,
-            "email" to dto.email,
-            "address" to dto.address,
-            "updatedAt" to dto.updatedAt,
-        )
+        // Slice 8d-1 (stop-dual-write): the base doc no longer carries contact — only
+        // name + updatedAt. phone/email/address live solely in /private/contact (below).
+        val editableFields = customerBaseUpdateFields(dto)
         val accepted = offlineWrites.enqueue("updateCustomer customerId=${customer.id}") {
             // Merge only fields from the edit form. slotState/lockedAt are
             // server-owned and must not be reconstructed from offline UI state.

@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.core.offline
 
 import com.danzucker.stitchpad.core.data.dto.OrderDto
 import com.danzucker.stitchpad.core.data.dto.UserDto
+import com.danzucker.stitchpad.core.data.mapper.toBaseDto
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.style.data.toStorageData
 import dev.gitlive.firebase.firestore.FieldValue
@@ -241,7 +242,19 @@ class OfflineUploadOutbox(
                 }
             }
             if (!patched) error("Pending order image ref is unavailable")
-            set(docRef, dto.copy(items = updatedItems, updatedAt = nowMs()))
+            // Slice 8d-1 (stop-dual-write): write back the money-free base shape so an
+            // image-upload completion never re-mirrors money onto the base doc (which
+            // would re-appear after the Slice-8d strip). Money stays in /private/money,
+            // untouched by this image patch. merge = true for the same reasons as
+            // updateOrder: a replacement write would drop `serverCreatedAt` (rules
+            // reject that on a stamped doc) and would strip TOP-LEVEL legacy base
+            // money before the guarded Slice-8d strip can handle it. GitLive encodes
+            // every OrderBaseDto field, so the items patch still lands
+            // field-for-field. Caveat (same as updateOrder, accepted): merge is
+            // per-top-level-key, so `items` is still a whole-array replacement with
+            // price-less OrderItemBaseDto entries — any legacy `items[].price` on the
+            // doc is wiped here. Only top-level legacy money survives until the strip.
+            set(docRef, dto.copy(items = updatedItems, updatedAt = nowMs()).toBaseDto(), merge = true)
         }
         rememberCompletedUpload(job.storagePath, downloadUrl)
     }

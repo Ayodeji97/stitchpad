@@ -9,9 +9,9 @@
  *  - Gabby's custom claims { role:'staff', workshopUid:<Fola> } — the token claim
  *    that makes the app resolve her as active staff on Fola's tree.
  *  - Gabby's membership doc under Fola (status:'active') — the rules' isActiveMember
- *    reads this, so the Slice-8e-preview `allow list` lets her read Fola's orders.
+ *    reads this, so the Slice 8e `allow list` lets her read Fola's orders.
  *  - Minimal owner user docs + a realistic seed of Fola's customers/orders in the
- *    full dual-write shape (base + /private with ownerId), matching the app.
+ *    post-8d stripped shape (base clean, /private authoritative), matching the app.
  *
  * Usage (emulators must already be running):
  *   firebase emulators:start --config firebase.emulator.json     # in one terminal
@@ -86,7 +86,7 @@ async function main() {
   const batch = db.batch();
   for (const c of CUSTOMERS) {
     batch.set(db.doc(`users/${uid}/customers/${c.id}`), {
-      id: c.id, name: c.name, phone: c.phone, email: null, address: null, slotState: 'ACTIVE',
+      id: c.id, name: c.name, slotState: 'ACTIVE',
       serverCreatedAt: admin.firestore.FieldValue.serverTimestamp(), createdAt: now, updatedAt: now,
     });
     batch.set(db.doc(`users/${uid}/customers/${c.id}/private/contact`), {
@@ -101,9 +101,8 @@ async function main() {
       : [];
     batch.set(db.doc(`users/${uid}/orders/${o.id}`), {
       id: o.id, customerId: cust.id, customerName: cust.name, status: o.status, subStatus: o.sub, priority: 'NORMAL',
-      totalPrice: o.price, discount: 0, discountReason: null, payments, costs: [],
       deadline: now + o.deadlineDays * DAY, notes: null, archivedAt: null,
-      items: [{ id: itemId, garmentType: 'CUSTOM', customGarmentName: o.garment, description: o.garment, price: o.price, quantity: 1 }],
+      items: [{ id: itemId, garmentType: 'CUSTOM', customGarmentName: o.garment, description: o.garment, quantity: 1 }],
       statusHistory: [], serverCreatedAt: admin.firestore.FieldValue.serverTimestamp(), createdAt: now, updatedAt: now,
     });
     batch.set(db.doc(`users/${uid}/orders/${o.id}/private/money`), {

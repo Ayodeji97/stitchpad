@@ -20,6 +20,7 @@ import {
   Timestamp,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 
 /**
@@ -724,6 +725,296 @@ describe('activity docs — createdAt frozen once stamped', () => {
   });
 });
 
+// Slice 8e: base order/customer docs must never (re)gain money/contact fields
+// from ANY client write — including offline writes queued by a pre-8d-1 build and
+// flushed after the strip (the version floor is a UI gate, not a write block).
+// This is the permanent close of the re-contamination window; the post-flip strip
+// dry-run monitoring is now a backstop, not the only defence.
+//
+// These rules must NOT be deployed before the 8c version floor is enforced: a
+// pre-8d-1 client writes money/contact on every save and would break wholesale.
+describe('Slice 8e: money/contact denied on base-doc client writes', () => {
+  const now = Date.now();
+
+  describe('orders — money keys', () => {
+    it('DENIES an owner create carrying totalPrice (legacy full-DTO write)', async () => {
+      await assertFails(
+        setDoc(doc(db('alice'), 'users/alice/orders/o_money_create'), {
+          customerName: 'Ada',
+          status: 'PENDING',
+          createdAt: now - 60_000,
+          serverCreatedAt: serverTimestamp(),
+          totalPrice: 40000,
+        }),
+      );
+    });
+
+    // Every top-level money key is guarded, not just totalPrice — a legacy DTO
+    // encodes all of them, but a hand-rolled write could carry only one.
+    it('DENIES an owner create carrying any single money key', async () => {
+      const keys = ['discount', 'discountReason', 'depositPaid', 'balanceRemaining', 'payments', 'costs'];
+      const values: Record<string, unknown> = {
+        discount: 500, discountReason: 'loyal', depositPaid: 2000,
+        balanceRemaining: 3000, payments: [], costs: [],
+      };
+      for (const key of keys) {
+        await assertFails(
+          setDoc(doc(db('alice'), `users/alice/orders/o_money_${key}`), {
+            status: 'PENDING', createdAt: now - 60_000, [key]: values[key],
+          }),
+        );
+      }
+    });
+
+    it('allows a money-free owner create (the post-8d-1 OrderBaseDto shape)', async () => {
+      await assertSucceeds(
+        setDoc(doc(db('alice'), 'users/alice/orders/o_money_free'), {
+          customerName: 'Ada',
+          status: 'PENDING',
+          items: [{ id: 'i1', garmentType: 'Agbada' }],
+          createdAt: now - 60_000,
+          updatedAt: now - 60_000,
+          serverCreatedAt: serverTimestamp(),
+        }),
+      );
+    });
+
+    it('DENIES an owner update that touches payments', async () => {
+      await asAdmin(async (admin) => {
+        await setDoc(doc(admin, 'users/alice/orders/o_money_upd'), {
+          status: 'PENDING', createdAt: now - 60_000, serverCreatedAt: serverTimestamp(),
+        });
+      });
+      await assertFails(
+        updateDoc(doc(db('alice'), 'users/alice/orders/o_money_upd'), {
+          payments: [{ id: 'p1', amount: 5000 }],
+        }),
+      );
+      await assertFails(
+        updateDoc(doc(db('alice'), 'users/alice/orders/o_money_upd'), { totalPrice: 40000 }),
+      );
+    });
+
+    // The key property of the affectedKeys() formulation: legacy money already on
+    // a base doc may REMAIN (the strip, an Admin-SDK job, is what removes it) while
+    // an honest money-free edit of that same doc still goes through.
+    it('allows a money-free owner update of a doc that STILL carries legacy money', async () => {
+      await asAdmin(async (admin) => {
+        await setDoc(doc(admin, 'users/alice/orders/o_money_legacy'), {
+          status: 'PENDING',
+          notes: 'old',
+          totalPrice: 40000,
+          payments: [{ id: 'p1', amount: 5000 }],
+          createdAt: now - 60_000,
+          serverCreatedAt: serverTimestamp(),
+        });
+      });
+      await assertSucceeds(
+        updateDoc(doc(db('alice'), 'users/alice/orders/o_money_legacy'), {
+          status: 'IN_PROGRESS', notes: 'new', updatedAt: now,
+        }),
+      );
+      // ...but rewriting the legacy money it still carries is denied.
+      await assertFails(
+        updateDoc(doc(db('alice'), 'users/alice/orders/o_money_legacy'), { totalPrice: 1 }),
+      );
+    });
+
+    // The merge-set edit path (FirebaseOrderRepository.updateOrder) resends the
+    // full OrderBaseDto. Values that are byte-identical are not "affected", so a
+    // merge write is only rejected when it actually carries money.
+    it('allows the merge-set updateOrder path on a legacy money-bearing doc', async () => {
+      await asAdmin(async (admin) => {
+        await setDoc(doc(admin, 'users/alice/orders/o_money_merge'), {
+          status: 'PENDING', totalPrice: 40000, createdAt: now - 60_000,
+          serverCreatedAt: serverTimestamp(),
+        });
+      });
+      await assertSucceeds(
+        setDoc(doc(db('alice'), 'users/alice/orders/o_money_merge'),
+          { status: 'DONE', updatedAt: now }, { merge: true }),
+      );
+    });
+  });
+
+  describe('customers — contact keys', () => {
+    it('DENIES an owner create carrying phone (legacy full-DTO write)', async () => {
+      await assertFails(
+        setDoc(doc(db('alice'), 'users/alice/customers/c_contact_create'), {
+          name: 'Ada',
+          createdAt: now - 60_000,
+          serverCreatedAt: serverTimestamp(),
+          phone: '+2348011112222',
+        }),
+      );
+    });
+
+    it('DENIES an owner create carrying email or address', async () => {
+      await assertFails(
+        setDoc(doc(db('alice'), 'users/alice/customers/c_contact_email'), {
+          name: 'Ada', createdAt: now - 60_000, email: 'ada@example.com',
+        }),
+      );
+      await assertFails(
+        setDoc(doc(db('alice'), 'users/alice/customers/c_contact_addr'), {
+          name: 'Ada', createdAt: now - 60_000, address: '1 Broad St',
+        }),
+      );
+    });
+
+    it('allows a contact-free owner create (the post-8d-1 CustomerBaseDto shape)', async () => {
+      await assertSucceeds(
+        setDoc(doc(db('alice'), 'users/alice/customers/c_contact_free'), {
+          name: 'Ada',
+          slotState: 'active',
+          createdAt: now - 60_000,
+          updatedAt: now - 60_000,
+          serverCreatedAt: serverTimestamp(),
+        }),
+      );
+    });
+
+    it('DENIES an owner update that touches phone', async () => {
+      await asAdmin(async (admin) => {
+        await setDoc(doc(admin, 'users/alice/customers/c_contact_upd'), {
+          name: 'Ada', createdAt: now - 60_000, serverCreatedAt: serverTimestamp(),
+        });
+      });
+      await assertFails(
+        updateDoc(doc(db('alice'), 'users/alice/customers/c_contact_upd'), { phone: '+234' }),
+      );
+    });
+
+    it('allows a contact-free owner update of a doc that STILL carries legacy contact', async () => {
+      await asAdmin(async (admin) => {
+        await setDoc(doc(admin, 'users/alice/customers/c_contact_legacy'), {
+          name: 'Ada', phone: '+234', email: 'ada@example.com',
+          createdAt: now - 60_000, serverCreatedAt: serverTimestamp(),
+        });
+      });
+      await assertSucceeds(
+        updateDoc(doc(db('alice'), 'users/alice/customers/c_contact_legacy'), {
+          name: 'Ada B', updatedAt: now,
+        }),
+      );
+      await assertFails(
+        updateDoc(doc(db('alice'), 'users/alice/customers/c_contact_legacy'), { phone: '+999' }),
+      );
+    });
+  });
+
+  // createOrder/createCustomer are TWO writes: set(dto) then
+  // set({serverCreatedAt}, merge=true). Both halves must go through — whether the
+  // stamp reaches the rules engine as an UPDATE (doc already created) or as a
+  // CREATE (see the stamp-only cases below).
+  describe('the two-step create + stamp', () => {
+    it('allows the legit two-step createOrder: money-free create, then the stamp merge', async () => {
+      const ref = doc(db('alice'), 'users/alice/orders/o_two_step');
+      await assertSucceeds(
+        setDoc(ref, {
+          customerName: 'Ada',
+          status: 'PENDING',
+          createdAt: now - 60_000,
+          updatedAt: now - 60_000,
+        }),
+      );
+      await assertSucceeds(
+        setDoc(ref, { serverCreatedAt: serverTimestamp() }, { merge: true }),
+      );
+    });
+
+    it('allows the legit two-step createCustomer: contact-free create, then the stamp merge', async () => {
+      const ref = doc(db('alice'), 'users/alice/customers/c_two_step');
+      await assertSucceeds(
+        setDoc(ref, {
+          name: 'Ada',
+          slotState: 'active',
+          createdAt: now - 60_000,
+          updatedAt: now - 60_000,
+        }),
+      );
+      await assertSucceeds(
+        setDoc(ref, { serverCreatedAt: serverTimestamp() }, { merge: true }),
+      );
+    });
+  });
+
+  // The stamp op, when the rules engine grades it as a CREATE. The client's
+  // create is set(baseDto) + set({serverCreatedAt}, merge=true) issued
+  // back-to-back; on the Android/GitLive path the stamp op reaches the rules
+  // engine as a create whose payload is only serverCreatedAt (the doc does not
+  // exist in the state that op is graded against), and the commit is atomic — so
+  // denying this shape denies the whole create. It must be ALLOWED.
+  describe('the serverCreatedAt-only stamp write', () => {
+    it('allows a stamp-only create on orders (the client stamp op graded as a create)', async () => {
+      await assertSucceeds(
+        setDoc(doc(db('alice'), 'users/alice/orders/o_stamp_only'), {
+          serverCreatedAt: serverTimestamp(),
+        }, { merge: true }),
+      );
+    });
+
+    it('allows a stamp-only create on customers (the client stamp op graded as a create)', async () => {
+      await assertSucceeds(
+        setDoc(doc(db('alice'), 'users/alice/customers/c_stamp_only'), {
+          serverCreatedAt: serverTimestamp(),
+        }, { merge: true }),
+      );
+    });
+  });
+
+  // End-to-end shape of the client's create: base doc + stamp in one commit.
+  // NOTE on coverage — this pair does NOT reproduce the device failure on its
+  // own: the JS SDK folds two writes to the same doc inside a WriteBatch into a
+  // single mutation, so the stamp never reaches the rules engine as its own op
+  // here and these two passed even with the stamp-only-create guard in place.
+  // The guard's actual bite is pinned by the stamp-only create tests above, which
+  // were red before it was removed. Keep both: this pair is the app-shaped smoke
+  // check, those are the discriminating regression pin.
+  describe('the client create+stamp batch (writeBatch, as the app writes)', () => {
+    it('allows the createOrder batch: base create + serverCreatedAt stamp in one commit', async () => {
+      const aliceDb = db('alice');
+      const batch = writeBatch(aliceDb);
+      const ref = doc(aliceDb, 'users/alice/orders/batch-create');
+      batch.set(ref, {
+        customerName: 'Ada',
+        status: 'PENDING',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      batch.set(ref, { serverCreatedAt: serverTimestamp() }, { merge: true });
+      await assertSucceeds(batch.commit());
+    });
+
+    it('allows the createCustomer batch: base create + serverCreatedAt stamp in one commit', async () => {
+      const aliceDb = db('alice');
+      const batch = writeBatch(aliceDb);
+      const ref = doc(aliceDb, 'users/alice/customers/batch-create');
+      batch.set(ref, {
+        name: 'Ada',
+        slotState: 'active',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      batch.set(ref, { serverCreatedAt: serverTimestamp() }, { merge: true });
+      await assertSucceeds(batch.commit());
+    });
+  });
+
+  // The wall itself is unchanged: money/contact still belong in /private, and the
+  // owner must still be able to write them there.
+  it('the owner can still write money and contact to the /private sub-docs', async () => {
+    await assertSucceeds(
+      setDoc(doc(db('alice'), 'users/alice/orders/o_money_free/private/money'),
+        { ownerId: 'alice', totalPrice: 40000, payments: [], costs: [] }),
+    );
+    await assertSucceeds(
+      setDoc(doc(db('alice'), 'users/alice/customers/c_contact_free/private/contact'),
+        { ownerId: 'alice', phone: '+234', email: null, address: null }),
+    );
+  });
+});
+
 // Owner + Staff feature: money and customer contact live in owner-only
 // /private sub-docs. These rules ship WITH the dual-write (Slice 2) so the
 // new owner-client writes aren't default-denied; being isOwner-only they also
@@ -806,21 +1097,59 @@ describe('active staff member access', () => {
     await assertFails(getDoc(doc(staffDb('chidi', 'alice'), 'users/alice/orders/withMoney')));
   });
 
+  // The GET guard must cover the SAME field set the strip script deletes
+  // (ORDER_MONEY_FIELDS) — a legacy order carrying only depositPaid /
+  // balanceRemaining is still money-bearing and must not reach staff.
+  it('is denied an order carrying only the legacy deposit/balance money fields', async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice/orders/withDeposit'), { status: 'PENDING', depositPaid: 2000 });
+      await setDoc(doc(admin, 'users/alice/orders/withBalance'), { status: 'PENDING', balanceRemaining: 3000 });
+    });
+    await assertFails(getDoc(doc(staffDb('chidi', 'alice'), 'users/alice/orders/withDeposit')));
+    await assertFails(getDoc(doc(staffDb('chidi', 'alice'), 'users/alice/orders/withBalance')));
+  });
+
   // Regression guard for the money/contact-wall LIST leak (2026-07-30 smoke): the
   // field-absence guard only gates single-doc GETs — Firestore rules are NOT query
-  // filters, so a member LIST of the collection is not evaluated per-doc and would
-  // stream money/contact-bearing base docs over the wire during the dual-write
-  // window (the staff dashboard's observeOrders LIST did exactly this in prod). So
-  // `allow list` is owner-only until Slice 8 strips the base docs. GET keeps the gate.
-  it('cannot LIST the orders or customers collections (the GET-gate does not cover list)', async () => {
+  // filters, so a member LIST of the collection is not evaluated per-doc. Slice 8d
+  // strips money/contact off the base docs (with a version floor guaranteeing no
+  // base doc reaching this rule still carries them), so Slice 8e flips `allow list`
+  // open to active members. GET keeps its own field-absence guard as defence-in-depth.
+  it('can LIST stripped orders and customers collections (Slice 8e flip)', async () => {
     await asAdmin(async (admin) => {
-      // A dual-write-window doc: money/contact still on the base. A member LIST must
-      // not stream it — even though the collection also holds stripped docs.
-      await setDoc(doc(admin, 'users/alice/orders/withMoney'), { status: 'PENDING', totalPrice: 5000 });
-      await setDoc(doc(admin, 'users/alice/customers/withPhone'), { name: 'Bola', phone: '+234' });
+      // Base docs in the post-8d stripped shape: no money, no contact.
+      await setDoc(doc(admin, 'users/alice/orders/o-stripped'), {
+        customerName: 'Ada',
+        status: 'PENDING',
+        items: [{ id: 'i1', garmentType: 'Agbada' }],
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      await setDoc(doc(admin, 'users/alice/customers/c-stripped'), {
+        name: 'Ada',
+        slotState: 'active',
+        createdAt: 1,
+        updatedAt: 1,
+      });
     });
-    await assertFails(getDocs(collection(staffDb('chidi', 'alice'), 'users/alice/orders')));
-    await assertFails(getDocs(collection(staffDb('chidi', 'alice'), 'users/alice/customers')));
+    // NOTE: `allow list` has no per-doc field guard — rules are not query filters.
+    // The 8d strip + version floor are the guarantee that no base doc carries
+    // money/contact by the time this rule is deployed.
+    await assertSucceeds(getDocs(collection(staffDb('chidi', 'alice'), 'users/alice/orders')));
+    await assertSucceeds(getDocs(collection(staffDb('chidi', 'alice'), 'users/alice/customers')));
+  });
+
+  it('staff of another workshop still cannot LIST', async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice/orders/o1b'), {
+        customerName: 'Ada',
+        status: 'PENDING',
+        createdAt: 1,
+        updatedAt: 1,
+      });
+    });
+    await assertFails(getDocs(collection(staffDb('mallory', 'bob'), 'users/alice/orders')));
+    await assertFails(getDocs(collection(staffDb('mallory', 'bob'), 'users/alice/customers')));
   });
 
   it('owner can still LIST their own orders and customers (no regression)', async () => {

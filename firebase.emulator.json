@@ -1,5 +1,5 @@
 {
-  "//": "QA-only Firebase config for local staff smoke-testing. Loads the Slice-8e-preview rules (members can LIST) and runs the Firestore + Auth emulators. Use with: firebase emulators:start --config firebase.emulator.json. See docs/staff/slice8-emulator-smoke-runbook.md.",
+  "//": "QA-only Firebase config for local staff smoke-testing. Loads firestore.emulator.rules (a byte-for-byte copy of firestore.rules, including the Slice 8e member LIST) and runs the Firestore + Auth emulators. Use with: firebase emulators:start --config firebase.emulator.json. See docs/staff/slice8-emulator-smoke-runbook.md.",
   "firestore": {
     "rules": "firestore.emulator.rules",
     "indexes": "firestore.indexes.json"
