@@ -69,7 +69,7 @@ class DetailStylePickerTest {
     /**
      * Mirrors the VM's commitPendingStyles: build the refs to append, splice them into
      * the item, and clear the pending list + close the sheet. Returns the persisted
-     * order (what the VM hands to orderRepository.updateOrder).
+     * order (the VM hands its .items to orderRepository.updateItems).
      */
     private data class CommitResult(
         val persistedOrder: Order,
@@ -139,7 +139,7 @@ class DetailStylePickerTest {
             persistedItem.styleImages.all { it.source == StyleImageSource.LIBRARY },
             "committed refs must be LIBRARY refs",
         )
-        // The persisted order is exactly what the VM passes to updateOrder.
+        // The persisted items are exactly what the VM passes to updateItems.
         assertTrue(result.pendingAfter.isEmpty(), "pending cleared after commit")
         assertTrue(!result.sheetOpenAfter, "sheet closed after commit")
     }

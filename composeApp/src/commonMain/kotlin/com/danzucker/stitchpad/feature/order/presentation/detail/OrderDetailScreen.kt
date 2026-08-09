@@ -1225,7 +1225,6 @@ private fun OrderDetailContent(
                     onAction(OrderDetailAction.OnRemoveFabricImage(itemId, index))
                 },
                 onAddFabricNameClick = { onAction(OrderDetailAction.OnAddFabricNameClick) },
-                isActiveStaff = state.isActiveStaff,
             )
         }
         // Payment total / history + record-payment is money — hidden for active staff (Slice 6c).
@@ -1274,7 +1273,6 @@ private fun OrderDetailContent(
                 onDraftChange = { onAction(OrderDetailAction.OnNotesDraftChange(it)) },
                 onSaveClick = { onAction(OrderDetailAction.OnNotesSaveClick) },
                 onCancelClick = { onAction(OrderDetailAction.OnNotesCancelClick) },
-                isActiveStaff = state.isActiveStaff,
             )
         }
         if (order.status == OrderStatus.DELIVERED) {

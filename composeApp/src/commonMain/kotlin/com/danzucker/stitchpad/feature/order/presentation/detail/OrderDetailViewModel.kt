@@ -521,7 +521,7 @@ class OrderDetailViewModel(
                     return@withLock
                 }
                 val updatedOrder = latestOrder.copy(items = updatedItems)
-                when (val res = orderRepository.updateOrder(userId, updatedOrder)) {
+                when (val res = orderRepository.updateItems(userId, latestOrder.id, updatedItems)) {
                     is Result.Success -> _state.update { it.copy(order = updatedOrder) }
                     is Result.Error -> {
                         newRef.photoStoragePath?.let { orderRepository.deleteStoragePaths(listOf(it)) }
@@ -549,7 +549,7 @@ class OrderDetailViewModel(
                     }
                 }
                 val updatedOrder = order.copy(items = updatedItems)
-                when (val res = orderRepository.updateOrder(userId, updatedOrder)) {
+                when (val res = orderRepository.updateItems(userId, order.id, updatedItems)) {
                     is Result.Success -> {
                         _state.update { it.copy(order = updatedOrder) }
                         removed.photoStoragePath
@@ -607,7 +607,7 @@ class OrderDetailViewModel(
                     return@withLock
                 }
                 val updatedOrder = latestOrder.copy(items = updatedItems)
-                when (val res = orderRepository.updateOrder(userId, updatedOrder)) {
+                when (val res = orderRepository.updateItems(userId, latestOrder.id, updatedItems)) {
                     is Result.Success -> _state.update { it.copy(order = updatedOrder) }
                     is Result.Error -> {
                         orderRepository.deleteStoragePaths(listOf(newRef.photoStoragePath))
@@ -635,7 +635,7 @@ class OrderDetailViewModel(
                     }
                 }
                 val updatedOrder = order.copy(items = updatedItems)
-                when (val res = orderRepository.updateOrder(userId, updatedOrder)) {
+                when (val res = orderRepository.updateItems(userId, order.id, updatedItems)) {
                     is Result.Success -> {
                         _state.update { it.copy(order = updatedOrder) }
                         orderRepository.deleteStoragePaths(listOf(removed.photoStoragePath))
@@ -656,7 +656,7 @@ class OrderDetailViewModel(
         val updatedItems = listOf(firstItem.copy(fabricName = newName)) + order.items.drop(1)
         viewModelScope.launch {
             val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
-            when (val res = orderRepository.updateOrder(userId, order.copy(items = updatedItems))) {
+            when (val res = orderRepository.updateItems(userId, order.id, updatedItems)) {
                 is Result.Success -> Unit
                 is Result.Error -> _state.update {
                     it.copy(errorMessage = res.error.toOrderUiText())
@@ -969,7 +969,7 @@ class OrderDetailViewModel(
             val updatedItems = listOf(firstItem.copy(measurementId = measurementId)) + order.items.drop(1)
             viewModelScope.launch {
                 val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
-                when (val res = orderRepository.updateOrder(userId, order.copy(items = updatedItems))) {
+                when (val res = orderRepository.updateItems(userId, order.id, updatedItems)) {
                     is Result.Success -> Unit // observeOrder Flow re-emits with the new measurementId
                     is Result.Error -> _state.update {
                         it.copy(errorMessage = res.error.toOrderUiText())
@@ -1014,7 +1014,7 @@ class OrderDetailViewModel(
      * Commits the in-progress picker selection to the item's styleImages and PERSISTS
      * it. Unlike the order-FORM (which only mutates local state, saved later), the
      * detail screen edits a LIVE order — so committing writes through
-     * [OrderRepository.updateOrder], mirroring [linkExistingMeasurement]'s persist +
+     * [OrderRepository.updateItems], mirroring [linkExistingMeasurement]'s persist +
      * error idiom. State is updated optimistically; the snapshot listener re-emits.
      */
     private fun commitPendingStyles(itemId: String) {
@@ -1045,7 +1045,7 @@ class OrderDetailViewModel(
         if (toAdd.isNotEmpty()) {
             viewModelScope.launch {
                 val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
-                when (val res = orderRepository.updateOrder(userId, order.copy(items = updatedItems))) {
+                when (val res = orderRepository.updateItems(userId, order.id, updatedItems)) {
                     is Result.Success -> Unit
                     is Result.Error -> _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
                 }

@@ -109,14 +109,23 @@ class OrderDetailStaffGuardTest {
             // Due date — owner-only (2026-08-08 product decision).
             OrderDetailAction.OnSetDeadlineClick,
             OrderDetailAction.OnDeadlineSelected(epochMillis = 1_754_611_200_000L),
-            // Notes editing — staff-denied for now.
-            OrderDetailAction.OnNotesEditClick,
-            OrderDetailAction.OnNotesDraftChange("Use gold thread"),
-            OrderDetailAction.OnNotesSaveClick,
-            // Measurements-link — staff-denied for now.
+            // Measurements-link — owner-only by product decision (Phase 2b): rules
+            // technically admit items[].measurementId, but linking measurements is an
+            // order-setup decision, kept owner-only regardless.
             OrderDetailAction.OnLinkMeasurementsClick,
             OrderDetailAction.OnSelectMeasurement(measurementId = "m1"),
-            // Garment media (style + fabric) — staff-denied until Phase 2b. Actions
+        )
+        restricted.forEach {
+            assertTrue(it.isStaffRestricted(), "$it must be staff-restricted")
+        }
+    }
+
+    // --- Phase 2b: garment media + notes are staff-enabled (rules work-fields whitelist) ---
+
+    @Test
+    fun garmentMediaAndNotesActions_areNotStaffRestricted() {
+        val allowed = listOf(
+            // Garment media (style + fabric) — staff-enabled as of Phase 2b. Actions
             // wired from OrderGarmentDetailsCard's callbacks (OrderDetailScreen.kt).
             OrderDetailAction.OnAddStyleClick(itemId = "i1"),
             OrderDetailAction.OnAddStylePhoto(itemId = "i1", photoBytes = byteArrayOf(1, 2, 3)),
@@ -126,9 +135,13 @@ class OrderDetailStaffGuardTest {
             OrderDetailAction.OnAddFabricNameClick,
             OrderDetailAction.OnFabricNameDraftChange("Royal Lace"),
             OrderDetailAction.OnSaveFabricName,
+            // Notes editing — staff-enabled as of Phase 2b.
+            OrderDetailAction.OnNotesEditClick,
+            OrderDetailAction.OnNotesDraftChange("Use gold thread"),
+            OrderDetailAction.OnNotesSaveClick,
         )
-        restricted.forEach {
-            assertTrue(it.isStaffRestricted(), "$it must be staff-restricted")
+        allowed.forEach {
+            assertFalse(it.isStaffRestricted(), "$it must stay available to staff")
         }
     }
 
