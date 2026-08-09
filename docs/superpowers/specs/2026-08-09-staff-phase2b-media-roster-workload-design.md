@@ -120,11 +120,15 @@ Lazy, client-side ensure — no Cloud Function:
 - **Assign picker:** owner entry pinned first; rendered "You" for the owner.
   Assignment writes use the same `assignedMemberId/Name` fields — no special
   casing downstream.
-- **My-work for owners:** the My work chip and the dashboard Mine tile,
-  staff-only in Phase 2a, turn on for owners too. Same filter
-  (`assignedMemberId == authUid`); the `toggleMyWork` staff guard and the
-  chip/tile visibility conditions drop their staff-only checks. The Phase 2a
-  kill-switch stale-filter reset keeps working unchanged.
+- **My-work for owners:** the My work chip, staff-only in Phase 2a, turns on
+  for owners too. Same filter (`assignedMemberId == authUid`); the
+  `toggleMyWork` staff guard and the chip visibility condition drop their
+  staff-only checks. The staff dashboard's Mine tile is unchanged; the owner
+  dashboard has no count-tile row, so the owner's entry points are the chip
+  and their own row in the Team-screen workload overview (§3). With the chip
+  now visible to owners, the Phase 2a "stale myWorkOnly after kill-switch"
+  guard is replaced: an ex-staff owner-of-self keeps a working, clearable
+  My work chip over their own tree instead of a silently ignored filter.
 - **Seeder:** `emulatorSetupStaff.js` (and the smoke runbook) gain the owner
   roster doc so smoke starts in the real post-2b shape.
 
