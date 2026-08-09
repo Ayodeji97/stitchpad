@@ -91,46 +91,8 @@ class OrderListViewModel(
     @Suppress("CyclomaticComplexMethod", "ReturnCount")
     fun onAction(action: OrderListAction) {
         when (action) {
-            is OrderListAction.OnStatusFilterChange -> {
-                _state.update { state ->
-                    // Re-tapping the chip that is already selected (active view only —
-                    // in the archived view no status chip renders selected) deselects
-                    // it back to All.
-                    val newStatus = action.status
-                        .takeUnless { !state.showArchived && it == state.statusFilter }
-                    state.copy(
-                        statusFilter = newStatus,
-                        showArchived = false,
-                        orders = filterAndSort(
-                            allOrders,
-                            newStatus,
-                            state.myWorkOnly,
-                            state.staffAuthUid,
-                            state.isActiveStaff,
-                        )
-                    )
-                }
-            }
-            OrderListAction.OnShowArchived -> {
-                _state.update { state ->
-                    // Second tap on a selected Archived chip deselects it back to the
-                    // active view, keeping whatever status/my-work filters were set.
-                    if (state.showArchived) {
-                        state.copy(
-                            showArchived = false,
-                            orders = filterAndSort(
-                                allOrders,
-                                state.statusFilter,
-                                state.myWorkOnly,
-                                state.staffAuthUid,
-                                state.isActiveStaff,
-                            )
-                        )
-                    } else {
-                        state.copy(showArchived = true, orders = allArchivedOrders)
-                    }
-                }
-            }
+            is OrderListAction.OnStatusFilterChange -> changeStatusFilter(action.status)
+            OrderListAction.OnShowArchived -> toggleArchivedView()
             is OrderListAction.OnRestoreOrderClick -> restoreOrder(action.order)
             is OrderListAction.OnOrderClick -> {
                 viewModelScope.launch {
@@ -174,6 +136,47 @@ class OrderListViewModel(
             OrderListAction.OnToggleMyWork -> toggleMyWork()
             OrderListAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
+            }
+        }
+    }
+
+    private fun changeStatusFilter(status: OrderStatus?) {
+        _state.update { state ->
+            // Re-tapping the chip that is already selected (active view only — in the
+            // archived view no status chip renders selected) deselects it back to All.
+            val newStatus = status
+                .takeUnless { !state.showArchived && it == state.statusFilter }
+            state.copy(
+                statusFilter = newStatus,
+                showArchived = false,
+                orders = filterAndSort(
+                    allOrders,
+                    newStatus,
+                    state.myWorkOnly,
+                    state.staffAuthUid,
+                    state.isActiveStaff,
+                )
+            )
+        }
+    }
+
+    private fun toggleArchivedView() {
+        _state.update { state ->
+            // Second tap on a selected Archived chip deselects it back to the
+            // active view, keeping whatever status/my-work filters were set.
+            if (state.showArchived) {
+                state.copy(
+                    showArchived = false,
+                    orders = filterAndSort(
+                        allOrders,
+                        state.statusFilter,
+                        state.myWorkOnly,
+                        state.staffAuthUid,
+                        state.isActiveStaff,
+                    )
+                )
+            } else {
+                state.copy(showArchived = true, orders = allArchivedOrders)
             }
         }
     }
