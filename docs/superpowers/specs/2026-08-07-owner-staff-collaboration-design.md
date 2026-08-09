@@ -158,3 +158,8 @@ Sub-roles ("staff admin"), per-permission editor, staff activity log, comments/m
    note it in the smoke runbook. Also consider committing a debug-source-set
    `network_security_config.xml` (cleartext to 10.0.2.2) so Android emulator smoke
    works without recreating the local-only file each time.
+4. **Owner in the roster** — the owner cannot currently be an assignee (discovered
+   in Phase 2a smoke). Phase 2b: auto-create/maintain an owner roster doc (kind
+   `owner`) at workshop-tree first use, include it in the assign picker, render
+   self-assignment as "You" for the owner, and exclude it from archive/rename.
+   Until then owners track their own work implicitly.

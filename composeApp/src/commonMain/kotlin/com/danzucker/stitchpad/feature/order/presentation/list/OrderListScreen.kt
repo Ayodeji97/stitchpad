@@ -420,23 +420,30 @@ private fun OrderStatusFilterChips(
                 bottom = DesignTokens.space2
             )
     ) {
-        statusOptions.forEach { (status, label) ->
+        statusOptions.forEachIndexed { index, (status, label) ->
             // A status chip is only "selected" in the active view — never while archived.
-            val isSelected = !showArchived && selectedStatus == status
+            // The "All" entry (index 0, status == null) additionally must not highlight
+            // while myWorkOnly is active — see allChipSelected().
+            val isSelected = if (status == null) {
+                allChipSelected(showArchived, selectedStatus, myWorkOnly)
+            } else {
+                !showArchived && selectedStatus == status
+            }
             OrderFilterChip(
                 label = label,
                 isSelected = isSelected,
                 onClick = { onStatusSelected(status) }
             )
-        }
-        // "My work" is staff-only and orthogonal to status, same precedent as Archived
-        // below — appended before it so Archived stays the last (rightmost) segment.
-        if (isActiveStaff) {
-            OrderFilterChip(
-                label = stringResource(Res.string.order_filter_my_work),
-                isSelected = myWorkOnly && !showArchived,
-                onClick = onMyWorkSelected,
-            )
+            // "My work" is staff-only and orthogonal to status. It sits immediately after
+            // "All" (owner smoke-test request: on phones it was scrolled off-screen at the
+            // row's end, next to Archived) — inserted right after the first (All) chip.
+            if (index == 0 && isActiveStaff) {
+                OrderFilterChip(
+                    label = stringResource(Res.string.order_filter_my_work),
+                    isSelected = myWorkOnly && !showArchived,
+                    onClick = onMyWorkSelected,
+                )
+            }
         }
         // Archived is orthogonal to status: its own segment at the end of the row.
         OrderFilterChip(
