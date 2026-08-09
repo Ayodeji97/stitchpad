@@ -58,10 +58,22 @@ class OrderListViewModel(
     // through to the `else` and leave the list unfiltered, same as null.
     private val initialFilter: String? = savedStateHandle["initialFilter"]
 
+    // Task 8: an `assignee:<memberId>` (or `assignee:none`) deep link — Task 9 navigates
+    // here with one of these from a Team screen workload row. removePrefix() is a no-op
+    // (returns the input unchanged) when the prefix isn't present, so the takeIf guard is
+    // what actually gates this to null for every other initialFilter value.
+    private val seededAssigneeFilter: String? = initialFilter
+        ?.removePrefix(OrderListFilter.ASSIGNEE_PREFIX)
+        ?.takeIf { initialFilter.startsWith(OrderListFilter.ASSIGNEE_PREFIX) }
+
     private val _state = MutableStateFlow(
         OrderListState(
             statusFilter = if (initialFilter == OrderListFilter.IN_PROGRESS) OrderStatus.IN_PROGRESS else null,
             myWorkOnly = initialFilter == OrderListFilter.MY_WORK,
+            assigneeFilter = seededAssigneeFilter,
+            // allOrders is still empty at construction time, so this resolves via the
+            // pure helper's own fallback (the raw id) until the first snapshot lands.
+            assigneeFilterName = seededAssigneeFilter?.let { assigneeFilterLabelName(allOrders, it) },
         )
     )
 
@@ -134,6 +146,7 @@ class OrderListViewModel(
                 _state.update { it.copy(showProfit = !it.showProfit) }
             }
             OrderListAction.OnToggleMyWork -> toggleMyWork()
+            OrderListAction.OnClearAssigneeFilter -> clearAssigneeFilter()
             OrderListAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
             }
@@ -146,15 +159,28 @@ class OrderListViewModel(
             // archived view no status chip renders selected) deselects it back to All.
             val newStatus = status
                 .takeUnless { !state.showArchived && it == state.statusFilter }
+            // Tapping "All" (status == null) is a full reset: it also clears the
+            // orthogonal my-work and assignee filters — "All" must mean everything,
+            // not "no status, but still someone's slice" (owner smoke, 2026-08-09:
+            // with My work on, tapping All looked dead because status was already
+            // null). A status-chip DESELECT (newStatus == null via takeUnless above)
+            // deliberately keeps them: backing out of Pending while in My work
+            // should stay in My work.
+            val isAllTap = status == null
+            val myWorkOnly = if (isAllTap) false else state.myWorkOnly
+            val assigneeFilter = if (isAllTap) null else state.assigneeFilter
             state.copy(
                 statusFilter = newStatus,
+                myWorkOnly = myWorkOnly,
+                assigneeFilter = assigneeFilter,
+                assigneeFilterName = if (isAllTap) null else state.assigneeFilterName,
                 showArchived = false,
                 orders = filterAndSort(
                     allOrders,
                     newStatus,
-                    state.myWorkOnly,
-                    state.staffAuthUid,
-                    state.isActiveStaff,
+                    myWorkOnly,
+                    state.sessionAuthUid,
+                    assigneeFilter,
                 )
             )
         }
@@ -171,8 +197,8 @@ class OrderListViewModel(
                         allOrders,
                         state.statusFilter,
                         state.myWorkOnly,
-                        state.staffAuthUid,
-                        state.isActiveStaff,
+                        state.sessionAuthUid,
+                        state.assigneeFilter,
                     )
                 )
             } else {
@@ -181,10 +207,10 @@ class OrderListViewModel(
         }
     }
 
-    // Staff-only filter — never rendered for an owner, but guarded here too so the action
-    // is inert even if dispatched (Slice 6c defense-in-depth precedent).
+    // Task 7: My-work now works for owners too (they became assignable in earlier
+    // tasks), so the isActiveStaff guard drops out — the archived-view select
+    // semantics below are unchanged.
     private fun toggleMyWork() {
-        if (!_state.value.isActiveStaff) return
         _state.update { state ->
             // In the archived view the My-work chip always renders unselected, so a tap
             // there means "select" even when a stale myWorkOnly=true is carried over —
@@ -200,9 +226,39 @@ class OrderListViewModel(
                     allOrders,
                     state.statusFilter,
                     myWorkOnly,
-                    state.staffAuthUid,
-                    state.isActiveStaff,
+                    state.sessionAuthUid,
+                    state.assigneeFilter,
                 )
+            )
+        }
+    }
+
+    // Task 8: re-tapping the assignee chip is the only way to clear it — it has no
+    // toggle semantics of its own (unlike status/Archived/My-work, it isn't reselectable
+    // to a different value from the list screen; Task 9's Team screen is what sets it).
+    private fun clearAssigneeFilter() {
+        _state.update { state ->
+            state.copy(
+                assigneeFilter = null,
+                assigneeFilterName = null,
+                // Bugbot follow-up: the chip still renders (and is tappable) while
+                // showArchived is true, since assigneeFilter != null doesn't check that —
+                // recomputing via filterAndSort unconditionally would overwrite the
+                // Archived view's own rows with the active list. Mirror the sibling
+                // functions' handling (toggleArchivedView, observeOrders) and leave
+                // `orders` alone when archived is showing; clearing the filter fields is
+                // still correct so the active view is unfiltered once the user leaves Archived.
+                orders = if (state.showArchived) {
+                    state.orders
+                } else {
+                    filterAndSort(
+                        allOrders,
+                        state.statusFilter,
+                        state.myWorkOnly,
+                        state.sessionAuthUid,
+                        assigneeFilter = null,
+                    )
+                }
             )
         }
     }
@@ -210,16 +266,14 @@ class OrderListViewModel(
     private fun observeActiveWorkshop() {
         viewModelScope.launch {
             activeWorkshopProvider.flow.collect { session ->
-                _state.update {
-                    it.copy(
+                _state.update { state ->
+                    state.copy(
                         isActiveStaff = session.isActiveStaff,
-                        // Task 8: captured alongside isActiveStaff from the same session
-                        // collection — used by the "My work" filter to match assignedMemberId.
-                        // Staff-only, mirroring OrderDetailState.staffAuthUid's contract — the
-                        // filterAndSort guard above already requires isActiveStaff before
-                        // reading this, so behavior is unchanged; this just keeps an owner
-                        // session from carrying a staffAuthUid value that's never staff.
-                        staffAuthUid = session.authUid.takeIf { session.isActiveStaff },
+                        // Task 8; Task 7 dropped the staff-only gate — captured alongside
+                        // isActiveStaff from the same session collection, for BOTH an owner
+                        // and a staff session, and used by the "My work" filter to match
+                        // assignedMemberId.
+                        sessionAuthUid = session.authUid.takeIf { it.isNotBlank() },
                     )
                 }
             }
@@ -260,6 +314,11 @@ class OrderListViewModel(
                             state.copy(
                                 isLoading = false,
                                 orders = if (state.showArchived) state.orders else emptyList(),
+                                // Task 8: allOrders just reset — recompute the label so a
+                                // still-active assignee filter falls back to the raw id
+                                // instead of showing a name from the tree that just left.
+                                assigneeFilterName = state.assigneeFilter
+                                    ?.let { assigneeFilterLabelName(allOrders, it) },
                             )
                         }
                         return@collect
@@ -277,11 +336,17 @@ class OrderListViewModel(
                                             result.data,
                                             state.statusFilter,
                                             state.myWorkOnly,
-                                            state.staffAuthUid,
-                                            state.isActiveStaff,
+                                            state.sessionAuthUid,
+                                            state.assigneeFilter,
                                         )
                                     },
-                                    isLoading = false
+                                    isLoading = false,
+                                    // Task 8: re-resolve the assignee chip's display name off
+                                    // every fresh snapshot while the filter is active — the
+                                    // matching order (and its assignedMemberName) may not have
+                                    // been in the tree yet on an earlier snapshot.
+                                    assigneeFilterName = state.assigneeFilter
+                                        ?.let { assigneeFilterLabelName(result.data, it) },
                                 )
                             }
                         }
@@ -401,25 +466,30 @@ class OrderListViewModel(
         orders: List<Order>,
         statusFilter: OrderStatus?,
         myWorkOnly: Boolean = false,
-        staffAuthUid: String? = null,
-        isActiveStaff: Boolean = false,
+        sessionAuthUid: String? = null,
+        assigneeFilter: String? = null,
     ): List<Order> {
         val statusFiltered = when (statusFilter) {
             null -> orders.filter { it.status != OrderStatus.DELIVERED }
             else -> orders.filter { it.status == statusFilter }
         }
-        // Task 8: "My work" narrows the active list to the signed-in staff member's own
-        // assignments. Requires isActiveStaff too (not just a non-null staffAuthUid) —
-        // a kill-switch revocation mid-session (staff -> owner-of-self) leaves myWorkOnly
-        // and staffAuthUid stale in state with no chip left to show or clear them; without
-        // this guard the ex-staff user's own order tree would silently stay filtered.
-        val filtered = if (myWorkOnly && isActiveStaff && staffAuthUid != null) {
-            statusFiltered.filter { it.assignedMemberId == staffAuthUid }
+        // Task 8; Task 7 dropped the isActiveStaff conjunct — "My work" narrows the active
+        // list to the signed-in user's own assignments, owner or staff alike.
+        val filtered = if (myWorkOnly && sessionAuthUid != null) {
+            statusFiltered.filter { it.assignedMemberId == sessionAuthUid }
         } else {
             statusFiltered
         }
+        // Task 8: the `assignee:` deep link's own filter, composed after the my-work step —
+        // narrows to one member's assignments (or unassigned orders), independent of who's
+        // signed in. Task 9's Team workload rows are what seed this.
+        val assigneeFiltered = when (assigneeFilter) {
+            null -> filtered
+            OrderListFilter.ASSIGNEE_NONE_ID -> filtered.filter { it.assignedMemberId == null }
+            else -> filtered.filter { it.assignedMemberId == assigneeFilter }
+        }
         // Reuse the triage comparator so same-deadline ties resolve identically in both the
         // triage-grouped and the chip-filtered views (createdAt desc = newest-first).
-        return filtered.sortedWith(orderListComparator)
+        return assigneeFiltered.sortedWith(orderListComparator)
     }
 }

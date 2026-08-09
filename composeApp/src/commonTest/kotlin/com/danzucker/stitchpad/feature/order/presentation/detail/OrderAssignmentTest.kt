@@ -10,6 +10,10 @@ import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
 import com.danzucker.stitchpad.core.domain.session.StaffRole
 import com.danzucker.stitchpad.core.domain.session.WorkshopSession
+import com.danzucker.stitchpad.core.domain.staff.TeamMember
+import com.danzucker.stitchpad.core.domain.staff.TeamMemberKind
+import com.danzucker.stitchpad.core.domain.staff.TeamMemberStatus
+import com.danzucker.stitchpad.core.domain.staff.resolveClaimDisplayName
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -194,6 +198,62 @@ class OrderAssignmentTest {
                     role = StaffRole.STAFF,
                     membershipStatus = MembershipStatus.ACTIVE,
                 ),
+            ),
+        )
+    }
+
+    // --- shouldEnsureOwnerRoster: the detail-path mirror of
+    // TeamViewModel.ensureOwnerInRosterIfMissing (Task 6). Only a true owner session
+    // (authUid == workshopUid) may ever trigger the ensure write — the Firestore rules
+    // deny it from anyone else, including a pending/declined staff session that
+    // shouldObserveRoster otherwise happily admits. ---
+
+    private fun rosterMember(id: String, kind: TeamMemberKind = TeamMemberKind.OWNER) = TeamMember(
+        id = id,
+        name = "Adaeze Chukwu",
+        kind = kind,
+        colorSeed = 0,
+        status = TeamMemberStatus.ACTIVE,
+    )
+
+    @Test
+    fun `owner session missing their own row should ensure it`() {
+        assertTrue(
+            shouldEnsureOwnerRoster(
+                session = WorkshopSession.ownerOfSelf(authUid = "owner-1"),
+                roster = listOf(rosterMember("staff-1", TeamMemberKind.STAFF)),
+            ),
+        )
+    }
+
+    @Test
+    fun `owner session whose row is already present should not ensure it again`() {
+        assertFalse(
+            shouldEnsureOwnerRoster(
+                session = WorkshopSession.ownerOfSelf(authUid = "owner-1"),
+                roster = listOf(rosterMember("owner-1")),
+            ),
+        )
+    }
+
+    @Test
+    fun `a pending staff session never ensures the owner row even though it observes the roster`() {
+        val pendingStaff = WorkshopSession(
+            authUid = "staff-1",
+            workshopUid = "owner-1",
+            role = StaffRole.STAFF,
+            membershipStatus = MembershipStatus.PENDING,
+        )
+        assertTrue(shouldObserveRoster(pendingStaff))
+        assertFalse(shouldEnsureOwnerRoster(pendingStaff, roster = emptyList()))
+    }
+
+    @Test
+    fun `an archived owner row still counts as present`() {
+        assertFalse(
+            shouldEnsureOwnerRoster(
+                session = WorkshopSession.ownerOfSelf(authUid = "owner-1"),
+                roster = listOf(rosterMember("owner-1").copy(status = TeamMemberStatus.ARCHIVED)),
             ),
         )
     }

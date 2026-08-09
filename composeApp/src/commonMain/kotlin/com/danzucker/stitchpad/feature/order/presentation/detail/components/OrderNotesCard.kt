@@ -50,12 +50,6 @@ fun OrderNotesCard(
     onSaveClick: () -> Unit,
     onCancelClick: () -> Unit,
     modifier: Modifier = Modifier,
-    // Task 10: notes editing is staff-denied for now (the rules deny the write) —
-    // existing notes stay readable, but the card is not clickable and shows no
-    // edit pencil. isEditing should never be true for a staff session (the VM
-    // guards OnNotesEditClick), but the read-only rendering here doesn't depend
-    // on that invariant holding.
-    isActiveStaff: Boolean = false,
 ) {
     val shape = RoundedCornerShape(DesignTokens.radiusLg)
     val border = if (isEditing) {
@@ -71,7 +65,7 @@ fun OrderNotesCard(
         modifier = modifier
             .fillMaxWidth()
             .then(
-                if (!isEditing && !isActiveStaff) {
+                if (!isEditing) {
                     Modifier.clickable(onClick = onCardClick, role = Role.Button)
                 } else {
                     Modifier
@@ -99,8 +93,8 @@ fun OrderNotesCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                // Show pencil icon when populated, not editing, and not staff.
-                if (!isEditing && !notes.isNullOrBlank() && !isActiveStaff) {
+                // Show pencil icon when populated and not editing.
+                if (!isEditing && !notes.isNullOrBlank()) {
                     Icon(
                         imageVector = Icons.Default.Edit,
                         contentDescription = null,
@@ -258,44 +252,6 @@ private fun OrderNotesCardPopulatedCollapsedDarkPreview() {
             onDraftChange = {},
             onSaveClick = {},
             onCancelClick = {},
-        )
-    }
-}
-
-/** Staff variant (Task 10): existing notes stay readable, no pencil, card not tappable. */
-@Suppress("UnusedPrivateMember")
-@Preview
-@Composable
-private fun OrderNotesCardStaffPopulatedPreview() {
-    StitchPadTheme {
-        OrderNotesCard(
-            notes = "Customer wants the agbada with wide sleeves. Lace fabric from Lagos Island.",
-            isEditing = false,
-            draft = "",
-            onCardClick = {},
-            onDraftChange = {},
-            onSaveClick = {},
-            onCancelClick = {},
-            isActiveStaff = true,
-        )
-    }
-}
-
-/** Staff variant, no notes yet (Task 10): empty hint shown, card not tappable. */
-@Suppress("UnusedPrivateMember")
-@Preview
-@Composable
-private fun OrderNotesCardStaffEmptyPreview() {
-    StitchPadTheme {
-        OrderNotesCard(
-            notes = null,
-            isEditing = false,
-            draft = "",
-            onCardClick = {},
-            onDraftChange = {},
-            onSaveClick = {},
-            onCancelClick = {},
-            isActiveStaff = true,
         )
     }
 }

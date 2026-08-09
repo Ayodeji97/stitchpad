@@ -83,6 +83,14 @@ async function main() {
     { merge: true },
   );
 
+  // Fola's own roster row (kind:'owner') — mirrors what TeamRosterRepository.ensureOwnerMember
+  // lazily writes client-side the first time the owner's roster stream comes back without
+  // it (Phase 2b Task 5), seeded here so emulator smoke doesn't depend on that write firing.
+  await db.doc(`users/${uid}/team/${uid}`).set(
+    { name: FOLA.name, kind: 'owner', status: 'active', colorSeed: 0, createdAt: now, updatedAt: now },
+    { merge: true },
+  );
+
   const batch = db.batch();
   for (const c of CUSTOMERS) {
     batch.set(db.doc(`users/${uid}/customers/${c.id}`), {

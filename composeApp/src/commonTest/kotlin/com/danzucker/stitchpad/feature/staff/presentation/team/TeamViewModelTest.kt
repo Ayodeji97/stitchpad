@@ -1,10 +1,16 @@
 package com.danzucker.stitchpad.feature.staff.presentation.team
 
 import app.cash.turbine.test
+import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
 import com.danzucker.stitchpad.core.data.repository.FakeTeamRosterRepository
 import com.danzucker.stitchpad.core.data.staff.FakeStaffRepository
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.GarmentType
+import com.danzucker.stitchpad.core.domain.model.Order
+import com.danzucker.stitchpad.core.domain.model.OrderItem
+import com.danzucker.stitchpad.core.domain.model.OrderPriority
+import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
 import com.danzucker.stitchpad.core.domain.staff.Membership
@@ -14,6 +20,7 @@ import com.danzucker.stitchpad.core.domain.staff.TeamMember
 import com.danzucker.stitchpad.core.domain.staff.TeamMemberKind
 import com.danzucker.stitchpad.core.domain.staff.TeamMemberStatus
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
+import com.danzucker.stitchpad.feature.order.presentation.list.OrderListFilter
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -37,6 +44,7 @@ class TeamViewModelTest {
     private lateinit var staffRepo: FakeStaffRepository
     private lateinit var rosterRepo: FakeTeamRosterRepository
     private lateinit var authRepo: FakeAuthRepository
+    private lateinit var orderRepo: FakeOrderRepository
 
     private val fixedNow = 1_700_000_000_000L
     private val oneDayMillis = 86_400_000L
@@ -47,6 +55,7 @@ class TeamViewModelTest {
         staffRepo = FakeStaffRepository()
         rosterRepo = FakeTeamRosterRepository()
         authRepo = FakeAuthRepository()
+        orderRepo = FakeOrderRepository()
         authRepo.currentUser = User(
             id = "owner-1",
             email = "owner@example.com",
@@ -65,6 +74,7 @@ class TeamViewModelTest {
         staffRepository = staffRepo,
         teamRosterRepository = rosterRepo,
         authRepository = authRepo,
+        orderRepository = orderRepo,
         nowMillis = { fixedNow },
     )
 
@@ -81,6 +91,27 @@ class TeamViewModelTest {
         kind: TeamMemberKind = TeamMemberKind.NAMED,
         status: TeamMemberStatus = TeamMemberStatus.ACTIVE,
     ) = TeamMember(id = id, name = name, kind = kind, colorSeed = 0, status = status)
+
+    private fun order(
+        id: String,
+        assignedMemberId: String?,
+        status: OrderStatus = OrderStatus.PENDING,
+    ) = Order(
+        id = id,
+        userId = "owner-1",
+        customerId = "c",
+        customerName = "C",
+        items = listOf(OrderItem(id = "i", garmentType = GarmentType.SUIT, description = "", price = 0.0)),
+        status = status,
+        priority = OrderPriority.NORMAL,
+        statusHistory = emptyList(),
+        totalPrice = 0.0,
+        deadline = null,
+        notes = null,
+        assignedMemberId = assignedMemberId,
+        createdAt = 0L,
+        updatedAt = 0L,
+    )
 
     @Test
     fun membershipsSplitIntoPendingAndActiveAndDropRevoked() {
@@ -297,24 +328,29 @@ class TeamViewModelTest {
     fun rosterFlowPopulatesStateRoster() {
         rosterRepo.seedMembers(
             listOf(
+                // Owner row seeded so this test isn't also exercising the lazy-ensure
+                // path (covered separately below) — see ensureOwnerMemberCallCount tests.
+                rosterMember("owner-1", "Owner", kind = TeamMemberKind.OWNER),
                 rosterMember("staff-1", "Gabby Okoro", kind = TeamMemberKind.STAFF),
                 rosterMember("named-1", "Ngozi Eze"),
             ),
         )
         val vm = buildViewModel()
-        assertEquals(setOf("staff-1", "named-1"), vm.state.value.roster.map { it.id }.toSet())
+        assertEquals(setOf("owner-1", "staff-1", "named-1"), vm.state.value.roster.map { it.id }.toSet())
     }
 
     @Test
     fun activeRosterExcludesArchivedRows() {
         rosterRepo.seedMembers(
             listOf(
+                // Owner row seeded so this test isn't also exercising the lazy-ensure path.
+                rosterMember("owner-1", "Owner", kind = TeamMemberKind.OWNER),
                 rosterMember("named-1", "Ngozi Eze"),
                 rosterMember("named-2", "Tayo Ade", status = TeamMemberStatus.ARCHIVED),
             ),
         )
         val vm = buildViewModel()
-        assertEquals(listOf("named-1"), vm.state.value.activeRoster.map { it.id })
+        assertEquals(listOf("owner-1", "named-1"), vm.state.value.activeRoster.map { it.id })
     }
 
     @Test
@@ -356,6 +392,10 @@ class TeamViewModelTest {
 
     @Test
     fun onConfirmAddMemberErrorEmitsSnackbar() = runTest {
+        // Owner row seeded so buildViewModel() doesn't also fire the lazy-ensure path
+        // (which shares operationError below and would otherwise queue its own
+        // ShowSnackbar, leaving this test's events channel with an unconsumed extra item).
+        rosterRepo.seedMembers(listOf(rosterMember("owner-1", "Owner", kind = TeamMemberKind.OWNER)))
         rosterRepo.operationError = DataError.Network.UNKNOWN
         val vm = buildViewModel()
         vm.onAction(TeamAction.OnAddMemberNameChange("Ngozi Eze"))
@@ -410,5 +450,111 @@ class TeamViewModelTest {
         rosterRepo.observeError = DataError.Network.UNKNOWN
         val vm = buildViewModel()
         assertNotNull(vm.state.value.errorMessage)
+    }
+
+    // ---- Owner lazy ensure ----
+
+    @Test
+    fun ownerMissingFromRosterEmissionTriggersEnsureOwnerMemberOnce() {
+        rosterRepo.seedMembers(listOf(rosterMember("named-1", "Ngozi Eze")))
+        buildViewModel()
+
+        assertEquals(1, rosterRepo.ensureOwnerMemberCallCount)
+        assertEquals("owner-1", rosterRepo.lastEnsuredOwnerUid)
+        assertEquals("Owner", rosterRepo.lastEnsuredOwnerName)
+    }
+
+    @Test
+    fun ownerAlreadyInRosterNeverTriggersEnsureOwnerMember() {
+        rosterRepo.seedMembers(
+            listOf(rosterMember("owner-1", "Owner", kind = TeamMemberKind.OWNER)),
+        )
+        buildViewModel()
+
+        assertEquals(0, rosterRepo.ensureOwnerMemberCallCount)
+    }
+
+    @Test
+    fun secondRosterEmissionStillMissingOwnerDoesNotCallEnsureOwnerMemberAgain() {
+        rosterRepo.seedMembers(listOf(rosterMember("named-1", "Ngozi Eze")))
+        buildViewModel()
+        assertEquals(1, rosterRepo.ensureOwnerMemberCallCount)
+
+        // A second emission (still without the owner row, e.g. the write hasn't landed
+        // yet) must not fire a second ensure call.
+        rosterRepo.seedMembers(listOf(rosterMember("named-1", "Ngozi Eze"), rosterMember("named-2", "Tayo")))
+        assertEquals(1, rosterRepo.ensureOwnerMemberCallCount)
+    }
+
+    @Test
+    fun ensureOwnerMemberFallsBackToEmailWhenDisplayNameBlank() {
+        authRepo.currentUser = User(
+            id = "owner-1",
+            email = "owner@example.com",
+            displayName = "  ",
+            businessName = "Ade Fashions",
+            phoneNumber = null,
+            whatsappNumber = null,
+            avatarColorIndex = 0,
+        )
+        rosterRepo.seedMembers(emptyList())
+        buildViewModel()
+
+        assertEquals("owner@example.com", rosterRepo.lastEnsuredOwnerName)
+    }
+
+    @Test
+    fun ensureOwnerMemberFailureEmitsSnackbar() = runTest {
+        rosterRepo.seedMembers(emptyList())
+        rosterRepo.operationError = DataError.Network.UNKNOWN
+        val vm = buildViewModel()
+
+        vm.events.test {
+            assertIs<TeamEvent.ShowSnackbar>(awaitItem())
+        }
+    }
+
+    // ---- Workload (Task 9) ----
+
+    @Test
+    fun workloadCountsLandInStateFromTheOrdersStream() {
+        orderRepo.ordersList = listOf(
+            order(id = "1", assignedMemberId = "a", status = OrderStatus.PENDING),
+            order(id = "2", assignedMemberId = "a", status = OrderStatus.DELIVERED),
+            order(id = "3", assignedMemberId = null, status = OrderStatus.READY),
+        )
+        val vm = buildViewModel()
+        assertEquals(mapOf<String?, Int>("a" to 1, null to 1), vm.state.value.workloadCounts)
+    }
+
+    @Test
+    fun ordersStreamErrorDoesNotClobberErrorMessage() {
+        // The roster listener already surfaced an error — the workload stream's own
+        // failure must not overwrite it (mirrors observeRoster's comment/pattern).
+        rosterRepo.observeError = DataError.Network.UNKNOWN
+        orderRepo.shouldReturnError = DataError.Network.UNKNOWN
+        val vm = buildViewModel()
+        assertNotNull(vm.state.value.errorMessage)
+        assertEquals(emptyMap(), vm.state.value.workloadCounts)
+    }
+
+    @Test
+    fun onMemberOrdersClickWithMemberIdEmitsNavigateToMemberOrdersWithAssigneeFilter() = runTest {
+        val vm = buildViewModel()
+        vm.events.test {
+            vm.onAction(TeamAction.OnMemberOrdersClick("a"))
+            val event = assertIs<TeamEvent.NavigateToMemberOrders>(awaitItem())
+            assertEquals(OrderListFilter.assignee("a"), event.initialFilter)
+        }
+    }
+
+    @Test
+    fun onMemberOrdersClickWithNullMemberIdEmitsNavigateToMemberOrdersWithUnassignedFilter() = runTest {
+        val vm = buildViewModel()
+        vm.events.test {
+            vm.onAction(TeamAction.OnMemberOrdersClick(null))
+            val event = assertIs<TeamEvent.NavigateToMemberOrders>(awaitItem())
+            assertEquals(OrderListFilter.ASSIGNEE_UNASSIGNED, event.initialFilter)
+        }
     }
 }

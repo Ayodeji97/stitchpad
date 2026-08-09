@@ -294,4 +294,149 @@ class OrderListViewModelTest {
         assertEquals("archived", orderRepository.lastUnarchivedOrderId)
         assertEquals(OrderListEvent.OrderRestored, vm.events.first())
     }
+
+    // --- Task 8: assignee: deep link — Team screen workload rows (Task 9) will
+    // navigate here with OrderListFilter.assignee(memberId) or ASSIGNEE_UNASSIGNED. ---
+
+    @Test
+    fun seededWithAssigneeFilter_filtersToThatMembersOrders() = runTest {
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "m1-order").copy(assignedMemberId = "m1", assignedMemberName = "Musa"),
+            fakeOrder(id = "other-order").copy(assignedMemberId = "other"),
+        )
+
+        val vm = createViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("initialFilter" to OrderListFilter.assignee("m1"))),
+        )
+
+        assertEquals("m1", vm.state.value.assigneeFilter)
+        assertEquals(listOf("m1-order"), vm.state.value.orders.map { it.id })
+        assertEquals("Musa", vm.state.value.assigneeFilterName)
+    }
+
+    @Test
+    fun seededWithAssigneeUnassignedFilter_filtersToUnassignedOrders() = runTest {
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "unassigned"),
+            fakeOrder(id = "assigned").copy(assignedMemberId = "m1"),
+        )
+
+        val vm = createViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("initialFilter" to OrderListFilter.ASSIGNEE_UNASSIGNED)),
+        )
+
+        assertEquals(OrderListFilter.ASSIGNEE_NONE_ID, vm.state.value.assigneeFilter)
+        assertEquals(listOf("unassigned"), vm.state.value.orders.map { it.id })
+        assertNull(vm.state.value.assigneeFilterName)
+    }
+
+    @Test
+    fun assigneeFilter_composesWithStatusChipTap() = runTest {
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "m1-pending").copy(assignedMemberId = "m1"),
+            fakeOrder(id = "m1-ready").copy(assignedMemberId = "m1", status = OrderStatus.READY),
+            fakeOrder(id = "other-pending").copy(assignedMemberId = "other"),
+        )
+        val vm = createViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("initialFilter" to OrderListFilter.assignee("m1"))),
+        )
+
+        vm.onAction(OrderListAction.OnStatusFilterChange(OrderStatus.PENDING))
+
+        assertEquals(listOf("m1-pending"), vm.state.value.orders.map { it.id })
+        assertEquals("m1", vm.state.value.assigneeFilter)
+    }
+
+    @Test
+    fun onClearAssigneeFilter_restoresFullListAndClearsLabel() = runTest {
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "m1-order").copy(assignedMemberId = "m1", assignedMemberName = "Musa"),
+            fakeOrder(id = "other-order").copy(assignedMemberId = "other"),
+        )
+        val vm = createViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("initialFilter" to OrderListFilter.assignee("m1"))),
+        )
+        assertEquals(listOf("m1-order"), vm.state.value.orders.map { it.id })
+
+        vm.onAction(OrderListAction.OnClearAssigneeFilter)
+
+        assertNull(vm.state.value.assigneeFilter)
+        assertNull(vm.state.value.assigneeFilterName)
+        assertEquals(
+            setOf("m1-order", "other-order"),
+            vm.state.value.orders.map { it.id }.toSet(),
+        )
+    }
+
+    @Test
+    fun tappingAll_clearsAssigneeFilterToo() = runTest {
+        // "All" is a full reset: it also drops an active assignee deep-link filter
+        // (same rationale as the my-work reset — see OrderListStaffTest).
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "m1-order").copy(assignedMemberId = "m1", assignedMemberName = "Musa"),
+            fakeOrder(id = "other-order").copy(assignedMemberId = "other"),
+        )
+        val vm = createViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("initialFilter" to OrderListFilter.assignee("m1"))),
+        )
+        assertEquals(listOf("m1-order"), vm.state.value.orders.map { it.id })
+
+        vm.onAction(OrderListAction.OnStatusFilterChange(null))
+
+        assertNull(vm.state.value.assigneeFilter)
+        assertNull(vm.state.value.assigneeFilterName)
+        assertEquals(
+            setOf("m1-order", "other-order"),
+            vm.state.value.orders.map { it.id }.toSet(),
+        )
+    }
+
+    @Test
+    fun assigneeFilterName_fallsBackToRawId_untilAMatchingOrderLoads() = runTest {
+        // No order matching "m1" has loaded yet — the label falls back to the raw
+        // id rather than staying null, so the chip never renders blank.
+        orderRepository.ordersList = listOf(fakeOrder(id = "other").copy(assignedMemberId = "other"))
+
+        val vm = createViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("initialFilter" to OrderListFilter.assignee("m1"))),
+        )
+
+        assertEquals("m1", vm.state.value.assigneeFilterName)
+    }
+
+    @Test
+    fun onClearAssigneeFilter_fromArchivedView_leavesArchivedListDisplayed() = runTest {
+        // Regression (code review on commit fbba6c01): the assignee chip renders
+        // whenever assigneeFilter != null, including while showArchived is true —
+        // clearing it there must not overwrite `orders` with the active-list
+        // recompute, or the Archived screen ends up showing non-archived rows
+        // with a Restore affordance.
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "m1-order").copy(assignedMemberId = "m1"),
+            fakeOrder(id = "other-order").copy(assignedMemberId = "other"),
+            fakeOrder(id = "archived-order", archivedAt = 100L),
+        )
+        val vm = createViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("initialFilter" to OrderListFilter.assignee("m1"))),
+        )
+        vm.onAction(OrderListAction.OnShowArchived)
+        assertTrue(vm.state.value.showArchived)
+        assertEquals(listOf("archived-order"), vm.state.value.orders.map { it.id })
+
+        vm.onAction(OrderListAction.OnClearAssigneeFilter)
+
+        // Archived view stays displayed with archived rows untouched...
+        assertTrue(vm.state.value.showArchived)
+        assertEquals(listOf("archived-order"), vm.state.value.orders.map { it.id })
+        // ...but the filter itself really is cleared.
+        assertNull(vm.state.value.assigneeFilter)
+        assertNull(vm.state.value.assigneeFilterName)
+
+        // Confirm it's cleared for the active view too, once the user leaves Archived.
+        vm.onAction(OrderListAction.OnShowArchived)
+        assertEquals(
+            setOf("m1-order", "other-order"),
+            vm.state.value.orders.map { it.id }.toSet(),
+        )
+    }
 }

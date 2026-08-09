@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.core.domain.staff.TeamMember
 import com.danzucker.stitchpad.core.domain.staff.TeamMemberKind
 import com.danzucker.stitchpad.core.domain.staff.TeamMemberStatus
+import com.danzucker.stitchpad.core.domain.staff.rosterDisplayName
 import com.danzucker.stitchpad.ui.components.MemberAvatar
 import com.danzucker.stitchpad.ui.components.fallbackMemberColorSeed
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -264,14 +265,22 @@ private fun AssignSectionIconTile(
  * Owner's roster picker sheet — lists ACTIVE team members ([roster] is already filtered
  * by [com.danzucker.stitchpad.feature.order.presentation.detail.OrderDetailViewModel]).
  * Reuses [MemberAvatar] (Task 6) so a member's color matches everywhere they appear.
+ *
+ * Each row's headline is [rosterDisplayName]d against [currentAuthUid] — the owner's own
+ * row (Task 6, `TeamMemberKind.OWNER`) renders "You". [onSelectMember] always receives the
+ * full [TeamMember], so a caller writing an assignment (`assignedMemberName`) still gets
+ * the real [TeamMember.name] regardless of what this row displayed — "You" must never be
+ * persisted.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrderAssignPickerSheet(
     roster: List<TeamMember>,
+    currentAuthUid: String?,
     onSelectMember: (TeamMember) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val youLabel = stringResource(Res.string.order_assign_you)
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.fillMaxWidth().padding(bottom = DesignTokens.space3)) {
             Text(
@@ -294,7 +303,7 @@ fun OrderAssignPickerSheet(
             } else {
                 roster.forEach { member ->
                     ListItem(
-                        headlineContent = { Text(member.name) },
+                        headlineContent = { Text(rosterDisplayName(member, currentAuthUid, youLabel)) },
                         leadingContent = {
                             MemberAvatar(name = member.name, colorSeed = member.colorSeed, size = DesignTokens.space8)
                         },
@@ -407,7 +416,16 @@ private fun OrderAssignPickerSheetContentPreview() {
                 modifier = Modifier.padding(horizontal = DesignTokens.space4),
             )
             Spacer(Modifier.height(DesignTokens.space3))
+            val ownerAuthUid = "owner-1"
+            val youLabel = stringResource(Res.string.order_assign_you)
             listOf(
+                TeamMember(
+                    id = ownerAuthUid,
+                    name = "Adaeze Chukwu",
+                    kind = TeamMemberKind.OWNER,
+                    colorSeed = 2,
+                    status = TeamMemberStatus.ACTIVE,
+                ),
                 TeamMember(
                     id = "m1",
                     name = "Paul Adeyemi",
@@ -424,7 +442,7 @@ private fun OrderAssignPickerSheetContentPreview() {
                 ),
             ).forEach { member ->
                 ListItem(
-                    headlineContent = { Text(member.name) },
+                    headlineContent = { Text(rosterDisplayName(member, ownerAuthUid, youLabel)) },
                     leadingContent = {
                         MemberAvatar(name = member.name, colorSeed = member.colorSeed, size = DesignTokens.space8)
                     },

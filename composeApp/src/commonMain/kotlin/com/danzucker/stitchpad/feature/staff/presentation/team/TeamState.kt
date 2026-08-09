@@ -33,10 +33,24 @@ data class TeamState(
     val inFlightDecisions: Map<String, TeamDecision> = emptyMap(),
     /** Full roster as observed (active + archived) — filter to [activeRoster] for display. */
     val roster: List<TeamMember> = emptyList(),
+    /**
+     * The signed-in owner's own uid — resolves "You" against [activeRoster]'s owner row
+     * (Task 6, `rosterDisplayName`). The Team screen is owner-only, so this is always the
+     * same uid as the workshop tree itself.
+     */
+    val currentUserId: String? = null,
     val showAddMemberSheet: Boolean = false,
     val addMemberName: String = "",
     /** Non-null while the rename sheet is shown for this roster row. */
     val renameTarget: TeamMember? = null,
+    /**
+     * Open-order counts per roster member id (Task 9's "who is working on what"), keyed
+     * like [com.danzucker.stitchpad.core.domain.model.Order.assignedMemberId] — `null` is
+     * the unassigned bucket. See [openOrderCountsByAssignee]. Independent of [roster]'s own
+     * listener failures — a stalled/erroring orders stream just leaves this at its default
+     * and the roster stays usable.
+     */
+    val workloadCounts: Map<String?, Int> = emptyMap(),
 ) {
     /** Pending requests count against seats too — a pending member holds a seat. */
     val seatsUsed: Int get() = pending.size + active.size

@@ -5,6 +5,7 @@ import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderCost
+import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
@@ -71,6 +72,15 @@ interface OrderRepository {
         orderId: String,
         memberId: String?,
         memberName: String?,
+    ): EmptyResult<DataError.Network>
+
+    /** Items-only base-doc update (detail-screen garment edits: style/fabric photos,
+     *  fabric name, measurement link). Never touches /private/money — item PRICES are
+     *  not part of this write (they live in the money mirror). Both roles use it. */
+    suspend fun updateItems(
+        userId: String,
+        orderId: String,
+        items: List<OrderItem>,
     ): EmptyResult<DataError.Network>
 
     fun newOrderId(userId: String): String

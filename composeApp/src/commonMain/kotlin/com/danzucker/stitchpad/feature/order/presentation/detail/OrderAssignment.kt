@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.order.presentation.detail
 
 import com.danzucker.stitchpad.core.domain.session.WorkshopSession
+import com.danzucker.stitchpad.core.domain.staff.TeamMember
 
 /**
  * Pure decision logic behind the order-detail "Assigned to" card (Task 7 / Slice 8e).
@@ -22,21 +23,6 @@ import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 internal fun canClaimOrder(assignedMemberId: String?): Boolean = assignedMemberId == null
 
 /**
- * The display name written alongside a staff self-claim (`assignOrder`'s `memberName`).
- * Order of preference: the signed-in user's profile display name, then their email, then
- * [fallback] — a claim must never write a blank name. See task-7-report.md for why this
- * order was chosen (profile name over an email-local-part heuristic).
- */
-internal fun resolveClaimDisplayName(
-    profileName: String?,
-    email: String?,
-    fallback: String,
-): String =
-    profileName?.trim()?.takeIf { it.isNotBlank() }
-        ?: email?.trim()?.takeIf { it.isNotBlank() }
-        ?: fallback
-
-/**
  * Whether [OrderDetailViewModel.observeActiveWorkshop] should (re)subscribe to the live
  * roster for [session]. Only an owner session with a resolvable tree qualifies:
  * - Staff never see the picker (Task 7) regardless of [WorkshopSession.workshopUid].
@@ -50,3 +36,21 @@ internal fun resolveClaimDisplayName(
  */
 internal fun shouldObserveRoster(session: WorkshopSession): Boolean =
     !session.isActiveStaff && session.workshopUid.isNotBlank()
+
+/**
+ * Whether [OrderDetailViewModel]'s roster observation should lazily write the owner's own
+ * [com.danzucker.stitchpad.core.domain.staff.TeamMemberKind.OWNER] roster row for this
+ * emission — the detail-path mirror of `TeamViewModel.ensureOwnerInRosterIfMissing` (Task
+ * 6), so an owner who opens the assign picker before ever visiting the Team screen still
+ * gets a row and appears in their own picker.
+ *
+ * [shouldObserveRoster] admits both a true owner session AND a pending/declined staff
+ * session (role == STAFF but not yet/no-longer active membership — see its KDoc). Only a
+ * true owner ([WorkshopSession.isOwner], i.e. `authUid == workshopUid`) may ever pass here:
+ * the Firestore `team` rules deny this write from anyone else, and [roster] is checked
+ * unfiltered (before the active-only filter [OrderDetailViewModel.observeRoster] applies to
+ * state) so an archived owner row still counts as present, matching
+ * `TeamViewModel.ensureOwnerInRosterIfMissing`'s check against the raw emission.
+ */
+internal fun shouldEnsureOwnerRoster(session: WorkshopSession, roster: List<TeamMember>): Boolean =
+    session.isOwner && roster.none { it.id == session.workshopUid }

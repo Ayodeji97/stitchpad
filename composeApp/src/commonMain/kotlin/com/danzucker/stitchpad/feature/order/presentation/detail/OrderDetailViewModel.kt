@@ -11,6 +11,7 @@ import com.danzucker.stitchpad.core.analytics.domain.Analytics
 import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.error.onFailure
 import com.danzucker.stitchpad.core.domain.model.FabricImageRef
 import com.danzucker.stitchpad.core.domain.model.ImageSyncState
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
@@ -30,9 +31,12 @@ import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import com.danzucker.stitchpad.core.domain.session.workshopUidOrNull
+import com.danzucker.stitchpad.core.domain.staff.TeamMember
 import com.danzucker.stitchpad.core.domain.staff.TeamMemberStatus
 import com.danzucker.stitchpad.core.domain.staff.repository.TeamRosterRepository
+import com.danzucker.stitchpad.core.domain.staff.resolveClaimDisplayName
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.OrderReceiptSharer
 import com.danzucker.stitchpad.core.sharing.ReceiptData
@@ -114,6 +118,14 @@ class OrderDetailViewModel(
     private var loadedStylesCustomerId: String? = null
     private var rosterJob: Job? = null
     private var loadedRosterWorkshopUid: String? = null
+
+    /**
+     * Guards [ensureOwnerInRosterIfMissing] to at most one write per VM lifetime — mirrors
+     * [com.danzucker.stitchpad.feature.staff.presentation.team.TeamViewModel.ownerEnsureAttempted]
+     * (Task 6): the roster listener can re-emit many times, and without this a still-missing
+     * owner row on a later emission would re-fire `ensureOwnerMember` on every emission.
+     */
+    private var ownerEnsureAttempted = false
     private val photoMutationMutex = Mutex()
     private val _state = MutableStateFlow(OrderDetailState())
 
@@ -521,7 +533,7 @@ class OrderDetailViewModel(
                     return@withLock
                 }
                 val updatedOrder = latestOrder.copy(items = updatedItems)
-                when (val res = orderRepository.updateOrder(userId, updatedOrder)) {
+                when (val res = orderRepository.updateItems(userId, latestOrder.id, updatedItems)) {
                     is Result.Success -> _state.update { it.copy(order = updatedOrder) }
                     is Result.Error -> {
                         newRef.photoStoragePath?.let { orderRepository.deleteStoragePaths(listOf(it)) }
@@ -549,7 +561,7 @@ class OrderDetailViewModel(
                     }
                 }
                 val updatedOrder = order.copy(items = updatedItems)
-                when (val res = orderRepository.updateOrder(userId, updatedOrder)) {
+                when (val res = orderRepository.updateItems(userId, order.id, updatedItems)) {
                     is Result.Success -> {
                         _state.update { it.copy(order = updatedOrder) }
                         removed.photoStoragePath
@@ -607,7 +619,7 @@ class OrderDetailViewModel(
                     return@withLock
                 }
                 val updatedOrder = latestOrder.copy(items = updatedItems)
-                when (val res = orderRepository.updateOrder(userId, updatedOrder)) {
+                when (val res = orderRepository.updateItems(userId, latestOrder.id, updatedItems)) {
                     is Result.Success -> _state.update { it.copy(order = updatedOrder) }
                     is Result.Error -> {
                         orderRepository.deleteStoragePaths(listOf(newRef.photoStoragePath))
@@ -635,7 +647,7 @@ class OrderDetailViewModel(
                     }
                 }
                 val updatedOrder = order.copy(items = updatedItems)
-                when (val res = orderRepository.updateOrder(userId, updatedOrder)) {
+                when (val res = orderRepository.updateItems(userId, order.id, updatedItems)) {
                     is Result.Success -> {
                         _state.update { it.copy(order = updatedOrder) }
                         orderRepository.deleteStoragePaths(listOf(removed.photoStoragePath))
@@ -656,7 +668,7 @@ class OrderDetailViewModel(
         val updatedItems = listOf(firstItem.copy(fabricName = newName)) + order.items.drop(1)
         viewModelScope.launch {
             val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
-            when (val res = orderRepository.updateOrder(userId, order.copy(items = updatedItems))) {
+            when (val res = orderRepository.updateItems(userId, order.id, updatedItems)) {
                 is Result.Success -> Unit
                 is Result.Error -> _state.update {
                     it.copy(errorMessage = res.error.toOrderUiText())
@@ -819,6 +831,10 @@ class OrderDetailViewModel(
                         // assigns to exactly this, never to an id picked from a roster
                         // (staff have no roster access; see observeRoster below).
                         staffAuthUid = if (session.isActiveStaff) session.authUid else null,
+                        // Always the signed-in identity, owner or staff — used to resolve
+                        // "You" in the roster/picker (Task 6, rosterDisplayName), unlike
+                        // staffAuthUid above which is null for an owner.
+                        currentAuthUid = session.authUid,
                     )
                 }
                 // shouldObserveRoster covers both the staff case (Task 7: no picker, so no
@@ -830,7 +846,7 @@ class OrderDetailViewModel(
                 // firestore.collection("users").document(""). In both non-observing cases
                 // we drop any stale rows left over from the prior session/role.
                 if (shouldObserveRoster(session)) {
-                    observeRoster(session.workshopUid)
+                    observeRoster(session)
                 } else {
                     clearRosterSubscription()
                 }
@@ -850,7 +866,8 @@ class OrderDetailViewModel(
      *  already returns archived rows too (so historical assignments keep resolving a name
      *  elsewhere), but the PICKER must only offer someone still on the team. Guarded at the
      *  call site by [shouldObserveRoster] — never invoked with a blank workshopUid. */
-    private fun observeRoster(workshopUid: String) {
+    private fun observeRoster(session: WorkshopSession) {
+        val workshopUid = session.workshopUid
         if (loadedRosterWorkshopUid == workshopUid) return
         loadedRosterWorkshopUid = workshopUid
         rosterJob?.cancel()
@@ -860,7 +877,33 @@ class OrderDetailViewModel(
                     _state.update {
                         it.copy(roster = result.data.filter { member -> member.status == TeamMemberStatus.ACTIVE })
                     }
+                    // Unfiltered result.data (not the ACTIVE-only state above) — matches
+                    // TeamViewModel.ensureOwnerInRosterIfMissing checking the raw emission.
+                    ensureOwnerInRosterIfMissing(session, result.data)
                 }
+            }
+        }
+    }
+
+    /**
+     * Detail-path mirror of
+     * [com.danzucker.stitchpad.feature.staff.presentation.team.TeamViewModel.ensureOwnerInRosterIfMissing]
+     * (Task 6): an owner who opens the order-detail assign picker before ever visiting the
+     * Team screen still needs their own
+     * [com.danzucker.stitchpad.core.domain.staff.TeamMemberKind.OWNER] roster row written,
+     * or they never appear in — or can be picked from — their own picker. Same
+     * once-per-VM-lifetime guard ([ownerEnsureAttempted]) and the same
+     * [resolveClaimDisplayName] name resolution as the Team screen's ensure.
+     */
+    private fun ensureOwnerInRosterIfMissing(session: WorkshopSession, roster: List<TeamMember>) {
+        if (ownerEnsureAttempted) return
+        if (!shouldEnsureOwnerRoster(session, roster)) return
+        ownerEnsureAttempted = true
+        viewModelScope.launch {
+            val user = authRepository.getCurrentUser()
+            val ownerName = resolveClaimDisplayName(user?.displayName, user?.email, fallback = session.workshopUid)
+            teamRosterRepository.ensureOwnerMember(session.workshopUid, ownerName).onFailure { error ->
+                _state.update { it.copy(errorMessage = error.toOrderUiText()) }
             }
         }
     }
@@ -969,7 +1012,7 @@ class OrderDetailViewModel(
             val updatedItems = listOf(firstItem.copy(measurementId = measurementId)) + order.items.drop(1)
             viewModelScope.launch {
                 val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
-                when (val res = orderRepository.updateOrder(userId, order.copy(items = updatedItems))) {
+                when (val res = orderRepository.updateItems(userId, order.id, updatedItems)) {
                     is Result.Success -> Unit // observeOrder Flow re-emits with the new measurementId
                     is Result.Error -> _state.update {
                         it.copy(errorMessage = res.error.toOrderUiText())
@@ -1014,7 +1057,7 @@ class OrderDetailViewModel(
      * Commits the in-progress picker selection to the item's styleImages and PERSISTS
      * it. Unlike the order-FORM (which only mutates local state, saved later), the
      * detail screen edits a LIVE order — so committing writes through
-     * [OrderRepository.updateOrder], mirroring [linkExistingMeasurement]'s persist +
+     * [OrderRepository.updateItems], mirroring [linkExistingMeasurement]'s persist +
      * error idiom. State is updated optimistically; the snapshot listener re-emits.
      */
     private fun commitPendingStyles(itemId: String) {
@@ -1045,7 +1088,7 @@ class OrderDetailViewModel(
         if (toAdd.isNotEmpty()) {
             viewModelScope.launch {
                 val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
-                when (val res = orderRepository.updateOrder(userId, order.copy(items = updatedItems))) {
+                when (val res = orderRepository.updateItems(userId, order.id, updatedItems)) {
                     is Result.Success -> Unit
                     is Result.Error -> _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
                 }

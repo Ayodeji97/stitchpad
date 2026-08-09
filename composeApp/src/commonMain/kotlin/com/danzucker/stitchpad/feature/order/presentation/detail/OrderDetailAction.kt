@@ -142,17 +142,37 @@ sealed interface OrderDetailAction {
  * picker, pick a member, unassign) — a staff member may only
  * [OrderDetailAction.OnClaimClick] an unassigned order for themselves.
  *
- * Phase 2 affordance audit: rules whitelist staff writes to status+claim only. Each
- * write path below is guarded at both the arm-dialog/draft-mutate step AND the
- * save/confirm step; plain dismiss/cancel actions stay reachable since they mutate
- * nothing:
+ * Phase 2b affordance audit: the rules work-fields whitelist now admits staff writes
+ * to `status`, `subStatus`, `statusHistory`, `updatedAt`, `items`, and `notes` (Task 1).
+ * Each remaining write path below is guarded at both the arm-dialog/draft-mutate step
+ * AND the save/confirm step; plain dismiss/cancel actions stay reachable since they
+ * mutate nothing:
  *  - Due date is OWNER-ONLY (2026-08-08 product decision) — staff can still SEE the
- *    due date, just not open the picker or confirm a new one.
- *  - Notes editing is staff-denied for now — staff can still see existing notes.
- *  - Measurements-link is staff-denied for now — staff can still view a linked
- *    measurement ([OrderDetailAction.OnViewMeasurementClick] stays unrestricted).
+ *    due date, just not open the picker or confirm a new one. `deadline` is not on
+ *    the staff whitelist, so this is also rules-enforced.
+ *  - Notes editing is staff-ENABLED as of Phase 2b — `notes` is on the whitelist, and
+ *    [OrderDetailViewModel.saveNotes] already writes it via `updateNotes`.
+ *  - Measurements-link stays OWNER-ONLY by product decision — linking measurements is
+ *    an order-setup decision, not day-to-day production work, even though the rules
+ *    now technically admit `items[].measurementId` as part of the `items` whitelist.
+ *    Viewing a linked measurement ([OrderDetailAction.OnViewMeasurementClick]) stays
+ *    unrestricted. [OrderDetailAction.OnCreateNewMeasurementClick] is listed
+ *    explicitly even though its only entry point is the (restricted) picker sheet, so
+ *    a future second entry point can't quietly hand staff a server-denied screen.
  *  - Garment media (add/remove style photo, add/remove fabric photo, add fabric
- *    name) is staff-denied until Phase 2b — existing photos stay viewable.
+ *    name) is staff-ENABLED as of Phase 2b — these persist via `items`, which is on
+ *    the whitelist, and route through [OrderRepository.updateItems] (items+updatedAt
+ *    only, money-free).
+ *  - The saved-style LIBRARY is OWNER-ONLY, and so is style creation
+ *    ([OrderDetailAction.OnAddStyleClick] / [OrderDetailAction.OnCreateNewStyleClick]).
+ *    Rules make `customers/{id}/styles`, `styleFolders`, `inspiration` and
+ *    `inspirationFolders` `isOwner`-only, so a staff picker could only ever be empty,
+ *    and StyleFormRoute's three writes (style doc create, style photo upload outside
+ *    the `users/{uid}/orders` Storage subtree, and the order link via `updateOrder`'s base merge +
+ *    `/private/money`) are ALL server-denied for staff. Staff attach style photos with
+ *    the camera/gallery upload path instead, which writes through `items`.
+ *    OrderDetailScreen hides the "Pick from saved" row for staff so this guard never
+ *    has to defend a dead button.
  */
 @Suppress("CyclomaticComplexMethod")
 internal fun OrderDetailAction.isStaffRestricted(): Boolean = when (this) {
@@ -203,23 +223,17 @@ internal fun OrderDetailAction.isStaffRestricted(): Boolean = when (this) {
     // only opening the picker / confirming a new one is guarded.
     OrderDetailAction.OnSetDeadlineClick,
     is OrderDetailAction.OnDeadlineSelected,
-    // Notes editing — staff-denied for now. Existing notes stay readable.
-    OrderDetailAction.OnNotesEditClick,
-    is OrderDetailAction.OnNotesDraftChange,
-    OrderDetailAction.OnNotesSaveClick,
-    // Measurements-link — staff-denied for now. Viewing a linked measurement
-    // ([OrderDetailAction.OnViewMeasurementClick]) stays unrestricted.
+    // Measurements-link — owner-only by product decision (Phase 2b). Viewing a linked
+    // measurement ([OrderDetailAction.OnViewMeasurementClick]) stays unrestricted.
     OrderDetailAction.OnLinkMeasurementsClick,
     is OrderDetailAction.OnSelectMeasurement,
-    // Garment media — staff-denied until Phase 2b. Existing photos stay viewable.
+    OrderDetailAction.OnCreateNewMeasurementClick,
+    // Saved-style LIBRARY — owner-only. Staff add style photos by camera/gallery
+    // upload ([OrderDetailAction.OnAddStylePhoto], which persists via `items`), never
+    // via saved styles. Both the picker entry point and its "Create new" button are
+    // guarded; the screen also hides the "Pick from saved" row for staff.
     is OrderDetailAction.OnAddStyleClick,
-    is OrderDetailAction.OnAddStylePhoto,
-    is OrderDetailAction.OnRemoveStyleImage,
-    is OrderDetailAction.OnAddFabricPhoto,
-    is OrderDetailAction.OnRemoveFabricImage,
-    OrderDetailAction.OnAddFabricNameClick,
-    is OrderDetailAction.OnFabricNameDraftChange,
-    OrderDetailAction.OnSaveFabricName,
+    is OrderDetailAction.OnCreateNewStyleClick,
     -> true
 
     else -> false

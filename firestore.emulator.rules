@@ -403,10 +403,10 @@ service cloud.firestore {
         // rare cross-commit orphan remains; that is accepted and sweepable.
         allow create: if activityCreateOk()
           && !request.resource.data.keys().hasAny(orderMoneyKeys());
-        // Owner: full update EXCEPT the money keys. Active staff: may ONLY advance
-        // production status — status/subStatus/statusHistory/updatedAt — never
-        // money, customer, or items, and still can't backdate the server-stamp
-        // fields (its hasOnly already excludes money, so it needs no extra guard).
+        // Owner: full update EXCEPT the money keys. Active staff: may ONLY touch
+        // work fields — never money, customer, or the deadline commitment — and
+        // still can't backdate the server-stamp fields (its hasOnly already
+        // excludes money, so it needs no extra guard).
         //
         // Slice 8e (owner branch): keyed on affectedKeys(), so legacy money already
         // stored on a base doc may REMAIN untouched — an honest edit of a
@@ -415,9 +415,15 @@ service cloud.firestore {
         allow update: if (isOwner(uid) && serverCreatedAtProtectedOnUpdate() && activityCreatedAtStableOnUpdate()
             && !request.resource.data.diff(resource.data).affectedKeys().hasAny(orderMoneyKeys()))
           || (
+            // Phase 2b: staff WORK fields — production status, garment items
+            // (styles/fabric photos; base items are money-free post-8d-1, and
+            // rules cannot see into arrays — see the create comment above for
+            // why that is not a gap), and working notes. `deadline` is
+            // deliberately absent: due date is a customer commitment and stays
+            // owner-only (2026-08-08 product decision).
             isActiveMember(uid)
             && request.resource.data.diff(resource.data).affectedKeys()
-                 .hasOnly(['status', 'subStatus', 'statusHistory', 'updatedAt'])
+                 .hasOnly(['status', 'subStatus', 'statusHistory', 'updatedAt', 'items', 'notes'])
             && serverCreatedAtProtectedOnUpdate()
             && activityCreatedAtStableOnUpdate()
           )

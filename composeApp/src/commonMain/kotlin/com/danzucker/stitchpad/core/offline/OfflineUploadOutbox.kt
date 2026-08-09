@@ -1,9 +1,11 @@
 package com.danzucker.stitchpad.core.offline
 
 import com.danzucker.stitchpad.core.data.dto.OrderDto
+import com.danzucker.stitchpad.core.data.dto.OrderItemDto
 import com.danzucker.stitchpad.core.data.dto.UserDto
 import com.danzucker.stitchpad.core.data.mapper.toBaseDto
 import com.danzucker.stitchpad.core.logging.AppLogger
+import com.danzucker.stitchpad.feature.order.data.orderItemBaseWriteFields
 import com.danzucker.stitchpad.feature.style.data.toStorageData
 import dev.gitlive.firebase.firestore.FieldValue
 import dev.gitlive.firebase.firestore.FirebaseFirestore
@@ -22,6 +24,7 @@ import kotlin.time.Clock
 private const val TAG = "UploadOutbox"
 private const val MAX_ATTEMPTS = 10
 private const val MAX_BACKOFF_MS = 30 * 60 * 1_000L
+private const val SYNC_STATE_SYNCED = "SYNCED"
 
 @Suppress("TooManyFunctions")
 class OfflineUploadOutbox(
@@ -185,6 +188,7 @@ class OfflineUploadOutbox(
         }
     }
 
+    @Suppress("SpreadOperator") // same GitLive vararg constraint as OrderRepository.updateItems
     private suspend fun patchOrderImage(
         job: OfflineUploadJob,
         downloadUrl: String,
@@ -197,64 +201,37 @@ class OfflineUploadOutbox(
         firestore.runTransaction {
             val snapshot = get(docRef)
             if (!snapshot.exists) error("Order document is unavailable")
-            val dto = snapshot.data<OrderDto>()
-            var patched = false
-            val updatedItems = dto.items.map { item ->
-                if (item.id != job.itemId) return@map item
-                if (isFabric) {
-                    item.copy(
-                        fabricImages = item.fabricImages.map { ref ->
-                            if (ref.photoStoragePath == job.storagePath) {
-                                patched = true
-                                ref.copy(
-                                    photoUrl = downloadUrl,
-                                    syncState = "SYNCED",
-                                )
-                            } else {
-                                ref
-                            }
-                        },
-                        fabricPhotoUrl = if (item.fabricPhotoStoragePath == job.storagePath) {
-                            downloadUrl
-                        } else {
-                            item.fabricPhotoUrl
-                        },
-                    )
-                } else {
-                    item.copy(
-                        styleImages = item.styleImages.map { ref ->
-                            if (ref.photoStoragePath == job.storagePath) {
-                                patched = true
-                                ref.copy(
-                                    photoUrl = downloadUrl,
-                                    syncState = "SYNCED",
-                                )
-                            } else {
-                                ref
-                            }
-                        },
-                        stylePhotoUrl = if (item.stylePhotoStoragePath == job.storagePath) {
-                            downloadUrl
-                        } else {
-                            item.stylePhotoUrl
-                        },
-                    )
-                }
-            }
-            if (!patched) error("Pending order image ref is unavailable")
-            // Slice 8d-1 (stop-dual-write): write back the money-free base shape so an
-            // image-upload completion never re-mirrors money onto the base doc (which
-            // would re-appear after the Slice-8d strip). Money stays in /private/money,
-            // untouched by this image patch. merge = true for the same reasons as
-            // updateOrder: a replacement write would drop `serverCreatedAt` (rules
-            // reject that on a stamped doc) and would strip TOP-LEVEL legacy base
-            // money before the guarded Slice-8d strip can handle it. GitLive encodes
-            // every OrderBaseDto field, so the items patch still lands
-            // field-for-field. Caveat (same as updateOrder, accepted): merge is
-            // per-top-level-key, so `items` is still a whole-array replacement with
-            // price-less OrderItemBaseDto entries — any legacy `items[].price` on the
-            // doc is wiped here. Only top-level legacy money survives until the strip.
-            set(docRef, dto.copy(items = updatedItems, updatedAt = nowMs()).toBaseDto(), merge = true)
+            val fields = orderImagePatchFields(
+                items = snapshot.data<OrderDto>().items,
+                itemId = job.itemId,
+                storagePath = job.storagePath,
+                downloadUrl = downloadUrl,
+                isFabric = isFabric,
+                now = nowMs(),
+            ) ?: error("Pending order image ref is unavailable")
+            // Field-path update, NOT a whole-DTO merge set. The document is guaranteed
+            // to exist here (the ViewModel wrote the PENDING image ref before the job
+            // was enqueued, and the `snapshot.exists` check above re-confirms it), so
+            // update() is safe — and it is the only shape that keeps this write inside
+            // the Firestore staff work-fields whitelist
+            // (status/subStatus/statusHistory/updatedAt/items/notes).
+            //
+            // The old code did `set(dto.toBaseDto(), merge = true)`. GitLive encodes
+            // defaults, so every OrderBaseDto key rode on the wire; on any order created
+            // before Phase 2a (no assignedMemberId/assignedMemberName; older docs also
+            // no subStatus/archivedAt) the merge ADDED those keys, so
+            // diff().affectedKeys() escaped the whitelist and every staff photo upload
+            // was permission-denied forever — silently, since the Storage upload itself
+            // succeeded. Verified in the rules emulator; pinned by the
+            // "staff outbox photo patch" tests in firestore.rules.test.ts.
+            //
+            // Slice 8d-1 (stop-dual-write) still holds: the payload is items+updatedAt
+            // only, items serialized through the money-free OrderItemBaseDto shape, so
+            // an image completion can never re-mirror money onto the base doc. Legacy
+            // TOP-LEVEL base money is now not merely preserved but untouched (it is not
+            // in the payload at all); `items` remains a whole-array replacement, so any
+            // legacy items[].price is wiped here — same accepted caveat as before.
+            update(docRef, *fields.entries.map { it.key to it.value }.toTypedArray())
         }
         rememberCompletedUpload(job.storagePath, downloadUrl)
     }
@@ -372,6 +349,79 @@ class OfflineUploadOutbox(
     }
 
     private fun nowMs(): Long = Clock.System.now().toEpochMilliseconds()
+}
+
+/**
+ * Builds the Firestore payload that marks a just-uploaded order photo as SYNCED.
+ *
+ * Pure by design so the wire shape is unit-testable without a Firestore fake (see
+ * `OrderImagePatchFieldsTest`): this is the payload that must stay inside the staff
+ * work-fields whitelist, and the review found it had silently drifted out of it.
+ * Delegates to [orderItemBaseWriteFields] so the items-only write has exactly ONE key
+ * list, shared with the repository's own items write
+ * ([com.danzucker.stitchpad.feature.order.data.orderItemsWriteFields], used by
+ * `OrderRepository.updateItems`).
+ *
+ * Returns `null` when no PENDING ref on [itemId] matches [storagePath] — the caller
+ * aborts the transaction, which the outbox records as a retryable failure (identical
+ * to the pre-fix `error("Pending order image ref is unavailable")` behaviour).
+ */
+internal fun orderImagePatchFields(
+    items: List<OrderItemDto>,
+    itemId: String?,
+    storagePath: String,
+    downloadUrl: String,
+    isFabric: Boolean,
+    now: Long,
+): Map<String, Any?>? {
+    var patched = false
+    val updatedItems = items.map { item ->
+        if (item.id != itemId) return@map item
+        val next = if (isFabric) {
+            item.withSyncedFabricImage(storagePath, downloadUrl)
+        } else {
+            item.withSyncedStyleImage(storagePath, downloadUrl)
+        }
+        if (next != null) patched = true
+        next ?: item
+    }
+    if (!patched) return null
+    return orderItemBaseWriteFields(updatedItems.map { it.toBaseDto() }, now)
+}
+
+/**
+ * Marks the fabric ref at [storagePath] SYNCED (and follows the legacy single
+ * `fabricPhotoUrl` field when it points at the same object). `null` when this item has
+ * no such ref — a legacy-single-field-only match does NOT count, matching the previous
+ * transaction's `patched` flag exactly.
+ */
+private fun OrderItemDto.withSyncedFabricImage(storagePath: String, downloadUrl: String): OrderItemDto? {
+    if (fabricImages.none { it.photoStoragePath == storagePath }) return null
+    return copy(
+        fabricImages = fabricImages.map { ref ->
+            if (ref.photoStoragePath == storagePath) {
+                ref.copy(photoUrl = downloadUrl, syncState = SYNC_STATE_SYNCED)
+            } else {
+                ref
+            }
+        },
+        fabricPhotoUrl = if (fabricPhotoStoragePath == storagePath) downloadUrl else fabricPhotoUrl,
+    )
+}
+
+/** Style-side twin of [withSyncedFabricImage]. */
+private fun OrderItemDto.withSyncedStyleImage(storagePath: String, downloadUrl: String): OrderItemDto? {
+    if (styleImages.none { it.photoStoragePath == storagePath }) return null
+    return copy(
+        styleImages = styleImages.map { ref ->
+            if (ref.photoStoragePath == storagePath) {
+                ref.copy(photoUrl = downloadUrl, syncState = SYNC_STATE_SYNCED)
+            } else {
+                ref
+            }
+        },
+        stylePhotoUrl = if (stylePhotoStoragePath == storagePath) downloadUrl else stylePhotoUrl,
+    )
 }
 
 @Serializable

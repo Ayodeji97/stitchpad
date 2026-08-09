@@ -39,6 +39,16 @@ internal fun TeamMemberDto.toTeamMember(docId: String): TeamMember =
         status = TeamMemberStatus.fromWire(status),
     )
 
+/**
+ * The roster's canonical display order: the owner row first, then active rows before
+ * archived, then alphabetical by name (case-insensitive). Extracted from [observeTeam][
+ * FirebaseTeamRosterRepository.observeTeam] so it's directly unit-testable without a
+ * Firestore fake, and shared with `FakeTeamRosterRepository` so both implementations
+ * agree on the sort.
+ */
+internal fun List<TeamMember>.sortedForRoster(): List<TeamMember> =
+    sortedWith(compareBy({ it.kind != TeamMemberKind.OWNER }, { it.status }, { it.name.lowercase() }))
+
 class FirebaseTeamRosterRepository(
     private val firestore: FirebaseFirestore,
     private val offlineWrites: OfflineWriteDispatcher,
@@ -57,7 +67,7 @@ class FirebaseTeamRosterRepository(
                             doc.data<TeamMemberDto>().toTeamMember(doc.id)
                         }
                     }
-                    .sortedWith(compareBy({ it.status }, { it.name.lowercase() }))
+                    .sortedForRoster()
                 Result.Success(members) as Result<List<TeamMember>, DataError.Network>
             }
             .catch { throwable ->
@@ -125,6 +135,28 @@ class FirebaseTeamRosterRepository(
         if (!accepted) {
             return Result.Error(DataError.Network.UNKNOWN)
         }
+        return Result.Success(Unit)
+    }
+
+    override suspend fun ensureOwnerMember(
+        workshopUid: String,
+        name: String,
+    ): EmptyResult<DataError.Network> {
+        val now = Clock.System.now().toEpochMilliseconds()
+        val dto = TeamMemberDto(
+            name = name.trim(),
+            kind = "owner",
+            status = "active",
+            colorSeed = 0,
+            createdAt = now,
+            updatedAt = now,
+        )
+        // merge=true: callers only invoke this when the roster emission lacks the
+        // owner row, so a lost race just rewrites identical values.
+        val accepted = offlineWrites.enqueue("ensureOwnerMember workshopUid=$workshopUid") {
+            teamCollection(workshopUid).document(workshopUid).set(dto, merge = true)
+        }
+        if (!accepted) return Result.Error(DataError.Network.UNKNOWN)
         return Result.Success(Unit)
     }
 }

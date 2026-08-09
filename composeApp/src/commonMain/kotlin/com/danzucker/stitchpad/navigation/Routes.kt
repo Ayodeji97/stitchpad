@@ -111,11 +111,12 @@ data class StyleFormRoute(
 )
 
 /**
- * [initialFilter] seeds the list's status / "my work" filter on cold entry —
- * one of `"overdue"`, `"due-today"`, `"in-progress"`, `"my-work"`, or null for
- * no filter. Currently only `"in-progress"` and `"my-work"` are consumed by
- * [com.danzucker.stitchpad.feature.order.presentation.list.OrderListViewModel]
- * (see Task 9 of staff-phase2-assignment) — `"overdue"`/`"due-today"` are
+ * [initialFilter] seeds the list's status / "my work" / assignee filter on cold
+ * entry — one of `"overdue"`, `"due-today"`, `"in-progress"`, `"my-work"`,
+ * `"assignee:<memberId>"`, `"assignee:none"`, or null for no filter.
+ * `"in-progress"`, `"my-work"`, and the `"assignee:"`-prefixed values are consumed
+ * by [com.danzucker.stitchpad.feature.order.presentation.list.OrderListViewModel]
+ * (see Tasks 8-9 of staff-phase2-assignment) — `"overdue"`/`"due-today"` are
  * reserved for a future deadline filter that does not exist yet.
  */
 @Serializable

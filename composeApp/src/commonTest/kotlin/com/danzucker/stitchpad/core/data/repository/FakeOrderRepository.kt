@@ -5,6 +5,7 @@ import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderCost
+import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
@@ -79,6 +80,7 @@ class FakeOrderRepository : OrderRepository {
     var lastArchivedOrderId: String? = null
     var lastUnarchivedOrderId: String? = null
     var lastAssignment: Triple<String, String?, String?>? = null
+    var lastUpdatedItems: Pair<String, List<OrderItem>>? = null
     private var nextIdSuffix = 0
 
     override fun observeOrders(userId: String): Flow<Result<List<Order>, DataError.Network>> =
@@ -252,6 +254,19 @@ class FakeOrderRepository : OrderRepository {
         lastAssignment = Triple(orderId, memberId, memberName)
         ordersFlow.value = ordersFlow.value.map { existing ->
             if (existing.id == orderId) existing.copy(assignedMemberId = memberId, assignedMemberName = memberName) else existing
+        }
+        return Result.Success(Unit)
+    }
+
+    override suspend fun updateItems(
+        userId: String,
+        orderId: String,
+        items: List<OrderItem>,
+    ): EmptyResult<DataError.Network> {
+        shouldReturnError?.let { return Result.Error(it) }
+        lastUpdatedItems = orderId to items
+        ordersFlow.value = ordersFlow.value.map { existing ->
+            if (existing.id == orderId) existing.copy(items = items) else existing
         }
         return Result.Success(Unit)
     }

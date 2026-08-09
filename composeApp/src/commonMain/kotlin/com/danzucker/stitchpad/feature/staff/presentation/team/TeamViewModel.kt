@@ -4,13 +4,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.error.onFailure
+import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
 import com.danzucker.stitchpad.core.domain.staff.StaffInvite
 import com.danzucker.stitchpad.core.domain.staff.TeamMember
+import com.danzucker.stitchpad.core.domain.staff.TeamMemberKind
 import com.danzucker.stitchpad.core.domain.staff.repository.StaffRepository
 import com.danzucker.stitchpad.core.domain.staff.repository.TeamRosterRepository
+import com.danzucker.stitchpad.core.domain.staff.resolveClaimDisplayName
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
+import com.danzucker.stitchpad.feature.order.presentation.list.OrderListFilter
 import com.danzucker.stitchpad.feature.staff.presentation.toTeamRosterUiText
 import com.danzucker.stitchpad.feature.staff.presentation.toUiText
 import kotlinx.coroutines.channels.Channel
@@ -31,10 +35,12 @@ import kotlin.time.Clock
  * members. The memberships listener is the single source of truth for the list,
  * so approve/decline/revoke only surface errors — the list refreshes itself.
  */
+@Suppress("TooManyFunctions")
 class TeamViewModel(
     private val staffRepository: StaffRepository,
     private val teamRosterRepository: TeamRosterRepository,
     private val authRepository: AuthRepository,
+    private val orderRepository: OrderRepository,
     private val nowMillis: () -> Long = { Clock.System.now().toEpochMilliseconds() },
 ) : ViewModel() {
 
@@ -44,9 +50,18 @@ class TeamViewModel(
     private val _events = Channel<TeamEvent>()
     val events = _events.receiveAsFlow()
 
+    /**
+     * Guards [ensureOwnerInRosterIfMissing] to at most one write per VM lifetime: the
+     * roster listener can re-emit many times (e.g. offline cache reads, then the network
+     * result), and without this a still-missing owner row on a later emission would
+     * re-fire `ensureOwnerMember` on every emission instead of once.
+     */
+    private var ownerEnsureAttempted = false
+
     init {
         observeTeam()
         observeRoster()
+        observeWorkload()
     }
 
     @Suppress("CyclomaticComplexMethod")
@@ -71,6 +86,7 @@ class TeamViewModel(
             is TeamAction.OnRenameMember -> _state.update { it.copy(renameTarget = action.member) }
             is TeamAction.OnConfirmRename -> onConfirmRename(action.name)
             is TeamAction.OnArchiveMember -> onArchiveMember(action.member)
+            is TeamAction.OnMemberOrdersClick -> onMemberOrdersClick(action.memberId)
             TeamAction.OnErrorDismiss -> _state.update { it.copy(errorMessage = null) }
         }
     }
@@ -116,11 +132,59 @@ class TeamViewModel(
                     // already auto-dismisses a shown error (see TeamRoot's LaunchedEffect) —
                     // clearing here too would risk this listener's success racing ahead of
                     // the membership listener's error and swallowing it before it's shown.
-                    is Result.Success -> _state.update { it.copy(roster = result.data) }
+                    is Result.Success -> {
+                        _state.update { it.copy(roster = result.data, currentUserId = workshopUid) }
+                        ensureOwnerInRosterIfMissing(workshopUid, result.data)
+                    }
                     is Result.Error -> _state.update { it.copy(errorMessage = result.error.toTeamRosterUiText()) }
                 }
             }
         }
+    }
+
+    /**
+     * Lazily writes the owner's [TeamMemberKind.OWNER] roster row the first time a roster
+     * emission comes back without one — the owner has no server-side writer for their own
+     * row (unlike staff, whose row is written by `approveStaffMember`), so this is how the
+     * owner becomes assignable like any other roster member. Runs at most once per VM
+     * lifetime ([ownerEnsureAttempted]): a later emission that still lacks the row (e.g.
+     * the write hasn't landed yet) must not re-fire it.
+     */
+    private fun ensureOwnerInRosterIfMissing(workshopUid: String, roster: List<TeamMember>) {
+        if (ownerEnsureAttempted) return
+        if (roster.any { it.id == workshopUid }) return
+        ownerEnsureAttempted = true
+        viewModelScope.launch {
+            val user = authRepository.getCurrentUser()
+            val ownerName = resolveClaimDisplayName(user?.displayName, user?.email, fallback = workshopUid)
+            teamRosterRepository.ensureOwnerMember(workshopUid, ownerName).onFailure { error ->
+                _events.send(TeamEvent.ShowSnackbar(error.toTeamRosterUiText()))
+            }
+        }
+    }
+
+    /**
+     * Streams open-order counts per assignee (Task 9), client-side over the same orders
+     * stream the Orders list itself observes — no new Firestore query. Independent of
+     * [observeRoster]'s listener: a failure here must NOT clobber the shared
+     * `errorMessage` (mirrors [observeRoster]'s comment) — the roster stays usable even
+     * if the workload counts fail to load.
+     */
+    private fun observeWorkload() {
+        viewModelScope.launch {
+            val ownerUid = authRepository.getCurrentUser()?.id ?: return@launch
+            orderRepository.observeOrders(ownerUid).collect { result ->
+                if (result is Result.Success) {
+                    _state.update { it.copy(workloadCounts = openOrderCountsByAssignee(result.data)) }
+                }
+                // Result.Error: ignore — see kdoc above.
+            }
+        }
+    }
+
+    private fun onMemberOrdersClick(memberId: String?) {
+        val initialFilter = memberId?.let(OrderListFilter::assignee) ?: OrderListFilter.ASSIGNEE_UNASSIGNED
+        emit(TeamEvent.NavigateToMemberOrders(initialFilter))
     }
 
     private fun onConfirmAddMember() {

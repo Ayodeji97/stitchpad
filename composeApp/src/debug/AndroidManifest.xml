@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- DEBUG-ONLY overlay: allows cleartext HTTP to the local Firebase emulators
+         (10.0.2.2 = host loopback from the Android emulator). Merged into debug
+         builds only; release builds never see this attribute. -->
+    <application android:networkSecurityConfig="@xml/network_security_config" />
+</manifest>

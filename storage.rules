@@ -7,6 +7,12 @@ rules_version = '2';
 // images. Restrict each object to its owner so one tailor can never read,
 // overwrite, or delete another tailor's photos (customer PII + design IP).
 //
+// Owner + Staff (Phase 2b): an active staff member of workshop `uid` may read
+// anywhere in that owner's tree (they need to see brand assets, customer
+// styles, and inspiration to do the work) but may only WRITE inside the
+// order-media subtree `users/{uid}/orders/**` — brand logo, customer style
+// folders, and top-level inspiration images stay owner-write-only.
+//
 // Notes:
 // - Intentionally-shared assets surfaced via a download URL (getDownloadUrl,
 //   e.g. the email/gift-profile logo) keep working — Firebase download tokens
@@ -17,8 +23,32 @@ rules_version = '2';
 //   the client's upload metadata.
 service firebase.storage {
   match /b/{bucket}/o {
+    // Active staff of workshop `uid`: same claims + membership-doc gate as
+    // firestore.rules' isActiveMember — the claim alone can't enforce
+    // revocation inside the token's lifetime (see that function's comment).
+    function isActiveStaffOf(uid) {
+      return request.auth != null
+        && request.auth.token.get('role', '') == 'staff'
+        && request.auth.token.get('workshopUid', '') == uid
+        && firestore.exists(/databases/(default)/documents/users/$(uid)/memberships/$(request.auth.uid))
+        && firestore.get(/databases/(default)/documents/users/$(uid)/memberships/$(request.auth.uid)).data.status == 'active';
+    }
+
     match /users/{uid}/{allPaths=**} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      // Owner: full read/write of their own tree. Staff: read-only here —
+      // their write grant is the order-media match below.
+      allow read: if request.auth != null && (request.auth.uid == uid || isActiveStaffOf(uid));
+      allow write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Phase 2b: staff add style/fabric photos to orders. Write-scope is the
+    // order-media subtree ONLY (FirebaseOrderRepository's
+    // fabricStoragePath/styleStoragePath both live under users/{uid}/orders/…)
+    // — brand logo, customer style folders, and inspiration images stay
+    // owner-write-only. Storage grants are additive across matches, so this
+    // widens the match above for exactly this prefix.
+    match /users/{uid}/orders/{orderPaths=**} {
+      allow write: if isActiveStaffOf(uid);
     }
 
     // Shared, read-only app content: the how-to tutorial videos at

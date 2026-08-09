@@ -15,4 +15,5 @@ sealed interface OrderListAction {
     data object OnErrorDismiss : OrderListAction
     data object OnToggleShowProfit : OrderListAction
     data object OnToggleMyWork : OrderListAction
+    data object OnClearAssigneeFilter : OrderListAction
 }

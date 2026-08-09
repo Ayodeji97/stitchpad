@@ -1225,7 +1225,6 @@ private fun OrderDetailContent(
                     onAction(OrderDetailAction.OnRemoveFabricImage(itemId, index))
                 },
                 onAddFabricNameClick = { onAction(OrderDetailAction.OnAddFabricNameClick) },
-                isActiveStaff = state.isActiveStaff,
             )
         }
         // Payment total / history + record-payment is money — hidden for active staff (Slice 6c).
@@ -1274,7 +1273,6 @@ private fun OrderDetailContent(
                 onDraftChange = { onAction(OrderDetailAction.OnNotesDraftChange(it)) },
                 onSaveClick = { onAction(OrderDetailAction.OnNotesSaveClick) },
                 onCancelClick = { onAction(OrderDetailAction.OnNotesCancelClick) },
-                isActiveStaff = state.isActiveStaff,
             )
         }
         if (order.status == OrderStatus.DELIVERED) {
@@ -1311,17 +1309,26 @@ private fun OrderDetailContent(
                         vertical = DesignTokens.space3,
                     ),
                 )
-                ListItem(
-                    headlineContent = { Text(stringResource(Res.string.order_form_style_pick_from_saved)) },
-                    supportingContent = {
-                        Text(stringResource(Res.string.order_form_style_pick_from_saved_support))
-                    },
-                    leadingContent = { Icon(Icons.Default.Image, contentDescription = null) },
-                    modifier = Modifier.clickable {
-                        showStylePhotoSheetForItemId = null
-                        onAction(OrderDetailAction.OnAddStyleClick(styleSheetItemId))
-                    },
-                )
+                // Saved-style library is owner-only (rules: customers/{id}/styles,
+                // styleFolders, inspiration* are all isOwner). For staff the picker
+                // could only ever be empty and its "Create new" button would land on a
+                // StyleFormRoute whose every write is server-denied — so staff go
+                // straight to the camera/gallery upload path below, which persists via
+                // `items` (on the staff work-fields whitelist). Matches the action
+                // gate: OnAddStyleClick/OnCreateNewStyleClick are staff-restricted.
+                if (!state.isActiveStaff) {
+                    ListItem(
+                        headlineContent = { Text(stringResource(Res.string.order_form_style_pick_from_saved)) },
+                        supportingContent = {
+                            Text(stringResource(Res.string.order_form_style_pick_from_saved_support))
+                        },
+                        leadingContent = { Icon(Icons.Default.Image, contentDescription = null) },
+                        modifier = Modifier.clickable {
+                            showStylePhotoSheetForItemId = null
+                            onAction(OrderDetailAction.OnAddStyleClick(styleSheetItemId))
+                        },
+                    )
+                }
                 PhotoSourceItems(
                     onCameraClick = {
                         pendingStylePhotoItemId = styleSheetItemId
@@ -1372,6 +1379,7 @@ private fun OrderDetailContent(
     if (state.showAssignSheet) {
         OrderAssignPickerSheet(
             roster = state.roster,
+            currentAuthUid = state.currentAuthUid,
             onSelectMember = { member ->
                 onAction(OrderDetailAction.OnAssignMember(member.id, member.name))
             },

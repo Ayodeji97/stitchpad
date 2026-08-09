@@ -1276,6 +1276,192 @@ describe('active staff member access', () => {
   });
 });
 
+// Phase 2b: staff gain garment-media + notes editing. The staff status-only
+// branch widens to a staff WORK branch (status/subStatus/statusHistory/
+// updatedAt/items/notes). `deadline` stays owner-only by product decision
+// (2026-08-08) and must never enter the staff whitelist.
+describe('orders update — staff work fields (Phase 2b)', () => {
+  beforeEach(async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice/memberships/chidi'), { status: 'active' });
+      await setDoc(doc(admin, 'users/alice/orders/o-work'), {
+        status: 'PENDING',
+        customerName: 'Ada',
+        createdAt: 1,
+        updatedAt: 1,
+        items: [{ id: 'i1', garmentType: 'SHIRT', description: '', quantity: 1 }],
+        notes: null,
+      });
+    });
+  });
+
+  it('staff may update items + notes + status together', async () => {
+    await assertSucceeds(updateDoc(doc(staffDb('chidi', 'alice'), 'users/alice/orders/o-work'), {
+      items: [{ id: 'i1', garmentType: 'SHIRT', description: '', quantity: 1,
+                fabricImages: [{ photoUrl: 'u', photoStoragePath: 'p', syncState: 'SYNCED' }] }],
+      notes: 'hem to ankle',
+      status: 'IN_PROGRESS',
+      updatedAt: 2,
+    }));
+  });
+
+  it('staff items write may not smuggle a money key', async () => {
+    await assertFails(updateDoc(doc(staffDb('chidi', 'alice'), 'users/alice/orders/o-work'), {
+      items: [], totalPrice: 5, updatedAt: 2,
+    }));
+  });
+
+  it('staff items write may not smuggle deadline', async () => {
+    await assertFails(updateDoc(doc(staffDb('chidi', 'alice'), 'users/alice/orders/o-work'), {
+      items: [], deadline: 123, updatedAt: 2,
+    }));
+  });
+
+  it('staff items write may not smuggle assignment fields', async () => {
+    await assertFails(updateDoc(doc(staffDb('chidi', 'alice'), 'users/alice/orders/o-work'), {
+      items: [], assignedMemberId: 'chidi', updatedAt: 2,
+    }));
+  });
+
+  it('staff notes-only write succeeds', async () => {
+    await assertSucceeds(updateDoc(doc(staffDb('chidi', 'alice'), 'users/alice/orders/o-work'), {
+      notes: 'x', updatedAt: 2,
+    }));
+  });
+
+  it('revoked member may not write items', async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice/memberships/chidi'), { status: 'revoked' });
+    });
+    await assertFails(updateDoc(doc(staffDb('chidi', 'alice'), 'users/alice/orders/o-work'), {
+      items: [], updatedAt: 2,
+    }));
+  });
+
+  it('owner branch is unchanged: owner still updates deadline', async () => {
+    await assertSucceeds(updateDoc(doc(db('alice'), 'users/alice/orders/o-work'), {
+      deadline: 999, updatedAt: 2,
+    }));
+  });
+});
+
+// Phase 2b fix wave: the ACTUAL wire shapes the client writes when a staff member's
+// order photo finishes uploading. The whole-branch review found the upload outbox
+// still doing a whole-OrderBaseDto `set(merge: true)` there. GitLive encodes defaults,
+// so every base key rode on the wire; on an order created before Phase 2a — which has
+// no assignedMemberId/assignedMemberName, and on older docs no subStatus/archivedAt —
+// the merge ADDED those keys, so diff().affectedKeys() escaped the staff work-fields
+// hasOnly and the patch was permission-denied forever (Storage upload succeeded, so
+// staff saw no error and the owner saw a stuck PENDING placeholder).
+//
+// These tests pin BOTH halves on a LEGACY doc: the items-only shape must be allowed,
+// and the whole-base merge shape must be denied. The Kotlin twin is
+// `OrderImagePatchFieldsTest` (payload keys) + `OrderItemsWriteFieldsTest` (item keys).
+describe('orders update — staff outbox photo patch (payload shapes)', () => {
+  // Exactly OrderItemBaseDto's 14 fields, as OrderItemBaseDto.toFirestoreMap() writes
+  // them. `price` is deliberately absent (Slice 8d-1: money lives in /private/money).
+  const itemBase = {
+    id: 'i1',
+    garmentType: 'SHIRT',
+    customGarmentName: null,
+    description: 'desc',
+    quantity: 1,
+    measurementId: null,
+    fabricName: 'Ankara',
+    styleImages: [],
+    fabricImages: [{ photoUrl: 'https://cdn/f.jpg', photoStoragePath: 'p', syncState: 'SYNCED' }],
+    styleId: null,
+    stylePhotoUrl: null,
+    stylePhotoStoragePath: null,
+    fabricPhotoUrl: 'https://cdn/f.jpg',
+    fabricPhotoStoragePath: 'p',
+  };
+
+  // A pre-Phase-2a base order doc: no assignedMemberId / assignedMemberName, and (as
+  // on the oldest docs) no subStatus / archivedAt either.
+  const legacyDoc = {
+    id: 'o-legacy',
+    customerId: 'c1',
+    customerName: 'Ada',
+    status: 'PENDING',
+    priority: 'NORMAL',
+    deadline: null,
+    notes: null,
+    items: [{ ...itemBase, fabricImages: [{ photoUrl: '', photoStoragePath: 'p', syncState: 'PENDING' }], fabricPhotoUrl: null }],
+    statusHistory: [],
+    createdAt: 1,
+    updatedAt: 1,
+  };
+
+  beforeEach(async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice/memberships/chidi'), { status: 'active' });
+      await setDoc(doc(admin, 'users/alice/orders/o-legacy'), legacyDoc);
+      // Same order but already carrying every Phase-2a key — this is the doc shape the
+      // old buggy merge got away with, which is why the bug hid for a whole branch.
+      await setDoc(doc(admin, 'users/alice/orders/o-modern'), {
+        ...legacyDoc,
+        id: 'o-modern',
+        subStatus: null,
+        archivedAt: null,
+        assignedMemberId: null,
+        assignedMemberName: null,
+      });
+    });
+  });
+
+  it('items-only patch (the fixed outbox shape) is ALLOWED on a legacy doc', async () => {
+    await assertSucceeds(updateDoc(doc(staffDb('chidi', 'alice'), 'users/alice/orders/o-legacy'), {
+      items: [itemBase],
+      updatedAt: 2,
+    }));
+  });
+
+  it('whole-OrderBaseDto merge (the old outbox shape) is DENIED on a legacy doc', async () => {
+    // Every non-items value matches the stored doc, so the ONLY affected keys beyond
+    // items/updatedAt are the four the legacy doc lacks — isolating the denial to the
+    // keys GitLive's encode-defaults adds. This is the regression pin: the outbox must
+    // stay items-only.
+    await assertFails(setDoc(doc(staffDb('chidi', 'alice'), 'users/alice/orders/o-legacy'), {
+      id: 'o-legacy',
+      customerId: 'c1',
+      customerName: 'Ada',
+      status: 'PENDING',
+      subStatus: null,
+      priority: 'NORMAL',
+      deadline: null,
+      notes: null,
+      archivedAt: null,
+      assignedMemberId: null,
+      assignedMemberName: null,
+      items: [itemBase],
+      statusHistory: [],
+      createdAt: 1,
+      updatedAt: 2,
+    }, { merge: true }));
+  });
+
+  it('the same merge is ALLOWED on a modern doc — why the bug was invisible', async () => {
+    await assertSucceeds(setDoc(doc(staffDb('chidi', 'alice'), 'users/alice/orders/o-modern'), {
+      id: 'o-modern',
+      customerId: 'c1',
+      customerName: 'Ada',
+      status: 'PENDING',
+      subStatus: null,
+      priority: 'NORMAL',
+      deadline: null,
+      notes: null,
+      archivedAt: null,
+      assignedMemberId: null,
+      assignedMemberName: null,
+      items: [itemBase],
+      statusHistory: [],
+      createdAt: 1,
+      updatedAt: 2,
+    }, { merge: true }));
+  });
+});
+
 // Owner + Staff backend collections: memberships (owner-read + self-read,
 // Admin-only writes) and staffInvites (bearer codes, never client-accessible).
 describe('staff memberships + invites collections', () => {
