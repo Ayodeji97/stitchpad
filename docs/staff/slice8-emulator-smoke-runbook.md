@@ -14,7 +14,10 @@ issues on real data before any prod flip.
 - Seeded workshop: Fola (owner) with 4 customers + 6 orders across every stage, in
   the post-8d stripped shape (base docs carry no money/contact — those live only in
   `/private/money` and `/private/contact`, matching what the client writes); Gabby
-  (staff) with the `role=staff` claim + an active membership doc.
+  (staff) with the `role=staff` claim + an active membership doc; and Fola's own
+  `team/{folaUid}` roster row (`kind:'owner'`) — the same doc
+  `TeamRosterRepository.ensureOwnerMember` lazily writes client-side (Phase 2b
+  Task 5), seeded here so smoke doesn't depend on that write firing first.
 - A debug app pointed at the emulators, so you can sign in as **Gabby** and see the
   staff dashboard / Orders / Customers populated with real data.
 

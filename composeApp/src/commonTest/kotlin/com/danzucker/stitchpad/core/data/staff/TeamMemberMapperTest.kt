@@ -1,12 +1,22 @@
 package com.danzucker.stitchpad.core.data.staff
 
 import com.danzucker.stitchpad.core.data.dto.TeamMemberDto
+import com.danzucker.stitchpad.core.domain.staff.TeamMember
 import com.danzucker.stitchpad.core.domain.staff.TeamMemberKind
 import com.danzucker.stitchpad.core.domain.staff.TeamMemberStatus
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class TeamMemberMapperTest {
+
+    @Test
+    fun toTeamMember_ownerKind_mapsToOwner() {
+        val dto = TeamMemberDto(name = "Fola", kind = "owner")
+
+        val member = dto.toTeamMember("doc-1")
+
+        assertEquals(TeamMemberKind.OWNER, member.kind)
+    }
 
     @Test
     fun toTeamMember_carriesTheDocumentId_notADtoField() {
@@ -65,5 +75,34 @@ class TeamMemberMapperTest {
         val member = dto.toTeamMember("doc-1")
 
         assertEquals(7, member.colorSeed)
+    }
+
+    @Test
+    fun sortedForRoster_ownerFirst_thenActiveBeforeArchived_thenNameAlphabetical() {
+        val named = TeamMember(
+            id = "named-1",
+            name = "Ada",
+            kind = TeamMemberKind.NAMED,
+            colorSeed = 0,
+            status = TeamMemberStatus.ACTIVE,
+        )
+        val owner = TeamMember(
+            id = "owner-1",
+            name = "Zed",
+            kind = TeamMemberKind.OWNER,
+            colorSeed = 0,
+            status = TeamMemberStatus.ACTIVE,
+        )
+        val archivedStaff = TeamMember(
+            id = "staff-1",
+            name = "Bob",
+            kind = TeamMemberKind.STAFF,
+            colorSeed = 0,
+            status = TeamMemberStatus.ARCHIVED,
+        )
+
+        val sorted = listOf(named, owner, archivedStaff).sortedForRoster()
+
+        assertEquals(listOf("owner-1", "named-1", "staff-1"), sorted.map { it.id })
     }
 }

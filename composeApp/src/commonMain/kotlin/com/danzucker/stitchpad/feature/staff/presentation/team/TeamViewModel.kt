@@ -7,8 +7,10 @@ import com.danzucker.stitchpad.core.domain.error.onFailure
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
 import com.danzucker.stitchpad.core.domain.staff.StaffInvite
 import com.danzucker.stitchpad.core.domain.staff.TeamMember
+import com.danzucker.stitchpad.core.domain.staff.TeamMemberKind
 import com.danzucker.stitchpad.core.domain.staff.repository.StaffRepository
 import com.danzucker.stitchpad.core.domain.staff.repository.TeamRosterRepository
+import com.danzucker.stitchpad.core.domain.staff.resolveClaimDisplayName
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.staff.presentation.toTeamRosterUiText
@@ -43,6 +45,14 @@ class TeamViewModel(
 
     private val _events = Channel<TeamEvent>()
     val events = _events.receiveAsFlow()
+
+    /**
+     * Guards [ensureOwnerInRosterIfMissing] to at most one write per VM lifetime: the
+     * roster listener can re-emit many times (e.g. offline cache reads, then the network
+     * result), and without this a still-missing owner row on a later emission would
+     * re-fire `ensureOwnerMember` on every emission instead of once.
+     */
+    private var ownerEnsureAttempted = false
 
     init {
         observeTeam()
@@ -116,9 +126,33 @@ class TeamViewModel(
                     // already auto-dismisses a shown error (see TeamRoot's LaunchedEffect) —
                     // clearing here too would risk this listener's success racing ahead of
                     // the membership listener's error and swallowing it before it's shown.
-                    is Result.Success -> _state.update { it.copy(roster = result.data) }
+                    is Result.Success -> {
+                        _state.update { it.copy(roster = result.data) }
+                        ensureOwnerInRosterIfMissing(workshopUid, result.data)
+                    }
                     is Result.Error -> _state.update { it.copy(errorMessage = result.error.toTeamRosterUiText()) }
                 }
+            }
+        }
+    }
+
+    /**
+     * Lazily writes the owner's [TeamMemberKind.OWNER] roster row the first time a roster
+     * emission comes back without one — the owner has no server-side writer for their own
+     * row (unlike staff, whose row is written by `approveStaffMember`), so this is how the
+     * owner becomes assignable like any other roster member. Runs at most once per VM
+     * lifetime ([ownerEnsureAttempted]): a later emission that still lacks the row (e.g.
+     * the write hasn't landed yet) must not re-fire it.
+     */
+    private fun ensureOwnerInRosterIfMissing(workshopUid: String, roster: List<TeamMember>) {
+        if (ownerEnsureAttempted) return
+        if (roster.any { it.id == workshopUid }) return
+        ownerEnsureAttempted = true
+        viewModelScope.launch {
+            val user = authRepository.getCurrentUser()
+            val ownerName = resolveClaimDisplayName(user?.displayName, user?.email, fallback = workshopUid)
+            teamRosterRepository.ensureOwnerMember(workshopUid, ownerName).onFailure { error ->
+                _events.send(TeamEvent.ShowSnackbar(error.toTeamRosterUiText()))
             }
         }
     }

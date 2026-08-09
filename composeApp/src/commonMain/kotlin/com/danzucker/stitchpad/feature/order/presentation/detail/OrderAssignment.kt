@@ -22,21 +22,6 @@ import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 internal fun canClaimOrder(assignedMemberId: String?): Boolean = assignedMemberId == null
 
 /**
- * The display name written alongside a staff self-claim (`assignOrder`'s `memberName`).
- * Order of preference: the signed-in user's profile display name, then their email, then
- * [fallback] — a claim must never write a blank name. See task-7-report.md for why this
- * order was chosen (profile name over an email-local-part heuristic).
- */
-internal fun resolveClaimDisplayName(
-    profileName: String?,
-    email: String?,
-    fallback: String,
-): String =
-    profileName?.trim()?.takeIf { it.isNotBlank() }
-        ?: email?.trim()?.takeIf { it.isNotBlank() }
-        ?: fallback
-
-/**
  * Whether [OrderDetailViewModel.observeActiveWorkshop] should (re)subscribe to the live
  * roster for [session]. Only an owner session with a resolvable tree qualifies:
  * - Staff never see the picker (Task 7) regardless of [WorkshopSession.workshopUid].

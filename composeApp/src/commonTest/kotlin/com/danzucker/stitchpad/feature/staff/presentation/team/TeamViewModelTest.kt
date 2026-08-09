@@ -297,24 +297,29 @@ class TeamViewModelTest {
     fun rosterFlowPopulatesStateRoster() {
         rosterRepo.seedMembers(
             listOf(
+                // Owner row seeded so this test isn't also exercising the lazy-ensure
+                // path (covered separately below) — see ensureOwnerMemberCallCount tests.
+                rosterMember("owner-1", "Owner", kind = TeamMemberKind.OWNER),
                 rosterMember("staff-1", "Gabby Okoro", kind = TeamMemberKind.STAFF),
                 rosterMember("named-1", "Ngozi Eze"),
             ),
         )
         val vm = buildViewModel()
-        assertEquals(setOf("staff-1", "named-1"), vm.state.value.roster.map { it.id }.toSet())
+        assertEquals(setOf("owner-1", "staff-1", "named-1"), vm.state.value.roster.map { it.id }.toSet())
     }
 
     @Test
     fun activeRosterExcludesArchivedRows() {
         rosterRepo.seedMembers(
             listOf(
+                // Owner row seeded so this test isn't also exercising the lazy-ensure path.
+                rosterMember("owner-1", "Owner", kind = TeamMemberKind.OWNER),
                 rosterMember("named-1", "Ngozi Eze"),
                 rosterMember("named-2", "Tayo Ade", status = TeamMemberStatus.ARCHIVED),
             ),
         )
         val vm = buildViewModel()
-        assertEquals(listOf("named-1"), vm.state.value.activeRoster.map { it.id })
+        assertEquals(listOf("owner-1", "named-1"), vm.state.value.activeRoster.map { it.id })
     }
 
     @Test
@@ -356,6 +361,10 @@ class TeamViewModelTest {
 
     @Test
     fun onConfirmAddMemberErrorEmitsSnackbar() = runTest {
+        // Owner row seeded so buildViewModel() doesn't also fire the lazy-ensure path
+        // (which shares operationError below and would otherwise queue its own
+        // ShowSnackbar, leaving this test's events channel with an unconsumed extra item).
+        rosterRepo.seedMembers(listOf(rosterMember("owner-1", "Owner", kind = TeamMemberKind.OWNER)))
         rosterRepo.operationError = DataError.Network.UNKNOWN
         val vm = buildViewModel()
         vm.onAction(TeamAction.OnAddMemberNameChange("Ngozi Eze"))
@@ -410,5 +419,67 @@ class TeamViewModelTest {
         rosterRepo.observeError = DataError.Network.UNKNOWN
         val vm = buildViewModel()
         assertNotNull(vm.state.value.errorMessage)
+    }
+
+    // ---- Owner lazy ensure ----
+
+    @Test
+    fun ownerMissingFromRosterEmissionTriggersEnsureOwnerMemberOnce() {
+        rosterRepo.seedMembers(listOf(rosterMember("named-1", "Ngozi Eze")))
+        buildViewModel()
+
+        assertEquals(1, rosterRepo.ensureOwnerMemberCallCount)
+        assertEquals("owner-1", rosterRepo.lastEnsuredOwnerUid)
+        assertEquals("Owner", rosterRepo.lastEnsuredOwnerName)
+    }
+
+    @Test
+    fun ownerAlreadyInRosterNeverTriggersEnsureOwnerMember() {
+        rosterRepo.seedMembers(
+            listOf(rosterMember("owner-1", "Owner", kind = TeamMemberKind.OWNER)),
+        )
+        buildViewModel()
+
+        assertEquals(0, rosterRepo.ensureOwnerMemberCallCount)
+    }
+
+    @Test
+    fun secondRosterEmissionStillMissingOwnerDoesNotCallEnsureOwnerMemberAgain() {
+        rosterRepo.seedMembers(listOf(rosterMember("named-1", "Ngozi Eze")))
+        buildViewModel()
+        assertEquals(1, rosterRepo.ensureOwnerMemberCallCount)
+
+        // A second emission (still without the owner row, e.g. the write hasn't landed
+        // yet) must not fire a second ensure call.
+        rosterRepo.seedMembers(listOf(rosterMember("named-1", "Ngozi Eze"), rosterMember("named-2", "Tayo")))
+        assertEquals(1, rosterRepo.ensureOwnerMemberCallCount)
+    }
+
+    @Test
+    fun ensureOwnerMemberFallsBackToEmailWhenDisplayNameBlank() {
+        authRepo.currentUser = User(
+            id = "owner-1",
+            email = "owner@example.com",
+            displayName = "  ",
+            businessName = "Ade Fashions",
+            phoneNumber = null,
+            whatsappNumber = null,
+            avatarColorIndex = 0,
+        )
+        rosterRepo.seedMembers(emptyList())
+        buildViewModel()
+
+        assertEquals("owner@example.com", rosterRepo.lastEnsuredOwnerName)
+    }
+
+    @Test
+    fun ensureOwnerMemberFailureEmitsSnackbar() = runTest {
+        rosterRepo.seedMembers(emptyList())
+        rosterRepo.operationError = DataError.Network.UNKNOWN
+        val vm = buildViewModel()
+
+        vm.events.test {
+            assertIs<TeamEvent.ShowSnackbar>(awaitItem())
+        }
     }
 }

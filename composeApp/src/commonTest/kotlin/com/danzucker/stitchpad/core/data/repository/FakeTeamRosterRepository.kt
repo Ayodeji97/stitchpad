@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.core.data.repository
 
+import com.danzucker.stitchpad.core.data.staff.sortedForRoster
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
@@ -21,6 +22,9 @@ class FakeTeamRosterRepository : TeamRosterRepository {
     var lastRenamedMemberId: String? = null
     var lastRenamedName: String? = null
     var lastArchivedMemberId: String? = null
+    var ensureOwnerMemberCallCount = 0
+    var lastEnsuredOwnerUid: String? = null
+    var lastEnsuredOwnerName: String? = null
 
     private var nextId = 0
     private val _members = MutableStateFlow<List<TeamMember>>(emptyList())
@@ -33,11 +37,12 @@ class FakeTeamRosterRepository : TeamRosterRepository {
     override fun observeTeam(workshopUid: String): Flow<Result<List<TeamMember>, DataError.Network>> =
         _members.asStateFlow().map { current ->
             observeError?.let { Result.Error(it) }
-                // Mirror the interface's documented sort (active first, then name,
-                // case-insensitively — see FirebaseTeamRosterRepository.observeTeam) — the
-                // real Firestore-backed impl sorts server-side; this fake previously
-                // passed the seed order through unsorted.
-                ?: Result.Success(current.sortedWith(compareBy({ it.status }, { it.name.lowercase() })))
+                // Mirror the interface's documented sort (owner first, then active before
+                // archived, then name case-insensitively — see
+                // FirebaseTeamRosterRepository.observeTeam) — the real Firestore-backed
+                // impl sorts server-side; this fake previously passed the seed order
+                // through unsorted.
+                ?: Result.Success(current.sortedForRoster())
         }
 
     override suspend fun addNamedMember(workshopUid: String, name: String): EmptyResult<DataError.Network> {
@@ -76,6 +81,22 @@ class FakeTeamRosterRepository : TeamRosterRepository {
         _members.value = _members.value.map {
             if (it.id == memberId) it.copy(status = TeamMemberStatus.ARCHIVED) else it
         }
+        return Result.Success(Unit)
+    }
+
+    override suspend fun ensureOwnerMember(workshopUid: String, name: String): EmptyResult<DataError.Network> {
+        ensureOwnerMemberCallCount++
+        lastEnsuredOwnerUid = workshopUid
+        lastEnsuredOwnerName = name
+        operationError?.let { return Result.Error(it) }
+        val trimmedName = name.trim()
+        _members.value = _members.value + TeamMember(
+            id = workshopUid,
+            name = trimmedName,
+            kind = TeamMemberKind.OWNER,
+            colorSeed = 0,
+            status = TeamMemberStatus.ACTIVE,
+        )
         return Result.Success(Unit)
     }
 }
