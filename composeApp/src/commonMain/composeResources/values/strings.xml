@@ -1922,6 +1922,8 @@
     <string name="team_rename">Rename</string>
     <string name="team_rename_sheet_title">Rename member</string>
     <string name="team_archive">Archive</string>
+    <string name="team_workload_open_orders">%1$d open</string>
+    <string name="team_workload_unassigned">Unassigned</string>
 
     <!-- Staff onboarding (Owner + Staff feature) -->
     <string name="staff_sign_out">Sign out</string>

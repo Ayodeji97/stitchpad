@@ -26,7 +26,7 @@ val staffModule = module {
     viewModelOf(::RedeemInviteViewModel)
     // Lambda factory (not viewModelOf) because TeamViewModel takes a default-value
     // nowMillis parameter — viewModelOf can't skip constructor defaults.
-    viewModel { TeamViewModel(get(), get(), get()) }
+    viewModel { TeamViewModel(get(), get(), get(), get()) }
     // workshopName (display) + fromRedeem (flag) are nav args passed via parametersOf.
     viewModel { params ->
         StaffPendingViewModel(params.get(), params.get(), get(), get(), get(), get())

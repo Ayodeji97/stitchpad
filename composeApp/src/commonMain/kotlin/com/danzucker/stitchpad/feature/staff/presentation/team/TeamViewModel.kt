@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.error.onFailure
+import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
 import com.danzucker.stitchpad.core.domain.staff.StaffInvite
 import com.danzucker.stitchpad.core.domain.staff.TeamMember
@@ -13,6 +14,7 @@ import com.danzucker.stitchpad.core.domain.staff.repository.TeamRosterRepository
 import com.danzucker.stitchpad.core.domain.staff.resolveClaimDisplayName
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
+import com.danzucker.stitchpad.feature.order.presentation.list.OrderListFilter
 import com.danzucker.stitchpad.feature.staff.presentation.toTeamRosterUiText
 import com.danzucker.stitchpad.feature.staff.presentation.toUiText
 import kotlinx.coroutines.channels.Channel
@@ -33,10 +35,12 @@ import kotlin.time.Clock
  * members. The memberships listener is the single source of truth for the list,
  * so approve/decline/revoke only surface errors — the list refreshes itself.
  */
+@Suppress("TooManyFunctions")
 class TeamViewModel(
     private val staffRepository: StaffRepository,
     private val teamRosterRepository: TeamRosterRepository,
     private val authRepository: AuthRepository,
+    private val orderRepository: OrderRepository,
     private val nowMillis: () -> Long = { Clock.System.now().toEpochMilliseconds() },
 ) : ViewModel() {
 
@@ -57,6 +61,7 @@ class TeamViewModel(
     init {
         observeTeam()
         observeRoster()
+        observeWorkload()
     }
 
     @Suppress("CyclomaticComplexMethod")
@@ -81,6 +86,7 @@ class TeamViewModel(
             is TeamAction.OnRenameMember -> _state.update { it.copy(renameTarget = action.member) }
             is TeamAction.OnConfirmRename -> onConfirmRename(action.name)
             is TeamAction.OnArchiveMember -> onArchiveMember(action.member)
+            is TeamAction.OnMemberOrdersClick -> onMemberOrdersClick(action.memberId)
             TeamAction.OnErrorDismiss -> _state.update { it.copy(errorMessage = null) }
         }
     }
@@ -155,6 +161,30 @@ class TeamViewModel(
                 _events.send(TeamEvent.ShowSnackbar(error.toTeamRosterUiText()))
             }
         }
+    }
+
+    /**
+     * Streams open-order counts per assignee (Task 9), client-side over the same orders
+     * stream the Orders list itself observes — no new Firestore query. Independent of
+     * [observeRoster]'s listener: a failure here must NOT clobber the shared
+     * `errorMessage` (mirrors [observeRoster]'s comment) — the roster stays usable even
+     * if the workload counts fail to load.
+     */
+    private fun observeWorkload() {
+        viewModelScope.launch {
+            val ownerUid = authRepository.getCurrentUser()?.id ?: return@launch
+            orderRepository.observeOrders(ownerUid).collect { result ->
+                if (result is Result.Success) {
+                    _state.update { it.copy(workloadCounts = openOrderCountsByAssignee(result.data)) }
+                }
+                // Result.Error: ignore — see kdoc above.
+            }
+        }
+    }
+
+    private fun onMemberOrdersClick(memberId: String?) {
+        val initialFilter = memberId?.let(OrderListFilter::assignee) ?: OrderListFilter.ASSIGNEE_UNASSIGNED
+        emit(TeamEvent.NavigateToMemberOrders(initialFilter))
     }
 
     private fun onConfirmAddMember() {

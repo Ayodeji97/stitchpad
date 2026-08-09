@@ -43,6 +43,14 @@ data class TeamState(
     val addMemberName: String = "",
     /** Non-null while the rename sheet is shown for this roster row. */
     val renameTarget: TeamMember? = null,
+    /**
+     * Open-order counts per roster member id (Task 9's "who is working on what"), keyed
+     * like [com.danzucker.stitchpad.core.domain.model.Order.assignedMemberId] — `null` is
+     * the unassigned bucket. See [openOrderCountsByAssignee]. Independent of [roster]'s own
+     * listener failures — a stalled/erroring orders stream just leaves this at its default
+     * and the roster stays usable.
+     */
+    val workloadCounts: Map<String?, Int> = emptyMap(),
 ) {
     /** Pending requests count against seats too — a pending member holds a seat. */
     val seatsUsed: Int get() = pending.size + active.size

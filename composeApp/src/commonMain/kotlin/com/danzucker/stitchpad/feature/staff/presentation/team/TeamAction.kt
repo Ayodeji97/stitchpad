@@ -28,5 +28,12 @@ sealed interface TeamAction {
     data class OnConfirmRename(val name: String) : TeamAction
     data class OnArchiveMember(val member: TeamMember) : TeamAction
 
+    /**
+     * A roster row's (or the "Unassigned" pseudo-row's) open-order count was tapped
+     * (Task 9). [memberId] is the roster member id ([TeamMember.id]) to deep-link into
+     * the Orders list for, or `null` for the unassigned bucket.
+     */
+    data class OnMemberOrdersClick(val memberId: String?) : TeamAction
+
     data object OnErrorDismiss : TeamAction
 }

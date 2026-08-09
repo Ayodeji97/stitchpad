@@ -717,7 +717,16 @@ private fun MainNavGraph(
         }
         // Slice 7: owner Team management, reached from Settings.
         composable<TeamRoute> {
-            TeamRoot(onNavigateBack = { navController.navigateUp() })
+            TeamRoot(
+                onNavigateBack = { navController.navigateUp() },
+                // Task 9: workload row tap deep-links into the Orders list pre-filtered
+                // by assignee — same mechanism as DashboardRoute's onNavigateToOrders.
+                onNavigateToOrders = { filter ->
+                    navController.navigate(OrderListRoute(initialFilter = filter)) {
+                        launchSingleTop = true
+                    }
+                },
+            )
         }
         composable<SettingsInviteRewardsRoute> {
             SettingsInviteRewardsRoot(

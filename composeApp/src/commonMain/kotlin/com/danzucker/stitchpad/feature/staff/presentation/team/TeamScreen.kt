@@ -4,6 +4,7 @@ package com.danzucker.stitchpad.feature.staff.presentation.team
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -128,10 +129,13 @@ import stitchpad.composeapp.generated.resources.team_seats_note
 import stitchpad.composeapp.generated.resources.team_seats_plan_hint
 import stitchpad.composeapp.generated.resources.team_seats_used
 import stitchpad.composeapp.generated.resources.team_title
+import stitchpad.composeapp.generated.resources.team_workload_open_orders
+import stitchpad.composeapp.generated.resources.team_workload_unassigned
 
 @Composable
 fun TeamRoot(
     onNavigateBack: () -> Unit,
+    onNavigateToOrders: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val viewModel: TeamViewModel = koinViewModel()
@@ -153,6 +157,7 @@ fun TeamRoot(
             is TeamEvent.ShowSnackbar -> scope.launch {
                 snackbarHostState.showSnackbar(event.text.resolve())
             }
+            is TeamEvent.NavigateToMemberOrders -> onNavigateToOrders(event.initialFilter)
         }
     }
 
@@ -235,7 +240,12 @@ fun TeamScreen(
             // Outside the isEmpty branch: named roster members are independent of the
             // seat-capped staff invite flow above, so "Add member" must stay reachable
             // even when the owner has zero staff memberships (isEmpty == true).
-            RosterSection(roster = state.activeRoster, currentAuthUid = state.currentUserId, onAction = onAction)
+            RosterSection(
+                roster = state.activeRoster,
+                currentAuthUid = state.currentUserId,
+                workloadCounts = state.workloadCounts,
+                onAction = onAction,
+            )
             Spacer(Modifier.height(DesignTokens.space8))
         }
     }
@@ -376,16 +386,30 @@ private fun ActiveSection(active: List<Membership>, onAction: (TeamAction) -> Un
  * Name-only + staff roster rows, plus the "Add member" CTA. Unlike [PendingSection] and
  * [ActiveSection] this always renders (even with an empty [roster]) — named members are
  * independent of the seat-capped staff invite flow, so the CTA to add one must stay reachable.
+ *
+ * [workloadCounts] (Task 9) drives each row's trailing open-order count and, when the
+ * unassigned bucket ([workloadCounts]'s `null` key) is non-zero, an extra pseudo-row
+ * appended after the roster — there's no roster member to attach that count to.
  */
 @Composable
 private fun RosterSection(
     roster: List<TeamMember>,
     currentAuthUid: String?,
+    workloadCounts: Map<String?, Int>,
     onAction: (TeamAction) -> Unit,
 ) {
     SectionHeader(text = stringResource(Res.string.team_roster_header))
     roster.forEach { member ->
-        RosterMemberRow(member = member, currentAuthUid = currentAuthUid, onAction = onAction)
+        RosterMemberRow(
+            member = member,
+            currentAuthUid = currentAuthUid,
+            openOrderCount = workloadCounts[member.id] ?: 0,
+            onAction = onAction,
+        )
+    }
+    val unassignedCount = workloadCounts[null] ?: 0
+    if (unassignedCount > 0) {
+        UnassignedWorkloadRow(count = unassignedCount, onAction = onAction)
     }
     StitchPadButton(
         text = stringResource(Res.string.team_add_member),
@@ -510,14 +534,24 @@ internal fun rosterRowShowsMenu(kind: TeamMemberKind): Boolean = kind == TeamMem
  * member gets one ([rosterRowShowsMenu]) — a STAFF row shows a "linked account" caption
  * instead, and an OWNER row (Task 6) shows neither: it renders [rosterDisplayName] (so the
  * owner sees "You") with no trailing affordance at all.
+ *
+ * [openOrderCount] (Task 9) renders as a trailing count label, and only makes the row
+ * clickable — deep-linking into the Orders list filtered to this member — when it's
+ * greater than zero; a member with no open work has nothing to tap through to.
  */
 @Composable
 private fun RosterMemberRow(
     member: TeamMember,
     currentAuthUid: String?,
+    openOrderCount: Int,
     onAction: (TeamAction) -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
+    val clickModifier = if (openOrderCount > 0) {
+        Modifier.clickable { onAction(TeamAction.OnMemberOrdersClick(member.id)) }
+    } else {
+        Modifier
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -528,6 +562,7 @@ private fun RosterMemberRow(
                 color = MaterialTheme.colorScheme.outlineVariant,
                 shape = RoundedCornerShape(DesignTokens.radiusLg),
             )
+            .then(clickModifier)
             .padding(DesignTokens.space3),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -541,6 +576,9 @@ private fun RosterMemberRow(
                 .weight(1f)
                 .padding(start = DesignTokens.space3),
         )
+        if (openOrderCount > 0) {
+            WorkloadCountLabel(count = openOrderCount, modifier = Modifier.padding(end = DesignTokens.space2))
+        }
         if (member.kind == TeamMemberKind.STAFF) {
             Text(
                 text = stringResource(Res.string.team_member_linked),
@@ -575,6 +613,51 @@ private fun RosterMemberRow(
             }
         }
         // OWNER: neither branch — no trailing affordance at all (Task 6).
+    }
+}
+
+/** "N open" trailing label shared by [RosterMemberRow] and [UnassignedWorkloadRow] (Task 9). */
+@Composable
+private fun WorkloadCountLabel(count: Int, modifier: Modifier = Modifier) {
+    Text(
+        text = stringResource(Res.string.team_workload_open_orders, count),
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = modifier,
+    )
+}
+
+/**
+ * Pseudo-row for orders assigned to nobody (Task 9) — there's no roster member to attach
+ * this count to, so it's appended after the roster rows in [RosterSection], only when
+ * [count] is greater than zero. Always clickable (unlike [RosterMemberRow], which is
+ * only clickable when its count is positive) since it's only ever shown when count > 0.
+ */
+@Composable
+private fun UnassignedWorkloadRow(count: Int, onAction: (TeamAction) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = DesignTokens.space3)
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(DesignTokens.radiusLg))
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant,
+                shape = RoundedCornerShape(DesignTokens.radiusLg),
+            )
+            .clickable { onAction(TeamAction.OnMemberOrdersClick(null)) }
+            .padding(DesignTokens.space3),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(Res.string.team_workload_unassigned),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        WorkloadCountLabel(count = count)
     }
 }
 
@@ -991,6 +1074,10 @@ private fun TeamScreenPopulatedPreview() {
                 // Owner row first — matches the Task 5 repository-level roster sort.
                 roster = listOf(sampleOwnerRosterMember, sampleStaffRosterMember, sampleNamedRosterMember),
                 currentUserId = SAMPLE_OWNER_UID,
+                // Task 9 workload counts — exercises the trailing count label, the
+                // clickable-only-when-positive row (owner has none), and the
+                // "Unassigned" pseudo-row.
+                workloadCounts = mapOf("uid-gabby" to 3, null to 2),
             ),
             onAction = {},
             snackbarHostState = remember { SnackbarHostState() },
@@ -1026,6 +1113,7 @@ private fun RosterSectionPreview() {
             RosterSection(
                 roster = listOf(sampleOwnerRosterMember, sampleStaffRosterMember, sampleNamedRosterMember),
                 currentAuthUid = SAMPLE_OWNER_UID,
+                workloadCounts = mapOf("uid-gabby" to 3, null to 2),
                 onAction = {},
             )
         }
