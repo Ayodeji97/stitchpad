@@ -1,0 +1,19 @@
+{
+  "//": "Dedicated config for `functions/npm run test:rules` (firebase emulators:exec). Kept separate from the deploy-facing firebase.json so rules-test emulator wiring (storage emulator port) never touches production deploy targets. Loads the same firestore.rules/storage.rules the app ships.",
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8080
+    },
+    "storage": {
+      "port": 9199
+    },
+    "singleProjectMode": true
+  }
+}
