@@ -163,3 +163,10 @@ Sub-roles ("staff admin"), per-permission editor, staff activity log, comments/m
    `owner`) at workshop-tree first use, include it in the assign picker, render
    self-assignment as "You" for the owner, and exclude it from archive/rename.
    Until then owners track their own work implicitly.
+5. **Workload overview (who is working on what)** — assignment is currently only
+   visible per-order: the assignee chip on Orders-list rows and the Assigned-to
+   card in order detail. There is no grouped view of the workshop's load. Phase 2b
+   candidate: a per-member breakdown (e.g. on the Team screen or a dashboard
+   section) showing each roster member with their open-order count, tappable
+   into an assignee-filtered order list. Pairs with follow-up #4 — the owner
+   only appears in this overview once they are in the roster.
