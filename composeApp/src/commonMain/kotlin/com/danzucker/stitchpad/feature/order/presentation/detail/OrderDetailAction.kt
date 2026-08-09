@@ -156,11 +156,23 @@ sealed interface OrderDetailAction {
  *    an order-setup decision, not day-to-day production work, even though the rules
  *    now technically admit `items[].measurementId` as part of the `items` whitelist.
  *    Viewing a linked measurement ([OrderDetailAction.OnViewMeasurementClick]) stays
- *    unrestricted.
+ *    unrestricted. [OrderDetailAction.OnCreateNewMeasurementClick] is listed
+ *    explicitly even though its only entry point is the (restricted) picker sheet, so
+ *    a future second entry point can't quietly hand staff a server-denied screen.
  *  - Garment media (add/remove style photo, add/remove fabric photo, add fabric
  *    name) is staff-ENABLED as of Phase 2b — these persist via `items`, which is on
  *    the whitelist, and route through [OrderRepository.updateItems] (items+updatedAt
  *    only, money-free).
+ *  - The saved-style LIBRARY is OWNER-ONLY, and so is style creation
+ *    ([OrderDetailAction.OnAddStyleClick] / [OrderDetailAction.OnCreateNewStyleClick]).
+ *    Rules make `customers/{id}/styles`, `styleFolders`, `inspiration` and
+ *    `inspirationFolders` `isOwner`-only, so a staff picker could only ever be empty,
+ *    and StyleFormRoute's three writes (style doc create, style photo upload outside
+ *    the `users/{uid}/orders` Storage subtree, and the order link via `updateOrder`'s base merge +
+ *    `/private/money`) are ALL server-denied for staff. Staff attach style photos with
+ *    the camera/gallery upload path instead, which writes through `items`.
+ *    OrderDetailScreen hides the "Pick from saved" row for staff so this guard never
+ *    has to defend a dead button.
  */
 @Suppress("CyclomaticComplexMethod")
 internal fun OrderDetailAction.isStaffRestricted(): Boolean = when (this) {
@@ -215,6 +227,13 @@ internal fun OrderDetailAction.isStaffRestricted(): Boolean = when (this) {
     // measurement ([OrderDetailAction.OnViewMeasurementClick]) stays unrestricted.
     OrderDetailAction.OnLinkMeasurementsClick,
     is OrderDetailAction.OnSelectMeasurement,
+    OrderDetailAction.OnCreateNewMeasurementClick,
+    // Saved-style LIBRARY — owner-only. Staff add style photos by camera/gallery
+    // upload ([OrderDetailAction.OnAddStylePhoto], which persists via `items`), never
+    // via saved styles. Both the picker entry point and its "Create new" button are
+    // guarded; the screen also hides the "Pick from saved" row for staff.
+    is OrderDetailAction.OnAddStyleClick,
+    is OrderDetailAction.OnCreateNewStyleClick,
     -> true
 
     else -> false

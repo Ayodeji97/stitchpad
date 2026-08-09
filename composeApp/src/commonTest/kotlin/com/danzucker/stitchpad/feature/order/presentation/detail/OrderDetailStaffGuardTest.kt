@@ -120,6 +120,34 @@ class OrderDetailStaffGuardTest {
         }
     }
 
+    /**
+     * Whole-branch review (Important): the saved-style LIBRARY is owner-only in the
+     * Firestore rules (`customers/{id}/styles`, `styleFolders`, `inspiration*` are all
+     * `isOwner`), so for staff the picker can only ever be empty and its "Create new"
+     * button led to a StyleFormRoute where the style-doc create, the style-photo
+     * Storage upload and the `updateOrder` order link are ALL server-denied. Both the
+     * picker entry point and the create button are staff-restricted, and
+     * OrderDetailScreen hides the "Pick from saved" row for staff so the guard has no
+     * dead affordance to defend.
+     *
+     * `OnCreateNewMeasurementClick` is in the same family: its ONLY entry point is the
+     * measurement picker sheet, which only opens via the already-restricted
+     * `OnLinkMeasurementsClick`. It is listed here explicitly so that reachability
+     * stops being luck — if a future screen wires a second entry point, the guard still
+     * holds.
+     */
+    @Test
+    fun ownerOnlyLibraryCreationActions_areStaffRestricted() {
+        val restricted = listOf(
+            OrderDetailAction.OnAddStyleClick(itemId = "i1"),
+            OrderDetailAction.OnCreateNewStyleClick(itemId = "i1"),
+            OrderDetailAction.OnCreateNewMeasurementClick,
+        )
+        restricted.forEach {
+            assertTrue(it.isStaffRestricted(), "$it must be staff-restricted")
+        }
+    }
+
     // --- Phase 2b: garment media + notes are staff-enabled (rules work-fields whitelist) ---
 
     @Test
@@ -127,7 +155,9 @@ class OrderDetailStaffGuardTest {
         val allowed = listOf(
             // Garment media (style + fabric) — staff-enabled as of Phase 2b. Actions
             // wired from OrderGarmentDetailsCard's callbacks (OrderDetailScreen.kt).
-            OrderDetailAction.OnAddStyleClick(itemId = "i1"),
+            // NOTE: OnAddStyleClick (the saved-style PICKER) is NOT here — the style
+            // library is owner-only, see ownerOnlyLibraryCreationActions_* above. Staff
+            // add style photos by camera/gallery upload, which is this action:
             OrderDetailAction.OnAddStylePhoto(itemId = "i1", photoBytes = byteArrayOf(1, 2, 3)),
             OrderDetailAction.OnRemoveStyleImage(itemId = "i1", index = 0),
             OrderDetailAction.OnAddFabricPhoto(itemId = "i1", photoBytes = byteArrayOf(4, 5, 6)),
