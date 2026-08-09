@@ -286,6 +286,47 @@ class OrderListStaffTest {
     }
 
     @Test
+    fun tappingAll_clearsMyWorkFilterToo() = runTest {
+        // "All" must mean everything: with My work on and no status filter, All was
+        // a dead tap (status already null) — it now resets the orthogonal filters.
+        setStaffSession()
+        orderRepository.ordersList = listOf(
+            sampleOrder().copy(id = "mine", assignedMemberId = "s"),
+            sampleOrder().copy(id = "not-mine", assignedMemberId = "other"),
+        )
+        val vm = createViewModel()
+        vm.onAction(OrderListAction.OnToggleMyWork)
+        assertEquals(listOf("mine"), vm.state.value.orders.map { it.id })
+
+        vm.onAction(OrderListAction.OnStatusFilterChange(null))
+
+        assertFalse(vm.state.value.myWorkOnly)
+        assertEquals(setOf("mine", "not-mine"), vm.state.value.orders.map { it.id }.toSet())
+    }
+
+    @Test
+    fun deselectingStatusChip_keepsMyWorkActive() = runTest {
+        // Backing out of one status chip is not a request for "everything" — the
+        // my-work slice must survive a status-chip deselect.
+        setStaffSession()
+        orderRepository.ordersList = listOf(
+            sampleOrder().copy(id = "mine-pending", assignedMemberId = "s", status = OrderStatus.PENDING),
+            sampleOrder().copy(id = "mine-ready", assignedMemberId = "s", status = OrderStatus.READY),
+            sampleOrder().copy(id = "other-pending", assignedMemberId = "other", status = OrderStatus.PENDING),
+        )
+        val vm = createViewModel()
+        vm.onAction(OrderListAction.OnToggleMyWork)
+        vm.onAction(OrderListAction.OnStatusFilterChange(OrderStatus.PENDING))
+        assertEquals(listOf("mine-pending"), vm.state.value.orders.map { it.id })
+
+        vm.onAction(OrderListAction.OnStatusFilterChange(OrderStatus.PENDING))
+
+        assertTrue(vm.state.value.myWorkOnly)
+        assertNull(vm.state.value.statusFilter)
+        assertEquals(setOf("mine-pending", "mine-ready"), vm.state.value.orders.map { it.id }.toSet())
+    }
+
+    @Test
     fun myWorkOnly_staysActiveAcrossKillSwitchAsOwnerFilter() = runTest {
         setStaffSession() // authUid = "s", workshopUid = "o"
         orderRepository.setOrdersFor("o", listOf(sampleOrder().copy(id = "mine", assignedMemberId = "s")))

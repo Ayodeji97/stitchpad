@@ -369,6 +369,29 @@ class OrderListViewModelTest {
     }
 
     @Test
+    fun tappingAll_clearsAssigneeFilterToo() = runTest {
+        // "All" is a full reset: it also drops an active assignee deep-link filter
+        // (same rationale as the my-work reset — see OrderListStaffTest).
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "m1-order").copy(assignedMemberId = "m1", assignedMemberName = "Musa"),
+            fakeOrder(id = "other-order").copy(assignedMemberId = "other"),
+        )
+        val vm = createViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("initialFilter" to OrderListFilter.assignee("m1"))),
+        )
+        assertEquals(listOf("m1-order"), vm.state.value.orders.map { it.id })
+
+        vm.onAction(OrderListAction.OnStatusFilterChange(null))
+
+        assertNull(vm.state.value.assigneeFilter)
+        assertNull(vm.state.value.assigneeFilterName)
+        assertEquals(
+            setOf("m1-order", "other-order"),
+            vm.state.value.orders.map { it.id }.toSet(),
+        )
+    }
+
+    @Test
     fun assigneeFilterName_fallsBackToRawId_untilAMatchingOrderLoads() = runTest {
         // No order matching "m1" has loaded yet — the label falls back to the raw
         // id rather than staying null, so the chip never renders blank.

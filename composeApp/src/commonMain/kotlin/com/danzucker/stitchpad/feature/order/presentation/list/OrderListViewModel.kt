@@ -159,15 +159,28 @@ class OrderListViewModel(
             // archived view no status chip renders selected) deselects it back to All.
             val newStatus = status
                 .takeUnless { !state.showArchived && it == state.statusFilter }
+            // Tapping "All" (status == null) is a full reset: it also clears the
+            // orthogonal my-work and assignee filters — "All" must mean everything,
+            // not "no status, but still someone's slice" (owner smoke, 2026-08-09:
+            // with My work on, tapping All looked dead because status was already
+            // null). A status-chip DESELECT (newStatus == null via takeUnless above)
+            // deliberately keeps them: backing out of Pending while in My work
+            // should stay in My work.
+            val isAllTap = status == null
+            val myWorkOnly = if (isAllTap) false else state.myWorkOnly
+            val assigneeFilter = if (isAllTap) null else state.assigneeFilter
             state.copy(
                 statusFilter = newStatus,
+                myWorkOnly = myWorkOnly,
+                assigneeFilter = assigneeFilter,
+                assigneeFilterName = if (isAllTap) null else state.assigneeFilterName,
                 showArchived = false,
                 orders = filterAndSort(
                     allOrders,
                     newStatus,
-                    state.myWorkOnly,
+                    myWorkOnly,
                     state.sessionAuthUid,
-                    state.assigneeFilter,
+                    assigneeFilter,
                 )
             )
         }
