@@ -58,10 +58,22 @@ class OrderListViewModel(
     // through to the `else` and leave the list unfiltered, same as null.
     private val initialFilter: String? = savedStateHandle["initialFilter"]
 
+    // Task 8: an `assignee:<memberId>` (or `assignee:none`) deep link — Task 9 navigates
+    // here with one of these from a Team screen workload row. removePrefix() is a no-op
+    // (returns the input unchanged) when the prefix isn't present, so the takeIf guard is
+    // what actually gates this to null for every other initialFilter value.
+    private val seededAssigneeFilter: String? = initialFilter
+        ?.removePrefix(OrderListFilter.ASSIGNEE_PREFIX)
+        ?.takeIf { initialFilter.startsWith(OrderListFilter.ASSIGNEE_PREFIX) }
+
     private val _state = MutableStateFlow(
         OrderListState(
             statusFilter = if (initialFilter == OrderListFilter.IN_PROGRESS) OrderStatus.IN_PROGRESS else null,
             myWorkOnly = initialFilter == OrderListFilter.MY_WORK,
+            assigneeFilter = seededAssigneeFilter,
+            // allOrders is still empty at construction time, so this resolves via the
+            // pure helper's own fallback (the raw id) until the first snapshot lands.
+            assigneeFilterName = seededAssigneeFilter?.let { assigneeFilterLabelName(allOrders, it) },
         )
     )
 
@@ -134,6 +146,7 @@ class OrderListViewModel(
                 _state.update { it.copy(showProfit = !it.showProfit) }
             }
             OrderListAction.OnToggleMyWork -> toggleMyWork()
+            OrderListAction.OnClearAssigneeFilter -> clearAssigneeFilter()
             OrderListAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
             }
@@ -154,6 +167,7 @@ class OrderListViewModel(
                     newStatus,
                     state.myWorkOnly,
                     state.sessionAuthUid,
+                    state.assigneeFilter,
                 )
             )
         }
@@ -171,6 +185,7 @@ class OrderListViewModel(
                         state.statusFilter,
                         state.myWorkOnly,
                         state.sessionAuthUid,
+                        state.assigneeFilter,
                     )
                 )
             } else {
@@ -199,6 +214,26 @@ class OrderListViewModel(
                     state.statusFilter,
                     myWorkOnly,
                     state.sessionAuthUid,
+                    state.assigneeFilter,
+                )
+            )
+        }
+    }
+
+    // Task 8: re-tapping the assignee chip is the only way to clear it — it has no
+    // toggle semantics of its own (unlike status/Archived/My-work, it isn't reselectable
+    // to a different value from the list screen; Task 9's Team screen is what sets it).
+    private fun clearAssigneeFilter() {
+        _state.update { state ->
+            state.copy(
+                assigneeFilter = null,
+                assigneeFilterName = null,
+                orders = filterAndSort(
+                    allOrders,
+                    state.statusFilter,
+                    state.myWorkOnly,
+                    state.sessionAuthUid,
+                    assigneeFilter = null,
                 )
             )
         }
@@ -255,6 +290,11 @@ class OrderListViewModel(
                             state.copy(
                                 isLoading = false,
                                 orders = if (state.showArchived) state.orders else emptyList(),
+                                // Task 8: allOrders just reset — recompute the label so a
+                                // still-active assignee filter falls back to the raw id
+                                // instead of showing a name from the tree that just left.
+                                assigneeFilterName = state.assigneeFilter
+                                    ?.let { assigneeFilterLabelName(allOrders, it) },
                             )
                         }
                         return@collect
@@ -273,9 +313,16 @@ class OrderListViewModel(
                                             state.statusFilter,
                                             state.myWorkOnly,
                                             state.sessionAuthUid,
+                                            state.assigneeFilter,
                                         )
                                     },
-                                    isLoading = false
+                                    isLoading = false,
+                                    // Task 8: re-resolve the assignee chip's display name off
+                                    // every fresh snapshot while the filter is active — the
+                                    // matching order (and its assignedMemberName) may not have
+                                    // been in the tree yet on an earlier snapshot.
+                                    assigneeFilterName = state.assigneeFilter
+                                        ?.let { assigneeFilterLabelName(result.data, it) },
                                 )
                             }
                         }
@@ -396,6 +443,7 @@ class OrderListViewModel(
         statusFilter: OrderStatus?,
         myWorkOnly: Boolean = false,
         sessionAuthUid: String? = null,
+        assigneeFilter: String? = null,
     ): List<Order> {
         val statusFiltered = when (statusFilter) {
             null -> orders.filter { it.status != OrderStatus.DELIVERED }
@@ -408,8 +456,16 @@ class OrderListViewModel(
         } else {
             statusFiltered
         }
+        // Task 8: the `assignee:` deep link's own filter, composed after the my-work step —
+        // narrows to one member's assignments (or unassigned orders), independent of who's
+        // signed in. Task 9's Team workload rows are what seed this.
+        val assigneeFiltered = when (assigneeFilter) {
+            null -> filtered
+            OrderListFilter.ASSIGNEE_NONE_ID -> filtered.filter { it.assignedMemberId == null }
+            else -> filtered.filter { it.assignedMemberId == assigneeFilter }
+        }
         // Reuse the triage comparator so same-deadline ties resolve identically in both the
         // triage-grouped and the chip-filtered views (createdAt desc = newest-first).
-        return filtered.sortedWith(orderListComparator)
+        return assigneeFiltered.sortedWith(orderListComparator)
     }
 }

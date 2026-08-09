@@ -32,6 +32,20 @@ data class OrderListState(
     val myWorkOnly: Boolean = false,
     /** When true, [orders] holds archived orders (Restore affordance) instead of the active list. */
     val showArchived: Boolean = false,
+    /**
+     * A member id (matches [Order.assignedMemberId]), or [OrderListFilter.ASSIGNEE_NONE_ID]
+     * for "unassigned", seeded from an `assignee:` deep link (Task 8 — Task 9 navigates here
+     * from a Team screen workload row) or set to null by [OrderListAction.OnClearAssigneeFilter].
+     * Like [myWorkOnly], applies to the ACTIVE list only — the Archived view ignores it.
+     */
+    val assigneeFilter: String? = null,
+    /**
+     * Display label for the assignee chip when [assigneeFilter] is an id (not "unassigned",
+     * which the Screen renders via a fixed string instead). Recomputed in the VM via the pure
+     * [assigneeFilterLabelName] helper whenever [assigneeFilter] is active — kept in state,
+     * not derived in the Screen, because the Screen never sees the unfiltered order list.
+     */
+    val assigneeFilterName: String? = null,
     val isLoading: Boolean = true,
     /**
      * Whether the archived snapshot is still loading. Tracked separately from

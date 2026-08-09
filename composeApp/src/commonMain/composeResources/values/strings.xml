@@ -578,6 +578,8 @@
     <string name="order_fab_cd">Add order</string>
     <string name="order_filter_all">All</string>
     <string name="order_filter_my_work">My work</string>
+    <string name="order_filter_assigned_to">Assigned to %1$s</string>
+    <string name="order_filter_unassigned">Unassigned</string>
     <string name="order_filter_archived">Archived</string>
     <string name="order_restore_cta">Restore</string>
     <string name="order_restored_snackbar">Order restored</string>

@@ -48,4 +48,38 @@ class OrderChipSelectionTest {
             allChipSelected(showArchived = false, selectedStatus = OrderStatus.IN_PROGRESS, myWorkOnly = true)
         )
     }
+
+    // --- Task 8: assignee: deep link — "All" must not highlight while an
+    // assignee filter is active either, same reasoning as the myWorkOnly conjunct. ---
+
+    @Test
+    fun assigneeFilterActive_allChipNotSelected() {
+        assertFalse(
+            allChipSelected(
+                showArchived = false,
+                selectedStatus = null,
+                myWorkOnly = false,
+                assigneeFilter = "m1",
+            )
+        )
+    }
+
+    @Test
+    fun assigneeFilterActive_withUnassignedValue_allChipNotSelected() {
+        assertFalse(
+            allChipSelected(
+                showArchived = false,
+                selectedStatus = null,
+                myWorkOnly = false,
+                assigneeFilter = "none",
+            )
+        )
+    }
+
+    @Test
+    fun noAssigneeFilter_defaultParam_allChipSelected() {
+        // assigneeFilter defaults to null so every pre-Task-8 call site (a bare
+        // 3-arg call) keeps compiling and behaving exactly as before.
+        assertTrue(allChipSelected(showArchived = false, selectedStatus = null, myWorkOnly = false))
+    }
 }

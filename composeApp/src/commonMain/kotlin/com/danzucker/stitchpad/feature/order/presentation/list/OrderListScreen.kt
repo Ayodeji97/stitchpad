@@ -115,7 +115,9 @@ import stitchpad.composeapp.generated.resources.order_empty_title
 import stitchpad.composeapp.generated.resources.order_fab_cd
 import stitchpad.composeapp.generated.resources.order_filter_all
 import stitchpad.composeapp.generated.resources.order_filter_archived
+import stitchpad.composeapp.generated.resources.order_filter_assigned_to
 import stitchpad.composeapp.generated.resources.order_filter_my_work
+import stitchpad.composeapp.generated.resources.order_filter_unassigned
 import stitchpad.composeapp.generated.resources.order_hide_profit
 import stitchpad.composeapp.generated.resources.order_list_title
 import stitchpad.composeapp.generated.resources.order_priority_rush
@@ -246,9 +248,12 @@ fun OrderListScreen(
                 selectedStatus = state.statusFilter,
                 showArchived = state.showArchived,
                 myWorkOnly = state.myWorkOnly,
+                assigneeFilter = state.assigneeFilter,
+                assigneeFilterName = state.assigneeFilterName,
                 onStatusSelected = { onAction(OrderListAction.OnStatusFilterChange(it)) },
                 onArchivedSelected = { onAction(OrderListAction.OnShowArchived) },
-                onMyWorkSelected = { onAction(OrderListAction.OnToggleMyWork) }
+                onMyWorkSelected = { onAction(OrderListAction.OnToggleMyWork) },
+                onClearAssigneeFilter = { onAction(OrderListAction.OnClearAssigneeFilter) }
             )
 
             when {
@@ -395,9 +400,12 @@ private fun OrderStatusFilterChips(
     selectedStatus: OrderStatus?,
     showArchived: Boolean,
     myWorkOnly: Boolean,
+    assigneeFilter: String?,
+    assigneeFilterName: String?,
     onStatusSelected: (OrderStatus?) -> Unit,
     onArchivedSelected: () -> Unit,
-    onMyWorkSelected: () -> Unit
+    onMyWorkSelected: () -> Unit,
+    onClearAssigneeFilter: () -> Unit
 ) {
     val statusOptions: List<Pair<OrderStatus?, String>> = listOf(
         null to stringResource(Res.string.order_filter_all),
@@ -421,9 +429,9 @@ private fun OrderStatusFilterChips(
         statusOptions.forEachIndexed { index, (status, label) ->
             // A status chip is only "selected" in the active view — never while archived.
             // The "All" entry (index 0, status == null) additionally must not highlight
-            // while myWorkOnly is active — see allChipSelected().
+            // while myWorkOnly or assigneeFilter is active — see allChipSelected().
             val isSelected = if (status == null) {
-                allChipSelected(showArchived, selectedStatus, myWorkOnly)
+                allChipSelected(showArchived, selectedStatus, myWorkOnly, assigneeFilter)
             } else {
                 !showArchived && selectedStatus == status
             }
@@ -442,6 +450,25 @@ private fun OrderStatusFilterChips(
                     isSelected = myWorkOnly && !showArchived,
                     onClick = onMyWorkSelected,
                 )
+                // Task 8: an `assignee:` deep link (Task 9's Team workload rows) renders
+                // one extra, always-selected chip right after My work. Unlike every other
+                // chip here it has no toggle semantics of its own from this screen — a tap
+                // only clears it, matching the "re-tap a selected chip to deselect" pattern
+                // every other filter chip already follows.
+                if (assigneeFilter != null) {
+                    OrderFilterChip(
+                        label = if (assigneeFilter == OrderListFilter.ASSIGNEE_NONE_ID) {
+                            stringResource(Res.string.order_filter_unassigned)
+                        } else {
+                            stringResource(
+                                Res.string.order_filter_assigned_to,
+                                assigneeFilterName ?: assigneeFilter,
+                            )
+                        },
+                        isSelected = true,
+                        onClick = onClearAssigneeFilter,
+                    )
+                }
             }
         }
         // Archived is orthogonal to status: its own segment at the end of the row.
