@@ -210,8 +210,23 @@ internal fun OrderItemBaseDto.toFirestoreMap(): Map<String, Any?> = mapOf(
  * write path (Phase 2b) and is also used by the owner's detail-screen item edits;
  * the rules' staff work-fields hasOnly admits exactly these keys.
  */
-internal fun orderItemsWriteFields(items: List<OrderItem>, now: Long): Map<String, Any?> = mapOf(
-    "items" to items.map { it.toOrderItemBaseDto().toFirestoreMap() },
+internal fun orderItemsWriteFields(items: List<OrderItem>, now: Long): Map<String, Any?> =
+    orderItemBaseWriteFields(items.map { it.toOrderItemBaseDto() }, now)
+
+/**
+ * DTO-level twin of [orderItemsWriteFields], for callers that already hold base DTOs
+ * instead of domain items — currently the upload outbox's post-upload photo patch
+ * ([com.danzucker.stitchpad.core.offline.orderImagePatchFields]), which mutates the
+ * items it just read back out of the order document.
+ *
+ * There is deliberately ONE key list for both paths: the outbox previously hand-rolled
+ * a whole-`OrderBaseDto` merge, which added `assignedMemberId`/`assignedMemberName`
+ * (and on older docs `subStatus`/`archivedAt`) to any pre-Phase-2a order and so blew
+ * past the rules' staff work-fields `hasOnly` — permanently denying staff photo
+ * uploads. Any second key list here would be free to drift the same way again.
+ */
+internal fun orderItemBaseWriteFields(items: List<OrderItemBaseDto>, now: Long): Map<String, Any?> = mapOf(
+    "items" to items.map { it.toFirestoreMap() },
     "updatedAt" to now,
 )
 

@@ -40,6 +40,42 @@ class OrderItemsWriteFieldsTest {
         assertEquals(42L, fields["updatedAt"])
     }
 
+    /**
+     * EXACT key set, not just "no price": an item map that grew a key the base DTO
+     * doesn't have would ride into the staff work-fields write and could re-introduce
+     * money (or any owner-only field) under `items`. Pinning the whole set — all 14
+     * [com.danzucker.stitchpad.core.data.dto.OrderItemBaseDto] fields, nothing more —
+     * makes any drift in [OrderItemBaseDto.toFirestoreMap] a test failure rather than
+     * a silent wire-shape change. (Together with the Firestore rules payload-shape
+     * tests in `functions/src/__tests__/firestore.rules.test.ts` this is the net that
+     * catches an outbox/repository write shape drifting off the staff whitelist.)
+     */
+    @Test
+    fun itemMap_hasExactlyTheBaseDtoKeys() {
+        val fields = orderItemsWriteFields(listOf(item), now = 42L)
+        @Suppress("UNCHECKED_CAST")
+        val itemMap = (fields["items"] as List<Map<String, Any?>>).single()
+        assertEquals(
+            setOf(
+                "id",
+                "garmentType",
+                "customGarmentName",
+                "description",
+                "quantity",
+                "measurementId",
+                "fabricName",
+                "styleImages",
+                "fabricImages",
+                "styleId",
+                "stylePhotoUrl",
+                "stylePhotoStoragePath",
+                "fabricPhotoUrl",
+                "fabricPhotoStoragePath",
+            ),
+            itemMap.keys,
+        )
+    }
+
     @Test
     fun itemMaps_carryNoPriceAnywhere() {
         val fields = orderItemsWriteFields(listOf(item), now = 42L)
