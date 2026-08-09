@@ -1,14 +1,18 @@
 package com.danzucker.stitchpad.feature.order.data
 
 import com.danzucker.stitchpad.core.data.decodeDocOrLog
+import com.danzucker.stitchpad.core.data.dto.FabricImageRefDto
 import com.danzucker.stitchpad.core.data.dto.OrderCostDto
 import com.danzucker.stitchpad.core.data.dto.OrderDto
+import com.danzucker.stitchpad.core.data.dto.OrderItemBaseDto
 import com.danzucker.stitchpad.core.data.dto.OrderMoneyDto
 import com.danzucker.stitchpad.core.data.dto.PaymentDto
 import com.danzucker.stitchpad.core.data.dto.StatusChangeDto
+import com.danzucker.stitchpad.core.data.dto.StyleImageRefDto
 import com.danzucker.stitchpad.core.data.mapper.toOrder
 import com.danzucker.stitchpad.core.data.mapper.toOrderBaseDto
 import com.danzucker.stitchpad.core.data.mapper.toOrderCostDto
+import com.danzucker.stitchpad.core.data.mapper.toOrderItemBaseDto
 import com.danzucker.stitchpad.core.data.mapper.toOrderMoneyDto
 import com.danzucker.stitchpad.core.data.mapper.toPaymentDto
 import com.danzucker.stitchpad.core.data.mapper.withMoney
@@ -18,6 +22,7 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.ImageSyncState
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderCost
+import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
@@ -164,6 +169,49 @@ internal fun orderAssignmentWriteFields(
 ): Map<String, Any?> = mapOf(
     "assignedMemberId" to memberId,
     "assignedMemberName" to memberName,
+    "updatedAt" to now,
+)
+
+internal fun StyleImageRefDto.toFirestoreMap(): Map<String, Any?> = mapOf(
+    "source" to source,
+    "styleId" to styleId,
+    "photoUrl" to photoUrl,
+    "photoStoragePath" to photoStoragePath,
+    "syncState" to syncState,
+)
+
+internal fun FabricImageRefDto.toFirestoreMap(): Map<String, Any?> = mapOf(
+    "photoUrl" to photoUrl,
+    "photoStoragePath" to photoStoragePath,
+    "syncState" to syncState,
+)
+
+internal fun OrderItemBaseDto.toFirestoreMap(): Map<String, Any?> = mapOf(
+    "id" to id,
+    "garmentType" to garmentType,
+    "customGarmentName" to customGarmentName,
+    "description" to description,
+    "quantity" to quantity,
+    "measurementId" to measurementId,
+    "fabricName" to fabricName,
+    "styleImages" to styleImages.map { it.toFirestoreMap() },
+    "fabricImages" to fabricImages.map { it.toFirestoreMap() },
+    "styleId" to styleId,
+    "stylePhotoUrl" to stylePhotoUrl,
+    "stylePhotoStoragePath" to stylePhotoStoragePath,
+    "fabricPhotoUrl" to fabricPhotoUrl,
+    "fabricPhotoStoragePath" to fabricPhotoStoragePath,
+)
+
+/**
+ * Write payload for [FirebaseOrderRepository.updateItems] — items + updatedAt only,
+ * serialized through the money-free [OrderItemBaseDto] shape so an item write can
+ * never (re)introduce `price` into the base doc. This is the staff garment-media
+ * write path (Phase 2b) and is also used by the owner's detail-screen item edits;
+ * the rules' staff work-fields hasOnly admits exactly these keys.
+ */
+internal fun orderItemsWriteFields(items: List<OrderItem>, now: Long): Map<String, Any?> = mapOf(
+    "items" to items.map { it.toOrderItemBaseDto().toFirestoreMap() },
     "updatedAt" to now,
 )
 
@@ -664,6 +712,21 @@ class FirebaseOrderRepository(
     ): EmptyResult<DataError.Network> {
         val fields = orderAssignmentWriteFields(memberId, memberName, Clock.System.now().toEpochMilliseconds())
         val accepted = offlineWrites.enqueue("assignOrder orderId=$orderId") {
+            ordersCollection(userId).document(orderId)
+                .update(*fields.entries.map { it.key to it.value }.toTypedArray())
+        }
+        if (!accepted) return Result.Error(DataError.Network.UNKNOWN)
+        return Result.Success(Unit)
+    }
+
+    @Suppress("SpreadOperator") // same GitLive vararg constraint as assignOrder
+    override suspend fun updateItems(
+        userId: String,
+        orderId: String,
+        items: List<OrderItem>,
+    ): EmptyResult<DataError.Network> {
+        val fields = orderItemsWriteFields(items, Clock.System.now().toEpochMilliseconds())
+        val accepted = offlineWrites.enqueue("updateItems orderId=$orderId") {
             ordersCollection(userId).document(orderId)
                 .update(*fields.entries.map { it.key to it.value }.toTypedArray())
         }
