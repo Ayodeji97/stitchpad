@@ -128,7 +128,7 @@ Sub-roles ("staff admin"), per-permission editor, staff activity log, comments/m
 
 ## 9. Follow-ups discovered in Phase 1 smoke testing (2026-08-08)
 
-1. **Staff garment media** — staff should be able to add style/fabric photos to an
+1. **Addressed in Phase 2b (see `docs/superpowers/specs/2026-08-09-staff-phase2b-media-roster-workload-design.md` §1)** — **Staff garment media** — staff should be able to add style/fabric photos to an
    order (owner request from device smoke testing). Requires: staff order-update
    whitelist extended to `items` (safe post-strip — base items are money-free),
    Storage rules granting staff upload access to the owner's media paths, the
@@ -143,7 +143,8 @@ Sub-roles ("staff admin"), per-permission editor, staff activity log, comments/m
    cannot complete, and decide per-affordance whether to grant it instead
    (product call so far: due date stays owner-only — it is a customer commitment;
    styles/fabrics become staff-editable; notes TBD).
-2. **Kill switch is not live** — flipping `config/app.staffFeatureEnabled` to
+2. **RESOLVED (Phase 2a, PR #351) — verified live in emulator smoke 2026-08-09
+   (drop + recover without restart).** **Kill switch is not live** — flipping `config/app.staffFeatureEnabled` to
    `false` did NOT drop an active staff session; it only took effect after an app
    restart (verified in emulator smoke, both directions). The config doc IS a live
    snapshot listener combined into `FirebaseActiveWorkshopProvider`, so something
@@ -151,19 +152,19 @@ Sub-roles ("staff admin"), per-permission editor, staff activity log, comments/m
    The code comments and rollout runbook describe the switch as instant — either
    fix the propagation or re-document the switch as restart-latency. Investigate
    before relying on it as a production panic button.
-3. **Storage emulator in the smoke setup** — `firebase.emulator.json` covers only
+3. **RESOLVED (Phase 2b, Task 10).** **Storage emulator in the smoke setup** — `firebase.emulator.json` covers only
    Auth + Firestore, so app image uploads go to production Storage and fail with
    403 (emulator-issued token), making image sync appear broken locally. Add the
    Storage emulator + client wiring in `connectFirebaseEmulatorsIfEnabled`, and
    note it in the smoke runbook. Also consider committing a debug-source-set
    `network_security_config.xml` (cleartext to 10.0.2.2) so Android emulator smoke
    works without recreating the local-only file each time.
-4. **Owner in the roster** — the owner cannot currently be an assignee (discovered
+4. **Addressed in Phase 2b (see `docs/superpowers/specs/2026-08-09-staff-phase2b-media-roster-workload-design.md` §2).** **Owner in the roster** — the owner cannot currently be an assignee (discovered
    in Phase 2a smoke). Phase 2b: auto-create/maintain an owner roster doc (kind
    `owner`) at workshop-tree first use, include it in the assign picker, render
    self-assignment as "You" for the owner, and exclude it from archive/rename.
    Until then owners track their own work implicitly.
-5. **Workload overview (who is working on what)** — assignment is currently only
+5. **Addressed in Phase 2b (see `docs/superpowers/specs/2026-08-09-staff-phase2b-media-roster-workload-design.md` §3).** **Workload overview (who is working on what)** — assignment is currently only
    visible per-order: the assignee chip on Orders-list rows and the Assigned-to
    card in order detail. There is no grouped view of the workshop's load. Phase 2b
    candidate: a per-member breakdown (e.g. on the Team screen or a dashboard

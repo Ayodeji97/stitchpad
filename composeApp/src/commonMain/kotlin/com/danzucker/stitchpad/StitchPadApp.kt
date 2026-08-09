@@ -2,6 +2,7 @@ package com.danzucker.stitchpad
 
 import com.danzucker.stitchpad.core.config.AUTH_EMULATOR_PORT
 import com.danzucker.stitchpad.core.config.FIRESTORE_EMULATOR_PORT
+import com.danzucker.stitchpad.core.config.STORAGE_EMULATOR_PORT
 import com.danzucker.stitchpad.core.config.USE_FIREBASE_EMULATOR
 import com.danzucker.stitchpad.core.config.firebaseEmulatorHost
 import com.danzucker.stitchpad.core.debug.isDebugBuild
@@ -42,11 +43,12 @@ import com.danzucker.stitchpad.di.tutorialsModule
 import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.auth.auth
 import dev.gitlive.firebase.firestore.firestore
+import dev.gitlive.firebase.storage.storage
 import org.koin.core.context.startKoin
 import org.koin.dsl.KoinAppDeclaration
 
 /**
- * QA-only: point Firebase Auth + Firestore at the local emulators when
+ * QA-only: point Firebase Auth + Firestore + Storage at the local emulators when
  * [USE_FIREBASE_EMULATOR] is flipped on in a DEBUG build. Called before startKoin
  * (and before any Koin single touches Firebase) so it lands before first use.
  * Guarded by [isDebugBuild] so a release build can never connect to an emulator.
@@ -56,6 +58,7 @@ private fun connectFirebaseEmulatorsIfEnabled() {
     val host = firebaseEmulatorHost()
     Firebase.firestore.useEmulator(host, FIRESTORE_EMULATOR_PORT)
     Firebase.auth.useEmulator(host, AUTH_EMULATOR_PORT)
+    Firebase.storage.useEmulator(host, STORAGE_EMULATOR_PORT)
 }
 
 fun initKoin(platformConfig: KoinAppDeclaration = {}) {

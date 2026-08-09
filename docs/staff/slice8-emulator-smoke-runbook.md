@@ -6,7 +6,7 @@ LIST reads — **without touching production**. This is the safe way to catch st
 issues on real data before any prod flip.
 
 ## What this gives you
-- Firestore + Auth emulators running locally (isolated, throwaway).
+- Firestore + Auth + Storage emulators running locally (isolated, throwaway).
 - The emulator rules (`firestore.emulator.rules`), byte-identical to the deployed
   `firestore.rules` as of Slice 8e Task 3: active members may LIST orders/customers.
   The two-file mechanism (emulator rules vs. deployed rules) stays in place for
@@ -32,9 +32,9 @@ issues on real data before any prod flip.
 ```
 firebase emulators:start --config firebase.emulator.json
 ```
-This serves Firestore on `:8080`, Auth on `:9099`, and the Emulator UI on `:4000`,
-using `firestore.emulator.rules` (byte-identical to the deployed `firestore.rules`).
-Leave it running.
+This serves Firestore on `:8080`, Auth on `:9099`, Storage on `:9199`, and the
+Emulator UI on `:4000`, using `firestore.emulator.rules` (byte-identical to the
+deployed `firestore.rules`) and `storage.rules`. Leave it running.
 
 ### 2. Seed users, claims, membership, and data (second terminal)
 ```
@@ -56,7 +56,12 @@ Then build + install a **debug** build:
   (Android reaches the host at `10.0.2.2` — handled automatically.)
 
 The connection is doubly guarded (`isDebugBuild && USE_FIREBASE_EMULATOR`), so a
-release build can never talk to the emulator.
+release build can never talk to the emulator. No local file surgery needed: the
+cleartext network-security config that lets a debug build reach `10.0.2.2` /
+`127.0.0.1` / `localhost` over plain HTTP is committed permanently in the
+`debug` build-type source set (`composeApp/src/debug/`) and merges into every
+debug build automatically. Release builds never see the
+`networkSecurityConfig` manifest attribute.
 
 ### 4. Smoke-test
 - Sign in as **gabby@gmail.com / gabby123** → the **staff** experience with real
@@ -75,6 +80,10 @@ release build can never talk to the emulator.
   shell. Set it back to `true` → staff experience returns.
 - If staff lists are empty, check the membership doc status is `active` and the
   claims were set by the seeder.
+- Image uploads (e.g. adding a style/fabric photo) now go to the local Storage
+  emulator instead of production — check the Emulator UI's Storage tab (`:4000`)
+  to confirm the upload landed under `users/{workshopUid}/orders/...` instead of
+  failing with a 403 (emulator-issued token rejected by production Storage).
 
 ### 5. Clean up
 - Flip `USE_FIREBASE_EMULATOR` back to `false` before committing / building anything
