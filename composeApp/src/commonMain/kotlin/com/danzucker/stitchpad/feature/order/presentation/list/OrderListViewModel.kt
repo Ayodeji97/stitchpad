@@ -153,8 +153,7 @@ class OrderListViewModel(
                     allOrders,
                     newStatus,
                     state.myWorkOnly,
-                    state.staffAuthUid,
-                    state.isActiveStaff,
+                    state.sessionAuthUid,
                 )
             )
         }
@@ -171,8 +170,7 @@ class OrderListViewModel(
                         allOrders,
                         state.statusFilter,
                         state.myWorkOnly,
-                        state.staffAuthUid,
-                        state.isActiveStaff,
+                        state.sessionAuthUid,
                     )
                 )
             } else {
@@ -181,10 +179,10 @@ class OrderListViewModel(
         }
     }
 
-    // Staff-only filter — never rendered for an owner, but guarded here too so the action
-    // is inert even if dispatched (Slice 6c defense-in-depth precedent).
+    // Task 7: My-work now works for owners too (they became assignable in earlier
+    // tasks), so the isActiveStaff guard drops out — the archived-view select
+    // semantics below are unchanged.
     private fun toggleMyWork() {
-        if (!_state.value.isActiveStaff) return
         _state.update { state ->
             // In the archived view the My-work chip always renders unselected, so a tap
             // there means "select" even when a stale myWorkOnly=true is carried over —
@@ -200,8 +198,7 @@ class OrderListViewModel(
                     allOrders,
                     state.statusFilter,
                     myWorkOnly,
-                    state.staffAuthUid,
-                    state.isActiveStaff,
+                    state.sessionAuthUid,
                 )
             )
         }
@@ -210,16 +207,14 @@ class OrderListViewModel(
     private fun observeActiveWorkshop() {
         viewModelScope.launch {
             activeWorkshopProvider.flow.collect { session ->
-                _state.update {
-                    it.copy(
+                _state.update { state ->
+                    state.copy(
                         isActiveStaff = session.isActiveStaff,
-                        // Task 8: captured alongside isActiveStaff from the same session
-                        // collection — used by the "My work" filter to match assignedMemberId.
-                        // Staff-only, mirroring OrderDetailState.staffAuthUid's contract — the
-                        // filterAndSort guard above already requires isActiveStaff before
-                        // reading this, so behavior is unchanged; this just keeps an owner
-                        // session from carrying a staffAuthUid value that's never staff.
-                        staffAuthUid = session.authUid.takeIf { session.isActiveStaff },
+                        // Task 8; Task 7 dropped the staff-only gate — captured alongside
+                        // isActiveStaff from the same session collection, for BOTH an owner
+                        // and a staff session, and used by the "My work" filter to match
+                        // assignedMemberId.
+                        sessionAuthUid = session.authUid.takeIf { it.isNotBlank() },
                     )
                 }
             }
@@ -277,8 +272,7 @@ class OrderListViewModel(
                                             result.data,
                                             state.statusFilter,
                                             state.myWorkOnly,
-                                            state.staffAuthUid,
-                                            state.isActiveStaff,
+                                            state.sessionAuthUid,
                                         )
                                     },
                                     isLoading = false
@@ -401,20 +395,16 @@ class OrderListViewModel(
         orders: List<Order>,
         statusFilter: OrderStatus?,
         myWorkOnly: Boolean = false,
-        staffAuthUid: String? = null,
-        isActiveStaff: Boolean = false,
+        sessionAuthUid: String? = null,
     ): List<Order> {
         val statusFiltered = when (statusFilter) {
             null -> orders.filter { it.status != OrderStatus.DELIVERED }
             else -> orders.filter { it.status == statusFilter }
         }
-        // Task 8: "My work" narrows the active list to the signed-in staff member's own
-        // assignments. Requires isActiveStaff too (not just a non-null staffAuthUid) —
-        // a kill-switch revocation mid-session (staff -> owner-of-self) leaves myWorkOnly
-        // and staffAuthUid stale in state with no chip left to show or clear them; without
-        // this guard the ex-staff user's own order tree would silently stay filtered.
-        val filtered = if (myWorkOnly && isActiveStaff && staffAuthUid != null) {
-            statusFiltered.filter { it.assignedMemberId == staffAuthUid }
+        // Task 8; Task 7 dropped the isActiveStaff conjunct — "My work" narrows the active
+        // list to the signed-in user's own assignments, owner or staff alike.
+        val filtered = if (myWorkOnly && sessionAuthUid != null) {
+            statusFiltered.filter { it.assignedMemberId == sessionAuthUid }
         } else {
             statusFiltered
         }

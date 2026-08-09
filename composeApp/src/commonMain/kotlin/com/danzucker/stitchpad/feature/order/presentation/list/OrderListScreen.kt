@@ -245,7 +245,6 @@ fun OrderListScreen(
             OrderStatusFilterChips(
                 selectedStatus = state.statusFilter,
                 showArchived = state.showArchived,
-                isActiveStaff = state.isActiveStaff,
                 myWorkOnly = state.myWorkOnly,
                 onStatusSelected = { onAction(OrderListAction.OnStatusFilterChange(it)) },
                 onArchivedSelected = { onAction(OrderListAction.OnShowArchived) },
@@ -395,7 +394,6 @@ fun OrderListScreen(
 private fun OrderStatusFilterChips(
     selectedStatus: OrderStatus?,
     showArchived: Boolean,
-    isActiveStaff: Boolean,
     myWorkOnly: Boolean,
     onStatusSelected: (OrderStatus?) -> Unit,
     onArchivedSelected: () -> Unit,
@@ -434,10 +432,11 @@ private fun OrderStatusFilterChips(
                 isSelected = isSelected,
                 onClick = { onStatusSelected(status) }
             )
-            // "My work" is staff-only and orthogonal to status. It sits immediately after
-            // "All" (owner smoke-test request: on phones it was scrolled off-screen at the
-            // row's end, next to Archived) — inserted right after the first (All) chip.
-            if (index == 0 && isActiveStaff) {
+            // "My work" is available to every signed-in role (Task 7 — the owner became
+            // assignable too) and orthogonal to status. It sits immediately after "All"
+            // (owner smoke-test request: on phones it was scrolled off-screen at the row's
+            // end, next to Archived) — inserted right after the first (All) chip.
+            if (index == 0) {
                 OrderFilterChip(
                     label = stringResource(Res.string.order_filter_my_work),
                     isSelected = myWorkOnly && !showArchived,

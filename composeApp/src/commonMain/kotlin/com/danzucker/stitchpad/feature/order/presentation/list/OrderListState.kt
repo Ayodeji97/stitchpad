@@ -15,17 +15,19 @@ data class OrderListState(
      */
     val isActiveStaff: Boolean = false,
     /**
-     * The signed-in staff member's Firebase Auth uid (Task 8), captured from the same
+     * The signed-in user's Firebase Auth uid (Task 8; Task 7 dropped the staff-only
+     * gate), captured from the same
      * [com.danzucker.stitchpad.core.domain.session.WorkshopSession] collection that sets
-     * [isActiveStaff] — null for an owner session, mirroring
-     * [com.danzucker.stitchpad.feature.order.presentation.detail.OrderDetailState.staffAuthUid]'s
-     * same-name contract. Used to match [Order.assignedMemberId] for the "My work" filter —
-     * distinct from `workshopUid`, which staff never own.
+     * [isActiveStaff] — populated for BOTH an owner and a staff session, unlike
+     * [com.danzucker.stitchpad.feature.order.presentation.detail.OrderDetailState.staffAuthUid],
+     * which is a separate, staff-only contract. Used to match [Order.assignedMemberId] for
+     * the "My work" filter — distinct from `workshopUid`, which staff never own.
      */
-    val staffAuthUid: String? = null,
+    val sessionAuthUid: String? = null,
     /**
-     * When true (staff only), [orders] is narrowed to orders assigned to [staffAuthUid].
-     * Applies to the ACTIVE list only — the Archived view ignores this flag entirely.
+     * When true, [orders] is narrowed to orders assigned to [sessionAuthUid] (owner or
+     * staff — Task 7). Applies to the ACTIVE list only — the Archived view ignores this
+     * flag entirely.
      */
     val myWorkOnly: Boolean = false,
     /** When true, [orders] holds archived orders (Restore affordance) instead of the active list. */

@@ -286,7 +286,7 @@ class OrderListStaffTest {
     }
 
     @Test
-    fun myWorkOnly_isIgnoredAfterKillSwitchRevokesStaffStatus() = runTest {
+    fun myWorkOnly_staysActiveAcrossKillSwitchAsOwnerFilter() = runTest {
         setStaffSession() // authUid = "s", workshopUid = "o"
         orderRepository.setOrdersFor("o", listOf(sampleOrder().copy(id = "mine", assignedMemberId = "s")))
         orderRepository.setOrdersFor(
@@ -301,17 +301,23 @@ class OrderListStaffTest {
         assertEquals(listOf("mine"), vm.state.value.orders.map { it.id })
 
         // Kill switch: role flips to owner-of-self on the same authUid. myWorkOnly is left
-        // stale in state (no chip left to clear it) — staffAuthUid, by contrast, is
-        // recomputed to null the moment isActiveStaff flips false (owner sessions never
-        // carry one) — but either way the ex-staff user's own order tree must not stay
-        // silently filtered.
+        // on in state (the chip is now visible to owners too, so this is a clearable filter,
+        // not a stranded one) and now filters the user's OWN tree by their own assignments —
+        // sessionAuthUid is recomputed to the same "s" regardless of role.
         activeWorkshopProvider.setSession(WorkshopSession.ownerOfSelf("s"))
         runCurrent()
+
+        assertEquals(listOf("owned-by-s-1"), vm.state.value.orders.map { it.id })
+        assertTrue(vm.state.value.myWorkOnly)
+
+        // The chip is visible to owners now, so the filter is clearable, not stranded.
+        vm.onAction(OrderListAction.OnToggleMyWork)
 
         assertEquals(
             setOf("owned-by-s-1", "owned-by-s-2"),
             vm.state.value.orders.map { it.id }.toSet(),
         )
+        assertFalse(vm.state.value.myWorkOnly)
     }
 
     @Test
@@ -336,17 +342,20 @@ class OrderListStaffTest {
     }
 
     @Test
-    fun onToggleMyWork_forOwner_isNoOp() = runTest {
-        // Default FakeActiveWorkshopProvider session is owner-of-self.
+    fun onToggleMyWork_forOwner_filtersToOwnAssignments() = runTest {
+        // Default FakeActiveWorkshopProvider session is owner-of-self on "test-uid" — the
+        // workshop owner became assignable in earlier tasks on this branch, so My-work
+        // now works for owners exactly like it does for staff.
         orderRepository.ordersList = listOf(
-            sampleOrder().copy(id = "o1", assignedMemberId = "someone"),
+            sampleOrder().copy(id = "mine", assignedMemberId = "test-uid"),
+            sampleOrder().copy(id = "not-mine", assignedMemberId = "someone-else"),
         )
         val vm = createViewModel()
 
         vm.onAction(OrderListAction.OnToggleMyWork)
 
-        assertFalse(vm.state.value.myWorkOnly)
-        assertEquals(listOf("o1"), vm.state.value.orders.map { it.id })
+        assertTrue(vm.state.value.myWorkOnly)
+        assertEquals(listOf("mine"), vm.state.value.orders.map { it.id })
     }
 
     // --- Task 9 (staff-phase2-assignment): seed statusFilter/myWorkOnly from
@@ -393,7 +402,7 @@ class OrderListStaffTest {
 
     @Test
     fun seededMyWorkFilter_actuallyFiltersTheOrdersOnceStaffSessionLands() = runTest {
-        // The seeded flag must survive observeActiveWorkshop's isActiveStaff/staffAuthUid
+        // The seeded flag must survive observeActiveWorkshop's isActiveStaff/sessionAuthUid
         // update (a separate _state.update call) and still narrow the active list once
         // the staff session resolves — not just sit inert in state.
         setStaffSession() // authUid = "s"
@@ -429,12 +438,13 @@ class OrderListStaffTest {
     }
 
     @Test
-    fun seededMyWorkFilter_forOwnerSession_doesNotFilter() = runTest {
-        // Guard precedent from Task 8: myWorkOnly only bites with isActiveStaff +
-        // a resolved staffAuthUid. A seeded flag on an owner session must not
-        // silently narrow the owner's own order list.
+    fun seededMyWorkFilter_forOwnerSession_filtersToOwnAssignments() = runTest {
+        // Task 7: myWorkOnly now bites off sessionAuthUid alone (no isActiveStaff
+        // conjunct) — a seeded flag on an owner session narrows the owner's own
+        // order list to their own assignments, same as it does for staff.
         orderRepository.ordersList = listOf(
-            sampleOrder().copy(id = "o1", assignedMemberId = "someone-else"),
+            sampleOrder().copy(id = "mine", assignedMemberId = "test-uid"),
+            sampleOrder().copy(id = "not-mine", assignedMemberId = "someone-else"),
         )
 
         val vm = createViewModel(
@@ -442,7 +452,7 @@ class OrderListStaffTest {
         )
 
         assertTrue(vm.state.value.myWorkOnly)
-        assertEquals(listOf("o1"), vm.state.value.orders.map { it.id })
+        assertEquals(listOf("mine"), vm.state.value.orders.map { it.id })
     }
 
     private fun sampleOrder(): Order = Order(
