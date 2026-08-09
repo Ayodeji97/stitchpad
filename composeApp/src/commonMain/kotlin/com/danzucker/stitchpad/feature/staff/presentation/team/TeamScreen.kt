@@ -73,6 +73,7 @@ import com.danzucker.stitchpad.core.domain.staff.Membership
 import com.danzucker.stitchpad.core.domain.staff.TeamMember
 import com.danzucker.stitchpad.core.domain.staff.TeamMemberKind
 import com.danzucker.stitchpad.core.domain.staff.TeamMemberStatus
+import com.danzucker.stitchpad.core.domain.staff.rosterDisplayName
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.buildWhatsAppUrl
 import com.danzucker.stitchpad.ui.components.MemberAvatar
@@ -87,6 +88,7 @@ import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.order_assign_you
 import stitchpad.composeapp.generated.resources.team_active_header_count
 import stitchpad.composeapp.generated.resources.team_add_member
 import stitchpad.composeapp.generated.resources.team_add_member_sheet_title
@@ -233,7 +235,7 @@ fun TeamScreen(
             // Outside the isEmpty branch: named roster members are independent of the
             // seat-capped staff invite flow above, so "Add member" must stay reachable
             // even when the owner has zero staff memberships (isEmpty == true).
-            RosterSection(roster = state.activeRoster, onAction = onAction)
+            RosterSection(roster = state.activeRoster, currentAuthUid = state.currentUserId, onAction = onAction)
             Spacer(Modifier.height(DesignTokens.space8))
         }
     }
@@ -376,10 +378,14 @@ private fun ActiveSection(active: List<Membership>, onAction: (TeamAction) -> Un
  * independent of the seat-capped staff invite flow, so the CTA to add one must stay reachable.
  */
 @Composable
-private fun RosterSection(roster: List<TeamMember>, onAction: (TeamAction) -> Unit) {
+private fun RosterSection(
+    roster: List<TeamMember>,
+    currentAuthUid: String?,
+    onAction: (TeamAction) -> Unit,
+) {
     SectionHeader(text = stringResource(Res.string.team_roster_header))
     roster.forEach { member ->
-        RosterMemberRow(member = member, onAction = onAction)
+        RosterMemberRow(member = member, currentAuthUid = currentAuthUid, onAction = onAction)
     }
     StitchPadButton(
         text = stringResource(Res.string.team_add_member),
@@ -490,12 +496,27 @@ private fun ActiveMemberRow(member: Membership, onAction: (TeamAction) -> Unit) 
 }
 
 /**
- * One roster row. Mirrors [ActiveMemberRow]'s dropdown-menu pattern, but only NAMED members
- * get one (rename/archive) — STAFF rows show a "linked account" caption instead, since their
- * lifecycle is revoke (via [ActiveSection] above), not archive.
+ * Whether a roster row exposes the rename/archive overflow menu (Task 6). Extracted as a
+ * pure function (per this codebase's "no business logic in composables" rule) so it's
+ * directly unit-testable without instantiating [RosterMemberRow]. Only a NAMED row is
+ * mutable this way: a STAFF row's lifecycle is revoke (via [ActiveSection] above, not
+ * archive), and an OWNER row (Task 5/6) is never rename/archivable — the owner is a fixed,
+ * pinned-first roster member, not something the owner themself edits or removes.
+ */
+internal fun rosterRowShowsMenu(kind: TeamMemberKind): Boolean = kind == TeamMemberKind.NAMED
+
+/**
+ * One roster row. Mirrors [ActiveMemberRow]'s dropdown-menu pattern, but only a NAMED
+ * member gets one ([rosterRowShowsMenu]) — a STAFF row shows a "linked account" caption
+ * instead, and an OWNER row (Task 6) shows neither: it renders [rosterDisplayName] (so the
+ * owner sees "You") with no trailing affordance at all.
  */
 @Composable
-private fun RosterMemberRow(member: TeamMember, onAction: (TeamAction) -> Unit) {
+private fun RosterMemberRow(
+    member: TeamMember,
+    currentAuthUid: String?,
+    onAction: (TeamAction) -> Unit,
+) {
     var menuOpen by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
@@ -512,7 +533,7 @@ private fun RosterMemberRow(member: TeamMember, onAction: (TeamAction) -> Unit) 
     ) {
         MemberAvatar(name = member.name, colorSeed = member.colorSeed)
         Text(
-            text = member.name,
+            text = rosterDisplayName(member, currentAuthUid, stringResource(Res.string.order_assign_you)),
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
@@ -526,7 +547,7 @@ private fun RosterMemberRow(member: TeamMember, onAction: (TeamAction) -> Unit) 
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-        } else {
+        } else if (rosterRowShowsMenu(member.kind)) {
             Box {
                 IconButton(onClick = { menuOpen = true }) {
                     Icon(
@@ -553,6 +574,7 @@ private fun RosterMemberRow(member: TeamMember, onAction: (TeamAction) -> Unit) 
                 }
             }
         }
+        // OWNER: neither branch — no trailing affordance at all (Task 6).
     }
 }
 
@@ -933,6 +955,14 @@ private val samplePending = Membership(
     staffName = "Tunde Bakare",
     status = MembershipStatus.PENDING,
 )
+private const val SAMPLE_OWNER_UID = "owner-1"
+private val sampleOwnerRosterMember = TeamMember(
+    id = SAMPLE_OWNER_UID,
+    name = "Adaeze Chukwu",
+    kind = TeamMemberKind.OWNER,
+    colorSeed = 0,
+    status = TeamMemberStatus.ACTIVE,
+)
 private val sampleStaffRosterMember = TeamMember(
     id = "uid-gabby",
     name = "Gabby Okoro",
@@ -958,7 +988,9 @@ private fun TeamScreenPopulatedPreview() {
                 isLoading = false,
                 pending = listOf(samplePending),
                 active = listOf(sampleActive),
-                roster = listOf(sampleStaffRosterMember, sampleNamedRosterMember),
+                // Owner row first — matches the Task 5 repository-level roster sort.
+                roster = listOf(sampleOwnerRosterMember, sampleStaffRosterMember, sampleNamedRosterMember),
+                currentUserId = SAMPLE_OWNER_UID,
             ),
             onAction = {},
             snackbarHostState = remember { SnackbarHostState() },
@@ -992,7 +1024,8 @@ private fun RosterSectionPreview() {
                 .padding(DesignTokens.space5),
         ) {
             RosterSection(
-                roster = listOf(sampleStaffRosterMember, sampleNamedRosterMember),
+                roster = listOf(sampleOwnerRosterMember, sampleStaffRosterMember, sampleNamedRosterMember),
+                currentAuthUid = SAMPLE_OWNER_UID,
                 onAction = {},
             )
         }

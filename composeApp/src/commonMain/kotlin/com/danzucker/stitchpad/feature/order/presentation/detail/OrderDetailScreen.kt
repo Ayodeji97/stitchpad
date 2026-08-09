@@ -1370,6 +1370,7 @@ private fun OrderDetailContent(
     if (state.showAssignSheet) {
         OrderAssignPickerSheet(
             roster = state.roster,
+            currentAuthUid = state.currentAuthUid,
             onSelectMember = { member ->
                 onAction(OrderDetailAction.OnAssignMember(member.id, member.name))
             },

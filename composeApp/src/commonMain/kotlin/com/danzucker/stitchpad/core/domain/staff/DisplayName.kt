@@ -21,3 +21,20 @@ internal fun resolveClaimDisplayName(
     profileName?.trim()?.takeIf { it.isNotBlank() }
         ?: email?.trim()?.takeIf { it.isNotBlank() }
         ?: fallback
+
+/**
+ * How a roster row's name renders for the *viewer*: the signed-in viewer's own row (owner
+ * or otherwise) shows [youLabel] instead of [TeamMember.name] — every other row shows its
+ * real name unchanged. Shared between `feature/staff`'s Team rows and `feature/order`'s
+ * assign picker (Task 6) for the same reason [resolveClaimDisplayName] lives here rather
+ * than in either feature: neither feature package imports the other.
+ *
+ * This is a display-only substitution — callers must keep writing [TeamMember.name] (the
+ * real name) into any persisted field (e.g. `Order.assignedMemberName`); [youLabel] must
+ * never be written to storage, or every device would render the literal string "You".
+ */
+internal fun rosterDisplayName(
+    member: TeamMember,
+    currentAuthUid: String?,
+    youLabel: String,
+): String = if (currentAuthUid != null && member.id == currentAuthUid) youLabel else member.name

@@ -127,7 +127,7 @@ class TeamViewModel(
                     // clearing here too would risk this listener's success racing ahead of
                     // the membership listener's error and swallowing it before it's shown.
                     is Result.Success -> {
-                        _state.update { it.copy(roster = result.data) }
+                        _state.update { it.copy(roster = result.data, currentUserId = workshopUid) }
                         ensureOwnerInRosterIfMissing(workshopUid, result.data)
                     }
                     is Result.Error -> _state.update { it.copy(errorMessage = result.error.toTeamRosterUiText()) }

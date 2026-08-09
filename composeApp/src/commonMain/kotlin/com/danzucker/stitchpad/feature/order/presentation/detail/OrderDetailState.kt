@@ -50,6 +50,14 @@ data class OrderDetailState(
      */
     val staffAuthUid: String? = null,
 
+    /**
+     * The signed-in user's own
+     * [com.danzucker.stitchpad.core.domain.session.WorkshopSession.authUid], populated for
+     * both an owner and staff session (unlike [staffAuthUid], which is null for an owner).
+     * Used to resolve "You" against [roster]/the assign picker (Task 6, `rosterDisplayName`).
+     */
+    val currentAuthUid: String? = null,
+
     val showMeasurementPickerSheet: Boolean = false,
     val availableMeasurements: List<Measurement> = emptyList(),
     /** Read-only quick-view of the linked measurement (opened by tapping the card). */

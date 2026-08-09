@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.order.presentation.detail
 
 import com.danzucker.stitchpad.core.domain.session.WorkshopSession
+import com.danzucker.stitchpad.core.domain.staff.TeamMember
 
 /**
  * Pure decision logic behind the order-detail "Assigned to" card (Task 7 / Slice 8e).
@@ -35,3 +36,21 @@ internal fun canClaimOrder(assignedMemberId: String?): Boolean = assignedMemberI
  */
 internal fun shouldObserveRoster(session: WorkshopSession): Boolean =
     !session.isActiveStaff && session.workshopUid.isNotBlank()
+
+/**
+ * Whether [OrderDetailViewModel]'s roster observation should lazily write the owner's own
+ * [com.danzucker.stitchpad.core.domain.staff.TeamMemberKind.OWNER] roster row for this
+ * emission — the detail-path mirror of `TeamViewModel.ensureOwnerInRosterIfMissing` (Task
+ * 6), so an owner who opens the assign picker before ever visiting the Team screen still
+ * gets a row and appears in their own picker.
+ *
+ * [shouldObserveRoster] admits both a true owner session AND a pending/declined staff
+ * session (role == STAFF but not yet/no-longer active membership — see its KDoc). Only a
+ * true owner ([WorkshopSession.isOwner], i.e. `authUid == workshopUid`) may ever pass here:
+ * the Firestore `team` rules deny this write from anyone else, and [roster] is checked
+ * unfiltered (before the active-only filter [OrderDetailViewModel.observeRoster] applies to
+ * state) so an archived owner row still counts as present, matching
+ * `TeamViewModel.ensureOwnerInRosterIfMissing`'s check against the raw emission.
+ */
+internal fun shouldEnsureOwnerRoster(session: WorkshopSession, roster: List<TeamMember>): Boolean =
+    session.isOwner && roster.none { it.id == session.workshopUid }

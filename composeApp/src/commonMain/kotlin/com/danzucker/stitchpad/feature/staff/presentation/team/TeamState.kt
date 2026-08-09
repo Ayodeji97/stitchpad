@@ -33,6 +33,12 @@ data class TeamState(
     val inFlightDecisions: Map<String, TeamDecision> = emptyMap(),
     /** Full roster as observed (active + archived) — filter to [activeRoster] for display. */
     val roster: List<TeamMember> = emptyList(),
+    /**
+     * The signed-in owner's own uid — resolves "You" against [activeRoster]'s owner row
+     * (Task 6, `rosterDisplayName`). The Team screen is owner-only, so this is always the
+     * same uid as the workshop tree itself.
+     */
+    val currentUserId: String? = null,
     val showAddMemberSheet: Boolean = false,
     val addMemberName: String = "",
     /** Non-null while the rename sheet is shown for this roster row. */
