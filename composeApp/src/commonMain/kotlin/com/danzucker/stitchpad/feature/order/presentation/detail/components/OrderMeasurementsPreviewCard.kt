@@ -54,15 +54,26 @@ fun OrderMeasurementsPreviewCard(
     onCardClick: () -> Unit,
     onLinkMeasurementsClick: () -> Unit,
     modifier: Modifier = Modifier,
+    // Task 10: linking a measurement is staff-denied for now (the rules deny the
+    // write) — a linked measurement stays viewable (onCardClick -> view), but the
+    // empty-state card is not clickable and shows no "Link measurements" CTA.
+    isActiveStaff: Boolean = false,
 ) {
     val shape = RoundedCornerShape(DesignTokens.radiusLg)
+    val isClickable = measurement != null || !isActiveStaff
     Surface(
         shape = shape,
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onCardClick, role = Role.Button),
+            .then(
+                if (isClickable) {
+                    Modifier.clickable(onClick = onCardClick, role = Role.Button)
+                } else {
+                    Modifier
+                },
+            ),
     ) {
         Column(modifier = Modifier.padding(DesignTokens.space4)) {
             // Header row
@@ -138,12 +149,14 @@ fun OrderMeasurementsPreviewCard(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    TextButton(onClick = onLinkMeasurementsClick) {
-                        Text(
-                            text = stringResource(Res.string.order_detail_link_measurements),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
+                    if (!isActiveStaff) {
+                        TextButton(onClick = onLinkMeasurementsClick) {
+                            Text(
+                                text = stringResource(Res.string.order_detail_link_measurements),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
                     }
                 }
             }
@@ -239,6 +252,47 @@ private fun OrderMeasurementsPreviewCardEmptyLightPreview() {
             customFieldLabels = emptyMap(),
             onCardClick = {},
             onLinkMeasurementsClick = {},
+        )
+    }
+}
+
+/** Staff variant (Task 10): linked measurement stays viewable (card is tappable). */
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun OrderMeasurementsPreviewCardStaffPopulatedPreview() {
+    StitchPadTheme {
+        OrderMeasurementsPreviewCard(
+            measurement = Measurement(
+                id = "m1",
+                customerId = "c1",
+                gender = CustomerGender.MALE,
+                fields = mapOf("chest" to "42", "trouser_waist" to "34"),
+                unit = MeasurementUnit.INCHES,
+                notes = null,
+                dateTaken = 1_743_638_400_000L,
+                createdAt = 0L,
+            ),
+            customFieldLabels = emptyMap(),
+            onCardClick = {},
+            onLinkMeasurementsClick = {},
+            isActiveStaff = true,
+        )
+    }
+}
+
+/** Staff variant, no linked measurement (Task 10): no "Link measurements" CTA, not tappable. */
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun OrderMeasurementsPreviewCardStaffEmptyPreview() {
+    StitchPadTheme {
+        OrderMeasurementsPreviewCard(
+            measurement = null,
+            customFieldLabels = emptyMap(),
+            onCardClick = {},
+            onLinkMeasurementsClick = {},
+            isActiveStaff = true,
         )
     }
 }

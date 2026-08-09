@@ -14,4 +14,5 @@ sealed interface OrderListAction {
     data object OnDismissDeleteDialog : OrderListAction
     data object OnErrorDismiss : OrderListAction
     data object OnToggleShowProfit : OrderListAction
+    data object OnToggleMyWork : OrderListAction
 }

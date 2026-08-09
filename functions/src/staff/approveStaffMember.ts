@@ -1,6 +1,6 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
-import { REGION, STAFF_ROLE, MembershipStatus, membershipDocPath } from './staffConstants';
+import { REGION, STAFF_ROLE, MembershipStatus, membershipDocPath, teamMemberDocPath, colorSeedFor } from './staffConstants';
 
 export interface ApproveStaffMemberRequest {
   staffAuthUid?: unknown;
@@ -69,6 +69,21 @@ export async function approveStaffMemberHandler(
         throw new functions.https.HttpsError('failed-precondition', 'membership_revoked');
       }
       tx.update(ref, { status: 'active', approvedAt: nowMs, claimsRefreshAt: nowMs });
+
+      const staffName =
+        ((snap.data() as { staffName?: string }).staffName ?? '').trim() || 'Staff member';
+      tx.set(
+        deps.db.doc(teamMemberDocPath(ownerUid, staffAuthUid)),
+        {
+          name: staffName,
+          kind: 'staff',
+          status: 'active',
+          colorSeed: colorSeedFor(staffAuthUid),
+          createdAt: nowMs,
+          updatedAt: nowMs,
+        },
+        { merge: true },
+      );
     });
   } catch (err) {
     await deps.setClaims(staffAuthUid, null);

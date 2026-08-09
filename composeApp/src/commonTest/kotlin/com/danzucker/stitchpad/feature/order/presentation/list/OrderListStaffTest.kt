@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.order.presentation.list
 
+import androidx.lifecycle.SavedStateHandle
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
 import com.danzucker.stitchpad.core.domain.error.DataError
@@ -18,13 +19,16 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -64,11 +68,14 @@ class OrderListStaffTest {
         )
     }
 
-    private fun TestScope.createViewModel(): OrderListViewModel {
+    private fun TestScope.createViewModel(
+        savedStateHandle: SavedStateHandle = SavedStateHandle(),
+    ): OrderListViewModel {
         val vm = OrderListViewModel(
             orderRepository = orderRepository,
             customerRepository = customerRepository,
             activeWorkshopProvider = activeWorkshopProvider,
+            savedStateHandle = savedStateHandle,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -151,6 +158,291 @@ class OrderListStaffTest {
         orderRepository.ordersList = listOf(sampleOrder().copy(id = "trigger-emit"))
 
         assertNotNull(vm.state.value.errorMessage)
+    }
+
+    // --- Task 1 (staff phase2 assignment): kill-switch / revocation must bite
+    // mid-session — the listener must not stay pinned to the tree it started on. ---
+
+    @Test
+    fun workshopChangeMidSession_reSubscribesTheOrdersListener() = runTest {
+        setStaffSession() // workshopUid = "o"
+        orderRepository.setOrdersFor("o", listOf(sampleOrder().copy(id = "owned-by-o")))
+        orderRepository.setOrdersFor("s", listOf(sampleOrder().copy(id = "owned-by-s")))
+        val vm = createViewModel()
+        assertEquals(listOf("owned-by-o"), vm.state.value.orders.map { it.id })
+
+        // Kill switch drops the session to owner-of-self: workshopUid becomes the auth uid.
+        activeWorkshopProvider.setSession(WorkshopSession.ownerOfSelf("s"))
+        runCurrent()
+
+        assertEquals(listOf("owned-by-s"), vm.state.value.orders.map { it.id })
+    }
+
+    @Test
+    fun workshopChangeMidSession_reSubscribesTheArchivedOrdersListener() = runTest {
+        setStaffSession() // workshopUid = "o"
+        orderRepository.setOrdersFor(
+            "o",
+            listOf(sampleOrder().copy(id = "archived-by-o", archivedAt = 1L)),
+        )
+        orderRepository.setOrdersFor(
+            "s",
+            listOf(sampleOrder().copy(id = "archived-by-s", archivedAt = 1L)),
+        )
+        val vm = createViewModel()
+        vm.onAction(OrderListAction.OnShowArchived)
+        assertEquals(listOf("archived-by-o"), vm.state.value.orders.map { it.id })
+
+        activeWorkshopProvider.setSession(WorkshopSession.ownerOfSelf("s"))
+        runCurrent()
+
+        assertEquals(listOf("archived-by-s"), vm.state.value.orders.map { it.id })
+    }
+
+    // --- Slice 8e Bugbot follow-up: the kill-switch tests above only prove the
+    // listener re-subscribes — both trees' data were ready the instant flatMapLatest
+    // switched, so `allOrders`/state never had a chance to show A's stale rows. Force
+    // that window open with a fake flow that genuinely hasn't emitted yet, and keep
+    // the STAFF role constant across the switch (no role-change nav redirect to mask
+    // the gap) — this is a pure multi-workshop switch. ---
+
+    @Test
+    fun workshopSwitchMidSession_resetsOrdersBeforeNewTreeDataLands() = runTest {
+        setStaffSession() // authUid = "s", workshopUid = "o"
+        orderRepository.setOrdersFor("o", listOf(sampleOrder().copy(id = "owned-by-o")))
+        val vm = createViewModel()
+        assertEquals(listOf("owned-by-o"), vm.state.value.orders.map { it.id })
+
+        // "o2"'s listener genuinely hasn't produced a first snapshot yet.
+        orderRepository.setOrdersPendingFor("o2")
+        activeWorkshopProvider.setSession(
+            WorkshopSession(
+                authUid = "s",
+                workshopUid = "o2",
+                role = StaffRole.STAFF,
+                membershipStatus = MembershipStatus.ACTIVE,
+            ),
+        )
+        runCurrent()
+
+        // Must not still show "o"'s stale rows while "o2" hasn't emitted.
+        assertEquals(emptyList(), vm.state.value.orders)
+
+        orderRepository.emitOrdersFor("o2", listOf(sampleOrder().copy(id = "owned-by-o2")))
+        runCurrent()
+
+        assertEquals(listOf("owned-by-o2"), vm.state.value.orders.map { it.id })
+    }
+
+    // --- Task 8: "My work" filter chip — staff filters the ACTIVE list to their own
+    // assignments (assignedMemberId == the signed-in authUid). ---
+
+    @Test
+    fun onToggleMyWork_forStaff_filtersToOwnAssignments() = runTest {
+        setStaffSession() // authUid = "s"
+        orderRepository.ordersList = listOf(
+            sampleOrder().copy(id = "mine", assignedMemberId = "s"),
+            sampleOrder().copy(id = "not-mine", assignedMemberId = "other"),
+            sampleOrder().copy(id = "unassigned", assignedMemberId = null),
+        )
+        val vm = createViewModel()
+
+        vm.onAction(OrderListAction.OnToggleMyWork)
+
+        assertEquals(listOf("mine"), vm.state.value.orders.map { it.id })
+        assertTrue(vm.state.value.myWorkOnly)
+    }
+
+    @Test
+    fun onToggleMyWork_toggledOff_restoresFullList() = runTest {
+        setStaffSession()
+        orderRepository.ordersList = listOf(
+            sampleOrder().copy(id = "mine", assignedMemberId = "s"),
+            sampleOrder().copy(id = "not-mine", assignedMemberId = "other"),
+        )
+        val vm = createViewModel()
+
+        vm.onAction(OrderListAction.OnToggleMyWork)
+        vm.onAction(OrderListAction.OnToggleMyWork)
+
+        assertEquals(setOf("mine", "not-mine"), vm.state.value.orders.map { it.id }.toSet())
+        assertFalse(vm.state.value.myWorkOnly)
+    }
+
+    @Test
+    fun onToggleMyWork_composesWithStatusFilter() = runTest {
+        setStaffSession()
+        orderRepository.ordersList = listOf(
+            sampleOrder().copy(id = "mine-pending", assignedMemberId = "s", status = OrderStatus.PENDING),
+            sampleOrder().copy(id = "mine-ready", assignedMemberId = "s", status = OrderStatus.READY),
+            sampleOrder().copy(id = "other-pending", assignedMemberId = "other", status = OrderStatus.PENDING),
+        )
+        val vm = createViewModel()
+
+        vm.onAction(OrderListAction.OnToggleMyWork)
+        vm.onAction(OrderListAction.OnStatusFilterChange(OrderStatus.PENDING))
+
+        assertEquals(listOf("mine-pending"), vm.state.value.orders.map { it.id })
+    }
+
+    @Test
+    fun myWorkOnly_isIgnoredAfterKillSwitchRevokesStaffStatus() = runTest {
+        setStaffSession() // authUid = "s", workshopUid = "o"
+        orderRepository.setOrdersFor("o", listOf(sampleOrder().copy(id = "mine", assignedMemberId = "s")))
+        orderRepository.setOrdersFor(
+            "s",
+            listOf(
+                sampleOrder().copy(id = "owned-by-s-1", assignedMemberId = "s"),
+                sampleOrder().copy(id = "owned-by-s-2", assignedMemberId = null),
+            ),
+        )
+        val vm = createViewModel()
+        vm.onAction(OrderListAction.OnToggleMyWork)
+        assertEquals(listOf("mine"), vm.state.value.orders.map { it.id })
+
+        // Kill switch: role flips to owner-of-self on the same authUid. myWorkOnly is left
+        // stale in state (no chip left to clear it) — staffAuthUid, by contrast, is
+        // recomputed to null the moment isActiveStaff flips false (owner sessions never
+        // carry one) — but either way the ex-staff user's own order tree must not stay
+        // silently filtered.
+        activeWorkshopProvider.setSession(WorkshopSession.ownerOfSelf("s"))
+        runCurrent()
+
+        assertEquals(
+            setOf("owned-by-s-1", "owned-by-s-2"),
+            vm.state.value.orders.map { it.id }.toSet(),
+        )
+    }
+
+    @Test
+    fun onToggleMyWork_fromArchivedView_withStaleMyWork_selectsInsteadOfClearing() = runTest {
+        setStaffSession()
+        orderRepository.ordersList = listOf(
+            sampleOrder().copy(id = "mine", assignedMemberId = "s"),
+            sampleOrder().copy(id = "not-mine", assignedMemberId = "other"),
+        )
+        val vm = createViewModel()
+        vm.onAction(OrderListAction.OnToggleMyWork)
+        vm.onAction(OrderListAction.OnShowArchived)
+
+        // The My-work chip renders unselected in the archived view even though
+        // myWorkOnly is still true underneath — so this tap means "show my work",
+        // not "clear the filter".
+        vm.onAction(OrderListAction.OnToggleMyWork)
+
+        assertFalse(vm.state.value.showArchived)
+        assertTrue(vm.state.value.myWorkOnly)
+        assertEquals(listOf("mine"), vm.state.value.orders.map { it.id })
+    }
+
+    @Test
+    fun onToggleMyWork_forOwner_isNoOp() = runTest {
+        // Default FakeActiveWorkshopProvider session is owner-of-self.
+        orderRepository.ordersList = listOf(
+            sampleOrder().copy(id = "o1", assignedMemberId = "someone"),
+        )
+        val vm = createViewModel()
+
+        vm.onAction(OrderListAction.OnToggleMyWork)
+
+        assertFalse(vm.state.value.myWorkOnly)
+        assertEquals(listOf("o1"), vm.state.value.orders.map { it.id })
+    }
+
+    // --- Task 9 (staff-phase2-assignment): seed statusFilter/myWorkOnly from
+    // OrderListRoute.initialFilter (a dashboard tile deep-linking into a filtered view). ---
+
+    @Test
+    fun seededWithMyWorkFilter_startsWithMyWorkOnlyTrue() = runTest {
+        setStaffSession()
+        val vm = createViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("initialFilter" to OrderListFilter.MY_WORK)),
+        )
+
+        assertTrue(vm.state.value.myWorkOnly)
+    }
+
+    @Test
+    fun seededWithInProgressFilter_startsWithInProgressStatusFilter() = runTest {
+        val vm = createViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("initialFilter" to OrderListFilter.IN_PROGRESS)),
+        )
+
+        assertEquals(OrderStatus.IN_PROGRESS, vm.state.value.statusFilter)
+    }
+
+    @Test
+    fun seededWithNoFilter_leavesDefaultsUnchanged() = runTest {
+        val vm = createViewModel()
+
+        assertFalse(vm.state.value.myWorkOnly)
+        assertNull(vm.state.value.statusFilter)
+    }
+
+    @Test
+    fun seededWithUnrecognizedFilter_leavesDefaultsUnchanged() = runTest {
+        // "overdue"/"due-today" have no matching filter yet — must not crash or
+        // half-apply; the list stays unfiltered exactly like a null initialFilter.
+        val vm = createViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("initialFilter" to OrderListFilter.OVERDUE)),
+        )
+
+        assertFalse(vm.state.value.myWorkOnly)
+        assertNull(vm.state.value.statusFilter)
+    }
+
+    @Test
+    fun seededMyWorkFilter_actuallyFiltersTheOrdersOnceStaffSessionLands() = runTest {
+        // The seeded flag must survive observeActiveWorkshop's isActiveStaff/staffAuthUid
+        // update (a separate _state.update call) and still narrow the active list once
+        // the staff session resolves — not just sit inert in state.
+        setStaffSession() // authUid = "s"
+        orderRepository.ordersList = listOf(
+            sampleOrder().copy(id = "mine", assignedMemberId = "s"),
+            sampleOrder().copy(id = "not-mine", assignedMemberId = "other"),
+        )
+
+        val vm = createViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("initialFilter" to OrderListFilter.MY_WORK)),
+        )
+
+        assertTrue(vm.state.value.myWorkOnly)
+        assertEquals(listOf("mine"), vm.state.value.orders.map { it.id })
+    }
+
+    @Test
+    fun seededMyWorkFilter_isVisibleFromStateValueBeforeAnySubscriber() = runTest {
+        // Regression: `state`'s stateIn(initialValue = ...) must mirror the seeded
+        // `_state` construction, not a bare `OrderListState()`. With
+        // SharingStarted.WhileSubscribed, `state.value` read before the first
+        // collector attaches returns stateIn's own initialValue, never `_state`'s —
+        // so this must be asserted WITHOUT going through `createViewModel()`'s
+        // `backgroundScope.launch { vm.state.collect {} }` subscription.
+        val vm = OrderListViewModel(
+            orderRepository = orderRepository,
+            customerRepository = customerRepository,
+            activeWorkshopProvider = activeWorkshopProvider,
+            savedStateHandle = SavedStateHandle(mapOf("initialFilter" to OrderListFilter.MY_WORK)),
+        )
+
+        assertTrue(vm.state.value.myWorkOnly)
+    }
+
+    @Test
+    fun seededMyWorkFilter_forOwnerSession_doesNotFilter() = runTest {
+        // Guard precedent from Task 8: myWorkOnly only bites with isActiveStaff +
+        // a resolved staffAuthUid. A seeded flag on an owner session must not
+        // silently narrow the owner's own order list.
+        orderRepository.ordersList = listOf(
+            sampleOrder().copy(id = "o1", assignedMemberId = "someone-else"),
+        )
+
+        val vm = createViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("initialFilter" to OrderListFilter.MY_WORK)),
+        )
+
+        assertTrue(vm.state.value.myWorkOnly)
+        assertEquals(listOf("o1"), vm.state.value.orders.map { it.id })
     }
 
     private fun sampleOrder(): Order = Order(

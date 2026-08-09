@@ -32,6 +32,20 @@ export function membershipDocPath(ownerUid: string, staffUid: string): string {
   return `users/${ownerUid}/memberships/${staffUid}`;
 }
 
+export function teamMemberDocPath(ownerUid: string, memberId: string): string {
+  return `users/${ownerUid}/team/${memberId}`;
+}
+
+// Deterministic avatar hue bucket (0..9) so a member keeps their color across
+// devices without storing UI state anywhere else.
+export function colorSeedFor(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i += 1) {
+    h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  }
+  return h % 10;
+}
+
 // A membership counts against the seat cap while it is pending or active.
 export function occupiesSeat(status: MembershipStatus): boolean {
   return status === 'pending' || status === 'active';

@@ -69,6 +69,61 @@ describe('approveStaffMemberHandler', () => {
     expect(store.get('users/alice/memberships/chidi')).toMatchObject({ status: 'pending' });
     expect(claims.claims.get('chidi')).toBeNull();
   });
+
+  it('approve creates the staff roster doc in the same transaction', async () => {
+    const claims = makeClaimsRecorder();
+    const { db, store } = makeStaffDb({
+      'users/alice/memberships/chidi': { status: 'pending', staffName: 'Chidi O' },
+    });
+    await approveStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), deps(db, claims));
+    expect(store.get('users/alice/team/chidi')).toMatchObject({
+      name: 'Chidi O', kind: 'staff', status: 'active',
+    });
+    expect(typeof (store.get('users/alice/team/chidi') as { colorSeed?: number }).colorSeed).toBe('number');
+  });
+
+  it('re-approve after cancel reactivates the roster doc via merge', async () => {
+    const { db, store } = makeStaffDb({
+      'users/alice/memberships/chidi': { status: 'pending', staffName: 'Chidi O' },
+      'users/alice/team/chidi': { name: 'Chidi O', kind: 'staff', status: 'archived', colorSeed: 3 },
+    });
+    await approveStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), deps(db));
+    expect(store.get('users/alice/team/chidi')).toMatchObject({
+      name: 'Chidi O', kind: 'staff', status: 'active', colorSeed: 3,
+    });
+  });
+
+  it('TOCTOU race: membership flipped to revoked between pre-check and tx, rolls back both claims and roster', async () => {
+    // Simulate TOCTOU race: membership passes pre-check as pending, but a
+    // concurrent cancel flips it to revoked before the transaction runs.
+    // The in-tx re-check at approveStaffMember.ts:68-69 catches it and throws.
+    // Because the fake now buffers writes, the roster doc is NOT created.
+    // The catch at line 74 rolls back the claim to null.
+    const claims = makeClaimsRecorder();
+    const { db, store } = makeStaffDb({
+      'users/alice/memberships/chidi': { status: 'pending', staffName: 'Chidi O' },
+    });
+
+    // Intercept runTransaction to simulate status flip mid-flight.
+    const origRunTx = db.runTransaction.bind(db);
+    db.runTransaction = async (fn: any) => {
+      // Between pre-check and in-tx, a concurrent cancel flips status to revoked.
+      store.set('users/alice/memberships/chidi', {
+        ...(store.get('users/alice/memberships/chidi') as object),
+        status: 'revoked',
+      });
+      return origRunTx(fn);
+    };
+
+    await expect(
+      approveStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), deps(db, claims)),
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+
+    // Because buffered writes were discarded, roster doc was NOT created.
+    expect(store.has('users/alice/team/chidi')).toBe(false);
+    // Claim was set before the tx, but rolled back in the catch.
+    expect(claims.claims.get('chidi')).toBeNull();
+  });
 });
 
 describe('revokeStaffMemberHandler', () => {
@@ -107,5 +162,24 @@ describe('revokeStaffMemberHandler', () => {
       }),
     ).rejects.toThrow('claims_backend_down');
     expect(store.get('users/alice/memberships/chidi')).toMatchObject({ status: 'revoked' });
+  });
+
+  it('revoke archives the roster doc but keeps it resolvable', async () => {
+    const { db, store } = makeStaffDb({
+      'users/alice/memberships/chidi': { status: 'active' },
+      'users/alice/team/chidi': { name: 'Chidi O', kind: 'staff', status: 'active', colorSeed: 3 },
+    });
+    await revokeStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), deps(db));
+    expect(store.get('users/alice/team/chidi')).toMatchObject({ status: 'archived', name: 'Chidi O' });
+  });
+
+  it('revoke of a pending member (no roster doc) does not create a stub', async () => {
+    // Pending members are never approved, so no roster doc exists yet.
+    // Revoking them should not create a malformed stub roster doc.
+    const { db, store } = makeStaffDb({
+      'users/alice/memberships/chidi': { status: 'pending' },
+    });
+    await revokeStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), deps(db));
+    expect(store.has('users/alice/team/chidi')).toBe(false);
   });
 });

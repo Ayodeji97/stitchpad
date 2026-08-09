@@ -42,6 +42,8 @@ import com.danzucker.stitchpad.feature.goals.domain.repository.WeeklyGoalReposit
 import com.danzucker.stitchpad.feature.measurement.presentation.entry.MeasurementEntryDestination
 import com.danzucker.stitchpad.feature.measurement.presentation.entry.MeasurementEntryResolver
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
+import com.danzucker.stitchpad.feature.order.presentation.list.OrderListFilter
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
@@ -51,8 +53,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -74,7 +79,7 @@ private const val ONE_DAY_MILLIS: Long = 24L * 60L * 60L * 1000L
 private const val PICKER_DISMISS_DELAY_MS = 450L
 private const val COUNT_FETCH_TIMEOUT_MS = 3_000L
 
-@OptIn(ExperimentalTime::class)
+@OptIn(ExperimentalTime::class, ExperimentalCoroutinesApi::class)
 @Suppress("TooManyFunctions", "LongParameterList")
 class DashboardViewModel(
     private val orderRepository: OrderRepository,
@@ -103,6 +108,13 @@ class DashboardViewModel(
     // because it's an implementation detail of the measurements picker, not
     // something any screen renders directly.
     private var latestCustomers: List<Customer> = emptyList()
+
+    // Tracks the workshopUid loadData()'s combine last subscribed under, so a
+    // genuine A -> B switch (not the first-ever subscribe, and not a
+    // transition to/from null — already handled by the `workshopUid == null`
+    // branch below) can be told apart from a cold start. See the reset note
+    // in loadData().
+    private var lastLoadDataWorkshopUid: String? = null
 
     private val _events = Channel<DashboardEvent>()
     val events = _events.receiveAsFlow()
@@ -215,15 +227,20 @@ class DashboardViewModel(
                     DashboardEvent.NavigateToOrderDetail(action.action.orderId)
                 }
             )
-            DashboardAction.OnSeeAllClick -> emitEvent(DashboardEvent.NavigateToOrders)
+            DashboardAction.OnSeeAllClick -> emitEvent(DashboardEvent.NavigateToOrders())
             DashboardAction.OnOutstandingClick -> emitEvent(DashboardEvent.NavigateToToCollect)
-            DashboardAction.OnViewAllOrdersClick -> emitEvent(DashboardEvent.NavigateToOrders)
-            // Staff count-tile taps open the Orders list. PR-A2 will pass a status/deadline
-            // filter through NavigateToOrders so each tile lands on its own filtered view.
-            DashboardAction.OnViewOverdueClick -> emitEvent(DashboardEvent.NavigateToOrders)
-            DashboardAction.OnViewDueTodayClick -> emitEvent(DashboardEvent.NavigateToOrders)
-            DashboardAction.OnViewPipelineInProgressClick -> emitEvent(DashboardEvent.NavigateToOrders)
-            DashboardAction.OnViewPipelineNotStartedClick -> emitEvent(DashboardEvent.NavigateToOrders)
+            DashboardAction.OnViewAllOrdersClick -> emitEvent(DashboardEvent.NavigateToOrders())
+            // PR-A2 debt paid (Task 9, staff-phase2-assignment): tile taps now pass a filter
+            // through NavigateToOrders so each lands on its own filtered Orders view. Overdue
+            // and Due-today stay unfiltered — OrderListViewModel has no deadline filter yet,
+            // and inventing one is out of scope here (brief explicitly reserves it).
+            DashboardAction.OnViewOverdueClick -> emitEvent(DashboardEvent.NavigateToOrders())
+            DashboardAction.OnViewDueTodayClick -> emitEvent(DashboardEvent.NavigateToOrders())
+            DashboardAction.OnViewPipelineInProgressClick ->
+                emitEvent(DashboardEvent.NavigateToOrders(filter = OrderListFilter.IN_PROGRESS))
+            DashboardAction.OnViewPipelineNotStartedClick -> emitEvent(DashboardEvent.NavigateToOrders())
+            DashboardAction.OnViewMyWorkClick ->
+                emitEvent(DashboardEvent.NavigateToOrders(filter = OrderListFilter.MY_WORK))
             DashboardAction.OnViewReconnectClick -> emitEvent(DashboardEvent.NavigateToCustomers)
             DashboardAction.OnNewOrderClick,
             DashboardAction.OnCreateOrderClick,
@@ -458,49 +475,126 @@ class DashboardViewModel(
         }
     }
 
+    // Kill-switch / staff-revocation must bite mid-session, not on next restart
+    // (StitchPad exploration, 2026-08-08): the old one-shot `awaitHydrated()` read
+    // pinned workshopUid/isStaff for the VM's whole lifetime. Re-deriving on every
+    // (workshopUid, isStaff) change — flatMapLatest cancels the previous combine
+    // (and its Firestore listeners) before starting the new one — keeps the
+    // dashboard correct for the LIVE session, not the one it started in.
     private fun loadData() {
         viewModelScope.launch {
             val authUser = authRepository.getCurrentUser() ?: run {
                 _state.update { it.copy(uiState = DashboardUiState.BrandNew) }
                 return@launch
             }
-            // Identity split: active staff read the OWNER's tree (workshopUid); an
-            // owner reads their own. authUser stays the signed-in identity, so the
-            // greeting name/avatar is always the person actually looking.
-            val session = activeWorkshopProvider.awaitHydrated()
-            val workshopUid = session.workshopUid.takeIf { it.isNotBlank() } ?: run {
-                _state.update { it.copy(uiState = DashboardUiState.BrandNew) }
-                return@launch
-            }
-            val isStaff = session.isActiveStaff
-            if (isStaff) {
-                // Publish staff identity up front so the header renders the staff
-                // variant (name + Staff pill + workshop) while the first snapshot loads.
-                _state.update {
-                    it.copy(isStaff = true, businessName = staffMembershipPrefs.workshopName.value)
-                }
-            }
             // Fire-and-forget: register the device's push token for this user.
             // The merge-write is idempotent so running on every cold start is safe.
             viewModelScope.launch { pushTokenRegistrar.registerForUser(authUser.id) }
-            // Orders/customers are scoped to workshopUid so active staff see the
-            // owner's book; the user doc stays on authUid (the signed-in person's
-            // own profile drives the greeting name + avatar). The Firestore user
-            // doc is in the combine so logo + workshop-name edits flow through live.
-            combine(
-                userRepository.observeUser(authUser.id).onStart { emit(null) },
-                orderRepository.observeOrders(workshopUid),
-                customerRepository.observeCustomers(workshopUid),
-                goalFlowFor(isStaff, workshopUid),
-            ) { firestoreUser, ordersResult, customersResult, goalResult ->
-                UserAndDashboardData(firestoreUser, ordersResult, customersResult, goalResult)
-            }.collect { combined ->
-                if (isStaff) {
-                    updateStaffState(authUser, combined)
-                } else {
-                    updateOwnerState(authUser, combined)
+
+            // Identity split: active staff read the OWNER's tree (workshopUid); an
+            // owner reads their own. authUser stays the signed-in identity, so the
+            // greeting name/avatar is always the person actually looking.
+            activeWorkshopProvider.flow
+                .map { session ->
+                    Triple(session.workshopUid.takeIf { it.isNotBlank() }, session.isActiveStaff, session.authUid)
                 }
-            }
+                .distinctUntilChanged()
+                .flatMapLatest { (workshopUid, isStaff, staffAuthUid) ->
+                    // A -> B (both non-null, different uids): flatMapLatest cancels A's
+                    // combine and starts B's, but the combine can't produce a tick until
+                    // ALL four of its flows have emitted at least once under the new
+                    // uid — until then this stays stale on A's last tick, which is only
+                    // masked today by the role-change nav redirect. Emit the same null
+                    // sentinel the sign-out branch already uses so the reset logic isn't
+                    // duplicated. Skipped on cold start (lastLoadDataWorkshopUid == null)
+                    // so first load doesn't flash BrandNew before the real data lands.
+                    val isWorkshopSwitch = lastLoadDataWorkshopUid != null &&
+                        workshopUid != null &&
+                        workshopUid != lastLoadDataWorkshopUid
+                    lastLoadDataWorkshopUid = workshopUid
+                    if (workshopUid == null) {
+                        flowOf(null)
+                    } else {
+                        if (isStaff) {
+                            // Publish staff identity up front so the header renders the staff
+                            // variant (name + Staff pill + workshop) while the first snapshot loads.
+                            _state.update {
+                                it.copy(isStaff = true, businessName = staffMembershipPrefs.workshopName.value)
+                            }
+                        }
+                        // Orders/customers are scoped to workshopUid so active staff see the
+                        // owner's book; the user doc stays on authUid (the signed-in person's
+                        // own profile drives the greeting name + avatar). The Firestore user
+                        // doc is in the combine so logo + workshop-name edits flow through live.
+                        val combined: Flow<DashboardLoadTick?> = combine(
+                            userRepository.observeUser(authUser.id).onStart { emit(null) },
+                            orderRepository.observeOrders(workshopUid),
+                            customerRepository.observeCustomers(workshopUid),
+                            goalFlowFor(isStaff, workshopUid),
+                        ) { firestoreUser, ordersResult, customersResult, goalResult ->
+                            DashboardLoadTick(
+                                isStaff = isStaff,
+                                staffAuthUid = staffAuthUid,
+                                data = UserAndDashboardData(firestoreUser, ordersResult, customersResult, goalResult),
+                            )
+                        }
+                        if (isWorkshopSwitch) combined.onStart { emit(null) } else combined
+                    }
+                }
+                .collect { tick ->
+                    if (tick == null) {
+                        resetOrderAndCustomerDerivedState()
+                        return@collect
+                    }
+                    if (tick.isStaff) {
+                        updateStaffState(authUser, tick.staffAuthUid, tick.data)
+                    } else {
+                        updateOwnerState(authUser, tick.data)
+                    }
+                }
+        }
+    }
+
+    /**
+     * Handles loadData()'s null tick — hit both when signed out (workshopUid
+     * null, the whole screen navigates away so this was historically a
+     * `uiState`-only reset) and by [loadData]'s isWorkshopSwitch sentinel,
+     * which fires mid-session while this screen stays put. Leaving every
+     * other order/customer-derived field untouched in that second case would
+     * keep showing the PREVIOUS tree's pipeline counts, buckets, and focus
+     * card under the new (loading) uiState/staffPipeline. `staffPipeline =
+     * null` doubles as the staff loading sentinel; every other field here
+     * just matches DashboardState()'s own default for that field.
+     */
+    private fun resetOrderAndCustomerDerivedState() {
+        latestCustomers = emptyList()
+        _state.update {
+            it.copy(
+                uiState = DashboardUiState.BrandNew,
+                staffPipeline = null,
+                staffMineCount = 0,
+                overdue = emptyList(),
+                dueToday = emptyList(),
+                ready = emptyList(),
+                outstandingAmount = 0.0,
+                outstandingOrderCount = 0,
+                outstandingOverdueCount = 0,
+                nextBestActions = emptyList(),
+                pipelineInProgress = emptyList(),
+                pipelineInProgressTotal = 0,
+                pipelinePending = emptyList(),
+                pipelinePendingTotal = 0,
+                focusVariant = FocusVariant.Quiet,
+                focusHeadline = null,
+                focusSupporting = null,
+                focusCtaLabel = null,
+                focusCtaSubtitle = null,
+                focusSectionLabel = null,
+                reconnectCandidates = emptyList(),
+                customerReady = null,
+                firstOrderSetup = null,
+                weeklyGoal = null,
+            )
         }
     }
 
@@ -551,7 +645,7 @@ class DashboardViewModel(
      * their defaults, so the staff view is money-free at the STATE level, not
      * merely hidden in the composable.
      */
-    private fun updateStaffState(authUser: User, combined: UserAndDashboardData) {
+    private fun updateStaffState(authUser: User, staffAuthUid: String, combined: UserAndDashboardData) {
         val ordersResult = combined.ordersResult
         val orders = (ordersResult as? Result.Success)?.data ?: emptyList()
         val today = Instant.fromEpochMilliseconds(nowMillis())
@@ -572,6 +666,9 @@ class DashboardViewModel(
                 overdue = buckets.overdue.map { row -> row.moneyFree() },
                 dueToday = buckets.dueToday.map { row -> row.moneyFree() },
                 staffPipeline = StaffPipelineCalculator.compute(orders),
+                // "Mine" count tile — orders assigned to THIS session's authUid, not the
+                // whole workshop's roster (mirrors OrderListViewModel's "My work" match).
+                staffMineCount = orders.count { order -> order.assignedMemberId == staffAuthUid },
                 errorMessage = (ordersResult as? Result.Error)?.error?.toDashboardUiText(),
             )
         }
@@ -653,6 +750,13 @@ class DashboardViewModel(
             it.copy(
                 uiState = uiState,
                 firstName = firstName,
+                // A prior tick may have been staff (kill-switch / revocation flipped
+                // the session mid-session) — clear all three explicitly so the money wall
+                // holds at the state level, not just while `isStaff` composable guards
+                // are in effect.
+                isStaff = false,
+                staffPipeline = null,
+                staffMineCount = 0,
                 businessName = workshopName,
                 businessLogoUrl = user.businessLogoUrl,
                 greeting = greeting,
@@ -739,6 +843,18 @@ private data class UserAndDashboardData(
     val ordersResult: Result<List<Order>, DataError.Network>,
     val customersResult: Result<List<Customer>, DataError.Network>,
     val goalResult: Result<WeeklyGoal?, DataError.Network>,
+)
+
+/**
+ * [loadData]'s flatMapLatest emits one of these per combine tick. [isStaff] rides
+ * along with the data (rather than being read from an outer closure) so a
+ * role flip mid-collection is dispatched with the role it was actually resolved
+ * under for THAT tick, not a stale value captured when the listener started.
+ */
+private data class DashboardLoadTick(
+    val isStaff: Boolean,
+    val staffAuthUid: String,
+    val data: UserAndDashboardData,
 )
 
 /**

@@ -117,4 +117,31 @@ class OrderBaseMapperTest {
         // Style image carried over (work data staff need).
         assertEquals("style-1", first.styleId)
     }
+
+    @Test
+    fun orderBaseDto_carriesAssignmentFields() {
+        val names = OrderBaseDto.serializer().descriptor.elementNames.toSet()
+        assertTrue("assignedMemberId" in names)
+        assertTrue("assignedMemberName" in names)
+    }
+
+    @Test
+    fun toBaseDto_preservesAssignment() {
+        val dto = orderDto().copy(assignedMemberId = "m1", assignedMemberName = "Chidi O")
+        val base = dto.toBaseDto()
+        assertEquals("m1", base.assignedMemberId)
+        assertEquals("Chidi O", base.assignedMemberName)
+    }
+
+    private fun orderDto() = com.danzucker.stitchpad.core.data.dto.OrderDto(
+        id = "order-1",
+        customerId = "c1",
+        customerName = "Ada",
+        status = "PENDING",
+        priority = "NORMAL",
+        deadline = 123L,
+        notes = "test",
+        createdAt = 10L,
+        updatedAt = 10L,
+    )
 }

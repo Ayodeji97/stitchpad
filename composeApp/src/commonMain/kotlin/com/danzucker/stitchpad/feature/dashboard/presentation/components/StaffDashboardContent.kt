@@ -61,6 +61,7 @@ import stitchpad.composeapp.generated.resources.dashboard_staff_pipeline
 import stitchpad.composeapp.generated.resources.dashboard_staff_stage_ready
 import stitchpad.composeapp.generated.resources.dashboard_staff_tile_due_today
 import stitchpad.composeapp.generated.resources.dashboard_staff_tile_in_progress
+import stitchpad.composeapp.generated.resources.dashboard_staff_tile_mine
 import stitchpad.composeapp.generated.resources.dashboard_staff_tile_overdue
 import stitchpad.composeapp.generated.resources.dashboard_staff_tile_view
 import stitchpad.composeapp.generated.resources.dashboard_staff_workshop_count
@@ -112,9 +113,11 @@ fun StaffDashboardContent(
             overdue = state.overdue.size,
             dueToday = state.dueToday.size,
             inProgress = pipeline.inProgressTotal,
+            mine = state.staffMineCount,
             onOverdueClick = { onAction(DashboardAction.OnViewOverdueClick) },
             onDueTodayClick = { onAction(DashboardAction.OnViewDueTodayClick) },
             onInProgressClick = { onAction(DashboardAction.OnViewPipelineInProgressClick) },
+            onMineClick = { onAction(DashboardAction.OnViewMyWorkClick) },
         )
         val rows = remember(state.overdue, state.dueToday) {
             buildTodayWorkRows(state.overdue, state.dueToday, emptyList())
@@ -194,11 +197,13 @@ private fun StaffCountTiles(
     overdue: Int,
     dueToday: Int,
     inProgress: Int,
+    mine: Int,
     onOverdueClick: () -> Unit,
     onDueTodayClick: () -> Unit,
     onInProgressClick: () -> Unit,
+    onMineClick: () -> Unit,
 ) {
-    // IntrinsicSize.Min keeps all three tiles the height of the tallest, so the "View"
+    // IntrinsicSize.Min keeps all four tiles the height of the tallest, so the "View"
     // affordance on populated tiles never leaves a zero-count tile looking clipped.
     Row(
         modifier = Modifier.height(IntrinsicSize.Min),
@@ -226,6 +231,14 @@ private fun StaffCountTiles(
             accent = MaterialTheme.colorScheme.primary,
             tinted = false,
             onClick = onInProgressClick,
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+        )
+        StaffCountTile(
+            count = mine,
+            label = stringResource(Res.string.dashboard_staff_tile_mine),
+            accent = MaterialTheme.colorScheme.primary,
+            tinted = false,
+            onClick = onMineClick,
             modifier = Modifier.weight(1f).fillMaxHeight(),
         )
     }
@@ -459,6 +472,7 @@ private val previewStaffState = DashboardState(
     firstName = "Gabby",
     businessName = "Ade Fashions",
     staffPipeline = StaffPipelineCounts(cutting = 3, sewing = 5, fitting = 3, ready = 4),
+    staffMineCount = 4,
     overdue = listOf(
         DashboardOrderRow(orderId = "1", customerName = "Chidi O.", primaryLabel = "Agbada", daysLate = 2),
     ),

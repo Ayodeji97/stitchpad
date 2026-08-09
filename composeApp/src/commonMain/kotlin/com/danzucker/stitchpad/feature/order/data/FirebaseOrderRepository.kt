@@ -153,6 +153,21 @@ internal fun orderPaymentBaseWriteFields(now: Long): Map<String, Any?> = mapOf(
 )
 
 /**
+ * Write payload for [FirebaseOrderRepository.assignOrder] — assignment fields only,
+ * with an updatedAt bump. Extracted as a pure helper so the assignment write shape
+ * is testable without a Firestore fake.
+ */
+internal fun orderAssignmentWriteFields(
+    memberId: String?,
+    memberName: String?,
+    now: Long,
+): Map<String, Any?> = mapOf(
+    "assignedMemberId" to memberId,
+    "assignedMemberName" to memberName,
+    "updatedAt" to now,
+)
+
+/**
  * Non-payment half of [FirebaseOrderRepository.updateOrder]'s `/private/money` write —
  * every [OrderMoneyDto] field EXCEPT `payments`, which [orderMoneyMergeWrite] unions on top.
  *
@@ -637,6 +652,22 @@ class FirebaseOrderRepository(
         if (!accepted) {
             return Result.Error(DataError.Network.UNKNOWN)
         }
+        return Result.Success(Unit)
+    }
+
+    @Suppress("SpreadOperator") // same GitLive vararg constraint as updateCosts
+    override suspend fun assignOrder(
+        userId: String,
+        orderId: String,
+        memberId: String?,
+        memberName: String?,
+    ): EmptyResult<DataError.Network> {
+        val fields = orderAssignmentWriteFields(memberId, memberName, Clock.System.now().toEpochMilliseconds())
+        val accepted = offlineWrites.enqueue("assignOrder orderId=$orderId") {
+            ordersCollection(userId).document(orderId)
+                .update(*fields.entries.map { it.key to it.value }.toTypedArray())
+        }
+        if (!accepted) return Result.Error(DataError.Network.UNKNOWN)
         return Result.Success(Unit)
     }
 

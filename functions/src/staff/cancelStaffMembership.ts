@@ -1,6 +1,6 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
-import { REGION, MembershipStatus, membershipDocPath } from './staffConstants';
+import { REGION, MembershipStatus, membershipDocPath, teamMemberDocPath } from './staffConstants';
 import { StaffClaimsDeps } from './approveStaffMember';
 
 export interface CancelStaffMembershipRequest {
@@ -56,6 +56,17 @@ export async function cancelStaffMembershipHandler(
     await deps.db.doc(`users/${workshopUid}/notifications/staff_pending__${staffAuthUid}`).delete();
   } catch {
     // Best-effort: a missing/failed delete must not fail the leave.
+  }
+
+  try {
+    await deps.db.doc(teamMemberDocPath(workshopUid, staffAuthUid)).update(
+      { status: 'archived', updatedAt: nowMs },
+    );
+  } catch {
+    // Roster archive is best-effort. If the roster doc is missing (e.g. member
+    // cancelled before ever being approved), update() throws and we swallow
+    // it rather than create a stub. Attribution for never-approved members isn't
+    // resolvable anyway, and a stub roster doc would pollute the team namespace.
   }
 
   return { workshopUid, status: 'revoked' };

@@ -94,6 +94,10 @@ fun OrderGarmentDetailsCard(
     onRemoveFabricImage: (String, Int) -> Unit,
     onAddFabricNameClick: () -> Unit,
     modifier: Modifier = Modifier,
+    // Task 10: garment media (add/remove style photo, add/remove fabric photo, add
+    // fabric name) is staff-denied until Phase 2b — the rules deny the write, so the
+    // add/remove affordances are hidden here; existing photos stay viewable.
+    isActiveStaff: Boolean = false,
 ) {
     var viewerImages: List<String> by remember { mutableStateOf(emptyList()) }
     var viewerStartIndex: Int by remember { mutableIntStateOf(0) }
@@ -138,6 +142,7 @@ fun OrderGarmentDetailsCard(
                         onAddStyleClick = onAddStyleClick,
                         onRemoveStyleImage = onRemoveStyleImage,
                         onImageClick = openViewer,
+                        isActiveStaff = isActiveStaff,
                         modifier = Modifier.weight(1f),
                     )
                     FabricColumn(
@@ -147,6 +152,7 @@ fun OrderGarmentDetailsCard(
                         onRemoveFabricImage = onRemoveFabricImage,
                         onAddFabricNameClick = onAddFabricNameClick,
                         onImageClick = openViewer,
+                        isActiveStaff = isActiveStaff,
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -222,18 +228,21 @@ private fun StyleColumn(
     onAddStyleClick: (String) -> Unit,
     onRemoveStyleImage: (String, Int) -> Unit,
     onImageClick: (List<String>, Int) -> Unit,
+    isActiveStaff: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val urls = styleImages.map { it.url }
+    // Task 10: staff never gets the add/remove affordance (rules deny the write);
+    // existing style photos stay viewable via onImageClick above.
     ReferenceColumn(
         label = stringResource(Res.string.order_detail_style_caption),
         icon = Icons.Default.Checkroom,
         urls = urls,
-        ctaLabel = if (urls.isEmpty()) Res.string.order_detail_add_style else null,
-        canAdd = styleImages.size < MAX_IMAGES_PER_CATEGORY,
+        ctaLabel = if (urls.isEmpty() && !isActiveStaff) Res.string.order_detail_add_style else null,
+        canAdd = !isActiveStaff && styleImages.size < MAX_IMAGES_PER_CATEGORY,
         onCtaClick = { onAddStyleClick(item.id) },
         onAddClick = { onAddStyleClick(item.id) },
-        onRemove = if (styleImages.isNotEmpty()) {
+        onRemove = if (!isActiveStaff && styleImages.isNotEmpty()) {
             { displayIndex ->
                 styleImages.getOrNull(displayIndex)?.sourceIndex?.let { onRemoveStyleImage(item.id, it) }
             }
@@ -253,15 +262,18 @@ private fun FabricColumn(
     onRemoveFabricImage: (String, Int) -> Unit,
     onAddFabricNameClick: () -> Unit,
     onImageClick: (List<String>, Int) -> Unit,
+    isActiveStaff: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val refs = fabricReferenceImages(item.fabricImages, item.fabricPhotoUrl)
     val urls = refs.map { it.url }
     val needsPhoto = urls.isEmpty()
-    val canAddPhoto = item.fabricImages.size < MAX_IMAGES_PER_CATEGORY
+    // Task 10: staff never gets the add/remove affordance (rules deny the write);
+    // existing fabric photos stay viewable via onImageClick above.
+    val canAddPhoto = !isActiveStaff && item.fabricImages.size < MAX_IMAGES_PER_CATEGORY
     val needsName = !needsPhoto && item.fabricName.isNullOrBlank()
     val ctaLabel: StringResource? = when {
-        !showCta -> null
+        !showCta || isActiveStaff -> null
         needsPhoto -> Res.string.order_detail_add_fabric
         needsName -> Res.string.order_detail_add_fabric_name
         else -> null
@@ -281,7 +293,7 @@ private fun FabricColumn(
         canAdd = canAddPhoto,
         onCtaClick = onCtaClick,
         onAddClick = onAddClick,
-        onRemove = if (refs.isNotEmpty()) {
+        onRemove = if (!isActiveStaff && refs.isNotEmpty()) {
             { displayIndex ->
                 refs.getOrNull(displayIndex)?.sourceIndex?.let { onRemoveFabricImage(item.id, it) }
             }
@@ -778,6 +790,63 @@ private fun OrderGarmentDetailsCardMultiItemPreview() {
             onAddFabricPhotoClick = { _ -> },
             onRemoveFabricImage = { _, _ -> },
             onAddFabricNameClick = {},
+        )
+    }
+}
+
+/** Staff variant (Task 10): photos stay viewable, add/remove affordances hidden. */
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun OrderGarmentDetailsCardStaffPreview() {
+    StitchPadTheme {
+        OrderGarmentDetailsCard(
+            items = listOf(
+                OrderItem(
+                    id = "i1",
+                    garmentType = GarmentType.AGBADA,
+                    description = "Gold damask",
+                    price = 100_000.0,
+                    fabricPhotoUrl = "https://example.com/fabric.jpg",
+                    fabricName = "Damask",
+                ),
+            ),
+            priority = OrderPriority.NORMAL,
+            styleImagesByItemId = mapOf("i1" to listOf(ReferenceImage("https://example.com/style1.jpg", 0))),
+            onAddStyleClick = { _ -> },
+            onRemoveStyleImage = { _, _ -> },
+            onAddFabricPhotoClick = { _ -> },
+            onRemoveFabricImage = { _, _ -> },
+            onAddFabricNameClick = {},
+            isActiveStaff = true,
+        )
+    }
+}
+
+/** Staff variant, empty photos (Task 10): no "Add style"/"Add fabric" CTA reachable. */
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun OrderGarmentDetailsCardStaffEmptyPreview() {
+    StitchPadTheme {
+        OrderGarmentDetailsCard(
+            items = listOf(
+                OrderItem(
+                    id = "i1",
+                    garmentType = GarmentType.SHIRT,
+                    description = "Ankara print",
+                    price = 60_000.0,
+                    fabricPhotoUrl = null,
+                ),
+            ),
+            priority = OrderPriority.NORMAL,
+            styleImagesByItemId = emptyMap(),
+            onAddStyleClick = { _ -> },
+            onRemoveStyleImage = { _, _ -> },
+            onAddFabricPhotoClick = { _ -> },
+            onRemoveFabricImage = { _, _ -> },
+            onAddFabricNameClick = {},
+            isActiveStaff = true,
         )
     }
 }

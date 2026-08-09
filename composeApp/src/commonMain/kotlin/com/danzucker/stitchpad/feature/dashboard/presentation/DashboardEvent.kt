@@ -7,7 +7,15 @@ sealed interface DashboardEvent {
     data class NavigateToOrderDetail(val orderId: String) : DashboardEvent
     data class LaunchWhatsApp(val action: NextBestAction) : DashboardEvent
     data class LaunchWhatsAppForReconnect(val candidate: ReconnectCandidate) : DashboardEvent
-    data object NavigateToOrders : DashboardEvent
+
+    /**
+     * [filter] threads through to [com.danzucker.stitchpad.navigation.OrderListRoute.initialFilter]
+     * — one of `"overdue"`, `"due-today"`, `"in-progress"`, `"my-work"`, or null for no filter.
+     * Only `"in-progress"` and `"my-work"` are actually consumed by the list VM today (Task 9,
+     * staff-phase2-assignment); `"overdue"`/`"due-today"` have no matching deadline filter yet,
+     * so those two tiles keep emitting null.
+     */
+    data class NavigateToOrders(val filter: String? = null) : DashboardEvent
     data object NavigateToOrderForm : DashboardEvent
 
     /** Outstanding-payments tap: open the dedicated To-Collect list instead of the full order book. */

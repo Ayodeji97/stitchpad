@@ -91,6 +91,8 @@ import com.danzucker.stitchpad.feature.order.presentation.detail.components.Cost
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.MeasurementDetailSheet
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.MeasurementPickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderArchiveButton
+import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderAssignPickerSheet
+import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderAssigneeCard
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderCostsCard
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderDetailOverflowMenu
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderFooterCaption
@@ -1181,6 +1183,20 @@ private fun OrderDetailContent(
                 onCustomerClick = { onAction(OrderDetailAction.OnCustomerClick) },
             )
         }
+        item {
+            OrderAssigneeCard(
+                assignedMemberId = order.assignedMemberId,
+                assignedMemberName = order.assignedMemberName,
+                isActiveStaff = state.isActiveStaff,
+                isAssignedToSelf = state.isActiveStaff &&
+                    order.assignedMemberId != null &&
+                    order.assignedMemberId == state.staffAuthUid,
+                roster = state.roster,
+                onAssignClick = { onAction(OrderDetailAction.OnAssignClick) },
+                onClaimClick = { onAction(OrderDetailAction.OnClaimClick) },
+                onUnassignClick = { onAction(OrderDetailAction.OnUnassignClick) },
+            )
+        }
         // Costs / profit is money — hidden for active staff (Slice 6c).
         if (!state.isActiveStaff) {
             item {
@@ -1209,6 +1225,7 @@ private fun OrderDetailContent(
                     onAction(OrderDetailAction.OnRemoveFabricImage(itemId, index))
                 },
                 onAddFabricNameClick = { onAction(OrderDetailAction.OnAddFabricNameClick) },
+                isActiveStaff = state.isActiveStaff,
             )
         }
         // Payment total / history + record-payment is money — hidden for active staff (Slice 6c).
@@ -1245,6 +1262,7 @@ private fun OrderDetailContent(
                     }
                 },
                 onLinkMeasurementsClick = { onAction(OrderDetailAction.OnLinkMeasurementsClick) },
+                isActiveStaff = state.isActiveStaff,
             )
         }
         item {
@@ -1256,6 +1274,7 @@ private fun OrderDetailContent(
                 onDraftChange = { onAction(OrderDetailAction.OnNotesDraftChange(it)) },
                 onSaveClick = { onAction(OrderDetailAction.OnNotesSaveClick) },
                 onCancelClick = { onAction(OrderDetailAction.OnNotesCancelClick) },
+                isActiveStaff = state.isActiveStaff,
             )
         }
         if (order.status == OrderStatus.DELIVERED) {
@@ -1346,6 +1365,18 @@ private fun OrderDetailContent(
                 )
             }
         }
+    }
+
+    // Owner's roster picker (Task 7) — never opened for a staff session; OnAssignClick
+    // is staff-restricted, and the VM never populates a roster to show staff anyway.
+    if (state.showAssignSheet) {
+        OrderAssignPickerSheet(
+            roster = state.roster,
+            onSelectMember = { member ->
+                onAction(OrderDetailAction.OnAssignMember(member.id, member.name))
+            },
+            onDismiss = { onAction(OrderDetailAction.OnDismissAssignSheet) },
+        )
     }
 }
 

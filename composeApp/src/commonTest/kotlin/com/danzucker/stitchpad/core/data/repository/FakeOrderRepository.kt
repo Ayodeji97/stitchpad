@@ -10,7 +10,9 @@ import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 
 class FakeOrderRepository : OrderRepository {
@@ -25,6 +27,45 @@ class FakeOrderRepository : OrderRepository {
         get() = ordersFlow.value
         set(value) { ordersFlow.value = value }
 
+    /**
+     * Per-uid override streams (Slice 8e — kill-switch/session re-subscription
+     * tests): a uid opted in via [setOrdersFor] gets its OWN independent list so
+     * a test can simulate two different workshop trees ("o" vs "s") live in the
+     * same VM. Any uid that never calls [setOrdersFor] keeps sharing [ordersFlow]
+     * via [ordersList] — every existing single-tenant test is unaffected.
+     */
+    private val perUidOrdersFlow = mutableMapOf<String, MutableStateFlow<List<Order>>>()
+
+    fun setOrdersFor(userId: String, orders: List<Order>) {
+        perUidOrdersFlow.getOrPut(userId) { MutableStateFlow(emptyList()) }.value = orders
+    }
+
+    /**
+     * [setOrdersFor]'s StateFlow always replays a value (even its default empty
+     * one) to a new subscriber, so it can't represent a workshop tree whose
+     * listener genuinely HASN'T produced a first snapshot yet — the exact
+     * window a workshop-switch reset (Slice 8e) needs to prove itself against.
+     * A uid opted in here gets a no-replay flow instead; [emitOrdersFor]
+     * delivers its first (and any later) snapshot once the test is ready.
+     */
+    private val pendingOrdersFlow = mutableMapOf<String, MutableSharedFlow<List<Order>>>()
+
+    fun setOrdersPendingFor(userId: String) {
+        pendingOrdersFlow.getOrPut(userId) { MutableSharedFlow(replay = 0, extraBufferCapacity = 1) }
+    }
+
+    fun emitOrdersFor(userId: String, orders: List<Order>) {
+        val pending = pendingOrdersFlow[userId]
+        if (pending != null) {
+            pending.tryEmit(orders)
+        } else {
+            setOrdersFor(userId, orders)
+        }
+    }
+
+    private fun ordersFlowFor(userId: String): Flow<List<Order>> =
+        pendingOrdersFlow[userId] ?: perUidOrdersFlow[userId] ?: ordersFlow
+
     var lastCreatedOrder: Order? = null
     var lastUpdatedOrder: Order? = null
     var updateOrderCallCount: Int = 0
@@ -37,10 +78,11 @@ class FakeOrderRepository : OrderRepository {
     var lastNotesUpdate: Pair<String, String?>? = null
     var lastArchivedOrderId: String? = null
     var lastUnarchivedOrderId: String? = null
+    var lastAssignment: Triple<String, String?, String?>? = null
     private var nextIdSuffix = 0
 
     override fun observeOrders(userId: String): Flow<Result<List<Order>, DataError.Network>> =
-        ordersFlow.map { list ->
+        ordersFlowFor(userId).map { list ->
             shouldReturnError?.let { return@map Result.Error(it) }
             // Mirror FirebaseOrderRepository's archive filter so VM tests
             // see the same observable surface as production.
@@ -50,7 +92,7 @@ class FakeOrderRepository : OrderRepository {
     override fun observeArchivedOrders(
         userId: String,
     ): Flow<Result<List<Order>, DataError.Network>> =
-        ordersFlow.map { list ->
+        ordersFlowFor(userId).map { list ->
             (archivedError ?: shouldReturnError)?.let { return@map Result.Error(it) }
             Result.Success(
                 list.filter { it.archivedAt != null }.sortedByDescending { it.archivedAt }
@@ -196,6 +238,20 @@ class FakeOrderRepository : OrderRepository {
         lastUnarchivedOrderId = orderId
         ordersFlow.value = ordersFlow.value.map { existing ->
             if (existing.id == orderId) existing.copy(archivedAt = null) else existing
+        }
+        return Result.Success(Unit)
+    }
+
+    override suspend fun assignOrder(
+        userId: String,
+        orderId: String,
+        memberId: String?,
+        memberName: String?,
+    ): EmptyResult<DataError.Network> {
+        shouldReturnError?.let { return Result.Error(it) }
+        lastAssignment = Triple(orderId, memberId, memberName)
+        ordersFlow.value = ordersFlow.value.map { existing ->
+            if (existing.id == orderId) existing.copy(assignedMemberId = memberId, assignedMemberName = memberName) else existing
         }
         return Result.Success(Unit)
     }

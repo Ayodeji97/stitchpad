@@ -34,7 +34,10 @@ import com.danzucker.stitchpad.feature.onboarding.presentation.welcome.WelcomeRo
 import com.danzucker.stitchpad.feature.onboarding.presentation.workshop.WorkshopSetupRoot
 import com.danzucker.stitchpad.feature.staff.presentation.pending.StaffPendingRoot
 import com.danzucker.stitchpad.feature.staff.presentation.redeem.RedeemInviteRoot
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -210,6 +213,47 @@ private fun PushDeepLinkRedirectEffect(navController: NavHostController) {
 }
 
 /**
+ * Kill-switch / revocation must bite mid-session, not on next restart (StitchPad
+ * exploration, 2026-08-08): [resolvePostAuthDestination] above only resolves the
+ * start route ONCE, via `.first { }`. This watches [ActiveWorkshopProvider.flow]
+ * for a STAFF<->OWNER role flip AFTER that initial resolution and pops back to
+ * [HomeRoute] so every screen re-renders under the freshly-resolved session —
+ * every list/dashboard ViewModel already re-subscribes its own listeners on
+ * `WorkshopSession.workshopUid` changes (see OrderListViewModel et al.); this is
+ * the nav-level half of the same fix.
+ *
+ * Keyed on `authUid` (not `Unit`) rather than `role` directly: a fresh sign-in
+ * must start its OWN `drop(1)` baseline, because the very first session value
+ * for a new authUid (e.g. an approved staffer's STAFF/ACTIVE resolution) is not
+ * itself a "change" worth re-routing for — resolvePostAuth already routes it
+ * correctly the first time. Only a role flip AFTER that baseline — the same
+ * authUid resolving differently — is a session-altering event. `role` alone
+ * (not workshopUid/membershipStatus) is the right signal: the pending->active
+ * approval transition keeps role == STAFF throughout (see
+ * `WorkshopSessionResolver`), so it's left to StaffPendingRoot's own approval
+ * watcher, and workshopUid-only changes are handled by the VMs directly.
+ */
+@Composable
+private fun StaffRoleChangeRedirectEffect(navController: NavHostController) {
+    val activeWorkshopProvider: ActiveWorkshopProvider = koinInject()
+    val session by activeWorkshopProvider.flow.collectAsStateWithLifecycle()
+    val authUid = session.authUid
+    LaunchedEffect(authUid) {
+        if (authUid.isBlank()) return@LaunchedEffect
+        activeWorkshopProvider.flow
+            .map { it.role }
+            .distinctUntilChanged()
+            .drop(1) // skip the role this session already resolved to
+            .collect {
+                navController.navigate(HomeRoute) {
+                    popUpTo(navController.graph.id) { inclusive = false }
+                    launchSingleTop = true
+                }
+            }
+    }
+}
+
+/**
  * Logs a screen_view for every destination the user lands on. One hook covers every
  * route — no per-screen code. Keys on the route string so re-landing the same screen
  * (e.g. tab reselects to the same destination) does not spam duplicates.
@@ -243,6 +287,7 @@ fun StitchPadNavHost(
 
     PushDeepLinkRedirectEffect(navController)
     ScreenViewTrackingEffect(navController)
+    StaffRoleChangeRedirectEffect(navController)
 
     NavHost(
         navController = navController,

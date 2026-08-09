@@ -1204,6 +1204,76 @@ describe('active staff member access', () => {
     // chidi's claim scopes to alice, so bob's tree is off-limits.
     await assertFails(getDoc(doc(staffDb('chidi', 'alice'), 'users/bob/orders/ob1')));
   });
+
+  it('staff can CLAIM an unassigned order (null -> self) and nothing else', async () => {
+    await asAdmin(async (db) => {
+      await setDoc(doc(db, 'users/alice/memberships/chidi'), { role: 'staff', status: 'active', workshopUid: 'alice' });
+      await setDoc(doc(db, 'users/alice/orders/o-claim'), { customerName: 'Ada', status: 'PENDING', createdAt: 1, updatedAt: 1 });
+    });
+    const staff = staffDb('chidi', 'alice');
+    await assertSucceeds(updateDoc(doc(staff, 'users/alice/orders/o-claim'), {
+      assignedMemberId: 'chidi', assignedMemberName: 'Chidi O', updatedAt: 2,
+    }));
+  });
+
+  it('staff cannot claim an already-assigned order, assign someone else, or unassign', async () => {
+    await asAdmin(async (db) => {
+      await setDoc(doc(db, 'users/alice/memberships/chidi'), { role: 'staff', status: 'active', workshopUid: 'alice' });
+      await setDoc(doc(db, 'users/alice/orders/o-taken'), {
+        customerName: 'Ada', status: 'PENDING', createdAt: 1, updatedAt: 1,
+        assignedMemberId: 'someone-else', assignedMemberName: 'Else',
+      });
+      await setDoc(doc(db, 'users/alice/orders/o-free'), { customerName: 'Ada', status: 'PENDING', createdAt: 1, updatedAt: 1 });
+      await setDoc(doc(db, 'users/alice/orders/o-free-money'), { customerName: 'Ada', status: 'PENDING', createdAt: 1, updatedAt: 1 });
+      await setDoc(doc(db, 'users/alice/orders/o-free-status'), { customerName: 'Ada', status: 'PENDING', createdAt: 1, updatedAt: 1 });
+    });
+    const staff = staffDb('chidi', 'alice');
+    await assertFails(updateDoc(doc(staff, 'users/alice/orders/o-taken'), {
+      assignedMemberId: 'chidi', assignedMemberName: 'Chidi O', updatedAt: 2,
+    }));
+    await assertFails(updateDoc(doc(staff, 'users/alice/orders/o-free'), {
+      assignedMemberId: 'someone-else', assignedMemberName: 'Else', updatedAt: 2,
+    }));
+    await assertFails(updateDoc(doc(staff, 'users/alice/orders/o-taken'), {
+      assignedMemberId: deleteField(), assignedMemberName: deleteField(), updatedAt: 2,
+    }));
+    // The claim branch's hasOnly(['assignedMemberId','assignedMemberName','updatedAt'])
+    // IS the money/status wall for this branch — it carries no orderMoneyKeys()
+    // guard of its own. Pin it directly, each on its OWN fresh unassigned order so
+    // one wrongly-succeeding write can't mask the other's independent guard: a
+    // claim write may not smuggle a money field or a status field into the same
+    // commit.
+    await assertFails(updateDoc(doc(staff, 'users/alice/orders/o-free-money'), {
+      assignedMemberId: 'chidi', assignedMemberName: 'Chidi O', updatedAt: 2, totalPrice: 999,
+    }));
+    await assertFails(updateDoc(doc(staff, 'users/alice/orders/o-free-status'), {
+      assignedMemberId: 'chidi', assignedMemberName: 'Chidi O', updatedAt: 2, status: 'READY',
+    }));
+  });
+
+  it('owner assigns, reassigns, and unassigns freely', async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice/orders/o-own'), { customerName: 'Ada', status: 'PENDING', createdAt: 1, updatedAt: 1 });
+    });
+    await assertSucceeds(updateDoc(doc(db('alice'), 'users/alice/orders/o-own'), {
+      assignedMemberId: 'paul', assignedMemberName: 'Paul', updatedAt: 2,
+    }));
+    await assertSucceeds(updateDoc(doc(db('alice'), 'users/alice/orders/o-own'), {
+      assignedMemberId: null, assignedMemberName: null, updatedAt: 3,
+    }));
+  });
+
+  it('team roster: members read, only owner writes, staff cannot write', async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice/memberships/chidi'), { role: 'staff', status: 'active', workshopUid: 'alice' });
+      await setDoc(doc(admin, 'users/alice/team/paul'), { name: 'Paul', kind: 'named', status: 'active', colorSeed: 1 });
+    });
+    await assertSucceeds(getDoc(doc(staffDb('chidi', 'alice'), 'users/alice/team/paul')));
+    await assertSucceeds(getDocs(collection(staffDb('chidi', 'alice'), 'users/alice/team')));
+    await assertSucceeds(setDoc(doc(db('alice'), 'users/alice/team/new-named'), { name: 'Ngozi', kind: 'named', status: 'active', colorSeed: 4 }));
+    await assertFails(setDoc(doc(staffDb('chidi', 'alice'), 'users/alice/team/hax'), { name: 'Hax', kind: 'named', status: 'active', colorSeed: 0 }));
+    await assertFails(deleteDoc(doc(db('alice'), 'users/alice/team/paul')));
+  });
 });
 
 // Owner + Staff backend collections: memberships (owner-read + self-read,

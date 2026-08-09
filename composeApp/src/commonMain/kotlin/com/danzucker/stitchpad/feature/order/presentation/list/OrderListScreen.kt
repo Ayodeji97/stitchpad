@@ -85,8 +85,10 @@ import com.danzucker.stitchpad.core.sharing.formatPrice
 import com.danzucker.stitchpad.feature.order.presentation.garmentSummaryRes
 import com.danzucker.stitchpad.feature.tutorials.domain.model.TutorialTopic
 import com.danzucker.stitchpad.feature.tutorials.presentation.hint.TutorialHintRoot
+import com.danzucker.stitchpad.ui.components.MemberAvatar
 import com.danzucker.stitchpad.ui.components.PendingSyncBadge
 import com.danzucker.stitchpad.ui.components.StrikethroughPrice
+import com.danzucker.stitchpad.ui.components.fallbackMemberColorSeed
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
@@ -113,6 +115,7 @@ import stitchpad.composeapp.generated.resources.order_empty_title
 import stitchpad.composeapp.generated.resources.order_fab_cd
 import stitchpad.composeapp.generated.resources.order_filter_all
 import stitchpad.composeapp.generated.resources.order_filter_archived
+import stitchpad.composeapp.generated.resources.order_filter_my_work
 import stitchpad.composeapp.generated.resources.order_hide_profit
 import stitchpad.composeapp.generated.resources.order_list_title
 import stitchpad.composeapp.generated.resources.order_priority_rush
@@ -242,8 +245,11 @@ fun OrderListScreen(
             OrderStatusFilterChips(
                 selectedStatus = state.statusFilter,
                 showArchived = state.showArchived,
+                isActiveStaff = state.isActiveStaff,
+                myWorkOnly = state.myWorkOnly,
                 onStatusSelected = { onAction(OrderListAction.OnStatusFilterChange(it)) },
-                onArchivedSelected = { onAction(OrderListAction.OnShowArchived) }
+                onArchivedSelected = { onAction(OrderListAction.OnShowArchived) },
+                onMyWorkSelected = { onAction(OrderListAction.OnToggleMyWork) }
             )
 
             when {
@@ -389,8 +395,11 @@ fun OrderListScreen(
 private fun OrderStatusFilterChips(
     selectedStatus: OrderStatus?,
     showArchived: Boolean,
+    isActiveStaff: Boolean,
+    myWorkOnly: Boolean,
     onStatusSelected: (OrderStatus?) -> Unit,
-    onArchivedSelected: () -> Unit
+    onArchivedSelected: () -> Unit,
+    onMyWorkSelected: () -> Unit
 ) {
     val statusOptions: List<Pair<OrderStatus?, String>> = listOf(
         null to stringResource(Res.string.order_filter_all),
@@ -411,14 +420,30 @@ private fun OrderStatusFilterChips(
                 bottom = DesignTokens.space2
             )
     ) {
-        statusOptions.forEach { (status, label) ->
+        statusOptions.forEachIndexed { index, (status, label) ->
             // A status chip is only "selected" in the active view — never while archived.
-            val isSelected = !showArchived && selectedStatus == status
+            // The "All" entry (index 0, status == null) additionally must not highlight
+            // while myWorkOnly is active — see allChipSelected().
+            val isSelected = if (status == null) {
+                allChipSelected(showArchived, selectedStatus, myWorkOnly)
+            } else {
+                !showArchived && selectedStatus == status
+            }
             OrderFilterChip(
                 label = label,
                 isSelected = isSelected,
                 onClick = { onStatusSelected(status) }
             )
+            // "My work" is staff-only and orthogonal to status. It sits immediately after
+            // "All" (owner smoke-test request: on phones it was scrolled off-screen at the
+            // row's end, next to Archived) — inserted right after the first (All) chip.
+            if (index == 0 && isActiveStaff) {
+                OrderFilterChip(
+                    label = stringResource(Res.string.order_filter_my_work),
+                    isSelected = myWorkOnly && !showArchived,
+                    onClick = onMyWorkSelected,
+                )
+            }
         }
         // Archived is orthogonal to status: its own segment at the end of the row.
         OrderFilterChip(
@@ -772,8 +797,19 @@ private fun OrderListItem(
 
             DeadlineLine(deadline = order.deadline, now = now, status = order.status)
 
-            if (order.isPendingSync) {
-                PendingSyncBadge(modifier = Modifier.padding(top = DesignTokens.space1))
+            if (order.isPendingSync || order.assignedMemberName != null) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+                    modifier = Modifier.padding(top = DesignTokens.space1),
+                ) {
+                    if (order.isPendingSync) {
+                        PendingSyncBadge()
+                    }
+                    order.assignedMemberName?.let { name ->
+                        OrderRowAssignee(memberId = order.assignedMemberId, memberName = name)
+                    }
+                }
             }
         }
 
@@ -797,6 +833,32 @@ private fun OrderListItem(
                 }
             }
         }
+    }
+}
+
+/**
+ * Small initials-avatar + name for the assignee on an order row (Task 8). The list only
+ * has [Order.assignedMemberId]/[Order.assignedMemberName] — not the roster — so unlike
+ * [com.danzucker.stitchpad.feature.order.presentation.detail.components.OrderAssigneeCard]
+ * (which resolves the roster's stored `colorSeed` by id when it has one), a list row always
+ * falls back to [fallbackMemberColorSeed]'s hash of the id (or the name), never re-derived
+ * from a display value that can change, so a rename doesn't reshuffle the hue.
+ */
+@Composable
+private fun OrderRowAssignee(memberId: String?, memberName: String) {
+    val colorSeed = remember(memberId, memberName) { fallbackMemberColorSeed(memberId, memberName) }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space1),
+    ) {
+        MemberAvatar(name = memberName, colorSeed = colorSeed, size = DesignTokens.space4)
+        Text(
+            text = memberName,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

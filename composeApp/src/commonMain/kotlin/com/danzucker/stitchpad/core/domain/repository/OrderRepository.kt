@@ -66,6 +66,13 @@ interface OrderRepository {
         orderId: String,
     ): EmptyResult<DataError.Network>
 
+    suspend fun assignOrder(
+        userId: String,
+        orderId: String,
+        memberId: String?,
+        memberName: String?,
+    ): EmptyResult<DataError.Network>
+
     fun newOrderId(userId: String): String
 
     suspend fun uploadFabricPhoto(

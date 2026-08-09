@@ -10,6 +10,7 @@ import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.domain.model.User
+import com.danzucker.stitchpad.core.domain.staff.TeamMember
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.ReceiptDocumentType
 import com.danzucker.stitchpad.feature.order.presentation.form.StylePickerSource
@@ -30,6 +31,24 @@ data class OrderDetailState(
      * is hidden. The VM also guards the matching actions — see [OrderDetailAction.isStaffRestricted].
      */
     val isActiveStaff: Boolean = false,
+
+    /**
+     * Live active-member roster for the owner's assignment picker (Task 7 / Slice 8e).
+     * Populated only for an owner session — [OrderDetailViewModel.observeActiveWorkshop]
+     * skips the [com.danzucker.stitchpad.core.domain.staff.repository.TeamRosterRepository]
+     * subscription entirely when the session isActiveStaff, since staff never see the
+     * picker (they can only claim for themselves).
+     */
+    val roster: List<TeamMember> = emptyList(),
+    /** Owner's "Assign to…" bottom sheet (Task 7). Never opened for a staff session. */
+    val showAssignSheet: Boolean = false,
+    /**
+     * The signed-in staff member's own [com.danzucker.stitchpad.core.domain.session.WorkshopSession.authUid],
+     * populated only while [isActiveStaff]. [OrderDetailAction.OnClaimClick] assigns the
+     * order to exactly this uid — never to an id chosen from a picker (staff have no
+     * roster access), matching the Task 3 rules invariant (staff claim: null -> self only).
+     */
+    val staffAuthUid: String? = null,
 
     val showMeasurementPickerSheet: Boolean = false,
     val availableMeasurements: List<Measurement> = emptyList(),

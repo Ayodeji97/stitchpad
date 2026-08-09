@@ -90,6 +90,42 @@ class OrderDetailStaffGuardTest {
             OrderDetailAction.OnConfirmArchive,
             OrderDetailAction.OnDeleteClick,
             OrderDetailAction.OnConfirmDelete,
+            // Assignment (Task 7) — owner-only; OnClaimClick/OnDismissAssignSheet stay
+            // available to staff (checked separately below).
+            OrderDetailAction.OnAssignClick,
+            OrderDetailAction.OnAssignMember(memberId = "paul", memberName = "Paul"),
+            OrderDetailAction.OnUnassignClick,
+        )
+        restricted.forEach {
+            assertTrue(it.isStaffRestricted(), "$it must be staff-restricted")
+        }
+    }
+
+    // --- Task 10: every order-detail affordance the rules deny for staff ---
+
+    @Test
+    fun everyPhase2AffordanceAudit_isStaffRestricted() {
+        val restricted = listOf(
+            // Due date — owner-only (2026-08-08 product decision).
+            OrderDetailAction.OnSetDeadlineClick,
+            OrderDetailAction.OnDeadlineSelected(epochMillis = 1_754_611_200_000L),
+            // Notes editing — staff-denied for now.
+            OrderDetailAction.OnNotesEditClick,
+            OrderDetailAction.OnNotesDraftChange("Use gold thread"),
+            OrderDetailAction.OnNotesSaveClick,
+            // Measurements-link — staff-denied for now.
+            OrderDetailAction.OnLinkMeasurementsClick,
+            OrderDetailAction.OnSelectMeasurement(measurementId = "m1"),
+            // Garment media (style + fabric) — staff-denied until Phase 2b. Actions
+            // wired from OrderGarmentDetailsCard's callbacks (OrderDetailScreen.kt).
+            OrderDetailAction.OnAddStyleClick(itemId = "i1"),
+            OrderDetailAction.OnAddStylePhoto(itemId = "i1", photoBytes = byteArrayOf(1, 2, 3)),
+            OrderDetailAction.OnRemoveStyleImage(itemId = "i1", index = 0),
+            OrderDetailAction.OnAddFabricPhoto(itemId = "i1", photoBytes = byteArrayOf(4, 5, 6)),
+            OrderDetailAction.OnRemoveFabricImage(itemId = "i1", index = 0),
+            OrderDetailAction.OnAddFabricNameClick,
+            OrderDetailAction.OnFabricNameDraftChange("Royal Lace"),
+            OrderDetailAction.OnSaveFabricName,
         )
         restricted.forEach {
             assertTrue(it.isStaffRestricted(), "$it must be staff-restricted")
@@ -116,10 +152,25 @@ class OrderDetailStaffGuardTest {
     fun neutralViewAndEditActions_areNotStaffRestricted() {
         val allowed = listOf(
             OrderDetailAction.OnBackClick,
-            OrderDetailAction.OnNotesEditClick,
-            OrderDetailAction.OnSetDeadlineClick,
-            OrderDetailAction.OnLinkMeasurementsClick,
+            // Notes cancel, deadline-dialog dismiss, and view-measurement all stay
+            // reachable — they mutate nothing (Task 10: only the notes/deadline/
+            // measurements-link WRITE paths above are guarded, not their dismisses).
+            OrderDetailAction.OnNotesCancelClick,
+            OrderDetailAction.OnDismissDatePickerDialog,
             OrderDetailAction.OnViewMeasurementClick,
+        )
+        allowed.forEach {
+            assertFalse(it.isStaffRestricted(), "$it must stay available to staff")
+        }
+    }
+
+    // --- (d) staff self-claim stays available (Task 7) ---
+
+    @Test
+    fun claimClickAndDismissAssignSheet_areNotStaffRestricted() {
+        val allowed = listOf(
+            OrderDetailAction.OnClaimClick,
+            OrderDetailAction.OnDismissAssignSheet,
         )
         allowed.forEach {
             assertFalse(it.isStaffRestricted(), "$it must stay available to staff")

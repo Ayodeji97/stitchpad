@@ -29,7 +29,7 @@ sealed class BottomNavItem(
         labelRes = Res.string.nav_customers
     )
     data object Orders : BottomNavItem(
-        route = OrderListRoute,
+        route = OrderListRoute(),
         icon = Icons.Default.ShoppingBag,
         labelRes = Res.string.nav_orders
     )

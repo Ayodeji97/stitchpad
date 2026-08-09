@@ -577,6 +577,7 @@
     <string name="order_empty_archived_subtitle">Orders you archive show up here. You can restore them anytime.</string>
     <string name="order_fab_cd">Add order</string>
     <string name="order_filter_all">All</string>
+    <string name="order_filter_my_work">My work</string>
     <string name="order_filter_archived">Archived</string>
     <string name="order_restore_cta">Restore</string>
     <string name="order_restored_snackbar">Order restored</string>
@@ -904,6 +905,7 @@
     <string name="dashboard_staff_tile_overdue">Overdue</string>
     <string name="dashboard_staff_tile_due_today">Due today</string>
     <string name="dashboard_staff_tile_in_progress">In progress</string>
+    <string name="dashboard_staff_tile_mine">Mine</string>
     <string name="dashboard_staff_tile_view">View</string>
     <string name="dashboard_staff_workshop_count">%1$d in workshop</string>
     <string name="dashboard_staff_needs_attention">Needs attention</string>
@@ -1224,6 +1226,18 @@
     <!-- Hero card — priority pills -->
     <string name="order_priority_high_pill">High</string>
     <string name="order_priority_rush_pill">Rush</string>
+
+    <!-- Assigned-to card (Task 7 / Slice 8e) -->
+    <string name="order_assign_section">Assigned to</string>
+    <string name="order_assign_unassigned_owner_hint">Not assigned yet</string>
+    <string name="order_assign_claim_cta">Claim this order</string>
+    <string name="order_assign_you">You</string>
+    <string name="order_assign_menu_cd">Assignment options</string>
+    <string name="order_assign_change">Change</string>
+    <string name="order_assign_unassign">Unassign</string>
+    <string name="order_assign_sheet_title">Assign to</string>
+    <string name="order_assign_sheet_empty">Add a team member from Team to assign work.</string>
+    <string name="order_assign_staff_fallback_name">Staff</string>
 
     <!-- Status transition sheet -->
     <string name="status_sheet_title">Move from &quot;%1$s&quot; to…</string>
@@ -1897,6 +1911,15 @@
     <string name="team_revoke_dialog_body">%1$s will lose access to your workshop right away. You can invite them again later.</string>
     <string name="team_revoke_dialog_confirm">Remove</string>
     <string name="team_revoke_dialog_cancel">Cancel</string>
+    <string name="team_roster_header">Team roster</string>
+    <string name="team_add_member">Add member</string>
+    <string name="team_add_member_sheet_title">Add a team member</string>
+    <string name="team_member_name_label">Name</string>
+    <string name="team_member_name_placeholder">e.g. Ngozi Eze</string>
+    <string name="team_member_linked">Linked account</string>
+    <string name="team_rename">Rename</string>
+    <string name="team_rename_sheet_title">Rename member</string>
+    <string name="team_archive">Archive</string>
 
     <!-- Staff onboarding (Owner + Staff feature) -->
     <string name="staff_sign_out">Sign out</string>

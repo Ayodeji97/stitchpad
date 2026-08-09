@@ -1,7 +1,9 @@
 package com.danzucker.stitchpad.feature.order.presentation.list
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.Order
@@ -12,28 +14,56 @@ import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.workshopUidOrNull
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class OrderListViewModel(
     private val orderRepository: OrderRepository,
     private val customerRepository: CustomerRepository,
-    private val activeWorkshopProvider: ActiveWorkshopProvider
+    private val activeWorkshopProvider: ActiveWorkshopProvider,
+    savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
     private var hasLoadedInitialData = false
     private var allOrders: List<Order> = emptyList()
     private var allArchivedOrders: List<Order> = emptyList()
 
-    private val _state = MutableStateFlow(OrderListState())
+    // Tracks the workshopUid each listener last subscribed under, so a genuine
+    // A -> B switch (not the first-ever subscribe, and not a transition to/from
+    // null — that's already handled by the `workshopUid == null` branch below)
+    // can be told apart from a cold start. See the reset note in observeOrders.
+    private var lastOrdersWorkshopUid: String? = null
+    private var lastArchivedOrdersWorkshopUid: String? = null
+
+    // Task 9 (staff-phase2-assignment): seeds the list's filter from
+    // OrderListRoute.initialFilter — e.g. a dashboard tile deep-linking straight
+    // into "in progress" or "my work" instead of landing on the unfiltered list.
+    // Only these two are consumed today; "overdue"/"due-today" have no matching
+    // filter in OrderListState yet (see OrderListFilter's kdoc) so they fall
+    // through to the `else` and leave the list unfiltered, same as null.
+    private val initialFilter: String? = savedStateHandle["initialFilter"]
+
+    private val _state = MutableStateFlow(
+        OrderListState(
+            statusFilter = if (initialFilter == OrderListFilter.IN_PROGRESS) OrderStatus.IN_PROGRESS else null,
+            myWorkOnly = initialFilter == OrderListFilter.MY_WORK,
+        )
+    )
 
     private val _events = Channel<OrderListEvent>()
     val events = _events.receiveAsFlow()
@@ -50,24 +80,19 @@ class OrderListViewModel(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = OrderListState()
+            // Must mirror the seeded `_state` above (not a bare `OrderListState()`) — with
+            // WhileSubscribed, a `state.value` read before the first collector attaches
+            // returns THIS initial value, not `_state`'s. Reading `_state.value` here
+            // (rather than duplicating the seed expression) makes the two impossible to
+            // drift apart, unlike a second independently-maintained literal.
+            initialValue = _state.value
         )
 
     @Suppress("CyclomaticComplexMethod", "ReturnCount")
     fun onAction(action: OrderListAction) {
         when (action) {
-            is OrderListAction.OnStatusFilterChange -> {
-                _state.update {
-                    it.copy(
-                        statusFilter = action.status,
-                        showArchived = false,
-                        orders = filterAndSort(allOrders, action.status)
-                    )
-                }
-            }
-            OrderListAction.OnShowArchived -> {
-                _state.update { it.copy(showArchived = true, orders = allArchivedOrders) }
-            }
+            is OrderListAction.OnStatusFilterChange -> changeStatusFilter(action.status)
+            OrderListAction.OnShowArchived -> toggleArchivedView()
             is OrderListAction.OnRestoreOrderClick -> restoreOrder(action.order)
             is OrderListAction.OnOrderClick -> {
                 viewModelScope.launch {
@@ -108,86 +133,222 @@ class OrderListViewModel(
                 if (_state.value.isActiveStaff) return
                 _state.update { it.copy(showProfit = !it.showProfit) }
             }
+            OrderListAction.OnToggleMyWork -> toggleMyWork()
             OrderListAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
             }
         }
     }
 
-    private fun observeActiveWorkshop() {
-        viewModelScope.launch {
-            activeWorkshopProvider.flow.collect { session ->
-                _state.update { it.copy(isActiveStaff = session.isActiveStaff) }
+    private fun changeStatusFilter(status: OrderStatus?) {
+        _state.update { state ->
+            // Re-tapping the chip that is already selected (active view only — in the
+            // archived view no status chip renders selected) deselects it back to All.
+            val newStatus = status
+                .takeUnless { !state.showArchived && it == state.statusFilter }
+            state.copy(
+                statusFilter = newStatus,
+                showArchived = false,
+                orders = filterAndSort(
+                    allOrders,
+                    newStatus,
+                    state.myWorkOnly,
+                    state.staffAuthUid,
+                    state.isActiveStaff,
+                )
+            )
+        }
+    }
+
+    private fun toggleArchivedView() {
+        _state.update { state ->
+            // Second tap on a selected Archived chip deselects it back to the
+            // active view, keeping whatever status/my-work filters were set.
+            if (state.showArchived) {
+                state.copy(
+                    showArchived = false,
+                    orders = filterAndSort(
+                        allOrders,
+                        state.statusFilter,
+                        state.myWorkOnly,
+                        state.staffAuthUid,
+                        state.isActiveStaff,
+                    )
+                )
+            } else {
+                state.copy(showArchived = true, orders = allArchivedOrders)
             }
         }
     }
 
+    // Staff-only filter — never rendered for an owner, but guarded here too so the action
+    // is inert even if dispatched (Slice 6c defense-in-depth precedent).
+    private fun toggleMyWork() {
+        if (!_state.value.isActiveStaff) return
+        _state.update { state ->
+            // In the archived view the My-work chip always renders unselected, so a tap
+            // there means "select" even when a stale myWorkOnly=true is carried over —
+            // plain toggling would drop the user into the unfiltered active list.
+            val myWorkOnly = if (state.showArchived) true else !state.myWorkOnly
+            state.copy(
+                myWorkOnly = myWorkOnly,
+                // My work applies to the active list only — selecting it always brings the
+                // user back to the active view, mirroring the status filter chips' own
+                // showArchived reset.
+                showArchived = false,
+                orders = filterAndSort(
+                    allOrders,
+                    state.statusFilter,
+                    myWorkOnly,
+                    state.staffAuthUid,
+                    state.isActiveStaff,
+                )
+            )
+        }
+    }
+
+    private fun observeActiveWorkshop() {
+        viewModelScope.launch {
+            activeWorkshopProvider.flow.collect { session ->
+                _state.update {
+                    it.copy(
+                        isActiveStaff = session.isActiveStaff,
+                        // Task 8: captured alongside isActiveStaff from the same session
+                        // collection — used by the "My work" filter to match assignedMemberId.
+                        // Staff-only, mirroring OrderDetailState.staffAuthUid's contract — the
+                        // filterAndSort guard above already requires isActiveStaff before
+                        // reading this, so behavior is unchanged; this just keeps an owner
+                        // session from carrying a staffAuthUid value that's never staff.
+                        staffAuthUid = session.authUid.takeIf { session.isActiveStaff },
+                    )
+                }
+            }
+        }
+    }
+
+    // Kill-switch / staff-revocation must bite mid-session, not on next restart
+    // (StitchPad exploration, 2026-08-08): the old `workshopUidOrNull()` one-shot
+    // read pinned this listener to whatever tree resolved at subscribe time.
+    // Re-subscribing on every `workshopUid` change (flatMapLatest cancels the
+    // previous Firestore listener before starting the new one) keeps the list
+    // correct for the LIVE session, not the one it started in.
     private fun observeOrders() {
         viewModelScope.launch {
-            val userId = activeWorkshopProvider.workshopUidOrNull() ?: run {
-                _state.update { it.copy(isLoading = false) }
-                return@launch
-            }
-            orderRepository.observeOrders(userId).collect { result ->
-                when (result) {
-                    is Result.Success -> {
-                        allOrders = result.data
+            activeWorkshopProvider.flow
+                .map { it.workshopUid.takeIf { uid -> uid.isNotBlank() } }
+                .distinctUntilChanged()
+                .flatMapLatest { workshopUid ->
+                    // A -> B (both non-null, different uids): flatMapLatest cancels A's
+                    // listener and starts B's, but B's first snapshot can take a beat to
+                    // arrive — without this, `allOrders`/state keep showing A's rows in
+                    // the meantime, which is only masked today by the role-change nav
+                    // redirect. Emit the same null sentinel the sign-out branch already
+                    // uses so the reset logic isn't duplicated. Skipped on cold start
+                    // (lastOrdersWorkshopUid == null) so first load doesn't flash empty.
+                    val isWorkshopSwitch = lastOrdersWorkshopUid != null &&
+                        workshopUid != null &&
+                        workshopUid != lastOrdersWorkshopUid
+                    lastOrdersWorkshopUid = workshopUid
+                    val liveFlow: Flow<Result<List<Order>, DataError.Network>?> =
+                        if (workshopUid == null) flowOf(null) else orderRepository.observeOrders(workshopUid)
+                    if (isWorkshopSwitch) liveFlow.onStart { emit(null) } else liveFlow
+                }
+                .collect { result ->
+                    if (result == null) {
+                        allOrders = emptyList()
                         _state.update { state ->
                             state.copy(
-                                // Active updates never override the archived view.
-                                orders = if (state.showArchived) {
-                                    state.orders
-                                } else {
-                                    filterAndSort(result.data, state.statusFilter)
-                                },
-                                isLoading = false
+                                isLoading = false,
+                                orders = if (state.showArchived) state.orders else emptyList(),
                             )
                         }
+                        return@collect
                     }
-                    is Result.Error -> {
-                        _state.update { state ->
-                            state.copy(isLoading = false, errorMessage = result.error.toOrderUiText())
+                    when (result) {
+                        is Result.Success -> {
+                            allOrders = result.data
+                            _state.update { state ->
+                                state.copy(
+                                    // Active updates never override the archived view.
+                                    orders = if (state.showArchived) {
+                                        state.orders
+                                    } else {
+                                        filterAndSort(
+                                            result.data,
+                                            state.statusFilter,
+                                            state.myWorkOnly,
+                                            state.staffAuthUid,
+                                            state.isActiveStaff,
+                                        )
+                                    },
+                                    isLoading = false
+                                )
+                            }
+                        }
+                        is Result.Error -> {
+                            _state.update { state ->
+                                state.copy(isLoading = false, errorMessage = result.error.toOrderUiText())
+                            }
                         }
                     }
                 }
-            }
         }
     }
 
     private fun observeArchivedOrders() {
         viewModelScope.launch {
-            val userId = activeWorkshopProvider.workshopUidOrNull() ?: run {
-                _state.update { it.copy(isArchivedLoading = false) }
-                return@launch
-            }
-            orderRepository.observeArchivedOrders(userId).collect { result ->
-                when (result) {
-                    is Result.Success -> {
-                        allArchivedOrders = result.data
+            activeWorkshopProvider.flow
+                .map { it.workshopUid.takeIf { uid -> uid.isNotBlank() } }
+                .distinctUntilChanged()
+                .flatMapLatest { workshopUid ->
+                    // Same workshop-switch reset as observeOrders above, mirrored for the
+                    // archived stream's own backing cache.
+                    val isWorkshopSwitch = lastArchivedOrdersWorkshopUid != null &&
+                        workshopUid != null &&
+                        workshopUid != lastArchivedOrdersWorkshopUid
+                    lastArchivedOrdersWorkshopUid = workshopUid
+                    val liveFlow: Flow<Result<List<Order>, DataError.Network>?> =
+                        if (workshopUid == null) flowOf(null) else orderRepository.observeArchivedOrders(workshopUid)
+                    if (isWorkshopSwitch) liveFlow.onStart { emit(null) } else liveFlow
+                }
+                .collect { result ->
+                    if (result == null) {
+                        allArchivedOrders = emptyList()
                         _state.update { state ->
                             state.copy(
                                 isArchivedLoading = false,
-                                orders = if (state.showArchived) result.data else state.orders
+                                orders = if (state.showArchived) emptyList() else state.orders,
                             )
                         }
+                        return@collect
                     }
-                    is Result.Error -> {
-                        // Clear loading so the view stops spinning. Surface the error
-                        // only while the archived view is open — on the active view the
-                        // active stream (same Firestore source) owns the error surface.
-                        _state.update { state ->
-                            state.copy(
-                                isArchivedLoading = false,
-                                errorMessage = if (state.showArchived) {
-                                    result.error.toOrderUiText()
-                                } else {
-                                    state.errorMessage
-                                },
-                            )
+                    when (result) {
+                        is Result.Success -> {
+                            allArchivedOrders = result.data
+                            _state.update { state ->
+                                state.copy(
+                                    isArchivedLoading = false,
+                                    orders = if (state.showArchived) result.data else state.orders
+                                )
+                            }
+                        }
+                        is Result.Error -> {
+                            // Clear loading so the view stops spinning. Surface the error
+                            // only while the archived view is open — on the active view the
+                            // active stream (same Firestore source) owns the error surface.
+                            _state.update { state ->
+                                state.copy(
+                                    isArchivedLoading = false,
+                                    errorMessage = if (state.showArchived) {
+                                        result.error.toOrderUiText()
+                                    } else {
+                                        state.errorMessage
+                                    },
+                                )
+                            }
                         }
                     }
                 }
-            }
         }
     }
 
@@ -236,10 +397,26 @@ class OrderListViewModel(
         }
     }
 
-    private fun filterAndSort(orders: List<Order>, statusFilter: OrderStatus?): List<Order> {
-        val filtered = when (statusFilter) {
+    private fun filterAndSort(
+        orders: List<Order>,
+        statusFilter: OrderStatus?,
+        myWorkOnly: Boolean = false,
+        staffAuthUid: String? = null,
+        isActiveStaff: Boolean = false,
+    ): List<Order> {
+        val statusFiltered = when (statusFilter) {
             null -> orders.filter { it.status != OrderStatus.DELIVERED }
             else -> orders.filter { it.status == statusFilter }
+        }
+        // Task 8: "My work" narrows the active list to the signed-in staff member's own
+        // assignments. Requires isActiveStaff too (not just a non-null staffAuthUid) —
+        // a kill-switch revocation mid-session (staff -> owner-of-self) leaves myWorkOnly
+        // and staffAuthUid stale in state with no chip left to show or clear them; without
+        // this guard the ex-staff user's own order tree would silently stay filtered.
+        val filtered = if (myWorkOnly && isActiveStaff && staffAuthUid != null) {
+            statusFiltered.filter { it.assignedMemberId == staffAuthUid }
+        } else {
+            statusFiltered
         }
         // Reuse the triage comparator so same-deadline ties resolve identically in both the
         // triage-grouped and the chip-filtered views (createdAt desc = newest-first).

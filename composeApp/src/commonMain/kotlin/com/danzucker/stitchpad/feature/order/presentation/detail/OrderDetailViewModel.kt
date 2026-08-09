@@ -31,6 +31,8 @@ import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.workshopUidOrNull
+import com.danzucker.stitchpad.core.domain.staff.TeamMemberStatus
+import com.danzucker.stitchpad.core.domain.staff.repository.TeamRosterRepository
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.OrderReceiptSharer
 import com.danzucker.stitchpad.core.sharing.ReceiptData
@@ -57,8 +59,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
+import org.jetbrains.compose.resources.getString
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.error_order_photo_too_large
+import stitchpad.composeapp.generated.resources.order_assign_staff_fallback_name
 import stitchpad.composeapp.generated.resources.receipt_share_error
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
@@ -89,6 +93,7 @@ class OrderDetailViewModel(
     private val authRepository: AuthRepository,
     private val activeWorkshopProvider: ActiveWorkshopProvider,
     private val userRepository: UserRepository,
+    private val teamRosterRepository: TeamRosterRepository,
     private val receiptSharer: OrderReceiptSharer,
     private val receiptImagePreferencesStore: ReceiptImagePreferencesStore,
     private val imageLoader: ImageLoader,
@@ -107,6 +112,8 @@ class OrderDetailViewModel(
     private var loadedMeasurementsCustomerId: String? = null
     private var styleJob: Job? = null
     private var loadedStylesCustomerId: String? = null
+    private var rosterJob: Job? = null
+    private var loadedRosterWorkshopUid: String? = null
     private val photoMutationMutex = Mutex()
     private val _state = MutableStateFlow(OrderDetailState())
 
@@ -445,6 +452,15 @@ class OrderDetailViewModel(
             OrderDetailAction.OnDismissDatePickerDialog ->
                 _state.update { it.copy(showDatePickerDialog = false) }
 
+            // Assignment (Task 7 / Slice 8e)
+            OrderDetailAction.OnAssignClick ->
+                _state.update { it.copy(showAssignSheet = true) }
+            is OrderDetailAction.OnAssignMember -> assignMember(action.memberId, action.memberName)
+            OrderDetailAction.OnUnassignClick -> assignMember(memberId = null, memberName = null)
+            OrderDetailAction.OnClaimClick -> claimOrder()
+            OrderDetailAction.OnDismissAssignSheet ->
+                _state.update { it.copy(showAssignSheet = false) }
+
             // Misc
             OrderDetailAction.OnErrorDismiss ->
                 _state.update { it.copy(errorMessage = null) }
@@ -665,6 +681,44 @@ class OrderDetailViewModel(
         }
     }
 
+    /** Owner: assign (or, with both args null, unassign) an order to a roster member.
+     *  Never reached by staff — [OrderDetailAction.OnAssignMember] and
+     *  [OrderDetailAction.OnUnassignClick] are in [OrderDetailAction.isStaffRestricted]'s
+     *  `true` set, so [onAction] early-returns before this is called for a staff session. */
+    private fun assignMember(memberId: String?, memberName: String?) {
+        val orderId = orderId ?: return
+        _state.update { it.copy(showAssignSheet = false) }
+        viewModelScope.launch {
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
+            when (val res = orderRepository.assignOrder(userId, orderId, memberId, memberName)) {
+                is Result.Success -> Unit // observeOrder Flow re-emits with the new assignment
+                is Result.Error -> _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
+            }
+        }
+    }
+
+    /** Staff self-claim: null -> self only, mirroring the Task 3 rules invariant. No-ops
+     *  when the order is already assigned — see [canClaimOrder] — so a stray double-tap
+     *  or a stale card (another device claimed it first) can't silently steal or
+     *  overwrite the assignment. */
+    @Suppress("ReturnCount")
+    private fun claimOrder() {
+        val orderId = orderId ?: return
+        val order = _state.value.order ?: return
+        if (!canClaimOrder(order.assignedMemberId)) return
+        val authUid = _state.value.staffAuthUid ?: return
+        viewModelScope.launch {
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
+            val fallbackName = getString(Res.string.order_assign_staff_fallback_name)
+            val currentUser = authRepository.getCurrentUser()
+            val displayName = resolveClaimDisplayName(currentUser?.displayName, currentUser?.email, fallbackName)
+            when (val res = orderRepository.assignOrder(userId, orderId, authUid, displayName)) {
+                is Result.Success -> Unit // observeOrder Flow re-emits with the new assignment
+                is Result.Error -> _state.update { it.copy(errorMessage = res.error.toOrderUiText()) }
+            }
+        }
+    }
+
     private fun shareReceipt(format: String, share: suspend (ReceiptData) -> Unit) {
         val order = _state.value.order ?: return
         val user = _state.value.user ?: return
@@ -758,7 +812,55 @@ class OrderDetailViewModel(
     private fun observeActiveWorkshop() {
         viewModelScope.launch {
             activeWorkshopProvider.flow.collect { session ->
-                _state.update { it.copy(isActiveStaff = session.isActiveStaff) }
+                _state.update {
+                    it.copy(
+                        isActiveStaff = session.isActiveStaff,
+                        // Only ever the SIGNED-IN staff member's own uid — OnClaimClick
+                        // assigns to exactly this, never to an id picked from a roster
+                        // (staff have no roster access; see observeRoster below).
+                        staffAuthUid = if (session.isActiveStaff) session.authUid else null,
+                    )
+                }
+                // shouldObserveRoster covers both the staff case (Task 7: no picker, so no
+                // subscription) and a signed-out emission (WorkshopSession.signedOut() has
+                // a blank workshopUid) — a retained detail VM survives bottom-tab switches
+                // via Compose Nav's saveState, so it can still be collecting this flow when
+                // the user signs out. Calling observeRoster("") would otherwise crash with
+                // an uncaught IllegalArgumentException from
+                // firestore.collection("users").document(""). In both non-observing cases
+                // we drop any stale rows left over from the prior session/role.
+                if (shouldObserveRoster(session)) {
+                    observeRoster(session.workshopUid)
+                } else {
+                    clearRosterSubscription()
+                }
+            }
+        }
+    }
+
+    private fun clearRosterSubscription() {
+        rosterJob?.cancel()
+        rosterJob = null
+        loadedRosterWorkshopUid = null
+        _state.update { it.copy(roster = emptyList()) }
+    }
+
+    /** Owner-only live roster for the assignment picker (Task 7). Active members only —
+     *  [com.danzucker.stitchpad.core.domain.staff.repository.TeamRosterRepository.observeTeam]
+     *  already returns archived rows too (so historical assignments keep resolving a name
+     *  elsewhere), but the PICKER must only offer someone still on the team. Guarded at the
+     *  call site by [shouldObserveRoster] — never invoked with a blank workshopUid. */
+    private fun observeRoster(workshopUid: String) {
+        if (loadedRosterWorkshopUid == workshopUid) return
+        loadedRosterWorkshopUid = workshopUid
+        rosterJob?.cancel()
+        rosterJob = viewModelScope.launch {
+            teamRosterRepository.observeTeam(workshopUid).collect { result ->
+                if (result is Result.Success) {
+                    _state.update {
+                        it.copy(roster = result.data.filter { member -> member.status == TeamMemberStatus.ACTIVE })
+                    }
+                }
             }
         }
     }

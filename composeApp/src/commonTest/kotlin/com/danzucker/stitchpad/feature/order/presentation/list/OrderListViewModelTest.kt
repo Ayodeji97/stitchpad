@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.order.presentation.list
 
+import androidx.lifecycle.SavedStateHandle
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
 import com.danzucker.stitchpad.core.domain.error.DataError
@@ -84,11 +85,14 @@ class OrderListViewModelTest {
         updatedAt = 0L,
     )
 
-    private fun TestScope.createViewModel(): OrderListViewModel {
+    private fun TestScope.createViewModel(
+        savedStateHandle: SavedStateHandle = SavedStateHandle(),
+    ): OrderListViewModel {
         val vm = OrderListViewModel(
             orderRepository = orderRepository,
             customerRepository = customerRepository,
             activeWorkshopProvider = activeWorkshopProvider,
+            savedStateHandle = savedStateHandle,
         )
         // Subscribe so the state flow's onStart loads orders + customers.
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
@@ -183,6 +187,60 @@ class OrderListViewModelTest {
 
         assertFalse(vm.state.value.showArchived)
         assertEquals(listOf("active"), vm.state.value.orders.map { it.id })
+    }
+
+    @Test
+    fun reTappingSelectedStatusChip_deselectsBackToAll() = runTest {
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "pending"),
+            fakeOrder(id = "ready").copy(status = OrderStatus.READY),
+        )
+        val vm = createViewModel()
+        vm.onAction(OrderListAction.OnStatusFilterChange(OrderStatus.PENDING))
+        assertEquals(listOf("pending"), vm.state.value.orders.map { it.id })
+
+        vm.onAction(OrderListAction.OnStatusFilterChange(OrderStatus.PENDING))
+
+        assertNull(vm.state.value.statusFilter)
+        assertEquals(setOf("pending", "ready"), vm.state.value.orders.map { it.id }.toSet())
+    }
+
+    @Test
+    fun statusChipTap_fromArchivedView_selectsInsteadOfDeselecting() = runTest {
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "pending"),
+            fakeOrder(id = "ready").copy(status = OrderStatus.READY),
+            fakeOrder(id = "archived", archivedAt = 100L),
+        )
+        val vm = createViewModel()
+        vm.onAction(OrderListAction.OnStatusFilterChange(OrderStatus.PENDING))
+        vm.onAction(OrderListAction.OnShowArchived)
+
+        // In the archived view no status chip renders selected, so a tap on the
+        // stale-selected status means "filter to Pending", not "deselect".
+        vm.onAction(OrderListAction.OnStatusFilterChange(OrderStatus.PENDING))
+
+        assertFalse(vm.state.value.showArchived)
+        assertEquals(OrderStatus.PENDING, vm.state.value.statusFilter)
+        assertEquals(listOf("pending"), vm.state.value.orders.map { it.id })
+    }
+
+    @Test
+    fun reTappingArchivedChip_returnsToActiveView_keepingStatusFilter() = runTest {
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "pending"),
+            fakeOrder(id = "ready").copy(status = OrderStatus.READY),
+            fakeOrder(id = "archived", archivedAt = 100L),
+        )
+        val vm = createViewModel()
+        vm.onAction(OrderListAction.OnStatusFilterChange(OrderStatus.READY))
+        vm.onAction(OrderListAction.OnShowArchived)
+        assertTrue(vm.state.value.showArchived)
+
+        vm.onAction(OrderListAction.OnShowArchived)
+
+        assertFalse(vm.state.value.showArchived)
+        assertEquals(listOf("ready"), vm.state.value.orders.map { it.id })
     }
 
     @Test

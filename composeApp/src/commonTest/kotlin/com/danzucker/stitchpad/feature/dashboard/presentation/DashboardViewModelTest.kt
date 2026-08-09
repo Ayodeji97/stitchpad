@@ -39,6 +39,7 @@ import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.MeasurementsPickerRow
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
+import com.danzucker.stitchpad.feature.order.presentation.list.OrderListFilter
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestActionType
 import com.danzucker.stitchpad.feature.goals.data.FakeWeeklyGoalRepository
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
@@ -71,6 +72,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
@@ -392,6 +394,24 @@ class DashboardViewModelTest {
         assertEquals(1, pipeline.ready)
     }
 
+    // Task 9 (staff-phase2-assignment): the "Mine" count tile — orders assigned to
+    // THIS session's authUid, computed alongside the other staff counts.
+    @Test
+    fun activeStaffMember_populatesMineCount() = runTest {
+        signIn()
+        becomeActiveStaff() // authUid = "staff-uid", workshopUid = "owner-uid"
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "mine1", deadline = null).copy(assignedMemberId = "staff-uid"),
+            fakeOrder(id = "mine2", deadline = null).copy(assignedMemberId = "staff-uid"),
+            fakeOrder(id = "not-mine", deadline = null).copy(assignedMemberId = "other-staffer"),
+            fakeOrder(id = "unassigned", deadline = null),
+        )
+
+        val vm = createViewModel()
+
+        assertEquals(2, vm.state.value.staffMineCount)
+    }
+
     @Test
     fun activeStaffMember_withNoUrgentWork_hasEmptyQueueButPipeline() = runTest {
         signIn()
@@ -408,6 +428,70 @@ class DashboardViewModelTest {
         assertTrue(state.overdue.isEmpty())
         assertTrue(state.dueToday.isEmpty())
         assertEquals(1, assertNotNull(state.staffPipeline).inProgressTotal)
+    }
+
+    // Task 1 (staff phase2 assignment): kill-switch / revocation must bite mid-session —
+    // loadData's combine must not stay pinned to the workshop/role it started on.
+    @Test
+    fun killSwitchMidSession_reDerivesDashboardUnderNewSession() = runTest {
+        signIn()
+        becomeActiveStaff() // authUid = "staff-uid", workshopUid = "owner-uid"
+        orderRepository.setOrdersFor(
+            "owner-uid",
+            listOf(fakeOrder(id = "wip1", status = OrderStatus.IN_PROGRESS, deadline = null)),
+        )
+
+        val vm = createViewModel()
+        assertTrue(vm.state.value.isStaff)
+        assertEquals(1, assertNotNull(vm.state.value.staffPipeline).inProgressTotal)
+
+        // Kill switch drops the session to owner-of-self on the staffer's OWN (empty) tree.
+        activeWorkshopProvider.setSession(WorkshopSession.ownerOfSelf("staff-uid"))
+        runCurrent()
+
+        val state = vm.state.value
+        assertFalse(state.isStaff)
+        assertNull(state.staffPipeline)
+        assertEquals(DashboardUiState.BrandNew, state.uiState)
+    }
+
+    // Slice 8e Bugbot follow-up: the kill-switch test above only proves loadData's
+    // combine re-derives — the NEW ("staff-uid", empty) tree was ready the instant
+    // flatMapLatest switched, so state never had a chance to show the OLD tree's
+    // stale pipeline count. Force that window open with a fake orders flow that
+    // genuinely hasn't emitted yet, and keep the STAFF role constant across the
+    // switch (no sign-out / role-change redirect to mask the gap) — this is a pure
+    // multi-workshop switch.
+    @Test
+    fun workshopSwitchMidSession_resetsStaffPipelineBeforeNewTreeDataLands() = runTest {
+        signIn()
+        becomeActiveStaff("owner-uid") // authUid = "staff-uid"
+        orderRepository.setOrdersFor(
+            "owner-uid",
+            listOf(fakeOrder(id = "wip1", status = OrderStatus.IN_PROGRESS, deadline = null)),
+        )
+        val vm = createViewModel()
+        assertTrue(vm.state.value.isStaff)
+        assertEquals(1, assertNotNull(vm.state.value.staffPipeline).inProgressTotal)
+
+        // "owner-uid-2"'s orders listener genuinely hasn't produced a first
+        // snapshot yet — the staffer switches to a DIFFERENT workshop while
+        // staying STAFF the whole time.
+        orderRepository.setOrdersPendingFor("owner-uid-2")
+        becomeActiveStaff("owner-uid-2")
+        runCurrent()
+
+        // Must not still show "owner-uid"'s stale pipeline count while
+        // "owner-uid-2" hasn't emitted.
+        assertNull(vm.state.value.staffPipeline)
+
+        orderRepository.emitOrdersFor(
+            "owner-uid-2",
+            listOf(fakeOrder(id = "wip2", status = OrderStatus.IN_PROGRESS, deadline = null)),
+        )
+        runCurrent()
+
+        assertEquals(1, assertNotNull(vm.state.value.staffPipeline).inProgressTotal)
     }
 
     // --- Overdue bucket ---
@@ -695,6 +779,47 @@ class DashboardViewModelTest {
         val vm = createViewModel()
         vm.onAction(DashboardAction.OnViewDueTodayClick)
         assertIs<DashboardEvent.NavigateToOrders>(vm.events.first())
+    }
+
+    // --- Task 9 (staff-phase2-assignment): PR-A2 debt — tiles now pass a filter
+    // through NavigateToOrders. Overdue/Due-today stay unfiltered (no deadline
+    // filter exists in OrderListState yet); In-progress and the new Mine tile
+    // get their own filter strings, consumed by OrderListViewModel's seeding. ---
+
+    @Test
+    fun staffOverdueTile_leavesFilterNull() = runTest {
+        signIn()
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnViewOverdueClick)
+        val event = assertIs<DashboardEvent.NavigateToOrders>(vm.events.first())
+        assertNull(event.filter)
+    }
+
+    @Test
+    fun staffDueTodayTile_leavesFilterNull() = runTest {
+        signIn()
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnViewDueTodayClick)
+        val event = assertIs<DashboardEvent.NavigateToOrders>(vm.events.first())
+        assertNull(event.filter)
+    }
+
+    @Test
+    fun staffInProgressTile_emitsNavigateToOrdersWithInProgressFilter() = runTest {
+        signIn()
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnViewPipelineInProgressClick)
+        val event = assertIs<DashboardEvent.NavigateToOrders>(vm.events.first())
+        assertEquals(OrderListFilter.IN_PROGRESS, event.filter)
+    }
+
+    @Test
+    fun onViewMyWorkClick_emitsNavigateToOrdersWithMyWorkFilter() = runTest {
+        signIn()
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnViewMyWorkClick)
+        val event = assertIs<DashboardEvent.NavigateToOrders>(vm.events.first())
+        assertEquals(OrderListFilter.MY_WORK, event.filter)
     }
 
     @Test

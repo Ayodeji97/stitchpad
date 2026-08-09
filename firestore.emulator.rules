@@ -420,6 +420,20 @@ service cloud.firestore {
                  .hasOnly(['status', 'subStatus', 'statusHistory', 'updatedAt'])
             && serverCreatedAtProtectedOnUpdate()
             && activityCreatedAtStableOnUpdate()
+          )
+          || (
+            // Phase 2: the CLAIM. Staff may take an UNASSIGNED order for
+            // themselves — never reassign, never unassign, never touch anything
+            // else in the same write. Owner assignment needs no branch: the
+            // assignment keys are not money keys, so the owner branch already
+            // permits them.
+            isActiveMember(uid)
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['assignedMemberId', 'assignedMemberName', 'updatedAt'])
+            && (!('assignedMemberId' in resource.data) || resource.data.assignedMemberId == null)
+            && request.resource.data.assignedMemberId == request.auth.uid
+            && serverCreatedAtProtectedOnUpdate()
+            && activityCreatedAtStableOnUpdate()
           );
         allow delete: if isOwner(uid);
 
@@ -470,6 +484,18 @@ service cloud.firestore {
       match /memberships/{staffAuthUid} {
         allow read: if isOwner(uid) || (request.auth != null && request.auth.uid == staffAuthUid);
         allow write: if false;
+      }
+
+      // ── Team roster (Owner + Staff, Phase 2) ────────────────────────────
+      // One doc per assignable member: logged-in staff (doc id == auth uid,
+      // Admin-SDK-written by approve/revoke) and owner-created name-only
+      // members. Non-sensitive (name + avatar seed), so members may read the
+      // whole roster for assignee display. No hard delete — archived members
+      // stay resolvable for statusHistory attribution.
+      match /team/{memberId} {
+        allow read: if canReadWorkshop(uid);
+        allow create, update: if isOwner(uid);
+        allow delete: if false;
       }
 
       // ── Push notification tokens subcollection ──────────────────────

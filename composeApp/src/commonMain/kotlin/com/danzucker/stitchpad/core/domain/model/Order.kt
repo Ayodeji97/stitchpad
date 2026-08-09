@@ -110,6 +110,8 @@ data class Order(
     val deadline: Long?,
     val notes: String?,
     val archivedAt: Long? = null,
+    val assignedMemberId: String? = null,
+    val assignedMemberName: String? = null,
     val createdAt: Long,
     val updatedAt: Long,
     /**
