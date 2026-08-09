@@ -315,6 +315,27 @@ class OrderListStaffTest {
     }
 
     @Test
+    fun onToggleMyWork_fromArchivedView_withStaleMyWork_selectsInsteadOfClearing() = runTest {
+        setStaffSession()
+        orderRepository.ordersList = listOf(
+            sampleOrder().copy(id = "mine", assignedMemberId = "s"),
+            sampleOrder().copy(id = "not-mine", assignedMemberId = "other"),
+        )
+        val vm = createViewModel()
+        vm.onAction(OrderListAction.OnToggleMyWork)
+        vm.onAction(OrderListAction.OnShowArchived)
+
+        // The My-work chip renders unselected in the archived view even though
+        // myWorkOnly is still true underneath — so this tap means "show my work",
+        // not "clear the filter".
+        vm.onAction(OrderListAction.OnToggleMyWork)
+
+        assertFalse(vm.state.value.showArchived)
+        assertTrue(vm.state.value.myWorkOnly)
+        assertEquals(listOf("mine"), vm.state.value.orders.map { it.id })
+    }
+
+    @Test
     fun onToggleMyWork_forOwner_isNoOp() = runTest {
         // Default FakeActiveWorkshopProvider session is owner-of-self.
         orderRepository.ordersList = listOf(

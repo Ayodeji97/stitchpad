@@ -93,12 +93,17 @@ class OrderListViewModel(
         when (action) {
             is OrderListAction.OnStatusFilterChange -> {
                 _state.update { state ->
+                    // Re-tapping the chip that is already selected (active view only —
+                    // in the archived view no status chip renders selected) deselects
+                    // it back to All.
+                    val newStatus = action.status
+                        .takeUnless { !state.showArchived && it == state.statusFilter }
                     state.copy(
-                        statusFilter = action.status,
+                        statusFilter = newStatus,
                         showArchived = false,
                         orders = filterAndSort(
                             allOrders,
-                            action.status,
+                            newStatus,
                             state.myWorkOnly,
                             state.staffAuthUid,
                             state.isActiveStaff,
@@ -107,7 +112,24 @@ class OrderListViewModel(
                 }
             }
             OrderListAction.OnShowArchived -> {
-                _state.update { it.copy(showArchived = true, orders = allArchivedOrders) }
+                _state.update { state ->
+                    // Second tap on a selected Archived chip deselects it back to the
+                    // active view, keeping whatever status/my-work filters were set.
+                    if (state.showArchived) {
+                        state.copy(
+                            showArchived = false,
+                            orders = filterAndSort(
+                                allOrders,
+                                state.statusFilter,
+                                state.myWorkOnly,
+                                state.staffAuthUid,
+                                state.isActiveStaff,
+                            )
+                        )
+                    } else {
+                        state.copy(showArchived = true, orders = allArchivedOrders)
+                    }
+                }
             }
             is OrderListAction.OnRestoreOrderClick -> restoreOrder(action.order)
             is OrderListAction.OnOrderClick -> {
@@ -161,7 +183,10 @@ class OrderListViewModel(
     private fun toggleMyWork() {
         if (!_state.value.isActiveStaff) return
         _state.update { state ->
-            val myWorkOnly = !state.myWorkOnly
+            // In the archived view the My-work chip always renders unselected, so a tap
+            // there means "select" even when a stale myWorkOnly=true is carried over —
+            // plain toggling would drop the user into the unfiltered active list.
+            val myWorkOnly = if (state.showArchived) true else !state.myWorkOnly
             state.copy(
                 myWorkOnly = myWorkOnly,
                 // My work applies to the active list only — selecting it always brings the
