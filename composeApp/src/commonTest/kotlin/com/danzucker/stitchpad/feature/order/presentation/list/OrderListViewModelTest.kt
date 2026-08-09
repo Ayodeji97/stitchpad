@@ -380,4 +380,40 @@ class OrderListViewModelTest {
 
         assertEquals("m1", vm.state.value.assigneeFilterName)
     }
+
+    @Test
+    fun onClearAssigneeFilter_fromArchivedView_leavesArchivedListDisplayed() = runTest {
+        // Regression (code review on commit fbba6c01): the assignee chip renders
+        // whenever assigneeFilter != null, including while showArchived is true —
+        // clearing it there must not overwrite `orders` with the active-list
+        // recompute, or the Archived screen ends up showing non-archived rows
+        // with a Restore affordance.
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "m1-order").copy(assignedMemberId = "m1"),
+            fakeOrder(id = "other-order").copy(assignedMemberId = "other"),
+            fakeOrder(id = "archived-order", archivedAt = 100L),
+        )
+        val vm = createViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("initialFilter" to OrderListFilter.assignee("m1"))),
+        )
+        vm.onAction(OrderListAction.OnShowArchived)
+        assertTrue(vm.state.value.showArchived)
+        assertEquals(listOf("archived-order"), vm.state.value.orders.map { it.id })
+
+        vm.onAction(OrderListAction.OnClearAssigneeFilter)
+
+        // Archived view stays displayed with archived rows untouched...
+        assertTrue(vm.state.value.showArchived)
+        assertEquals(listOf("archived-order"), vm.state.value.orders.map { it.id })
+        // ...but the filter itself really is cleared.
+        assertNull(vm.state.value.assigneeFilter)
+        assertNull(vm.state.value.assigneeFilterName)
+
+        // Confirm it's cleared for the active view too, once the user leaves Archived.
+        vm.onAction(OrderListAction.OnShowArchived)
+        assertEquals(
+            setOf("m1-order", "other-order"),
+            vm.state.value.orders.map { it.id }.toSet(),
+        )
+    }
 }

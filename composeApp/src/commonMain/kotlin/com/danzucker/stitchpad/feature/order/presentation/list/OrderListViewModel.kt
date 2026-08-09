@@ -228,13 +228,24 @@ class OrderListViewModel(
             state.copy(
                 assigneeFilter = null,
                 assigneeFilterName = null,
-                orders = filterAndSort(
-                    allOrders,
-                    state.statusFilter,
-                    state.myWorkOnly,
-                    state.sessionAuthUid,
-                    assigneeFilter = null,
-                )
+                // Bugbot follow-up: the chip still renders (and is tappable) while
+                // showArchived is true, since assigneeFilter != null doesn't check that —
+                // recomputing via filterAndSort unconditionally would overwrite the
+                // Archived view's own rows with the active list. Mirror the sibling
+                // functions' handling (toggleArchivedView, observeOrders) and leave
+                // `orders` alone when archived is showing; clearing the filter fields is
+                // still correct so the active view is unfiltered once the user leaves Archived.
+                orders = if (state.showArchived) {
+                    state.orders
+                } else {
+                    filterAndSort(
+                        allOrders,
+                        state.statusFilter,
+                        state.myWorkOnly,
+                        state.sessionAuthUid,
+                        assigneeFilter = null,
+                    )
+                }
             )
         }
     }

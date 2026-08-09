@@ -460,9 +460,15 @@ private fun OrderStatusFilterChips(
                         label = if (assigneeFilter == OrderListFilter.ASSIGNEE_NONE_ID) {
                             stringResource(Res.string.order_filter_unassigned)
                         } else {
+                            // assigneeFilterLabelName (the VM's pure helper) already
+                            // guarantees a non-null, never-blank name whenever
+                            // assigneeFilter is a member id — trust that state contract
+                            // instead of re-deriving a fallback policy here.
                             stringResource(
                                 Res.string.order_filter_assigned_to,
-                                assigneeFilterName ?: assigneeFilter,
+                                checkNotNull(assigneeFilterName) {
+                                    "assigneeFilterName must be set whenever assigneeFilter is a member id"
+                                },
                             )
                         },
                         isSelected = true,
