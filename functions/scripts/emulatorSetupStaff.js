@@ -91,6 +91,14 @@ async function main() {
     { merge: true },
   );
 
+  // Gabby's roster row — mirrors what approveStaffMember writes in production (the seeder
+  // sets the membership to 'active' directly, bypassing approve, so without this row Gabby
+  // is an active member yet absent from the assign sheet and Team roster).
+  await db.doc(`users/${uid}/team/${GABBY.uid}`).set(
+    { name: GABBY.name, kind: 'staff', status: 'active', colorSeed: 3, createdAt: now, updatedAt: now },
+    { merge: true },
+  );
+
   const batch = db.batch();
   for (const c of CUSTOMERS) {
     batch.set(db.doc(`users/${uid}/customers/${c.id}`), {
