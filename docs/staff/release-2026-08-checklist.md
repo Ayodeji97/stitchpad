@@ -68,6 +68,10 @@ ordered index:
     contact anywhere on the staff build; owner create/edit still round-trips
     money/contact. A `permission-denied` on an owner save means a below-floor
     build is in play → roll rules back, re-check the floor.
+    **Then re-enable staff:** `config/app.staffFeatureEnabled = true` — it was
+    set to `false` on 2026-08-11 (Play live, iOS still in review) so staff
+    invited before the rules flip see a clean owner-of-self shell instead of
+    permission-denied errors. Staff stays off until this step.
 11. **Post-flip monitoring:** strip DRY RUN after 1–2 weeks; if any count is
     non-zero, export → re-strip → re-check. Repeat until two consecutive clean runs.
 
