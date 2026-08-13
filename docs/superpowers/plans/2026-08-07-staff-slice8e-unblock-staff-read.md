@@ -627,7 +627,7 @@ Sequencing (from 8b/8c runbooks): 8a → 8b (backfill) → release 8d-1 client �
       `ANDROID_FLOOR=<versionCode> IOS_FLOOR=<CFBundleVersion> GOOGLE_CLOUD_PROJECT=stitchpad-30607 node scripts/setUpdateFloor.js --commit`
       and a below-floor build verifiably shows the force-update screen.
 - [ ] Firestore export taken:
-      `gcloud firestore export gs://stitchpad-30607.appspot.com/exports/pre-8d-strip-$(date +%Y%m%d) --project=stitchpad-30607`
+      `gcloud firestore export gs://stitchpad-30607-exports/pre-8d-strip-$(date +%Y%m%d) --project=stitchpad-30607`
 
 ## Strip (irreversible)
 

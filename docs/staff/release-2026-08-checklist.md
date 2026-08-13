@@ -54,7 +54,7 @@ ordered index:
    Investigate any non-zero before committing.
 5. **Firestore export** (the only rollback for the strip — take it BEFORE the
    first `--commit` of this sequence):
-   `gcloud firestore export gs://stitchpad-30607.appspot.com/exports/pre-8d-strip-$(date +%Y%m%d) --project=stitchpad-30607`
+   `gcloud firestore export gs://stitchpad-30607-exports/pre-8d-strip-$(date +%Y%m%d) --project=stitchpad-30607`
 6. **8b backfill `--commit` re-run** (release-time re-run per runbook — stamps
    every legacy mirror; counts must match the dry run; re-dry-run until 0).
 7. **Strip** (irreversible): dry run → investigate every skip warning →

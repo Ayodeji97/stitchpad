@@ -32,7 +32,7 @@ mutate production; the export is the only rollback for either.
 - [ ] **2. Firestore export taken** (save the operation folder name) — do this
       BEFORE the first `--commit` of this rollout:
       ```bash
-      gcloud firestore export gs://stitchpad-30607.appspot.com/exports/pre-8d-strip-$(date +%Y%m%d) --project=stitchpad-30607
+      gcloud firestore export gs://stitchpad-30607-exports/pre-8d-strip-$(date +%Y%m%d) --project=stitchpad-30607
       ```
 - [ ] **3. 8b backfill `--commit`** (only if step 1 showed work to do):
       ```bash
@@ -173,11 +173,11 @@ is confirmed 8d-1+. See "What else this deploy ships" under Rules flip.
   loss, expect to lose writes made since the export.
   1. Find the operation folder created by the export:
      ```bash
-     gsutil ls gs://stitchpad-30607.appspot.com/exports/pre-8d-strip-<date>/
+     gsutil ls gs://stitchpad-30607-exports/pre-8d-strip-<date>/
      ```
   2. Import the discovered operation folder:
      ```bash
-     gcloud firestore import gs://stitchpad-30607.appspot.com/exports/pre-8d-strip-<date>/<operation-subfolder> --project=stitchpad-30607
+     gcloud firestore import gs://stitchpad-30607-exports/pre-8d-strip-<date>/<operation-subfolder> --project=stitchpad-30607
      ```
 - Panic switch: set `staffFeatureEnabled: false` on `config/app` — every staff
   session resolves to owner-of-self and stops reading the workshop tree.
