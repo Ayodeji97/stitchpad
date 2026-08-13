@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.core.debug
 
+import com.danzucker.stitchpad.feature.auth.domain.NoOpRemoteSyncGate
 import com.danzucker.stitchpad.core.data.staff.FakeStaffMembershipPrefsStore
 import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 
@@ -52,7 +53,7 @@ class DebugSessionActionsTest {
         sessionActions = DebugSessionActions(
             authRepository = authRepository,
             onboardingPreferences = onboardingPreferences,
-            signOutUseCase = SignOutUseCase(authRepository, NoOpPushTokenRegistrar(), PendingDeepLinkHolder(), FakeStaffMembershipPrefsStore()),
+            signOutUseCase = SignOutUseCase(authRepository, NoOpPushTokenRegistrar(), PendingDeepLinkHolder(), FakeStaffMembershipPrefsStore(), NoOpRemoteSyncGate()),
             communityBannerDismissal = CommunityBannerDismissal(FakeOnboardingPreferences()),
             reviewController = ReviewController(
                 preferences = reviewPreferences,

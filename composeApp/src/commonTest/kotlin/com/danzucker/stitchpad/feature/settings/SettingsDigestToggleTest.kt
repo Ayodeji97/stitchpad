@@ -1,4 +1,5 @@
 package com.danzucker.stitchpad.feature.settings
+import com.danzucker.stitchpad.feature.auth.domain.NoOpRemoteSyncGate
 import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
 import com.danzucker.stitchpad.core.data.staff.FakeInviteRedemptionRepository
 
@@ -222,7 +223,7 @@ private fun buildSettingsVmForDigest(
         receiptImagePreferencesStore = receiptStore,
         smartUsageStore = FakeSmartUsageStore(),
         smartUsageDocSource = FakeSmartUsageDocSource(),
-        signOutUseCase = SignOutUseCase(authRepo, NoOpPushTokenRegistrar(), PendingDeepLinkHolder(), FakeStaffMembershipPrefsStore()),
+        signOutUseCase = SignOutUseCase(authRepo, NoOpPushTokenRegistrar(), PendingDeepLinkHolder(), FakeStaffMembershipPrefsStore(), NoOpRemoteSyncGate()),
         pushPermissionController = pushPermissionController,
         appConfigRepository = FakeAppConfigRepository(),
         communityJoinTracker = FakeCommunityJoinTracker(),

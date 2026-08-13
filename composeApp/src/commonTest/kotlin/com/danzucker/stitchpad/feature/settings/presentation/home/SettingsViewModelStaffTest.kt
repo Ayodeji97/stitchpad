@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.settings.presentation.home
 
 import app.cash.turbine.test
+import com.danzucker.stitchpad.feature.auth.domain.NoOpRemoteSyncGate
 import com.danzucker.stitchpad.core.analytics.FakeAnalytics
 import com.danzucker.stitchpad.core.config.FakeAppConfigRepository
 import com.danzucker.stitchpad.core.config.FakeCommunityJoinTracker
@@ -193,8 +194,7 @@ private fun buildVm(
             authRepo,
             StaffNoOpPushTokenRegistrar(),
             PendingDeepLinkHolder(),
-            staffPrefs,
-        ),
+            staffPrefs, NoOpRemoteSyncGate()),
         pushPermissionController = StaffNoOpPushPermissionController(),
         appConfigRepository = FakeAppConfigRepository(),
         communityJoinTracker = FakeCommunityJoinTracker(),
