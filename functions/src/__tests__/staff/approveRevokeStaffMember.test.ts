@@ -82,6 +82,24 @@ describe('approveStaffMemberHandler', () => {
     expect(typeof (store.get('users/alice/team/chidi') as { colorSeed?: number }).colorSeed).toBe('number');
   });
 
+  it('blank staffName falls back to the email local part on the roster doc', async () => {
+    const { db, store } = makeStaffDb({
+      'users/alice/memberships/chidi': {
+        status: 'pending', staffName: '', staffEmail: 'chidi.okafor@example.com',
+      },
+    });
+    await approveStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), deps(db));
+    expect(store.get('users/alice/team/chidi')).toMatchObject({ name: 'chidi.okafor' });
+  });
+
+  it('blank staffName AND email keeps the generic roster label', async () => {
+    const { db, store } = makeStaffDb({
+      'users/alice/memberships/chidi': { status: 'pending', staffName: '' },
+    });
+    await approveStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), deps(db));
+    expect(store.get('users/alice/team/chidi')).toMatchObject({ name: 'Staff member' });
+  });
+
   it('re-approve after cancel reactivates the roster doc via merge', async () => {
     const { db, store } = makeStaffDb({
       'users/alice/memberships/chidi': { status: 'pending', staffName: 'Chidi O' },
