@@ -66,6 +66,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -767,29 +768,42 @@ private fun RenameMemberSheet(target: TeamMember, onAction: (TeamAction) -> Unit
 @Composable
 private fun MemberIdentity(member: Membership, showStaffPill: Boolean) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Avatar(name = member.staffName, seed = member.staffAuthUid)
+        // A membership redeemed without a name would otherwise draw a "?" avatar —
+        // fall back to the email so the initial is always a real letter.
+        Avatar(name = member.staffName.ifBlank { member.staffEmail }, seed = member.staffAuthUid)
         Column(
             modifier = Modifier
                 .weight(1f)
                 .padding(start = DesignTokens.space3),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // weight(fill = false) + ellipsis: a long email must truncate, not
+                // starve the pill of width (which stacked its letters vertically).
                 Text(
                     text = member.staffName.ifBlank { member.staffEmail },
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
                 )
                 if (showStaffPill) {
                     Spacer(Modifier.width(DesignTokens.space2))
                     StaffPill()
                 }
             }
-            Text(
-                text = member.staffEmail,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            // Only show the email caption when the title is a real name —
+            // otherwise the row printed the same email twice.
+            if (member.staffName.isNotBlank()) {
+                Text(
+                    text = member.staffEmail,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
@@ -801,6 +815,8 @@ private fun StaffPill() {
         style = MaterialTheme.typography.labelSmall,
         fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.primary,
+        maxLines = 1,
+        softWrap = false,
         modifier = Modifier
             .background(
                 MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
