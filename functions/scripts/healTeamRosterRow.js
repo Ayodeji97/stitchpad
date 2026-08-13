@@ -32,10 +32,18 @@ async function main() {
   admin.initializeApp({ projectId: process.env.GOOGLE_CLOUD_PROJECT });
   const db = admin.firestore();
 
-  const memberships = await db.collectionGroup('memberships').where('status', '==', 'active').get();
+  // Per-user iteration instead of a collectionGroup query: the group query needs
+  // a COLLECTION_GROUP_ASC index that prod doesn't have, and a one-off heal
+  // shouldn't require index changes. ~100 users — cheap to walk.
+  const users = await db.collection('users').select().get();
+  const membershipDocs = [];
+  for (const user of users.docs) {
+    const mems = await user.ref.collection('memberships').where('status', '==', 'active').get();
+    membershipDocs.push(...mems.docs);
+  }
   let healed = 0;
   let ok = 0;
-  for (const doc of memberships.docs) {
+  for (const doc of membershipDocs) {
     const ownerUid = doc.ref.parent.parent.id;
     const staffUid = doc.id;
     const teamRef = db.doc(`users/${ownerUid}/team/${staffUid}`);
@@ -62,7 +70,7 @@ async function main() {
     }
     healed += 1;
   }
-  console.log(`${commit ? 'COMMITTED' : 'DRY RUN'} — activeMemberships=${memberships.size} rowsPresent=${ok} rowsHealed=${healed}`);
+  console.log(`${commit ? 'COMMITTED' : 'DRY RUN'} — activeMemberships=${membershipDocs.length} rowsPresent=${ok} rowsHealed=${healed}`);
   if (!commit) console.log('Re-run with --commit to apply.');
 }
 
