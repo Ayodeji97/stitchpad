@@ -182,8 +182,14 @@ class FirebaseCustomerRepository(
             if (!snapshot.exists) {
                 Result.Error(DataError.Network.NOT_FOUND) as Result<Customer, DataError.Network>
             } else {
-                val dto = snapshot.data<CustomerDto>().withDocumentId(snapshot.id)
-                Result.Success(dto.toCustomer(userId).withContact(contact))
+                val dto = decodeDocOrLog(tag = TAG, docId = snapshot.id) {
+                    snapshot.data<CustomerDto>().withDocumentId(snapshot.id)
+                }
+                if (dto == null) {
+                    Result.Error(DataError.Network.UNKNOWN) as Result<Customer, DataError.Network>
+                } else {
+                    Result.Success(dto.toCustomer(userId).withContact(contact)) as Result<Customer, DataError.Network>
+                }
             }
         }
             .retryWithFallback(fallback = Result.Error(DataError.Network.UNKNOWN)) { throwable, attempt ->

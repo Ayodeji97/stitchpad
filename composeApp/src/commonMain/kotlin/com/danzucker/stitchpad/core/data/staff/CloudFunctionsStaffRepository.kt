@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.core.data.staff
 
+import com.danzucker.stitchpad.core.data.decodeDocOrLog
 import com.danzucker.stitchpad.core.data.retryWithFallback
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
@@ -34,14 +35,16 @@ internal class CloudFunctionsStaffRepository(
         firestore.collection("users").document(ownerUid).collection("memberships")
             .snapshots()
             .map { snapshot ->
-                val members = snapshot.documents.map { doc ->
-                    val dto = doc.data<MembershipDto>()
-                    Membership(
-                        staffAuthUid = dto.staffAuthUid.ifBlank { doc.id },
-                        staffEmail = dto.staffEmail,
-                        staffName = dto.staffName,
-                        status = MembershipStatus.fromWire(dto.status) ?: MembershipStatus.PENDING,
-                    )
+                val members = snapshot.documents.mapNotNull { doc ->
+                    decodeDocOrLog(tag = TAG, docId = doc.id) {
+                        val dto = doc.data<MembershipDto>()
+                        Membership(
+                            staffAuthUid = dto.staffAuthUid.ifBlank { doc.id },
+                            staffEmail = dto.staffEmail,
+                            staffName = dto.staffName,
+                            status = MembershipStatus.fromWire(dto.status) ?: MembershipStatus.PENDING,
+                        )
+                    }
                 }
                 Result.Success(members) as Result<List<Membership>, StaffError>
             }

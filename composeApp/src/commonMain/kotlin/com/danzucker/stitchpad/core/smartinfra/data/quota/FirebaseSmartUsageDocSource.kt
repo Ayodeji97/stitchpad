@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.core.smartinfra.data.quota
 
+import com.danzucker.stitchpad.core.data.decodeDocOrLog
 import com.danzucker.stitchpad.core.data.retryWithFallback
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageDocSource
@@ -24,11 +25,17 @@ class FirebaseSmartUsageDocSource(
             .snapshots
             .map { snapshot ->
                 if (!snapshot.exists) return@map SmartUsageSnapshot.Empty
-                val dto = snapshot.data(SmartUsageDto.serializer())
-                SmartUsageSnapshot(
-                    bonusBalance = dto.bonusBalance,
-                    monthlyCount = dto.count,
-                )
+                val dto = decodeDocOrLog(tag = TAG, docId = snapshot.id) {
+                    snapshot.data(SmartUsageDto.serializer())
+                }
+                if (dto == null) {
+                    SmartUsageSnapshot.Empty
+                } else {
+                    SmartUsageSnapshot(
+                        bonusBalance = dto.bonusBalance,
+                        monthlyCount = dto.count,
+                    )
+                }
             }
             .retryWithFallback(fallback = SmartUsageSnapshot.Empty) { error, attempt ->
                 AppLogger.w(tag = TAG, throwable = error) {

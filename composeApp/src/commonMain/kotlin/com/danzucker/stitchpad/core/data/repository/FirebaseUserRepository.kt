@@ -2,6 +2,7 @@
 
 package com.danzucker.stitchpad.core.data.repository
 
+import com.danzucker.stitchpad.core.data.decodeDocOrLog
 import com.danzucker.stitchpad.core.data.dto.UserDto
 import com.danzucker.stitchpad.core.data.mapper.toUser
 import com.danzucker.stitchpad.core.data.retryWithFallback
@@ -174,8 +175,10 @@ class FirebaseUserRepository(
         return firestore.collection(USERS).document(userId).snapshots
             .map { snapshot ->
                 if (!snapshot.exists) return@map null
-                val dto = snapshot.data(UserDto.serializer())
-                dto.copy(id = userId).toUser()
+                val dto = decodeDocOrLog(tag = TAG, docId = snapshot.id) {
+                    snapshot.data(UserDto.serializer())
+                }
+                dto?.copy(id = userId)?.toUser()
             }
             .retryWithFallback(fallback = null) { error, attempt ->
                 AppLogger.w(tag = TAG, throwable = error) {

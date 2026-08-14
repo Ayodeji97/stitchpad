@@ -512,10 +512,16 @@ class FirebaseOrderRepository(
             if (!snapshot.exists) {
                 Result.Error(DataError.Network.NOT_FOUND) as Result<Order, DataError.Network>
             } else {
-                val dto = snapshot.data<OrderDto>().withDocumentId(snapshot.id)
-                Result.Success(
-                    dto.toOrder(userId).withLocalPendingImages().withMoney(money),
-                ) as Result<Order, DataError.Network>
+                val dto = decodeDocOrLog(tag = TAG, docId = snapshot.id) {
+                    snapshot.data<OrderDto>().withDocumentId(snapshot.id)
+                }
+                if (dto == null) {
+                    Result.Error(DataError.Network.UNKNOWN) as Result<Order, DataError.Network>
+                } else {
+                    Result.Success(
+                        dto.toOrder(userId).withLocalPendingImages().withMoney(money),
+                    ) as Result<Order, DataError.Network>
+                }
             }
         }
             .retryWithFallback(fallback = Result.Error(DataError.Network.UNKNOWN)) { throwable, attempt ->
