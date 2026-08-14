@@ -280,6 +280,16 @@ class FirebaseCustomerRepository(
     // from the caller's thread — a torn read-modify-write here could drop the
     // optimistic +1 and let one extra active create through the client cap
     // (cursor/codex, PR #360).
+    //
+    // Accepted residual window (codex P1, PR #360): atomicity does not stop a
+    // count derived from a PRE-create snapshot from landing after the optimistic
+    // +1 — that is logical staleness, not a torn write, and it predates this
+    // branch. It is bounded to the transform-duration between the increment and
+    // the local-write snapshot (which fires within ms and carries the new
+    // customer), and the client cap is deliberately soft: unhydrated sessions
+    // skip the check entirely and server reconciliation is the authority. A
+    // generation-tracking scheme would be proportionate only if this cap ever
+    // becomes hard enforcement.
     private fun cacheActiveCustomerCount(userId: String, count: Int) {
         cachedActiveCustomerCounts.update { it + (userId to count) }
     }
