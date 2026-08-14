@@ -1,7 +1,9 @@
 package com.danzucker.stitchpad.di
 
+import com.danzucker.stitchpad.core.data.appLifetimeScope
 import com.danzucker.stitchpad.core.data.repository.FirebaseUserRepository
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
+import com.danzucker.stitchpad.feature.auth.data.AuthSessionValidator
 import com.danzucker.stitchpad.feature.auth.data.EmailPatternValidator
 import com.danzucker.stitchpad.feature.auth.data.FirebaseAuthRepository
 import com.danzucker.stitchpad.feature.auth.data.GitLivePasswordResetEmailSender
@@ -18,9 +20,13 @@ import com.danzucker.stitchpad.feature.auth.presentation.verifyemail.EmailVerifi
 import com.danzucker.stitchpad.feature.branding.domain.BrandLogoValidator
 import com.danzucker.stitchpad.feature.main.presentation.SyncStatusViewModel
 import com.danzucker.stitchpad.feature.onboarding.presentation.workshop.WorkshopSetupViewModel
+import dev.gitlive.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.map
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
+import org.koin.core.qualifier.named
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
@@ -41,6 +47,24 @@ val authDataModule = module {
     // we're solving for the VMs: singleOf would try to resolve Int from the
     // graph, fail at runtime, and crash both logo-enabled screens.
     single { BrandLogoValidator() }
+
+    // App-lifetime scope for the zombie-session watchdog below.
+    single<CoroutineScope>(qualifier = named("authSessionAppScope")) {
+        appLifetimeScope(tag = "authSessionAppScope")
+    }
+    // createdAtStart: the whole point is catching a dead cached session at app
+    // launch, before any screen tries to use it (2026-08-14 redeem-freeze
+    // incident — INVALID_REFRESH_TOKEN with a signed-in user object).
+    single(createdAtStart = true) {
+        val authRepository = get<AuthRepository>()
+        val signOutUseCase = get<SignOutUseCase>()
+        AuthSessionValidator(
+            userIdSource = get<FirebaseAuth>().authStateChanged.map { it?.uid },
+            validateSession = { authRepository.forceRefreshIdToken() },
+            signOut = { signOutUseCase() },
+            scope = get(qualifier = named("authSessionAppScope")),
+        ).also { it.start() }
+    }
 }
 
 val authPresentationModule = module {
