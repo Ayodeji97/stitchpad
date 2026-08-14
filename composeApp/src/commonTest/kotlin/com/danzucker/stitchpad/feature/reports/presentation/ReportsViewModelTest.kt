@@ -91,7 +91,12 @@ class ReportsViewModelTest {
             authRepository = authRepository,
             entitlementsProvider = entitlementsProvider,
             nowMillis = nowMillis,
-            timeZone = tz
+            timeZone = tz,
+            // recompute()'s withContext(computeDispatcher) is real parallelism on
+            // Dispatchers.Default; pin it to the same unconfined test dispatcher as
+            // Main so recompute finishes synchronously and state.value assertions
+            // right after createViewModel() keep working.
+            computeDispatcher = Dispatchers.Main
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm

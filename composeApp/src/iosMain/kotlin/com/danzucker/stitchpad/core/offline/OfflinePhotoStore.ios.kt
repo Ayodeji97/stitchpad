@@ -4,6 +4,9 @@ import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.withContext
 import platform.Foundation.NSData
 import platform.Foundation.NSDocumentDirectory
 import platform.Foundation.NSFileManager
@@ -17,7 +20,7 @@ import platform.Foundation.writeToFile
 
 @OptIn(BetaInteropApi::class, ExperimentalForeignApi::class)
 actual class OfflinePhotoStore {
-    actual suspend fun save(bytes: ByteArray, fileName: String): String {
+    actual suspend fun save(bytes: ByteArray, fileName: String): String = withContext(Dispatchers.IO) {
         val dir = ensureOfflineUploadsDirectory()
         val path = "$dir/${fileName.safeFileName()}"
         val data = if (bytes.isEmpty()) {
@@ -28,28 +31,32 @@ actual class OfflinePhotoStore {
             }
         }
         data.writeToFile(path, atomically = true)
-        return path
+        path
     }
 
-    actual suspend fun read(path: String): ByteArray {
+    actual suspend fun read(path: String): ByteArray = withContext(Dispatchers.IO) {
         val data = NSData.dataWithContentsOfFile(path)
             ?: error("Offline upload file is unavailable")
-        return data.toByteArray()
+        data.toByteArray()
     }
 
     actual suspend fun delete(path: String) {
-        NSFileManager.defaultManager.removeItemAtPath(path, error = null)
+        withContext(Dispatchers.IO) {
+            NSFileManager.defaultManager.removeItemAtPath(path, error = null)
+        }
     }
 
-    actual suspend fun readUploadJobs(): String? {
+    actual suspend fun readUploadJobs(): String? = withContext(Dispatchers.IO) {
         val path = uploadJobsPath()
-        val data = NSData.dataWithContentsOfFile(path) ?: return null
-        return data.toByteArray().decodeToString()
+        val data = NSData.dataWithContentsOfFile(path) ?: return@withContext null
+        data.toByteArray().decodeToString()
     }
 
     actual suspend fun writeUploadJobs(json: String) {
-        ensureOfflineUploadsDirectory()
-        json.encodeToByteArray().toNSData().writeToFile(uploadJobsPath(), atomically = true)
+        withContext(Dispatchers.IO) {
+            ensureOfflineUploadsDirectory()
+            json.encodeToByteArray().toNSData().writeToFile(uploadJobsPath(), atomically = true)
+        }
     }
 
     private fun ensureOfflineUploadsDirectory(): String {

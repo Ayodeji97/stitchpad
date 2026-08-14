@@ -10,6 +10,7 @@ import com.danzucker.stitchpad.feature.freemium.domain.PaymentRepository
 import dev.gitlive.firebase.functions.FirebaseFunctions
 import dev.gitlive.firebase.functions.FirebaseFunctionsException
 import dev.gitlive.firebase.functions.FunctionsExceptionCode
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
 
 private const val TAG = "PaymentRepo"
@@ -43,6 +44,8 @@ internal class CloudFunctionsPaymentRepository(
                 "initializeSubscriptionCheckout failed: code=${e.code} message=${e.message}"
             }
             Result.Error(mapFunctionsError(e))
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
             AppLogger.e(tag = TAG, throwable = e) {
                 "initializeSubscriptionCheckout threw ${e::class.simpleName}: ${e.message}"

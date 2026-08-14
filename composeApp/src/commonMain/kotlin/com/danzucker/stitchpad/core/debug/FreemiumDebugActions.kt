@@ -10,6 +10,7 @@ import com.danzucker.stitchpad.feature.freemium.domain.FreemiumRepository
 import dev.gitlive.firebase.firestore.FieldValue
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.firestore.Timestamp
+import kotlinx.coroutines.CancellationException
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -151,6 +152,8 @@ class DefaultFreemiumDebugActions(
                 .collection(USAGE).document(SMART_DRAFTS)
                 .delete()
             DebugActionResult.Success
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "resetSmartUsage failed" }
             DebugActionResult.Failure(e.message ?: "Unknown error")
@@ -189,6 +192,8 @@ class DefaultFreemiumDebugActions(
                     merge = true,
                 )
             DebugActionResult.Success
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "setSmartUsage failed" }
             DebugActionResult.Failure(e.message ?: "Unknown error")
@@ -219,6 +224,8 @@ class DefaultFreemiumDebugActions(
         return try {
             block(firestore.collection(USERS).document(uid))
             DebugActionResult.Success
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "$label failed" }
             DebugActionResult.Failure(e.message ?: "Unknown error")

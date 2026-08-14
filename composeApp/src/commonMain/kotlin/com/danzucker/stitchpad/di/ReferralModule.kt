@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.di
 
+import com.danzucker.stitchpad.core.data.appLifetimeScope
 import com.danzucker.stitchpad.feature.foundingtailors.presentation.FoundingTailorsViewModel
 import com.danzucker.stitchpad.feature.referral.data.CloudFunctionsReferralRepository
 import com.danzucker.stitchpad.feature.referral.domain.ReferralAttribution
@@ -8,8 +9,6 @@ import com.danzucker.stitchpad.feature.referral.domain.ReferralRepository
 import com.danzucker.stitchpad.feature.referral.presentation.entry.ReferralCodeViewModel
 import dev.gitlive.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.map
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
@@ -21,7 +20,7 @@ val referralModule = module {
     // submits, so attribution survives the SignUp screen being torn down by post-signup
     // navigation. SupervisorJob so one failed submit doesn't kill the scope.
     single<CoroutineScope>(qualifier = named("referralAppScope")) {
-        CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        appLifetimeScope(tag = "referralAppScope")
     }
     single<ReferralRepository> { CloudFunctionsReferralRepository(functions = get()) }
     single<ReferralAttribution> {

@@ -4,6 +4,7 @@ import com.danzucker.stitchpad.core.logging.AppLogger
 import dev.gitlive.firebase.functions.FirebaseFunctions
 import dev.gitlive.firebase.functions.FirebaseFunctionsException
 import dev.gitlive.firebase.functions.FunctionsExceptionCode
+import kotlinx.coroutines.CancellationException
 
 /**
  * Admin-only (Group B) referral debug actions. Each invokes an already-deployed
@@ -53,6 +54,8 @@ class DefaultReferralAdminDebugActions(
                 e.message ?: e.code.toString()
             }
             DebugActionResult.Failure(reason)
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
             AppLogger.e(tag = TAG, throwable = e) { "$name threw: ${e::class.simpleName} ${e.message}" }
             DebugActionResult.Failure(e.message ?: "network")

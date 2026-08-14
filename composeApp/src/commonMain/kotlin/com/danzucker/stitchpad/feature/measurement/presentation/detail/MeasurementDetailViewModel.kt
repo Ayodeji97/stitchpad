@@ -23,6 +23,7 @@ import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.measurement.presentation.share.MeasurementShareFormatter
 import com.danzucker.stitchpad.feature.measurement.presentation.share.MeasurementShareLabels
 import com.danzucker.stitchpad.feature.measurement.presentation.toMeasurementUiText
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -312,6 +313,8 @@ class MeasurementDetailViewModel(
                     val data = buildShareData(measurement, customer)
                     dispatchShare(format, data)
                     analytics.logEvent(AnalyticsEvent.MeasurementShared(format))
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
                     // Same contract as receipt sharing: renderers throw on failure. Matches
                     // OrderDetailViewModel.shareReceipt's identical suppression pair.

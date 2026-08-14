@@ -1,13 +1,12 @@
 package com.danzucker.stitchpad.di
 
+import com.danzucker.stitchpad.core.data.appLifetimeScope
 import com.danzucker.stitchpad.feature.freemium.data.CloudFunctionsFreemiumRepository
 import com.danzucker.stitchpad.feature.freemium.domain.FreemiumRepository
 import com.danzucker.stitchpad.feature.freemium.presentation.reconcile.ReconcileCoordinator
 import com.danzucker.stitchpad.feature.freemium.presentation.upgrade.UpgradeViewModel
 import dev.gitlive.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.map
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.qualifier.named
@@ -20,7 +19,7 @@ val freemiumModule = module {
     // in one consumer doesn't kill the others. Defined BEFORE the repository
     // single because the repository now depends on it.
     single<CoroutineScope>(qualifier = named("freemiumAppScope")) {
-        CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        appLifetimeScope(tag = "freemiumAppScope")
     }
     single<FreemiumRepository> {
         CloudFunctionsFreemiumRepository(

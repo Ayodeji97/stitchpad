@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.di
 
 import com.danzucker.stitchpad.core.config.domain.repository.AppConfigRepository
+import com.danzucker.stitchpad.core.data.appLifetimeScope
 import com.danzucker.stitchpad.core.data.entitlement.UserDocEntitlementsProvider
 import com.danzucker.stitchpad.core.data.session.FirebaseActiveWorkshopProvider
 import com.danzucker.stitchpad.core.data.session.MembershipStatusDto
@@ -21,8 +22,6 @@ import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.firestore.firestore
 import dev.gitlive.firebase.storage.storage
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.retryWhen
@@ -42,14 +41,14 @@ val coreModule = module {
     // App-lifetime scope for the EntitlementsProvider auth-state listener.
     // Named separately from smartAppScope to avoid qualifier collisions.
     single<CoroutineScope>(qualifier = named("entitlementsAppScope")) {
-        CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        appLifetimeScope(tag = "entitlementsAppScope")
     }
     single<CoroutineScope>(qualifier = named("offlineWriteAppScope")) {
-        CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        appLifetimeScope(tag = "offlineWriteAppScope")
     }
     // App-lifetime scope for the ActiveWorkshopProvider auth-state listener.
     single<CoroutineScope>(qualifier = named("workshopSessionAppScope")) {
-        CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        appLifetimeScope(tag = "workshopSessionAppScope")
     }
     single {
         OfflineWriteDispatcher(
@@ -117,7 +116,12 @@ val coreModule = module {
     }
 
     single<CoroutineScope>(qualifier = named("celebrationAppScope")) {
-        CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        appLifetimeScope(tag = "celebrationAppScope")
+    }
+    // App-lifetime scope hosting the shared orders listener; WhileSubscribed keeps
+    // the Firestore listener alive only while at least one screen collects.
+    single<CoroutineScope>(qualifier = named("orderShareAppScope")) {
+        appLifetimeScope(tag = "orderShareAppScope")
     }
     single {
         CelebrationController(

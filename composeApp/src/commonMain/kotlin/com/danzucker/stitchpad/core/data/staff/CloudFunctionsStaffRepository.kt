@@ -1,5 +1,7 @@
 package com.danzucker.stitchpad.core.data.staff
 
+import com.danzucker.stitchpad.core.data.decodeDocOrLog
+import com.danzucker.stitchpad.core.data.retryWithFallback
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
@@ -14,7 +16,6 @@ import dev.gitlive.firebase.functions.FirebaseFunctionsException
 import dev.gitlive.firebase.functions.FunctionsExceptionCode
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
 
@@ -34,20 +35,23 @@ internal class CloudFunctionsStaffRepository(
         firestore.collection("users").document(ownerUid).collection("memberships")
             .snapshots()
             .map { snapshot ->
-                val members = snapshot.documents.map { doc ->
-                    val dto = doc.data<MembershipDto>()
-                    Membership(
-                        staffAuthUid = dto.staffAuthUid.ifBlank { doc.id },
-                        staffEmail = dto.staffEmail,
-                        staffName = dto.staffName,
-                        status = MembershipStatus.fromWire(dto.status) ?: MembershipStatus.PENDING,
-                    )
+                val members = snapshot.documents.mapNotNull { doc ->
+                    decodeDocOrLog(tag = TAG, docId = doc.id) {
+                        val dto = doc.data<MembershipDto>()
+                        Membership(
+                            staffAuthUid = dto.staffAuthUid.ifBlank { doc.id },
+                            staffEmail = dto.staffEmail,
+                            staffName = dto.staffName,
+                            status = MembershipStatus.fromWire(dto.status) ?: MembershipStatus.PENDING,
+                        )
+                    }
                 }
                 Result.Success(members) as Result<List<Membership>, StaffError>
             }
-            .catch { throwable ->
-                AppLogger.e(tag = TAG, throwable = throwable) { "observeMemberships failed ownerUid=$ownerUid" }
-                emit(Result.Error(StaffError.NETWORK))
+            .retryWithFallback(fallback = Result.Error(StaffError.NETWORK)) { throwable, attempt ->
+                AppLogger.w(tag = TAG, throwable = throwable) {
+                    "observeMemberships failed ownerUid=$ownerUid; retrying (attempt ${attempt + 1})"
+                }
             }
 
     override suspend fun approve(staffAuthUid: String): EmptyResult<StaffError> = staffCall("approveStaffMember") {

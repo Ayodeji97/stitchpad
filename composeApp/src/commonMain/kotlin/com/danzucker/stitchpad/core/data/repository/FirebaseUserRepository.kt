@@ -2,8 +2,10 @@
 
 package com.danzucker.stitchpad.core.data.repository
 
+import com.danzucker.stitchpad.core.data.decodeDocOrLog
 import com.danzucker.stitchpad.core.data.dto.UserDto
 import com.danzucker.stitchpad.core.data.mapper.toUser
+import com.danzucker.stitchpad.core.data.retryWithFallback
 import com.danzucker.stitchpad.core.domain.currentPlatformName
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
@@ -19,8 +21,8 @@ import com.danzucker.stitchpad.core.offline.OfflineUploadOutbox
 import com.danzucker.stitchpad.core.offline.OfflineWriteDispatcher
 import dev.gitlive.firebase.firestore.FieldValue
 import dev.gitlive.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
 
@@ -108,6 +110,8 @@ class FirebaseUserRepository(
         return try {
             firestore.collection(USERS).document(userId).delete()
             Result.Success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "deleteUserDoc failed userId=$userId" }
             Result.Error(DataError.Network.UNKNOWN)
@@ -171,12 +175,15 @@ class FirebaseUserRepository(
         return firestore.collection(USERS).document(userId).snapshots
             .map { snapshot ->
                 if (!snapshot.exists) return@map null
-                val dto = snapshot.data(UserDto.serializer())
-                dto.copy(id = userId).toUser()
+                val dto = decodeDocOrLog(tag = TAG, docId = snapshot.id) {
+                    snapshot.data(UserDto.serializer())
+                }
+                dto?.copy(id = userId)?.toUser()
             }
-            .catch { error ->
-                AppLogger.e(tag = TAG, throwable = error) { "observeUser failed userId=$userId" }
-                emit(null)
+            .retryWithFallback(fallback = null) { error, attempt ->
+                AppLogger.w(tag = TAG, throwable = error) {
+                    "observeUser failed userId=$userId; retrying (attempt ${attempt + 1})"
+                }
             }
     }
 

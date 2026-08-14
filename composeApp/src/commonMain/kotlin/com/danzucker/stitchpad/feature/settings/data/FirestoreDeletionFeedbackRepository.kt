@@ -8,6 +8,7 @@ import com.danzucker.stitchpad.feature.settings.data.dto.DeletionFeedbackDto
 import com.danzucker.stitchpad.feature.settings.domain.DeletionFeedback
 import com.danzucker.stitchpad.feature.settings.domain.DeletionFeedbackRepository
 import dev.gitlive.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.CancellationException
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
@@ -38,6 +39,8 @@ class FirestoreDeletionFeedbackRepository(
             val docRef = firestore.collection(COLLECTION).document
             docRef.set(dto)
             Result.Success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "submitFeedback failed reason=${feedback.reason}" }
             Result.Error(DataError.Network.UNKNOWN)

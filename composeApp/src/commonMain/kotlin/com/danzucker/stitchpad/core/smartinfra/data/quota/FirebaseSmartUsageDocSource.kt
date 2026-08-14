@@ -1,11 +1,12 @@
 package com.danzucker.stitchpad.core.smartinfra.data.quota
 
+import com.danzucker.stitchpad.core.data.decodeDocOrLog
+import com.danzucker.stitchpad.core.data.retryWithFallback
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageDocSource
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageSnapshot
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 
 private const val TAG = "SmartUsageDocSrc"
@@ -24,17 +25,22 @@ class FirebaseSmartUsageDocSource(
             .snapshots
             .map { snapshot ->
                 if (!snapshot.exists) return@map SmartUsageSnapshot.Empty
-                val dto = snapshot.data(SmartUsageDto.serializer())
-                SmartUsageSnapshot(
-                    bonusBalance = dto.bonusBalance,
-                    monthlyCount = dto.count,
-                )
-            }
-            .catch { error ->
-                AppLogger.e(tag = TAG, throwable = error) {
-                    "observeSnapshot failed userId=$userId"
+                val dto = decodeDocOrLog(tag = TAG, docId = snapshot.id) {
+                    snapshot.data(SmartUsageDto.serializer())
                 }
-                emit(SmartUsageSnapshot.Empty)
+                if (dto == null) {
+                    SmartUsageSnapshot.Empty
+                } else {
+                    SmartUsageSnapshot(
+                        bonusBalance = dto.bonusBalance,
+                        monthlyCount = dto.count,
+                    )
+                }
+            }
+            .retryWithFallback(fallback = SmartUsageSnapshot.Empty) { error, attempt ->
+                AppLogger.w(tag = TAG, throwable = error) {
+                    "observeSnapshot failed userId=$userId; retrying (attempt ${attempt + 1})"
+                }
             }
     }
 }

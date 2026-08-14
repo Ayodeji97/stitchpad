@@ -9,11 +9,21 @@ import com.danzucker.stitchpad.feature.order.presentation.form.OrderFormViewMode
 import com.danzucker.stitchpad.feature.order.presentation.list.OrderListViewModel
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.viewModelOf
+import org.koin.core.qualifier.named
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
 val orderDataModule = module {
-    singleOf(::FirebaseOrderRepository) bind OrderRepository::class
+    single<OrderRepository> {
+        FirebaseOrderRepository(
+            firestore = get(),
+            storage = get(),
+            offlineWrites = get(),
+            photoStore = get(),
+            uploadOutbox = get(),
+            shareScope = get(qualifier = named("orderShareAppScope")),
+        )
+    }
     singleOf(::FirebaseCustomGarmentTypeRepository) bind CustomGarmentTypeRepository::class
 }
 

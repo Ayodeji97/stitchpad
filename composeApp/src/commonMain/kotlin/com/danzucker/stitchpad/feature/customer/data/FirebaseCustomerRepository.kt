@@ -8,6 +8,7 @@ import com.danzucker.stitchpad.core.data.mapper.toCustomerBaseDto
 import com.danzucker.stitchpad.core.data.mapper.toCustomerContactDto
 import com.danzucker.stitchpad.core.data.mapper.toCustomerDto
 import com.danzucker.stitchpad.core.data.mapper.withContact
+import com.danzucker.stitchpad.core.data.retryWithFallback
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
@@ -19,11 +20,14 @@ import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.offline.OfflineWriteDispatcher
 import dev.gitlive.firebase.firestore.FieldValue
 import dev.gitlive.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 
 private const val TAG = "CustomerRepo"
 
@@ -115,11 +119,11 @@ class FirebaseCustomerRepository(
                     .mapNotNull { doc -> decodeDocOrLog(tag = TAG, docId = doc.id) { doc.data<CustomerContactDto>() } }
                     .associateBy { it.customerId }
             }
-            .catch { throwable ->
-                AppLogger.e(tag = TAG, throwable = throwable) {
-                    "observeCustomers contact collection-group failed; falling back to base contact"
+            .retryWithFallback(fallback = emptyMap()) { throwable, attempt ->
+                AppLogger.w(tag = TAG, throwable = throwable) {
+                    "observeCustomers contact collection-group failed; falling back to base contact; " +
+                        "retrying (attempt ${attempt + 1})"
                 }
-                emit(emptyMap())
             }
 
     private fun customerContactFlow(userId: String, customerId: String): Flow<CustomerContactDto?> =
@@ -132,11 +136,11 @@ class FirebaseCustomerRepository(
                     null
                 }
             }
-            .catch { throwable ->
-                AppLogger.e(tag = TAG, throwable = throwable) {
-                    "observeCustomer contact sub-doc failed customerId=$customerId; falling back to base contact"
+            .retryWithFallback(fallback = null) { throwable, attempt ->
+                AppLogger.w(tag = TAG, throwable = throwable) {
+                    "observeCustomer contact sub-doc failed customerId=$customerId; falling back to base " +
+                        "contact; retrying (attempt ${attempt + 1})"
                 }
-                emit(null)
             }
 
     override fun observeCustomers(userId: String): Flow<Result<List<Customer>, DataError.Network>> =
@@ -160,10 +164,12 @@ class FirebaseCustomerRepository(
             }
             Result.Success(customers) as Result<List<Customer>, DataError.Network>
         }
-            .catch { throwable ->
-                AppLogger.e(tag = TAG, throwable = throwable) { "observeCustomers failed" }
-                emit(Result.Error(DataError.Network.UNKNOWN))
+            .retryWithFallback(fallback = Result.Error(DataError.Network.UNKNOWN)) { throwable, attempt ->
+                AppLogger.w(tag = TAG, throwable = throwable) {
+                    "observeCustomers failed; retrying (attempt ${attempt + 1})"
+                }
             }
+            .flowOn(Dispatchers.Default)
 
     override fun observeCustomer(
         userId: String,
@@ -177,16 +183,22 @@ class FirebaseCustomerRepository(
             if (!snapshot.exists) {
                 Result.Error(DataError.Network.NOT_FOUND) as Result<Customer, DataError.Network>
             } else {
-                val dto = snapshot.data<CustomerDto>().withDocumentId(snapshot.id)
-                Result.Success(dto.toCustomer(userId).withContact(contact))
+                val dto = decodeDocOrLog(tag = TAG, docId = snapshot.id) {
+                    snapshot.data<CustomerDto>().withDocumentId(snapshot.id)
+                }
+                if (dto == null) {
+                    Result.Error(DataError.Network.UNKNOWN) as Result<Customer, DataError.Network>
+                } else {
+                    Result.Success(dto.toCustomer(userId).withContact(contact)) as Result<Customer, DataError.Network>
+                }
             }
         }
-            .catch { throwable ->
-                AppLogger.e(tag = TAG, throwable = throwable) {
-                    "observeCustomer failed customerId=$customerId"
+            .retryWithFallback(fallback = Result.Error(DataError.Network.UNKNOWN)) { throwable, attempt ->
+                AppLogger.w(tag = TAG, throwable = throwable) {
+                    "observeCustomer failed customerId=$customerId; retrying (attempt ${attempt + 1})"
                 }
-                emit(Result.Error(DataError.Network.UNKNOWN))
             }
+            .flowOn(Dispatchers.Default)
 
     override suspend fun getCustomer(
         userId: String,
@@ -207,6 +219,8 @@ class FirebaseCustomerRepository(
                 if (contactSnapshot.exists) contactSnapshot.data<CustomerContactDto>() else null
             }.getOrNull()
             Result.Success(dto.toCustomer(userId).withContact(contact))
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) {
                 "getCustomer failed customerId=$customerId"
@@ -253,18 +267,35 @@ class FirebaseCustomerRepository(
             return Result.Error(DataError.Network.UNKNOWN)
         }
         if (CustomerSlotState.fromWire(dto.slotState) == CustomerSlotState.ACTIVE) {
-            val current = cachedActiveCustomerCounts.value[userId] ?: 0
-            cacheActiveCustomerCount(userId, current + 1)
+            // Read + increment inside one atomic update — see cacheActiveCustomerCount.
+            cachedActiveCustomerCounts.update { counts ->
+                counts + (userId to ((counts[userId] ?: 0) + 1))
+            }
         }
         return Result.Success(Unit)
     }
 
+    // update {} (atomic CAS), not plain value reassignment: observeCustomers'
+    // snapshot pass now runs on Dispatchers.Default while createCustomer mutates
+    // from the caller's thread — a torn read-modify-write here could drop the
+    // optimistic +1 and let one extra active create through the client cap
+    // (cursor/codex, PR #360).
+    //
+    // Accepted residual window (codex P1, PR #360): atomicity does not stop a
+    // count derived from a PRE-create snapshot from landing after the optimistic
+    // +1 — that is logical staleness, not a torn write, and it predates this
+    // branch. It is bounded to the transform-duration between the increment and
+    // the local-write snapshot (which fires within ms and carries the new
+    // customer), and the client cap is deliberately soft: unhydrated sessions
+    // skip the check entirely and server reconciliation is the authority. A
+    // generation-tracking scheme would be proportionate only if this cap ever
+    // becomes hard enforcement.
     private fun cacheActiveCustomerCount(userId: String, count: Int) {
-        cachedActiveCustomerCounts.value = cachedActiveCustomerCounts.value + (userId to count)
+        cachedActiveCustomerCounts.update { it + (userId to count) }
     }
 
     private fun invalidateActiveCustomerCount(userId: String) {
-        cachedActiveCustomerCounts.value = cachedActiveCustomerCounts.value - userId
+        cachedActiveCustomerCounts.update { it - userId }
     }
 
     override suspend fun updateCustomer(

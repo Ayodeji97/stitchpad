@@ -12,6 +12,7 @@ import com.danzucker.stitchpad.feature.referral.domain.ReferralSource
 import dev.gitlive.firebase.functions.FirebaseFunctions
 import dev.gitlive.firebase.functions.FirebaseFunctionsException
 import dev.gitlive.firebase.functions.FunctionsExceptionCode
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
 
 private const val TAG = "ReferralRepo"
@@ -47,6 +48,8 @@ internal class CloudFunctionsReferralRepository(
                 "recordReferralAttribution failed: code=${e.code} message=${e.message}"
             }
             Result.Error(mapError(e))
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
             AppLogger.e(tag = TAG, throwable = e) {
                 "recordReferralAttribution threw ${e::class.simpleName}: ${e.message}"
@@ -73,6 +76,8 @@ internal class CloudFunctionsReferralRepository(
                 .invoke()
                 .data<MyReferralLinkDto>()
             Result.Success(ReferralLink(code = data.code, url = data.url, playUrl = data.playUrl))
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
             AppLogger.e(tag = TAG, throwable = e) {
                 "getOrCreateMyReferralLink threw ${e::class.simpleName}: ${e.message}"
@@ -96,6 +101,8 @@ internal class CloudFunctionsReferralRepository(
                     allTimeRank = data.youAllTime?.rank ?: 0,
                 ),
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
             AppLogger.e(tag = TAG, throwable = e) {
                 "getFoundingTailorsStanding threw ${e::class.simpleName}: ${e.message}"

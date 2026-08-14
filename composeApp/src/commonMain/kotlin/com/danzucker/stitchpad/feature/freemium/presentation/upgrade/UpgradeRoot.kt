@@ -9,6 +9,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.presentation.openUriSafely
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
@@ -27,7 +28,7 @@ fun UpgradeRoot(
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
-            is UpgradeEvent.OpenExternalBrowser -> uriHandler.openUri(event.url)
+            is UpgradeEvent.OpenExternalBrowser -> uriHandler.openUriSafely(event.url, tag = "UpgradeRoot")
             is UpgradeEvent.ShowSnackbar -> {
                 scope.launch {
                     val message = when (val text = event.message) {

@@ -4,14 +4,13 @@ import com.danzucker.stitchpad.core.analytics.data.AnalyticsIdentitySync
 import com.danzucker.stitchpad.core.analytics.data.FirebaseAnalyticsSink
 import com.danzucker.stitchpad.core.analytics.data.FirebaseAnalyticsTracker
 import com.danzucker.stitchpad.core.analytics.domain.Analytics
+import com.danzucker.stitchpad.core.data.appLifetimeScope
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.analytics.analytics
 import dev.gitlive.firebase.auth.auth
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.map
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
@@ -20,7 +19,7 @@ val analyticsModule = module {
     single<Analytics> { FirebaseAnalyticsTracker(FirebaseAnalyticsSink(Firebase.analytics)) }
 
     single<CoroutineScope>(qualifier = named("analyticsAppScope")) {
-        CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        appLifetimeScope(tag = "analyticsAppScope")
     }
 
     single(createdAtStart = true) {

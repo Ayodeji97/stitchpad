@@ -16,6 +16,7 @@ import com.danzucker.stitchpad.core.data.mapper.toOrderItemBaseDto
 import com.danzucker.stitchpad.core.data.mapper.toOrderMoneyDto
 import com.danzucker.stitchpad.core.data.mapper.toPaymentDto
 import com.danzucker.stitchpad.core.data.mapper.withMoney
+import com.danzucker.stitchpad.core.data.retryWithFallback
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
@@ -37,16 +38,27 @@ import com.danzucker.stitchpad.feature.style.data.toStorageData
 import dev.gitlive.firebase.firestore.FieldValue
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.storage.FirebaseStorage
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 private const val TAG = "OrderRepo"
 private const val LEGACY_DEPOSIT_PAYMENT_ID = "legacy-deposit"
+private const val SHARE_STOP_TIMEOUT_MS = 5_000L
 
 /**
  * Stamps the authoritative Firestore *document* id onto a decoded [OrderDto].
@@ -293,6 +305,7 @@ class FirebaseOrderRepository(
     private val offlineWrites: OfflineWriteDispatcher,
     private val photoStore: OfflinePhotoStore,
     private val uploadOutbox: OfflineUploadOutbox,
+    private val shareScope: CoroutineScope,
 ) : OrderRepository {
 
     private fun ordersCollection(userId: String) =
@@ -321,11 +334,11 @@ class FirebaseOrderRepository(
                     .mapNotNull { doc -> decodeDocOrLog(tag = TAG, docId = doc.id) { doc.data<OrderMoneyDto>() } }
                     .associateBy { it.orderId }
             }
-            .catch { throwable ->
-                AppLogger.e(tag = TAG, throwable = throwable) {
-                    "observeOrders money collection-group failed; falling back to base money"
+            .retryWithFallback(fallback = emptyMap()) { throwable, attempt ->
+                AppLogger.w(tag = TAG, throwable = throwable) {
+                    "observeOrders money collection-group failed; falling back to base money; " +
+                        "retrying (attempt ${attempt + 1})"
                 }
-                emit(emptyMap())
             }
 
     private fun orderMoneyFlow(userId: String, orderId: String): Flow<OrderMoneyDto?> =
@@ -338,11 +351,11 @@ class FirebaseOrderRepository(
                     null
                 }
             }
-            .catch { throwable ->
-                AppLogger.e(tag = TAG, throwable = throwable) {
-                    "observeOrder money sub-doc failed orderId=$orderId; falling back to base money"
+            .retryWithFallback(fallback = null) { throwable, attempt ->
+                AppLogger.w(tag = TAG, throwable = throwable) {
+                    "observeOrder money sub-doc failed orderId=$orderId; falling back to base money; " +
+                        "retrying (attempt ${attempt + 1})"
                 }
-                emit(null)
             }
 
     private fun fabricStoragePath(userId: String, orderId: String, itemId: String): String =
@@ -414,7 +427,44 @@ class FirebaseOrderRepository(
         }
     }
 
-    override fun observeOrders(userId: String): Flow<Result<List<Order>, DataError.Network>> =
+    // 8 screens collect the orders list concurrently (dashboard, list, reports,
+    // to-collect, customer screens, team). Sharing means one Firestore listener
+    // and ONE decode pass per snapshot instead of one per collector — the audit
+    // measured the unshared decode at seconds of main-thread work per snapshot
+    // burst at realistic order counts.
+    //
+    // Resolved under shareMutex at COLLECTION time (codex, PR #360): a plain
+    // check-then-set memo races on concurrent first calls — and the loser is NOT
+    // discarded, because its caller collects the instance it was handed, keeping a
+    // duplicate Firestore listener + decode pipeline alive for that screen's whole
+    // life. Not all callers are Main-serialized (SmartOpenOrdersAdapter resolves on
+    // the smart feature's Default scope), so the window is real. observeOrders is
+    // non-suspend, so the lock lives inside the returned cold flow, where a
+    // suspending context exists; every collector then emits from the one canonical
+    // shared instance.
+    private val shareMutex = Mutex()
+    private var sharedOrders: Pair<String, SharedFlow<Result<List<Order>, DataError.Network>>>? = null
+
+    override fun observeOrders(userId: String): Flow<Result<List<Order>, DataError.Network>> = flow {
+        val shared = shareMutex.withLock {
+            sharedOrders?.takeIf { it.first == userId }?.second
+                ?: buildOrdersFlow(userId).shareIn(
+                    scope = shareScope,
+                    started = SharingStarted.WhileSubscribed(
+                        stopTimeoutMillis = SHARE_STOP_TIMEOUT_MS,
+                        // Drop the replay cache as soon as the upstream stops so a
+                        // re-subscription after every collector left (e.g. sign-out, or a
+                        // long backgrounded app) doesn't hand a new/different signed-in user
+                        // stale order data from the previous session.
+                        replayExpirationMillis = 0L,
+                    ),
+                    replay = 1,
+                ).also { sharedOrders = userId to it }
+        }
+        emitAll(shared)
+    }
+
+    private fun buildOrdersFlow(userId: String): Flow<Result<List<Order>, DataError.Network>> =
         combine(
             // includeMetadataChanges is what lets the badge CLEAR: without it, no new
             // snapshot arrives when a queued write is acknowledged, so the row would
@@ -427,10 +477,20 @@ class FirebaseOrderRepository(
                 .map { it.withMoney(money[it.id]) }
             Result.Success(orders) as Result<List<Order>, DataError.Network>
         }
-            .catch { throwable ->
-                AppLogger.e(tag = TAG, throwable = throwable) { "observeOrders failed" }
-                emit(Result.Error(DataError.Network.UNKNOWN))
+            // retryWithFallback (not .catch): this flow is now shared via shareIn, and
+            // .catch COMPLETES the upstream on error — shareIn's sharing coroutine only
+            // re-collects on a fresh 0->1 subscriber transition, so a transient
+            // listener error (e.g. PERMISSION_DENIED during a staff-claim token
+            // refresh) would otherwise freeze order data app-wide for the rest of the
+            // session while any screen stays subscribed. retryWithFallback surfaces the
+            // error to current subscribers, then keeps the upstream alive by
+            // re-collecting after a capped exponential backoff.
+            .retryWithFallback(fallback = Result.Error(DataError.Network.UNKNOWN)) { throwable, attempt ->
+                AppLogger.w(tag = TAG, throwable = throwable) {
+                    "observeOrders failed; retrying (attempt ${attempt + 1})"
+                }
             }
+            .flowOn(Dispatchers.Default)
 
     override fun observeArchivedOrders(
         userId: String,
@@ -445,10 +505,12 @@ class FirebaseOrderRepository(
                 .map { it.withMoney(money[it.id]) }
             Result.Success(archived) as Result<List<Order>, DataError.Network>
         }
-            .catch { throwable ->
-                AppLogger.e(tag = TAG, throwable = throwable) { "observeArchivedOrders failed" }
-                emit(Result.Error(DataError.Network.UNKNOWN))
+            .retryWithFallback(fallback = Result.Error(DataError.Network.UNKNOWN)) { throwable, attempt ->
+                AppLogger.w(tag = TAG, throwable = throwable) {
+                    "observeArchivedOrders failed; retrying (attempt ${attempt + 1})"
+                }
             }
+            .flowOn(Dispatchers.Default)
 
     override fun observeOrder(
         userId: String,
@@ -461,16 +523,24 @@ class FirebaseOrderRepository(
             if (!snapshot.exists) {
                 Result.Error(DataError.Network.NOT_FOUND) as Result<Order, DataError.Network>
             } else {
-                val dto = snapshot.data<OrderDto>().withDocumentId(snapshot.id)
-                Result.Success(
-                    dto.toOrder(userId).withLocalPendingImages().withMoney(money),
-                ) as Result<Order, DataError.Network>
+                val dto = decodeDocOrLog(tag = TAG, docId = snapshot.id) {
+                    snapshot.data<OrderDto>().withDocumentId(snapshot.id)
+                }
+                if (dto == null) {
+                    Result.Error(DataError.Network.UNKNOWN) as Result<Order, DataError.Network>
+                } else {
+                    Result.Success(
+                        dto.toOrder(userId).withLocalPendingImages().withMoney(money),
+                    ) as Result<Order, DataError.Network>
+                }
             }
         }
-            .catch { throwable ->
-                AppLogger.e(tag = TAG, throwable = throwable) { "observeOrder failed orderId=$orderId" }
-                emit(Result.Error(DataError.Network.UNKNOWN))
+            .retryWithFallback(fallback = Result.Error(DataError.Network.UNKNOWN)) { throwable, attempt ->
+                AppLogger.w(tag = TAG, throwable = throwable) {
+                    "observeOrder failed orderId=$orderId; retrying (attempt ${attempt + 1})"
+                }
             }
+            .flowOn(Dispatchers.Default)
 
     override suspend fun getOrder(
         userId: String,
@@ -487,6 +557,8 @@ class FirebaseOrderRepository(
                 if (moneyDoc.exists) moneyDoc.data<OrderMoneyDto>() else null
             }.getOrNull()
             Result.Success(dto.toOrder(userId).withLocalPendingImages().withMoney(money))
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "getOrder failed orderId=$orderId" }
             Result.Error(DataError.Network.UNKNOWN)
@@ -803,6 +875,8 @@ class FirebaseOrderRepository(
             storage.reference.child(path).putData(photoBytes.toStorageData())
             val downloadUrl = storage.reference.child(path).getDownloadUrl()
             Result.Success(downloadUrl to path)
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "uploadFabricPhoto failed itemId=$itemId" }
             Result.Error(DataError.Network.UNKNOWN)
@@ -820,6 +894,8 @@ class FirebaseOrderRepository(
             storage.reference.child(path).putData(photoBytes.toStorageData())
             val downloadUrl = storage.reference.child(path).getDownloadUrl()
             Result.Success(downloadUrl to path)
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "uploadStylePhoto failed itemId=$itemId" }
             Result.Error(DataError.Network.UNKNOWN)
@@ -899,6 +975,8 @@ class FirebaseOrderRepository(
                         itemId = itemId,
                     )
                 )
+            } catch (e: CancellationException) {
+                throw e
             } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
                 AppLogger.e(tag = TAG, throwable = e) { "$operationName failed itemId=$itemId suffix=$suffix" }
                 return Result.Error(DataError.Network.UNKNOWN)

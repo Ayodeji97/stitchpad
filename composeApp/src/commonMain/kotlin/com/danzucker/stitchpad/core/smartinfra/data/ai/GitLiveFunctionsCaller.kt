@@ -7,6 +7,7 @@ import com.danzucker.stitchpad.feature.smart.data.dto.DraftMessageResponseDto
 import dev.gitlive.firebase.functions.FirebaseFunctions
 import dev.gitlive.firebase.functions.FirebaseFunctionsException
 import dev.gitlive.firebase.functions.FunctionsExceptionCode
+import kotlinx.coroutines.CancellationException
 
 private const val TAG = "SmartFunctionsCaller"
 
@@ -28,6 +29,8 @@ internal class GitLiveFunctionsCaller(
                 "smartDraftMessage failed: code=${e.code} message=${e.message}"
             }
             Result.Error(mapFunctionsException(e))
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
             AppLogger.e(tag = TAG, throwable = e) {
                 "smartDraftMessage threw non-Functions exception: ${e::class.simpleName} ${e.message}"

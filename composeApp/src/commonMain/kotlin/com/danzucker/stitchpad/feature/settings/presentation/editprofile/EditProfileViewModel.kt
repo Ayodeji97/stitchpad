@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.domain.validation.BankDetailsValidator
 import com.danzucker.stitchpad.core.logging.AppLogger
@@ -20,6 +21,7 @@ import com.danzucker.stitchpad.feature.branding.domain.BrandLogoValidator
 import com.danzucker.stitchpad.feature.branding.domain.defaultCompressLogo
 import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
 import com.danzucker.stitchpad.feature.branding.presentation.toUiText
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
@@ -176,9 +178,7 @@ class EditProfileViewModel(
             }
             // Snapshot read — using the live flow would shift draft values out
             // from under the user mid-edit.
-            val firestoreUser = runCatching {
-                userRepository.observeUser(authUser.id).first()
-            }.getOrNull()
+            val firestoreUser = loadFirestoreUserSnapshot(authUser.id)
 
             val business = firestoreUser?.businessName.orEmpty()
             // Existing onboarded users have their value in Firestore `phone`,
@@ -235,6 +235,18 @@ class EditProfileViewModel(
                 )
             }
         }
+    }
+
+    // Best-effort snapshot read for loadCurrentProfile: a failed read (offline,
+    // permission hiccup) shouldn't block the screen — the draft simply falls back
+    // to the Firebase Auth fields until the next successful load.
+    private suspend fun loadFirestoreUserSnapshot(userId: String): User? = try {
+        userRepository.observeUser(userId).first()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+        AppLogger.e(tag = TAG, throwable = e) { "loadCurrentProfile observeUser failed userId=$userId" }
+        null
     }
 
     private fun validateBusinessName(): Boolean {

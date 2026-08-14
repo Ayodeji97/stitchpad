@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.customer_delete_orders_load_failed
 import stitchpad.composeapp.generated.resources.customer_delete_pending_orders_load
@@ -211,10 +212,19 @@ class CustomerDetailViewModel(
                 _state.update { it.copy(isLoading = false) }
                 return@launch
             }
-            launch { observeCustomer(userId, customerId) }
-            launch { observeCustomFieldLabels(userId) }
-            launch { observeOrders(userId, customerId) }
-            observeMeasurements(userId, customerId)
+            // supervisorScope: these four listeners render independent screen
+            // sections — a failure in one must not cancel the siblings. (The
+            // collected flows are non-throwing by construction — they all go
+            // through retryWithFallback — so this is defense-in-depth for
+            // future refactors, not a guard against an actual throwing child;
+            // an actually-throwing child would still reach the platform
+            // handler despite supervisorScope.)
+            supervisorScope {
+                launch { observeCustomer(userId, customerId) }
+                launch { observeCustomFieldLabels(userId) }
+                launch { observeOrders(userId, customerId) }
+                launch { observeMeasurements(userId, customerId) }
+            }
         }
     }
 

@@ -334,3 +334,38 @@ kover {
         }
     }
 }
+
+// Guardrail from the 2026-08 coroutine audit: every file with a GitLive
+// .snapshots listener source in commonMain must carry at least as many
+// listener-survival operators (retryWithFallback/retryWhen/catch) as sources —
+// a listener flow with no terminal error operator crashes its collector, and
+// a terminating catch without retry permanently freezes the screen (audit S1).
+// Per-file count heuristic; refine only if it ever false-positives.
+tasks.register("checkListenerRetryCoverage") {
+    group = "verification"
+    description = "Every .snapshots listener file must retry/catch each source"
+    val srcDir = layout.projectDirectory.dir("src/commonMain/kotlin")
+    val projectDirFile = layout.projectDirectory.asFile
+    inputs.dir(srcDir)
+    doLast {
+        val sourcePattern = Regex("""\.snapshots\b""")
+        // Deliberately NOT counting `.catch` (codex/ultra, PR #360): a terminating
+        // catch is exactly the freeze-the-screen bug this guardrail exists to
+        // prevent, so it must not satisfy the invariant. The one legitimate
+        // trailing catch (SyncStatusObserver's safety net) sits behind a
+        // retryWithFallback that already balances its listener count.
+        val survivalPattern = Regex("""\.retryWithFallback\(|\.retryWhen\b""")
+        val offenders = srcDir.asFileTree.matching { include("**/*.kt") }.files
+            .mapNotNull { file ->
+                val text = file.readText()
+                val sources = sourcePattern.findAll(text).count()
+                val survivals = survivalPattern.findAll(text).count()
+                if (sources > survivals) "${file.relativeTo(projectDirFile)}: $sources listener source(s), $survivals retry/catch operator(s)" else null
+            }
+        check(offenders.isEmpty()) {
+            "Listener sources without survival operators (add retryWithFallback/retryWhen/catch):\n" +
+                offenders.joinToString("\n")
+        }
+    }
+}
+tasks.named("check") { dependsOn("checkListenerRetryCoverage") }

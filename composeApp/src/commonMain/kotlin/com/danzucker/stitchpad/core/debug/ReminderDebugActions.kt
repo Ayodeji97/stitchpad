@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.core.debug
 import com.danzucker.stitchpad.core.logging.AppLogger
 import dev.gitlive.firebase.functions.FirebaseFunctions
 import dev.gitlive.firebase.functions.FirebaseFunctionsException
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
 
 /** Outcome of the debug "send renewal reminder now" trigger. */
@@ -42,6 +43,8 @@ class DefaultReminderDebugActions(
         } catch (e: FirebaseFunctionsException) {
             AppLogger.e(tag = TAG, throwable = e) { "debugSendMyRenewalReminder failed: code=${e.code} ${e.message}" }
             ReminderSendResult.Failure(e.message ?: e.code.toString())
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
             AppLogger.e(
                 tag = TAG,
