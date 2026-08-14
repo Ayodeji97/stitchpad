@@ -4,8 +4,8 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalUriHandler
-import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.presentation.openUriSafely
 import com.danzucker.stitchpad.core.sharing.buildWhatsAppUrl
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import kotlinx.coroutines.flow.Flow
@@ -61,19 +61,13 @@ fun SettingsEventEffect(
             SettingsEvent.NavigateToInviteRewards -> onNavigateToInviteRewards()
             SettingsEvent.NavigateToHelpSupport -> onNavigateToHelpSupport()
             SettingsEvent.NavigateToLegalAbout -> onNavigateToLegalAbout()
-            is SettingsEvent.OpenUrl -> uriHandler.openUri(event.url)
+            is SettingsEvent.OpenUrl -> uriHandler.openUriSafely(event.url, tag = "SettingsEventEffect")
             is SettingsEvent.OpenCommunityLink ->
-                runCatching { uriHandler.openUri(event.url) }
-                    .onFailure {
-                        // Never log the URL — the invite token grants community access.
-                        AppLogger.e(tag = "SettingsEventEffect", throwable = it) {
-                            "No handler to open community invite"
-                        }
-                    }
+                uriHandler.openUriSafely(event.url, tag = "SettingsEventEffect")
             is SettingsEvent.OpenWhatsApp -> {
                 scope.launch {
                     val message = getString(event.messageRes)
-                    uriHandler.openUri(buildWhatsAppUrl(event.phoneNumber, message))
+                    uriHandler.openUriSafely(buildWhatsAppUrl(event.phoneNumber, message), tag = "SettingsEventEffect")
                 }
             }
             is SettingsEvent.ShowSnackbar -> {

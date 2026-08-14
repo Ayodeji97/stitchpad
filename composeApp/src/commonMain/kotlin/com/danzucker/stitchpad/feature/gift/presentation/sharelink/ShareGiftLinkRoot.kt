@@ -11,6 +11,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.presentation.openUriSafely
 import com.danzucker.stitchpad.core.sharing.buildWhatsAppUrl
 import com.danzucker.stitchpad.util.ObserveAsEvents
 import kotlinx.coroutines.launch
@@ -41,7 +42,7 @@ fun ShareGiftLinkRoot(
             is ShareGiftLinkEvent.ShareViaWhatsApp -> scope.launch {
                 val message = getString(Res.string.gift_share_whatsapp_message, event.url)
                 // Empty phone opens WhatsApp's share picker (same path as the invite row).
-                uriHandler.openUri(buildWhatsAppUrl("", message))
+                uriHandler.openUriSafely(buildWhatsAppUrl("", message), tag = "ShareGiftLinkRoot")
             }
             is ShareGiftLinkEvent.ShowSnackbar -> scope.launch {
                 snackbarHostState.showSnackbar(event.message.resolve())

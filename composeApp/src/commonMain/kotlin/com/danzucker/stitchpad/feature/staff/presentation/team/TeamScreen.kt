@@ -76,6 +76,7 @@ import com.danzucker.stitchpad.core.domain.staff.TeamMemberKind
 import com.danzucker.stitchpad.core.domain.staff.TeamMemberStatus
 import com.danzucker.stitchpad.core.domain.staff.rosterDisplayName
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.presentation.openUriSafely
 import com.danzucker.stitchpad.core.sharing.buildWhatsAppUrl
 import com.danzucker.stitchpad.ui.components.MemberAvatar
 import com.danzucker.stitchpad.ui.components.StitchPadButton
@@ -152,7 +153,7 @@ fun TeamRoot(
             is TeamEvent.ShareViaWhatsApp -> scope.launch {
                 val message = getString(Res.string.team_invite_whatsapp_message, event.url)
                 // Empty phone opens WhatsApp's share picker (same path as the gift/invite rows).
-                uriHandler.openUri(buildWhatsAppUrl("", message))
+                uriHandler.openUriSafely(buildWhatsAppUrl("", message), tag = "TeamScreen")
             }
             is TeamEvent.ShowSnackbar -> scope.launch {
                 snackbarHostState.showSnackbar(event.text.resolve())

@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.presentation.openUriSafely
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthAutofill
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthCard
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthHero
@@ -123,7 +124,7 @@ fun SignUpRoot(
                     snackbarHostState.showSnackbar(message)
                 }
             }
-            is SignUpEvent.OpenUrl -> uriHandler.openUri(event.url)
+            is SignUpEvent.OpenUrl -> uriHandler.openUriSafely(event.url, tag = "SignUpScreen")
         }
     }
 
