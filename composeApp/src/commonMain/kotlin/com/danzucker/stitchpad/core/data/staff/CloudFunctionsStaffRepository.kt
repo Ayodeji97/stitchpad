@@ -17,6 +17,7 @@ import dev.gitlive.firebase.functions.FunctionsExceptionCode
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
 
 private const val TAG = "StaffRepo"
@@ -65,12 +66,31 @@ internal class CloudFunctionsStaffRepository(
     }
 }
 
+// Bounds every staff callable: a zombie-auth session (dead refresh token) can
+// leave the underlying HTTP call suspended indefinitely with no error — the
+// 2026-08-14 redeem-freeze incident. 30s is comfortably above the server
+// functions' own deadline, so a genuine response is never cut off.
+private const val STAFF_CALL_TIMEOUT_MS = 30_000L
+
 /**
  * Shared invoke wrapper for the staff callables: recover the error intent from
  * the server message marker first (GitLive drops the code on iOS), then fall
  * back to the canonical code, then NETWORK for non-Functions throwables.
+ * Bounded by [STAFF_CALL_TIMEOUT_MS] — a hang becomes a NETWORK error instead
+ * of a frozen spinner.
  */
-internal suspend fun <T> staffCall(op: String, block: suspend () -> T): Result<T, StaffError> =
+internal suspend fun <T> staffCall(op: String, block: suspend () -> T): Result<T, StaffError> {
+    val completed = withTimeoutOrNull(STAFF_CALL_TIMEOUT_MS) {
+        invokeStaffCall(op, block)
+    }
+    if (completed == null) {
+        AppLogger.w(tag = TAG) { "$op timed out after ${STAFF_CALL_TIMEOUT_MS}ms" }
+        return Result.Error(StaffError.NETWORK)
+    }
+    return completed
+}
+
+private suspend fun <T> invokeStaffCall(op: String, block: suspend () -> T): Result<T, StaffError> =
     try {
         Result.Success(block())
     } catch (e: FirebaseFunctionsException) {

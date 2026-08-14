@@ -437,6 +437,11 @@ private fun Exception.toAuthError(): AuthError = when {
     message?.contains("USER_NOT_FOUND", ignoreCase = true) == true -> AuthError.USER_NOT_FOUND
     message?.contains("WEAK_PASSWORD", ignoreCase = true) == true -> AuthError.WEAK_PASSWORD
     message?.contains("TOO_MANY_ATTEMPTS", ignoreCase = true) == true -> AuthError.TOO_MANY_REQUESTS
+    // A dead refresh token (account deleted/recreated, disabled, password changed)
+    // is wrapped by the SDK in a generic "internal error" FirebaseException, so it
+    // would otherwise fall into the transport bucket below and look transient.
+    // USER_NOT_FOUND is what AuthSessionValidator keys its forced sign-out on.
+    message?.contains("INVALID_REFRESH_TOKEN", ignoreCase = true) == true -> AuthError.USER_NOT_FOUND
     message?.contains("NETWORK", ignoreCase = true) == true -> AuthError.NETWORK_ERROR
     message?.contains("unable to resolve host", ignoreCase = true) == true -> AuthError.NETWORK_ERROR
     message?.contains("failed to connect", ignoreCase = true) == true -> AuthError.NETWORK_ERROR
