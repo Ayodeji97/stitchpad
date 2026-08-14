@@ -150,18 +150,22 @@ class SyncStatusMapperTest {
             emit(SyncStatus.OFFLINE)
         }
 
+        val errors = mutableListOf<Throwable>()
         alwaysFailingUntilLate.retryWithFallback(
             fallback = SyncStatus.SYNCED,
             initialBackoffMs = 500,
             maxBackoffMs = 60_000,
-            onError = { _, _ -> },
+            onError = { cause, _ -> errors += cause },
         ).test {
-            repeat(FAILURES_BEYOND_A_BOUNDED_BUDGET) {
-                assertEquals(SyncStatus.SYNCED, awaitItem())
-            }
+            // retryWithFallback now collapses CONSECUTIVE fallback emissions to one, so a
+            // long failure run (well beyond any bounded retry budget) still surfaces SYNCED
+            // exactly once downstream — never a SYNCED-flapping banner — while onError keeps
+            // firing on every underlying attempt for diagnosability.
+            assertEquals(SyncStatus.SYNCED, awaitItem())
             assertEquals(SyncStatus.OFFLINE, awaitItem())
             awaitComplete()
         }
+        assertEquals(FAILURES_BEYOND_A_BOUNDED_BUDGET, errors.size)
     }
 
     private companion object {
