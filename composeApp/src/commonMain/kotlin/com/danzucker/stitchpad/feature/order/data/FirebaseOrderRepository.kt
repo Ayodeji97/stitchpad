@@ -37,18 +37,22 @@ import com.danzucker.stitchpad.feature.style.data.toStorageData
 import dev.gitlive.firebase.firestore.FieldValue
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.storage.FirebaseStorage
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 private const val TAG = "OrderRepo"
 private const val LEGACY_DEPOSIT_PAYMENT_ID = "legacy-deposit"
+private const val SHARE_STOP_TIMEOUT_MS = 5_000L
 
 /**
  * Stamps the authoritative Firestore *document* id onto a decoded [OrderDto].
@@ -295,6 +299,7 @@ class FirebaseOrderRepository(
     private val offlineWrites: OfflineWriteDispatcher,
     private val photoStore: OfflinePhotoStore,
     private val uploadOutbox: OfflineUploadOutbox,
+    private val shareScope: CoroutineScope,
 ) : OrderRepository {
 
     private fun ordersCollection(userId: String) =
@@ -416,7 +421,25 @@ class FirebaseOrderRepository(
         }
     }
 
-    override fun observeOrders(userId: String): Flow<Result<List<Order>, DataError.Network>> =
+    // 8 screens collect the orders list concurrently (dashboard, list, reports,
+    // to-collect, customer screens, team). Sharing means one Firestore listener
+    // and ONE decode pass per snapshot instead of one per collector — the audit
+    // measured the unshared decode at seconds of main-thread work per snapshot
+    // burst at realistic order counts.
+    private var sharedOrders: Pair<String, Flow<Result<List<Order>, DataError.Network>>>? = null
+
+    override fun observeOrders(userId: String): Flow<Result<List<Order>, DataError.Network>> {
+        sharedOrders?.let { (cachedUserId, flow) -> if (cachedUserId == userId) return flow }
+        val shared = buildOrdersFlow(userId).shareIn(
+            scope = shareScope,
+            started = SharingStarted.WhileSubscribed(stopTimeoutMillis = SHARE_STOP_TIMEOUT_MS),
+            replay = 1,
+        )
+        sharedOrders = userId to shared
+        return shared
+    }
+
+    private fun buildOrdersFlow(userId: String): Flow<Result<List<Order>, DataError.Network>> =
         combine(
             // includeMetadataChanges is what lets the badge CLEAR: without it, no new
             // snapshot arrives when a queued write is acknowledged, so the row would

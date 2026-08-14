@@ -118,6 +118,11 @@ val coreModule = module {
     single<CoroutineScope>(qualifier = named("celebrationAppScope")) {
         appLifetimeScope(tag = "celebrationAppScope")
     }
+    // App-lifetime scope hosting the shared orders listener; WhileSubscribed keeps
+    // the Firestore listener alive only while at least one screen collects.
+    single<CoroutineScope>(qualifier = named("orderShareAppScope")) {
+        appLifetimeScope(tag = "orderShareAppScope")
+    }
     single {
         CelebrationController(
             preferences = get(),
