@@ -21,16 +21,29 @@ import platform.UIKit.popoverPresentationController
 actual class ImageSharer {
 
     actual suspend fun shareImage(bytes: ByteArray, caption: String?): Boolean {
-        if (bytes.isEmpty()) return false
+        val image = if (bytes.isEmpty()) null else UIImage.imageWithData(bytes.toNSData())
+        return if (image == null) {
+            false
+        } else {
+            presentShareSheet(
+                buildList {
+                    add(image)
+                    if (!caption.isNullOrBlank()) add(caption)
+                },
+            )
+        }
+    }
+
+    actual suspend fun shareText(text: String): Boolean {
+        if (text.isBlank()) return false
+        return presentShareSheet(listOf(text))
+    }
+
+    private suspend fun presentShareSheet(items: List<Any>): Boolean {
         // Let any dismissing Compose ModalBottomSheet finish before presenting a
         // UIKit modal — UIKit silently refuses to present mid-transition.
         delay(SHARE_PRESENT_DELAY_MS)
         return withContext(Dispatchers.Main) {
-            val image = UIImage.imageWithData(bytes.toNSData()) ?: return@withContext false
-            val items: List<Any> = buildList {
-                add(image)
-                if (!caption.isNullOrBlank()) add(caption)
-            }
             val rootVC = activeKeyWindow()?.rootViewController ?: return@withContext false
             val presenter = topmostPresenter(rootVC)
             val activityVC = UIActivityViewController(activityItems = items, applicationActivities = null)

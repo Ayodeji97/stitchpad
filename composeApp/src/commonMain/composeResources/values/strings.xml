@@ -1909,6 +1909,7 @@
     <string name="team_invite_share_link">Share link</string>
     <string name="team_invite_copied">Invite code copied</string>
     <string name="team_invite_whatsapp_message">Join my workshop on StitchPad. Tap to request access: %1$s</string>
+    <string name="team_invite_share_error">Could not open the share menu. Please try again.</string>
     <string name="team_revoke_dialog_title">Remove this teammate?</string>
     <string name="team_revoke_dialog_body">%1$s will lose access to your workshop right away. You can invite them again later.</string>
     <string name="team_revoke_dialog_confirm">Remove</string>

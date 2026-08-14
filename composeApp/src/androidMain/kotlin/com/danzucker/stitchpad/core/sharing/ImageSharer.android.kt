@@ -40,6 +40,25 @@ actual class ImageSharer(private val context: Context) {
         }
     }
 
+    actual suspend fun shareText(text: String): Boolean {
+        if (text.isBlank()) return false
+        return withContext(Dispatchers.Main) {
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, text)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            try {
+                context.startActivity(
+                    Intent.createChooser(intent, null).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+                )
+                true
+            } catch (_: ActivityNotFoundException) {
+                false
+            }
+        }
+    }
+
     private fun pruneOld(dir: File) {
         val files = dir.listFiles().orEmpty()
         if (files.size <= CACHE_LIMIT) return
