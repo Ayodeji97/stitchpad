@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.core.data.sync
 
 import app.cash.turbine.test
+import com.danzucker.stitchpad.core.data.retryWithFallback
 import com.danzucker.stitchpad.core.domain.model.SyncStatus
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay

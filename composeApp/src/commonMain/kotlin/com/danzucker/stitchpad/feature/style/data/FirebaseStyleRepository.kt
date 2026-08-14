@@ -6,6 +6,7 @@ import com.danzucker.stitchpad.core.data.mapper.toDto
 import com.danzucker.stitchpad.core.data.mapper.toStyle
 import com.danzucker.stitchpad.core.data.mapper.toStyleDto
 import com.danzucker.stitchpad.core.data.mapper.toStyleFolder
+import com.danzucker.stitchpad.core.data.retryWithFallback
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
@@ -23,7 +24,6 @@ import com.danzucker.stitchpad.core.offline.OfflineWriteDispatcher
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlin.time.Clock
 
@@ -112,9 +112,10 @@ class FirebaseStyleRepository(
                     .sortedByDescending { it.createdAt }
                 Result.Success(folders)
             }
-            .catch { throwable ->
-                AppLogger.e(tag = TAG, throwable = throwable) { "observeFolders failed" }
-                emit(Result.Error(DataError.Network.UNKNOWN))
+            .retryWithFallback(fallback = Result.Error(DataError.Network.UNKNOWN)) { throwable, attempt ->
+                AppLogger.w(tag = TAG, throwable = throwable) {
+                    "observeFolders failed; retrying (attempt ${attempt + 1})"
+                }
             }
 
     override suspend fun createFolder(
@@ -195,9 +196,10 @@ class FirebaseStyleRepository(
                     .sortedByDescending { it.createdAt }
                 Result.Success(styles)
             }
-            .catch { throwable ->
-                AppLogger.e(tag = TAG, throwable = throwable) { "observeStyles failed" }
-                emit(Result.Error(DataError.Network.UNKNOWN))
+            .retryWithFallback(fallback = Result.Error(DataError.Network.UNKNOWN)) { throwable, attempt ->
+                AppLogger.w(tag = TAG, throwable = throwable) {
+                    "observeStyles failed; retrying (attempt ${attempt + 1})"
+                }
             }
 
     override suspend fun createStyle(

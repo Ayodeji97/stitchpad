@@ -4,6 +4,7 @@ package com.danzucker.stitchpad.core.data.repository
 
 import com.danzucker.stitchpad.core.data.dto.UserDto
 import com.danzucker.stitchpad.core.data.mapper.toUser
+import com.danzucker.stitchpad.core.data.retryWithFallback
 import com.danzucker.stitchpad.core.domain.currentPlatformName
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
@@ -21,7 +22,6 @@ import dev.gitlive.firebase.firestore.FieldValue
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
 
@@ -177,9 +177,10 @@ class FirebaseUserRepository(
                 val dto = snapshot.data(UserDto.serializer())
                 dto.copy(id = userId).toUser()
             }
-            .catch { error ->
-                AppLogger.e(tag = TAG, throwable = error) { "observeUser failed userId=$userId" }
-                emit(null)
+            .retryWithFallback(fallback = null) { error, attempt ->
+                AppLogger.w(tag = TAG, throwable = error) {
+                    "observeUser failed userId=$userId; retrying (attempt ${attempt + 1})"
+                }
             }
     }
 

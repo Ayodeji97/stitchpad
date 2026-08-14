@@ -4,6 +4,7 @@ import com.danzucker.stitchpad.core.data.decodeDocOrLog
 import com.danzucker.stitchpad.core.data.dto.MeasurementDto
 import com.danzucker.stitchpad.core.data.mapper.toMeasurement
 import com.danzucker.stitchpad.core.data.mapper.toMeasurementDto
+import com.danzucker.stitchpad.core.data.retryWithFallback
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
@@ -14,7 +15,6 @@ import com.danzucker.stitchpad.core.offline.OfflineWriteDispatcher
 import dev.gitlive.firebase.firestore.FieldValue
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 
 private const val TAG = "MeasurementRepo"
@@ -47,9 +47,10 @@ class FirebaseMeasurementRepository(
                     .sortedByDescending { it.createdAt }
                 Result.Success(measurements) as Result<List<Measurement>, DataError.Network>
             }
-            .catch { throwable ->
-                AppLogger.e(tag = TAG, throwable = throwable) { "observeMeasurements failed" }
-                emit(Result.Error(DataError.Network.UNKNOWN))
+            .retryWithFallback(fallback = Result.Error(DataError.Network.UNKNOWN)) { throwable, attempt ->
+                AppLogger.w(tag = TAG, throwable = throwable) {
+                    "observeMeasurements failed; retrying (attempt ${attempt + 1})"
+                }
             }
 
     override suspend fun createMeasurement(

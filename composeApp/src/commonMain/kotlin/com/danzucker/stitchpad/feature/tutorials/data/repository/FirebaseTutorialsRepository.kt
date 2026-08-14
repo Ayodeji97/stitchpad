@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.tutorials.data.repository
 
+import com.danzucker.stitchpad.core.data.retryWithFallback
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.tutorials.data.BUNDLED_TUTORIALS
 import com.danzucker.stitchpad.feature.tutorials.data.dto.TutorialDto
@@ -11,7 +12,6 @@ import dev.gitlive.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
@@ -36,9 +36,10 @@ class FirebaseTutorialsRepository(
                 }
                 mergeTutorialCatalog(docs)
             }
-            .catch { throwable ->
-                AppLogger.e(tag = TAG, throwable = throwable) { "observe tutorials failed" }
-                emit(BUNDLED_TUTORIALS)
+            .retryWithFallback(fallback = BUNDLED_TUTORIALS) { throwable, attempt ->
+                AppLogger.w(tag = TAG, throwable = throwable) {
+                    "observe tutorials failed; retrying (attempt ${attempt + 1})"
+                }
             }
             .onStart { emit(BUNDLED_TUTORIALS) }
             .distinctUntilChanged()

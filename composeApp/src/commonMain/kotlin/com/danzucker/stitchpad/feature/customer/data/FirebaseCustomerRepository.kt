@@ -8,6 +8,7 @@ import com.danzucker.stitchpad.core.data.mapper.toCustomerBaseDto
 import com.danzucker.stitchpad.core.data.mapper.toCustomerContactDto
 import com.danzucker.stitchpad.core.data.mapper.toCustomerDto
 import com.danzucker.stitchpad.core.data.mapper.withContact
+import com.danzucker.stitchpad.core.data.retryWithFallback
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
@@ -23,7 +24,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -118,11 +118,11 @@ class FirebaseCustomerRepository(
                     .mapNotNull { doc -> decodeDocOrLog(tag = TAG, docId = doc.id) { doc.data<CustomerContactDto>() } }
                     .associateBy { it.customerId }
             }
-            .catch { throwable ->
-                AppLogger.e(tag = TAG, throwable = throwable) {
-                    "observeCustomers contact collection-group failed; falling back to base contact"
+            .retryWithFallback(fallback = emptyMap()) { throwable, attempt ->
+                AppLogger.w(tag = TAG, throwable = throwable) {
+                    "observeCustomers contact collection-group failed; falling back to base contact; " +
+                        "retrying (attempt ${attempt + 1})"
                 }
-                emit(emptyMap())
             }
 
     private fun customerContactFlow(userId: String, customerId: String): Flow<CustomerContactDto?> =
@@ -135,11 +135,11 @@ class FirebaseCustomerRepository(
                     null
                 }
             }
-            .catch { throwable ->
-                AppLogger.e(tag = TAG, throwable = throwable) {
-                    "observeCustomer contact sub-doc failed customerId=$customerId; falling back to base contact"
+            .retryWithFallback(fallback = null) { throwable, attempt ->
+                AppLogger.w(tag = TAG, throwable = throwable) {
+                    "observeCustomer contact sub-doc failed customerId=$customerId; falling back to base " +
+                        "contact; retrying (attempt ${attempt + 1})"
                 }
-                emit(null)
             }
 
     override fun observeCustomers(userId: String): Flow<Result<List<Customer>, DataError.Network>> =
@@ -163,9 +163,10 @@ class FirebaseCustomerRepository(
             }
             Result.Success(customers) as Result<List<Customer>, DataError.Network>
         }
-            .catch { throwable ->
-                AppLogger.e(tag = TAG, throwable = throwable) { "observeCustomers failed" }
-                emit(Result.Error(DataError.Network.UNKNOWN))
+            .retryWithFallback(fallback = Result.Error(DataError.Network.UNKNOWN)) { throwable, attempt ->
+                AppLogger.w(tag = TAG, throwable = throwable) {
+                    "observeCustomers failed; retrying (attempt ${attempt + 1})"
+                }
             }
             .flowOn(Dispatchers.Default)
 
@@ -185,11 +186,10 @@ class FirebaseCustomerRepository(
                 Result.Success(dto.toCustomer(userId).withContact(contact))
             }
         }
-            .catch { throwable ->
-                AppLogger.e(tag = TAG, throwable = throwable) {
-                    "observeCustomer failed customerId=$customerId"
+            .retryWithFallback(fallback = Result.Error(DataError.Network.UNKNOWN)) { throwable, attempt ->
+                AppLogger.w(tag = TAG, throwable = throwable) {
+                    "observeCustomer failed customerId=$customerId; retrying (attempt ${attempt + 1})"
                 }
-                emit(Result.Error(DataError.Network.UNKNOWN))
             }
             .flowOn(Dispatchers.Default)
 

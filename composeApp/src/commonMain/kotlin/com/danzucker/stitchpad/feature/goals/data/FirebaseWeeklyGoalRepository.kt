@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.goals.data
 
+import com.danzucker.stitchpad.core.data.retryWithFallback
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
@@ -12,7 +13,6 @@ import com.danzucker.stitchpad.feature.goals.domain.model.WeeklyGoal
 import com.danzucker.stitchpad.feature.goals.domain.repository.WeeklyGoalRepository
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 
 private const val TAG = "WeeklyGoalRepo"
@@ -39,9 +39,10 @@ class FirebaseWeeklyGoalRepository(
                 }
                 Result.Success(goal) as Result<WeeklyGoal?, DataError.Network>
             }
-            .catch { throwable ->
-                AppLogger.e(tag = TAG, throwable = throwable) { "observeWeeklyGoal failed" }
-                emit(Result.Error(DataError.Network.UNKNOWN))
+            .retryWithFallback(fallback = Result.Error(DataError.Network.UNKNOWN)) { throwable, attempt ->
+                AppLogger.w(tag = TAG, throwable = throwable) {
+                    "observeWeeklyGoal failed; retrying (attempt ${attempt + 1})"
+                }
             }
 
     override suspend fun setWeeklyGoal(

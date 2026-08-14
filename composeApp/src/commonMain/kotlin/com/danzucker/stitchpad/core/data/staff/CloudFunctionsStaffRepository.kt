@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.core.data.staff
 
+import com.danzucker.stitchpad.core.data.retryWithFallback
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
@@ -14,7 +15,6 @@ import dev.gitlive.firebase.functions.FirebaseFunctionsException
 import dev.gitlive.firebase.functions.FunctionsExceptionCode
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
 
@@ -45,9 +45,10 @@ internal class CloudFunctionsStaffRepository(
                 }
                 Result.Success(members) as Result<List<Membership>, StaffError>
             }
-            .catch { throwable ->
-                AppLogger.e(tag = TAG, throwable = throwable) { "observeMemberships failed ownerUid=$ownerUid" }
-                emit(Result.Error(StaffError.NETWORK))
+            .retryWithFallback(fallback = Result.Error(StaffError.NETWORK)) { throwable, attempt ->
+                AppLogger.w(tag = TAG, throwable = throwable) {
+                    "observeMemberships failed ownerUid=$ownerUid; retrying (attempt ${attempt + 1})"
+                }
             }
 
     override suspend fun approve(staffAuthUid: String): EmptyResult<StaffError> = staffCall("approveStaffMember") {
