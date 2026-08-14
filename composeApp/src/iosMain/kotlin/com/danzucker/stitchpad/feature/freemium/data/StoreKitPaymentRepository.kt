@@ -12,6 +12,7 @@ import com.danzucker.stitchpad.feature.freemium.domain.PaymentRepository
 import dev.gitlive.firebase.functions.FirebaseFunctions
 import dev.gitlive.firebase.functions.FirebaseFunctionsException
 import dev.gitlive.firebase.functions.FunctionsExceptionCode
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
 
 private const val TAG = "StoreKitPaymentRepo"
@@ -116,6 +117,8 @@ internal class StoreKitPaymentRepository(
                 "verifyAppleTransaction failed: code=${e.code} message=${e.message}"
             }
             Result.Error(mapFunctionsError(e))
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
             AppLogger.e(tag = TAG, throwable = e) {
                 "verifyAppleTransaction threw ${e::class.simpleName}: ${e.message}"

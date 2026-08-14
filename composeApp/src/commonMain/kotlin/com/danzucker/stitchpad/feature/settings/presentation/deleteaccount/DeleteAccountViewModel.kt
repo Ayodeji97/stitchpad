@@ -15,6 +15,7 @@ import com.danzucker.stitchpad.feature.auth.presentation.toUiText
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
 import com.danzucker.stitchpad.feature.settings.domain.DeletionFeedback
 import com.danzucker.stitchpad.feature.settings.domain.DeletionFeedbackRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -206,10 +207,14 @@ class DeleteAccountViewModel(
                 appVersion = currentAppVersion,
                 locale = LOCALE,
             )
-            runCatching { deletionFeedbackRepository.submitFeedback(feedback) }
-                .onFailure { error ->
-                    AppLogger.e(tag = TAG, throwable = error) { "submitFeedback threw" }
-                }
+            try {
+                deletionFeedbackRepository.submitFeedback(feedback)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                // Best-effort: deletion proceeds regardless of feedback delivery.
+                AppLogger.e(tag = TAG, throwable = e) { "submitFeedback threw" }
+            }
 
             when (val result = authRepository.deleteAccount()) {
                 is Result.Success -> {

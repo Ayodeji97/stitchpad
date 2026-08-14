@@ -8,6 +8,7 @@ import com.danzucker.stitchpad.feature.freemium.domain.FreemiumRepository
 import dev.gitlive.firebase.auth.FirebaseAuth
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.functions.FirebaseFunctions
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
@@ -27,6 +28,8 @@ internal class CloudFunctionsFreemiumRepository(
     override suspend fun reconcileSlots(): EmptyResult<DataError.Network> = try {
         functions.httpsCallable("reconcileCustomerSlots").invoke()
         Result.Success(Unit)
+    } catch (e: CancellationException) {
+        throw e
     } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
         // Reconciliation failures are non-blocking — the gray-out is a soft
         // UX, not a security boundary. Log so the underlying cause (NOT_FOUND
@@ -66,6 +69,8 @@ internal class CloudFunctionsFreemiumRepository(
                     .update(promoteRef, "slotState" to "active", "lockedAt" to null)
                     .update(demoteRef, "slotState" to "locked", "lockedAt" to nowMs)
                     .commit()
+            } catch (e: CancellationException) {
+                throw e
             } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
                 AppLogger.e(tag = TAG, throwable = e) {
                     "swapCustomerSlot commit failed promote=$promote demote=$demote " +

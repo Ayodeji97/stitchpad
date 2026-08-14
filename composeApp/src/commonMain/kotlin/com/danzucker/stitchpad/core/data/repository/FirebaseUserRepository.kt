@@ -19,6 +19,7 @@ import com.danzucker.stitchpad.core.offline.OfflineUploadOutbox
 import com.danzucker.stitchpad.core.offline.OfflineWriteDispatcher
 import dev.gitlive.firebase.firestore.FieldValue
 import dev.gitlive.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -108,6 +109,8 @@ class FirebaseUserRepository(
         return try {
             firestore.collection(USERS).document(userId).delete()
             Result.Success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "deleteUserDoc failed userId=$userId" }
             Result.Error(DataError.Network.UNKNOWN)

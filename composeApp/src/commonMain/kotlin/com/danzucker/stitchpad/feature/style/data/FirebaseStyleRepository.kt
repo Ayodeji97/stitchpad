@@ -21,6 +21,7 @@ import com.danzucker.stitchpad.core.offline.OfflineUploadJobType
 import com.danzucker.stitchpad.core.offline.OfflineUploadOutbox
 import com.danzucker.stitchpad.core.offline.OfflineWriteDispatcher
 import dev.gitlive.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -127,6 +128,8 @@ class FirebaseStyleRepository(
                 ref.set(StyleFolder(id = ref.id, name = name, createdAt = 0L, updatedAt = 0L).toDto())
             }
             if (accepted) Result.Success(ref.id) else Result.Error(DataError.Network.UNKNOWN)
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "createFolder failed folderId=${ref.id}" }
             Result.Error(DataError.Network.UNKNOWN)
@@ -146,6 +149,8 @@ class FirebaseStyleRepository(
                     .update("name" to name, "updatedAt" to now)
             }
             if (accepted) Result.Success(Unit) else Result.Error(DataError.Network.UNKNOWN)
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "renameFolder failed folderId=$folderId" }
             Result.Error(DataError.Network.UNKNOWN)
@@ -167,6 +172,8 @@ class FirebaseStyleRepository(
                 folderRef.delete()
             }
             if (accepted) Result.Success(Unit) else Result.Error(DataError.Network.UNKNOWN)
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "deleteFolder failed folderId=$folderId" }
             Result.Error(DataError.Network.UNKNOWN)
@@ -235,6 +242,8 @@ class FirebaseStyleRepository(
                 )
             )
             Result.Success(docRef.id)
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) {
                 "createStyle failed styleId=${docRef.id}"
@@ -312,6 +321,8 @@ class FirebaseStyleRepository(
             } else {
                 Result.Error(DataError.Network.UNKNOWN)
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) {
                 "updateStyle failed styleId=${style.id}"
@@ -343,6 +354,8 @@ class FirebaseStyleRepository(
                 return Result.Error(DataError.Network.UNKNOWN)
             }
             Result.Success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) {
                 "deleteStyle failed styleId=${style.id}"
@@ -358,6 +371,8 @@ class FirebaseStyleRepository(
     ): EmptyResult<DataError.Network> =
         try {
             writeSharedCopy(userId, to, style)
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "copyStyle failed styleId=${style.id}" }
             Result.Error(DataError.Network.UNKNOWN)
@@ -389,6 +404,8 @@ class FirebaseStyleRepository(
                     Result.Success(Unit)
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "moveStyle failed styleId=${style.id}" }
             Result.Error(DataError.Network.UNKNOWN)
@@ -407,6 +424,8 @@ class FirebaseStyleRepository(
                     .update("description" to title.trim(), "updatedAt" to now)
             }
             if (accepted) Result.Success(Unit) else Result.Error(DataError.Network.UNKNOWN)
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "setStyleTitle failed styleId=$styleId" }
             Result.Error(DataError.Network.UNKNOWN)

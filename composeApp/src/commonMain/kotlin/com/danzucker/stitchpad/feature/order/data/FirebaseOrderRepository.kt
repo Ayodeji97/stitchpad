@@ -37,6 +37,7 @@ import com.danzucker.stitchpad.feature.style.data.toStorageData
 import dev.gitlive.firebase.firestore.FieldValue
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.storage.FirebaseStorage
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -543,6 +544,8 @@ class FirebaseOrderRepository(
                 if (moneyDoc.exists) moneyDoc.data<OrderMoneyDto>() else null
             }.getOrNull()
             Result.Success(dto.toOrder(userId).withLocalPendingImages().withMoney(money))
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "getOrder failed orderId=$orderId" }
             Result.Error(DataError.Network.UNKNOWN)
@@ -859,6 +862,8 @@ class FirebaseOrderRepository(
             storage.reference.child(path).putData(photoBytes.toStorageData())
             val downloadUrl = storage.reference.child(path).getDownloadUrl()
             Result.Success(downloadUrl to path)
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "uploadFabricPhoto failed itemId=$itemId" }
             Result.Error(DataError.Network.UNKNOWN)
@@ -876,6 +881,8 @@ class FirebaseOrderRepository(
             storage.reference.child(path).putData(photoBytes.toStorageData())
             val downloadUrl = storage.reference.child(path).getDownloadUrl()
             Result.Success(downloadUrl to path)
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) { "uploadStylePhoto failed itemId=$itemId" }
             Result.Error(DataError.Network.UNKNOWN)
@@ -955,6 +962,8 @@ class FirebaseOrderRepository(
                         itemId = itemId,
                     )
                 )
+            } catch (e: CancellationException) {
+                throw e
             } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
                 AppLogger.e(tag = TAG, throwable = e) { "$operationName failed itemId=$itemId suffix=$suffix" }
                 return Result.Error(DataError.Network.UNKNOWN)

@@ -11,6 +11,7 @@ import com.danzucker.stitchpad.feature.gift.domain.RedeemedGift
 import dev.gitlive.firebase.functions.FirebaseFunctions
 import dev.gitlive.firebase.functions.FirebaseFunctionsException
 import dev.gitlive.firebase.functions.FunctionsExceptionCode
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
 
 private const val TAG = "GiftRepo"
@@ -36,6 +37,8 @@ internal class CloudFunctionsGiftRepository(
                 "redeemGift failed: code=${e.code} message=${e.message}"
             }
             Result.Error(mapRedeemError(e))
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
             AppLogger.e(tag = TAG, throwable = e) {
                 "redeemGift threw ${e::class.simpleName}: ${e.message}"
@@ -58,6 +61,8 @@ internal class CloudFunctionsGiftRepository(
                 "createGiftLink failed: code=${e.code} message=${e.message}"
             }
             Result.Error(mapLinkError(e))
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
             AppLogger.e(tag = TAG, throwable = e) {
                 "createGiftLink threw ${e::class.simpleName}: ${e.message}"

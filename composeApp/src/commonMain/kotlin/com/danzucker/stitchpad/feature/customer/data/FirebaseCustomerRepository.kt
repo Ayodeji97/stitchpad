@@ -19,6 +19,7 @@ import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.offline.OfflineWriteDispatcher
 import dev.gitlive.firebase.firestore.FieldValue
 import dev.gitlive.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -211,6 +212,8 @@ class FirebaseCustomerRepository(
                 if (contactSnapshot.exists) contactSnapshot.data<CustomerContactDto>() else null
             }.getOrNull()
             Result.Success(dto.toCustomer(userId).withContact(contact))
+        } catch (e: CancellationException) {
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             AppLogger.e(tag = TAG, throwable = e) {
                 "getCustomer failed customerId=$customerId"
