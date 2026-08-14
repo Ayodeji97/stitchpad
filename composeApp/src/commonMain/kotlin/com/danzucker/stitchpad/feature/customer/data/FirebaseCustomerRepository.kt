@@ -19,10 +19,12 @@ import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.offline.OfflineWriteDispatcher
 import dev.gitlive.firebase.firestore.FieldValue
 import dev.gitlive.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 
 private const val TAG = "CustomerRepo"
@@ -164,6 +166,7 @@ class FirebaseCustomerRepository(
                 AppLogger.e(tag = TAG, throwable = throwable) { "observeCustomers failed" }
                 emit(Result.Error(DataError.Network.UNKNOWN))
             }
+            .flowOn(Dispatchers.Default)
 
     override fun observeCustomer(
         userId: String,
@@ -187,6 +190,7 @@ class FirebaseCustomerRepository(
                 }
                 emit(Result.Error(DataError.Network.UNKNOWN))
             }
+            .flowOn(Dispatchers.Default)
 
     override suspend fun getCustomer(
         userId: String,

@@ -37,9 +37,11 @@ import com.danzucker.stitchpad.feature.style.data.toStorageData
 import dev.gitlive.firebase.firestore.FieldValue
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.storage.FirebaseStorage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
@@ -431,6 +433,7 @@ class FirebaseOrderRepository(
                 AppLogger.e(tag = TAG, throwable = throwable) { "observeOrders failed" }
                 emit(Result.Error(DataError.Network.UNKNOWN))
             }
+            .flowOn(Dispatchers.Default)
 
     override fun observeArchivedOrders(
         userId: String,
@@ -449,6 +452,7 @@ class FirebaseOrderRepository(
                 AppLogger.e(tag = TAG, throwable = throwable) { "observeArchivedOrders failed" }
                 emit(Result.Error(DataError.Network.UNKNOWN))
             }
+            .flowOn(Dispatchers.Default)
 
     override fun observeOrder(
         userId: String,
@@ -471,6 +475,7 @@ class FirebaseOrderRepository(
                 AppLogger.e(tag = TAG, throwable = throwable) { "observeOrder failed orderId=$orderId" }
                 emit(Result.Error(DataError.Network.UNKNOWN))
             }
+            .flowOn(Dispatchers.Default)
 
     override suspend fun getOrder(
         userId: String,
