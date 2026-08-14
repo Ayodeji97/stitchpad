@@ -70,8 +70,14 @@ export async function approveStaffMemberHandler(
       }
       tx.update(ref, { status: 'active', approvedAt: nowMs, claimsRefreshAt: nowMs });
 
+      // Roster display name, best-available: the name captured at redeem time,
+      // else the email's local part (a nameless "danielayodejiola" beats a roster
+      // full of generic "Staff member" rows), else the generic label.
+      const memberData = snap.data() as { staffName?: string; staffEmail?: string };
       const staffName =
-        ((snap.data() as { staffName?: string }).staffName ?? '').trim() || 'Staff member';
+        (memberData.staffName ?? '').trim() ||
+        (memberData.staffEmail ?? '').split('@')[0].trim() ||
+        'Staff member';
       tx.set(
         deps.db.doc(teamMemberDocPath(ownerUid, staffAuthUid)),
         {
