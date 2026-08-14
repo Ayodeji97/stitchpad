@@ -157,7 +157,6 @@ class ReportsViewModel(
     private suspend fun recompute(inputs: Inputs) {
         val orders = (inputs.ordersResult as? Result.Success)?.data ?: emptyList()
         val customers = (inputs.customersResult as? Result.Success)?.data ?: emptyList()
-        cachedCustomers = customers
         val error = when {
             inputs.ordersResult is Result.Error -> inputs.ordersResult.error.toReportsUiText()
             inputs.customersResult is Result.Error -> inputs.customersResult.error.toReportsUiText()
@@ -202,6 +201,12 @@ class ReportsViewModel(
                 debtors = CustomerInsightsCalculator.debtors(orders, customers, timeZone)
             )
         }
+        // Both caches publish together, AFTER the background compute, alongside the
+        // state they describe: assigning cachedCustomers before the withContext left
+        // a window where a send-reminder tap on Main looked up a still-visible
+        // debtor against the already-replaced customer list and silently no-oped
+        // (cursor/codex, PR #360).
+        cachedCustomers = customers
         cachedDebtors = computed.debtors.items
 
         _state.update {

@@ -349,7 +349,12 @@ tasks.register("checkListenerRetryCoverage") {
     inputs.dir(srcDir)
     doLast {
         val sourcePattern = Regex("""\.snapshots\b""")
-        val survivalPattern = Regex("""\.retryWithFallback\(|\.retryWhen\b|\.catch\b""")
+        // Deliberately NOT counting `.catch` (codex/ultra, PR #360): a terminating
+        // catch is exactly the freeze-the-screen bug this guardrail exists to
+        // prevent, so it must not satisfy the invariant. The one legitimate
+        // trailing catch (SyncStatusObserver's safety net) sits behind a
+        // retryWithFallback that already balances its listener count.
+        val survivalPattern = Regex("""\.retryWithFallback\(|\.retryWhen\b""")
         val offenders = srcDir.asFileTree.matching { include("**/*.kt") }.files
             .mapNotNull { file ->
                 val text = file.readText()

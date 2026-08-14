@@ -6,43 +6,23 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.danzucker.stitchpad.MainActivity
 import com.danzucker.stitchpad.R
-import com.danzucker.stitchpad.core.logging.AppLogger
-import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.navigation.PushTargetParser
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 
 const val PUSH_TARGET_EXTRA = "target"
 const val PUSH_TARGET_INBOX = "inbox"
 const val PUSH_ORDER_ID_EXTRA = "orderId"
 private const val DAILY_REMINDER_NOTIFICATION_ID = 2001
-private const val TOKEN_PERSIST_BUDGET_MS = 10_000L
 
-class StitchPadMessagingService : FirebaseMessagingService(), KoinComponent {
-    private val authRepository: AuthRepository by inject()
-    private val registrar: PushTokenRegistrar by inject()
+class StitchPadMessagingService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
-        // FCM holds a wakelock for the duration of this callback (background thread),
-        // so block until the refreshed token is persisted rather than fire-and-forget.
-        // Bounded: FCM force-stops the service after its wakelock budget (~10-20s on
-        // OEM builds), and getCurrentUser() can hang on a token refresh with no
-        // network — better to drop one registration (retried on next app open) than
-        // be killed mid-callback.
-        runBlocking {
-            runCatching {
-                withTimeout(TOKEN_PERSIST_BUDGET_MS) {
-                    val userId = authRepository.getCurrentUser()?.id ?: return@withTimeout
-                    registrar.register(userId, token)
-                }
-            }.onFailure {
-                AppLogger.w(tag = "StitchPadMessagingService", throwable = it) { "onNewToken persist failed" }
-            }
-        }
+        // Return immediately: FCM's wakelock budget is tight, and registration
+        // needs network + auth — both of which WorkManager can wait for instead
+        // of this callback blocking on them. Unique work with REPLACE means a
+        // newer token supersedes any still-queued registration.
+        PushTokenRegistrationWorker.enqueue(this, token)
     }
 
     override fun onMessageReceived(message: RemoteMessage) {

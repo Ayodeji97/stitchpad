@@ -49,6 +49,7 @@ import com.danzucker.stitchpad.feature.order.presentation.form.StylePickerSource
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayNameAsync
 import com.danzucker.stitchpad.feature.review.presentation.ReviewArmer
 import com.danzucker.stitchpad.feature.style.domain.observeFoldersWithStyles
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -772,6 +773,8 @@ class OrderDetailViewModel(
                         format = format,
                     )
                 )
+            } catch (e: CancellationException) {
+                throw e
             } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
                 _state.update {
                     it.copy(errorMessage = UiText.StringResourceText(Res.string.receipt_share_error))

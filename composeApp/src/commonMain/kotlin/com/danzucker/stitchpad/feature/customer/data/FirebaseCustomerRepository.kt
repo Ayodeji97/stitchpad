@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 
 private const val TAG = "CustomerRepo"
 
@@ -266,18 +267,25 @@ class FirebaseCustomerRepository(
             return Result.Error(DataError.Network.UNKNOWN)
         }
         if (CustomerSlotState.fromWire(dto.slotState) == CustomerSlotState.ACTIVE) {
-            val current = cachedActiveCustomerCounts.value[userId] ?: 0
-            cacheActiveCustomerCount(userId, current + 1)
+            // Read + increment inside one atomic update — see cacheActiveCustomerCount.
+            cachedActiveCustomerCounts.update { counts ->
+                counts + (userId to ((counts[userId] ?: 0) + 1))
+            }
         }
         return Result.Success(Unit)
     }
 
+    // update {} (atomic CAS), not plain value reassignment: observeCustomers'
+    // snapshot pass now runs on Dispatchers.Default while createCustomer mutates
+    // from the caller's thread — a torn read-modify-write here could drop the
+    // optimistic +1 and let one extra active create through the client cap
+    // (cursor/codex, PR #360).
     private fun cacheActiveCustomerCount(userId: String, count: Int) {
-        cachedActiveCustomerCounts.value = cachedActiveCustomerCounts.value + (userId to count)
+        cachedActiveCustomerCounts.update { it + (userId to count) }
     }
 
     private fun invalidateActiveCustomerCount(userId: String) {
-        cachedActiveCustomerCounts.value = cachedActiveCustomerCounts.value - userId
+        cachedActiveCustomerCounts.update { it - userId }
     }
 
     override suspend fun updateCustomer(
