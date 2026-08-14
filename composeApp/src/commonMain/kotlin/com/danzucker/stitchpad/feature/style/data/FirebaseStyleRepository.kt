@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.style.data
 
+import com.danzucker.stitchpad.core.data.absorbLateListenerErrors
 import com.danzucker.stitchpad.core.data.dto.StyleDto
 import com.danzucker.stitchpad.core.data.dto.StyleFolderDto
 import com.danzucker.stitchpad.core.data.mapper.toDto
@@ -103,6 +104,7 @@ class FirebaseStyleRepository(
     ): Flow<Result<List<StyleFolder>, DataError.Network>> =
         foldersCollectionFor(userId, location)
             .snapshots()
+            .absorbLateListenerErrors(TAG)
             .map<_, Result<List<StyleFolder>, DataError.Network>> { snapshot ->
                 val folders = snapshot.documents
                     .mapNotNull { doc ->
@@ -178,6 +180,7 @@ class FirebaseStyleRepository(
     ): Flow<Result<List<Style>, DataError.Network>> =
         collectionFor(userId, location)
             .snapshots()
+            .absorbLateListenerErrors(TAG)
             .map<_, Result<List<Style>, DataError.Network>> { snapshot ->
                 val styles = snapshot.documents
                     .mapNotNull { doc ->

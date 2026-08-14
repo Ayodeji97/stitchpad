@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.measurement.data
 
+import com.danzucker.stitchpad.core.data.absorbLateListenerErrors
 import com.danzucker.stitchpad.core.data.decodeDocOrLog
 import com.danzucker.stitchpad.core.data.dto.MeasurementDto
 import com.danzucker.stitchpad.core.data.mapper.toMeasurement
@@ -37,6 +38,7 @@ class FirebaseMeasurementRepository(
     ): Flow<Result<List<Measurement>, DataError.Network>> =
         measurementsCollection(userId, customerId)
             .snapshots()
+            .absorbLateListenerErrors(TAG)
             .map { snapshot ->
                 val measurements = snapshot.documents
                     .mapNotNull { doc ->

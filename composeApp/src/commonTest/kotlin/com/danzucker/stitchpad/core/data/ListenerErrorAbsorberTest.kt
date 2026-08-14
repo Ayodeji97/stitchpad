@@ -36,7 +36,7 @@ class ListenerErrorAbsorberTest {
         val firstItem = CompletableDeferred<Int>()
         val collector = launch {
             upstream
-                .absorbLateListenerErrors("test") { absorbed.complete(it) }
+                .absorbLateListenerErrors { absorbed.complete(it) }
                 .collect {
                     firstItem.complete(it)
                     awaitCancellation()
@@ -62,7 +62,7 @@ class ListenerErrorAbsorberTest {
 
         launch {
             try {
-                upstream.absorbLateListenerErrors("test") { absorbed.add(it) }.collect { }
+                upstream.absorbLateListenerErrors { absorbed.add(it) }.collect { }
             } catch (e: IllegalStateException) {
                 caught.complete(e)
             }

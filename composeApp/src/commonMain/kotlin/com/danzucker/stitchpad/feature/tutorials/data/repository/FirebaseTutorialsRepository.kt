@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.tutorials.data.repository
 
+import com.danzucker.stitchpad.core.data.absorbLateListenerErrors
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.tutorials.data.BUNDLED_TUTORIALS
 import com.danzucker.stitchpad.feature.tutorials.data.dto.TutorialDto
@@ -30,6 +31,7 @@ class FirebaseTutorialsRepository(
     override val tutorials: Flow<List<Tutorial>> =
         firestore.collection(TUTORIALS_COLLECTION)
             .snapshots()
+            .absorbLateListenerErrors(TAG)
             .map { snapshot ->
                 val docs = snapshot.documents.mapNotNull { doc ->
                     runCatching { doc.id to doc.data<TutorialDto>() }.getOrNull()

@@ -30,7 +30,7 @@ import kotlinx.coroutines.flow.flowOn
  * collection sites — the handler must live in the producer's context.
  */
 fun <T> Flow<T>.absorbLateListenerErrors(tag: String): Flow<T> =
-    absorbLateListenerErrors(tag) { throwable ->
+    absorbLateListenerErrors { throwable ->
         AppLogger.e(tag = tag, throwable = throwable) {
             "listener error after collector cancellation absorbed"
         }
@@ -38,6 +38,5 @@ fun <T> Flow<T>.absorbLateListenerErrors(tag: String): Flow<T> =
 
 /** Test seam: same wrapper with an observable absorption callback. */
 internal fun <T> Flow<T>.absorbLateListenerErrors(
-    tag: String,
     onAbsorbed: (Throwable) -> Unit,
 ): Flow<T> = flowOn(CoroutineExceptionHandler { _, throwable -> onAbsorbed(throwable) })

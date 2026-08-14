@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.di
 
 import com.danzucker.stitchpad.core.config.domain.repository.AppConfigRepository
+import com.danzucker.stitchpad.core.data.absorbLateListenerErrors
 import com.danzucker.stitchpad.core.data.appLifetimeScope
 import com.danzucker.stitchpad.core.data.entitlement.UserDocEntitlementsProvider
 import com.danzucker.stitchpad.core.data.session.FirebaseActiveWorkshopProvider
@@ -93,6 +94,7 @@ val coreModule = module {
             membershipStatusFlow = { workshopUid, authUid ->
                 firestore.collection("users").document(workshopUid)
                     .collection("memberships").document(authUid).snapshots
+                    .absorbLateListenerErrors("ActiveWorkshopProvider")
                     .map { snap ->
                         MembershipStatus.fromWire(
                             if (snap.exists) snap.data<MembershipStatusDto>().status else null,

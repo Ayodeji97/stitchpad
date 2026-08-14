@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.core.smartinfra.data.quota
 
+import com.danzucker.stitchpad.core.data.absorbLateListenerErrors
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageDocSource
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageSnapshot
@@ -22,6 +23,7 @@ class FirebaseSmartUsageDocSource(
         return firestore.collection(USERS).document(userId)
             .collection(USAGE).document(SMART_DRAFTS)
             .snapshots
+            .absorbLateListenerErrors(TAG)
             .map { snapshot ->
                 if (!snapshot.exists) return@map SmartUsageSnapshot.Empty
                 val dto = snapshot.data(SmartUsageDto.serializer())
