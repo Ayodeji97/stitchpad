@@ -21,6 +21,10 @@ internal fun buildTodayWorkRows(
     overdue: List<DashboardOrderRow>,
     dueToday: List<DashboardOrderRow>,
     ready: List<DashboardOrderRow>,
+    // The signed-in person's own member id (owner's authUid or the active staff
+    // session's authUid — both are just "whoever is looking at this dashboard").
+    // Null when unresolved yet, which just means no row can ever match "you".
+    viewerMemberId: String? = null,
 ): List<TodayWorkRowUi> {
     val combined = buildList {
         overdue.forEach { add(it to BucketLabel.Overdue) }
@@ -39,6 +43,8 @@ internal fun buildTodayWorkRows(
             chipTextColor = accent,
             chipBackground = bg,
             bucket = bucketFor(label),
+            assigneeName = row.assignedMemberName,
+            isAssignedToViewer = row.assignedMemberId != null && row.assignedMemberId == viewerMemberId,
         )
     }
 }

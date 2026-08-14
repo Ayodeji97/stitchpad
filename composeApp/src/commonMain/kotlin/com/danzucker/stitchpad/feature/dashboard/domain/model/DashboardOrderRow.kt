@@ -20,4 +20,8 @@ data class DashboardOrderRow(
     val orderValue: Double? = null,
     /** Deposit/payment state for the footer chip. Null → omit the chip. */
     val paymentStatus: PipelinePaymentStatus? = null,
+    /** Carried straight from `Order.assignedMemberId`. Null → unassigned. */
+    val assignedMemberId: String? = null,
+    /** Carried straight from `Order.assignedMemberName`. Null → unassigned. */
+    val assignedMemberName: String? = null,
 )

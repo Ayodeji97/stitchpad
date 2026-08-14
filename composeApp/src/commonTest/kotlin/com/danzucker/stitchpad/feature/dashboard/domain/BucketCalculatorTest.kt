@@ -41,7 +41,9 @@ class BucketCalculatorTest {
         balanceRemaining: Double = 0.0,
         totalPrice: Double? = null,
         garment: GarmentType = GarmentType.AGBADA,
-        customerName: String = "Test"
+        customerName: String = "Test",
+        assignedMemberId: String? = null,
+        assignedMemberName: String? = null,
     ): Order {
         val resolvedTotalPrice = totalPrice ?: balanceRemaining
         val depositAmount = (resolvedTotalPrice - balanceRemaining).coerceAtLeast(0.0)
@@ -60,6 +62,8 @@ class BucketCalculatorTest {
             payments = if (depositAmount > 0.0) listOf(depositPayment(depositAmount)) else emptyList(),
             deadline = deadline?.let { millisAt(it) },
             notes = null,
+            assignedMemberId = assignedMemberId,
+            assignedMemberName = assignedMemberName,
             createdAt = millisAt(today),
             updatedAt = millisAt(today),
         )
@@ -241,6 +245,49 @@ class BucketCalculatorTest {
 
         assertEquals(40000.0, row.orderValue)
         assertEquals(PipelinePaymentStatus.DepositDue, row.paymentStatus)
+    }
+
+    @Test
+    fun overdueRowCarriesAssigneeFromOrder() {
+        val orders = listOf(
+            order(id = "o1", deadline = today.minusDays(2), assignedMemberId = "m1", assignedMemberName = "Chidi Okafor")
+        )
+
+        val buckets = BucketCalculator.compute(orders, today, tz)
+        val row = buckets.overdue.single()
+
+        assertEquals("m1", row.assignedMemberId)
+        assertEquals("Chidi Okafor", row.assignedMemberName)
+    }
+
+    @Test
+    fun overdueRowAssigneeIsNullWhenOrderUnassigned() {
+        val orders = listOf(order(id = "o1", deadline = today.minusDays(2)))
+
+        val buckets = BucketCalculator.compute(orders, today, tz)
+        val row = buckets.overdue.single()
+
+        assertNull(row.assignedMemberId)
+        assertNull(row.assignedMemberName)
+    }
+
+    @Test
+    fun pipelineRowCarriesAssigneeFromOrder() {
+        val orders = listOf(
+            order(
+                id = "o1",
+                deadline = today.plusDays(5),
+                status = OrderStatus.IN_PROGRESS,
+                assignedMemberId = "m2",
+                assignedMemberName = "Ngozi Eze"
+            )
+        )
+
+        val buckets = BucketCalculator.compute(orders, today, tz)
+        val row = buckets.pipelineInProgress.single()
+
+        assertEquals("m2", row.assignedMemberId)
+        assertEquals("Ngozi Eze", row.assignedMemberName)
     }
 
     private fun LocalDate.minusDays(n: Long): LocalDate =

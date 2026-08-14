@@ -921,8 +921,8 @@ private fun DashboardContent(
         val nbaOrderIds = remember(state.nextBestActions) {
             state.nextBestActions.mapTo(mutableSetOf()) { it.orderId }
         }
-        val todayWorkRows = remember(state.overdue, state.dueToday, state.ready, nbaOrderIds) {
-            buildTodayWorkRows(state.overdue, state.dueToday, state.ready)
+        val todayWorkRows = remember(state.overdue, state.dueToday, state.ready, nbaOrderIds, state.viewerMemberId) {
+            buildTodayWorkRows(state.overdue, state.dueToday, state.ready, state.viewerMemberId)
                 .filter { it.orderId !in nbaOrderIds }
         }
         // ReadyForPickup intentionally suppresses TodayWorkCard — the focus
@@ -1537,11 +1537,25 @@ private fun DashboardScreenFilledPreview() {
                 businessName = "Ade's Fashions",
                 greeting = Greeting.MORNING,
                 todayDate = LocalDate(2026, 4, 22),
+                viewerMemberId = "owner-1",
                 overdue = listOf(
-                    DashboardOrderRow("1", "Fola Sunday", "Corset", daysLate = 4)
+                    DashboardOrderRow(
+                        orderId = "1",
+                        customerName = "Fola Sunday",
+                        primaryLabel = "Corset",
+                        daysLate = 4,
+                        assignedMemberId = "staff-bisi",
+                        assignedMemberName = "Bisi Adeyemi",
+                    )
                 ),
                 dueToday = listOf(
-                    DashboardOrderRow("2", "Bimbo Dann", "Dress")
+                    DashboardOrderRow(
+                        orderId = "2",
+                        customerName = "Bimbo Dann",
+                        primaryLabel = "Dress",
+                        assignedMemberId = "owner-1",
+                        assignedMemberName = "Ade",
+                    )
                 ),
                 ready = listOf(
                     DashboardOrderRow("3", "Mr Tunde", "Senator")

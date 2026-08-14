@@ -15,12 +15,16 @@ class DashboardUiMappersTest {
         primaryLabel: String = "Senator",
         daysLate: Int? = null,
         daysUntilDeadline: Int? = null,
+        assignedMemberId: String? = null,
+        assignedMemberName: String? = null,
     ) = DashboardOrderRow(
         orderId = id,
         customerName = customerName,
         primaryLabel = primaryLabel,
         daysLate = daysLate,
         daysUntilDeadline = daysUntilDeadline,
+        assignedMemberId = assignedMemberId,
+        assignedMemberName = assignedMemberName,
     )
 
     // — buildTodayWorkRows —
@@ -120,6 +124,66 @@ class DashboardUiMappersTest {
         val single = rows.single()
         assertEquals("Ada Obi", single.customerName)
         assertEquals("Bridal Gown", single.primaryLabel)
+    }
+
+    // — assignee resolution —
+
+    @Test
+    fun buildTodayWorkRowsUnassignedOrderHasNullAssigneeName() {
+        val rows = buildTodayWorkRows(
+            overdue = listOf(row("o1", daysLate = 1)),
+            dueToday = emptyList(),
+            ready = emptyList(),
+            viewerMemberId = "viewer-1",
+        )
+        val single = rows.single()
+        assertEquals(null, single.assigneeName)
+        assertEquals(false, single.isAssignedToViewer)
+    }
+
+    @Test
+    fun buildTodayWorkRowsAssignedToViewerSetsFlagTrue() {
+        val rows = buildTodayWorkRows(
+            overdue = listOf(
+                row("o1", daysLate = 1, assignedMemberId = "viewer-1", assignedMemberName = "Chidi Okafor")
+            ),
+            dueToday = emptyList(),
+            ready = emptyList(),
+            viewerMemberId = "viewer-1",
+        )
+        val single = rows.single()
+        assertEquals("Chidi Okafor", single.assigneeName)
+        assertEquals(true, single.isAssignedToViewer)
+    }
+
+    @Test
+    fun buildTodayWorkRowsAssignedToSomeoneElseKeepsFlagFalse() {
+        val rows = buildTodayWorkRows(
+            overdue = listOf(
+                row("o1", daysLate = 1, assignedMemberId = "colleague-2", assignedMemberName = "Ngozi Eze")
+            ),
+            dueToday = emptyList(),
+            ready = emptyList(),
+            viewerMemberId = "viewer-1",
+        )
+        val single = rows.single()
+        assertEquals("Ngozi Eze", single.assigneeName)
+        assertEquals(false, single.isAssignedToViewer)
+    }
+
+    @Test
+    fun buildTodayWorkRowsNullViewerMemberIdNeverMatches() {
+        val rows = buildTodayWorkRows(
+            overdue = listOf(
+                row("o1", daysLate = 1, assignedMemberId = "m1", assignedMemberName = "Chidi Okafor")
+            ),
+            dueToday = emptyList(),
+            ready = emptyList(),
+            viewerMemberId = null,
+        )
+        val single = rows.single()
+        assertEquals("Chidi Okafor", single.assigneeName)
+        assertEquals(false, single.isAssignedToViewer)
     }
 
 }
