@@ -7,6 +7,7 @@ import com.danzucker.stitchpad.feature.dashboard.domain.internal.simpleLabel
 import com.danzucker.stitchpad.feature.dashboard.domain.internal.toLocalDate
 import com.danzucker.stitchpad.feature.dashboard.domain.model.Buckets
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
+import com.danzucker.stitchpad.feature.dashboard.domain.model.stageOf
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.daysUntil
@@ -71,6 +72,10 @@ object BucketCalculator {
         val pipelineInProgressAll = pipelineCandidates.filter { it.status == OrderStatus.IN_PROGRESS }
         val pipelinePendingAll = pipelineCandidates.filter { it.status == OrderStatus.PENDING }
 
+        val openQueue = active
+            .filter { it.status != OrderStatus.READY }
+            .map { it.toQueueRow(today, timeZone) }
+
         return Buckets(
             overdue = overdue,
             dueToday = dueToday,
@@ -82,7 +87,8 @@ object BucketCalculator {
             pipelineInProgressTotal = pipelineInProgressAll.size,
             pipelinePending = pipelinePendingAll.take(PIPELINE_PREVIEW_LIMIT)
                 .map { it.toPipelineRow(today, timeZone) },
-            pipelinePendingTotal = pipelinePendingAll.size
+            pipelinePendingTotal = pipelinePendingAll.size,
+            openQueue = openQueue,
         )
     }
 }
@@ -102,6 +108,7 @@ private fun Order.toRow(today: LocalDate, tz: TimeZone): DashboardOrderRow {
         paymentStatus = pipelinePaymentStatusOf(depositPaid, payableTotal),
         assignedMemberId = assignedMemberId,
         assignedMemberName = assignedMemberName,
+        stage = stageOf(status, subStatus),
     )
 }
 
@@ -121,5 +128,37 @@ private fun Order.toPipelineRow(today: LocalDate, tz: TimeZone): DashboardOrderR
         paymentStatus = pipelinePaymentStatusOf(depositPaid, payableTotal),
         assignedMemberId = assignedMemberId,
         assignedMemberName = assignedMemberName,
+        stage = stageOf(status, subStatus),
+    )
+}
+
+/**
+ * Row builder for [Buckets.openQueue] — the staff dashboard focus-queue's full
+ * candidate pool. Unlike [toRow] (daysLate only) and [toPipelineRow]
+ * (daysUntilDeadline only, future-only), this exposes whichever field applies
+ * to the order's actual deadline relationship to `today`, including 0 for "due
+ * today" (so the urgency calibration's `soon` tier can render "Due today").
+ */
+private fun Order.toQueueRow(today: LocalDate, tz: TimeZone): DashboardOrderRow {
+    val garment = items.firstOrNull()?.displayGarmentName { it.simpleLabel() }.orEmpty()
+    val deadlineDate = deadline?.toLocalDate(tz)
+    val daysLate = deadlineDate
+        ?.takeIf { it < today }
+        ?.daysUntil(today)
+    val daysUntilDeadline = deadlineDate
+        ?.takeIf { it >= today }
+        ?.let { today.daysUntil(it) }
+    return DashboardOrderRow(
+        orderId = id,
+        customerName = customerName,
+        primaryLabel = garment,
+        daysLate = daysLate,
+        daysUntilDeadline = daysUntilDeadline,
+        createdAtEpochMillis = createdAt,
+        orderValue = payableTotal,
+        paymentStatus = pipelinePaymentStatusOf(depositPaid, payableTotal),
+        assignedMemberId = assignedMemberId,
+        assignedMemberName = assignedMemberName,
+        stage = stageOf(status, subStatus),
     )
 }
