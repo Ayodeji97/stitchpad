@@ -1,9 +1,7 @@
 package com.danzucker.stitchpad.core.offline
 
+import com.danzucker.stitchpad.core.data.appLifetimeScope
 import kotlinx.cinterop.ExperimentalForeignApi
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.koin.mp.KoinPlatform
 import platform.BackgroundTasks.BGProcessingTask
@@ -15,7 +13,7 @@ private const val OFFLINE_UPLOAD_TASK_ID = "com.danzucker.stitchpad.offlineUploa
 
 @OptIn(ExperimentalForeignApi::class)
 object IosOfflineUploadBackgroundTasks {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope = appLifetimeScope(tag = "IosOfflineUploadBackgroundTasks")
     private var registered = false
 
     fun register() {
@@ -51,7 +49,12 @@ object IosOfflineUploadBackgroundTasks {
 
     fun drainInForeground() {
         scope.launch {
-            KoinPlatform.getKoin().get<OfflineUploadOutbox>().drain()
+            runCatching {
+                KoinPlatform.getKoin().get<OfflineUploadOutbox>().drain()
+            }.onFailure {
+                // Foreground drain is best-effort; the BGProcessingTask retry and the
+                // next enqueue still cover the upload path.
+            }
         }
     }
 

@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.di
 
+import com.danzucker.stitchpad.core.data.appLifetimeScope
 import com.danzucker.stitchpad.core.smartinfra.data.ai.FunctionsCaller
 import com.danzucker.stitchpad.core.smartinfra.data.ai.GitLiveFunctionsCaller
 import com.danzucker.stitchpad.core.smartinfra.data.quota.FirebaseSmartUsageDocSource
@@ -17,8 +18,6 @@ import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.functions.FirebaseFunctions
 import dev.gitlive.firebase.functions.functions
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.koin.core.module.dsl.viewModel
@@ -43,7 +42,7 @@ val smartDataModule = module {
     // SupervisorJob so a transient failure in one collector doesn't kill
     // the others; private to the smart feature for now (no other consumer).
     single<CoroutineScope>(qualifier = named("smartAppScope")) {
-        CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        appLifetimeScope(tag = "smartAppScope")
     }
     // Process-local cache of the last-known free-tier remaining quota.
     // Updated by DraftMessageViewModel on each successful draft; observed

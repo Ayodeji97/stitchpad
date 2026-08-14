@@ -1,14 +1,12 @@
 package com.danzucker.stitchpad.feature.freemium.data
 
+import com.danzucker.stitchpad.core.data.appLifetimeScope
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.freemium.domain.PaymentRepository
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.koin.mp.KoinPlatform
 
-private val iosStoreKitScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+private val iosStoreKitScope = appLifetimeScope(tag = "IosStoreKitBridge")
 
 /**
  * Called by Swift's `Transaction.updates` listener (see StoreKitPurchaserIos) for

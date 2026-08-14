@@ -1,16 +1,14 @@
 package com.danzucker.stitchpad.feature.notification.push
 
+import com.danzucker.stitchpad.core.data.appLifetimeScope
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.navigation.DeepLinkTarget
 import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.koin.mp.KoinPlatform
 
-private val iosPushScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+private val iosPushScope = appLifetimeScope(tag = "IosPushBridge")
 
 /**
  * Called by Swift (MessagingDelegate.didReceiveRegistrationToken) when an FCM token is

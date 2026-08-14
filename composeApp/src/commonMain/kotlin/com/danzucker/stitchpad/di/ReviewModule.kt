@@ -1,11 +1,10 @@
 package com.danzucker.stitchpad.di
 
+import com.danzucker.stitchpad.core.data.appLifetimeScope
 import com.danzucker.stitchpad.feature.review.presentation.ReviewArmer
 import com.danzucker.stitchpad.feature.review.presentation.ReviewController
 import dev.gitlive.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.map
 import org.koin.core.qualifier.named
 import org.koin.dsl.bind
@@ -18,7 +17,7 @@ private fun nowEpochMs(): Long = Clock.System.now().toEpochMilliseconds()
 
 val reviewModule = module {
     single<CoroutineScope>(qualifier = named("reviewAppScope")) {
-        CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        appLifetimeScope(tag = "reviewAppScope")
     }
     single {
         ReviewController(
