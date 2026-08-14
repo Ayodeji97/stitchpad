@@ -49,6 +49,7 @@ import com.danzucker.stitchpad.feature.order.presentation.form.StylePickerSource
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayNameAsync
 import com.danzucker.stitchpad.feature.review.presentation.ReviewArmer
 import com.danzucker.stitchpad.feature.style.domain.observeFoldersWithStyles
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -62,6 +63,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import org.jetbrains.compose.resources.getString
 import stitchpad.composeapp.generated.resources.Res
@@ -791,7 +793,7 @@ class OrderDetailViewModel(
             .data(url)
             .build()
         val result = imageLoader.execute(request) as? SuccessResult ?: return null
-        return result.image.toPngBytes()
+        return withContext(Dispatchers.Default) { result.image.toPngBytes() }
     }
 
     private fun loadUser() {

@@ -5,6 +5,8 @@ import coil3.PlatformContext
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import com.danzucker.stitchpad.core.sharing.toPngBytes
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Resolves an image model (a local file path or remote URL) to PNG-encoded
@@ -33,6 +35,6 @@ class CoilStyleImageBytesLoader(
         if (model.isBlank()) return null
         val request = ImageRequest.Builder(platformContext).data(model).build()
         val result = imageLoader.execute(request) as? SuccessResult ?: return null
-        return result.image.toPngBytes()
+        return withContext(Dispatchers.Default) { result.image.toPngBytes() }
     }
 }
