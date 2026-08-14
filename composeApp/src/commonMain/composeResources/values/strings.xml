@@ -916,6 +916,18 @@
     <string name="dashboard_staff_stage_ready">Ready</string>
     <string name="dashboard_staff_empty_title">All caught up</string>
     <string name="dashboard_staff_empty_body">Nothing overdue or due today. Keep the pipeline moving. Tap Orders to advance a job.</string>
+    <!-- Focus-queue redesign (2026-08-14 design spec) — "Up next" hero + ticket
+         cards replacing the "Needs attention" list below. -->
+    <string name="staff_up_next_header">Up next</string>
+    <string name="staff_then_header">Then</string>
+    <string name="staff_unassigned_header_count">Unassigned in the shop · %1$d</string>
+    <string name="staff_advance_stage_cta">Mark %1$s done → %2$s</string>
+    <string name="staff_due_today">Due today</string>
+    <string name="staff_due_tomorrow">Due tomorrow</string>
+    <string name="staff_due_weekday">Due %1$s</string>
+    <string name="staff_on_track">On track</string>
+    <string name="staff_stage_now">%1$s — now</string>
+    <string name="staff_advance_stage_error">Couldn&apos;t update the order. Try again.</string>
     <!-- Order card assignee affordance (Today's Work rich row) — shown on both
          the staff and owner dashboards since they share the same row component. -->
     <string name="staff_card_assigned_you">Assigned to you</string>

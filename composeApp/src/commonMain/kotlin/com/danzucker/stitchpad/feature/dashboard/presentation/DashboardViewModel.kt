@@ -19,7 +19,9 @@ import com.danzucker.stitchpad.core.domain.repository.NotificationRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.workshopUidOrNull
 import com.danzucker.stitchpad.core.domain.staff.StaffMembershipPrefsStore
+import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.collection.domain.CollectionCalculator
@@ -31,6 +33,8 @@ import com.danzucker.stitchpad.feature.dashboard.domain.StaffPipelineCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.WeeklyGoalCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.internal.simpleLabel
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
+import com.danzucker.stitchpad.feature.dashboard.domain.model.PipelineStage
+import com.danzucker.stitchpad.feature.dashboard.domain.model.toOrderStatusAndSubStatus
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.CustomerReadyUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FirstOrderSetupUi
@@ -69,6 +73,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.staff_advance_stage_error
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
@@ -82,7 +88,7 @@ private const val PICKER_DISMISS_DELAY_MS = 450L
 private const val COUNT_FETCH_TIMEOUT_MS = 3_000L
 
 @OptIn(ExperimentalTime::class, ExperimentalCoroutinesApi::class)
-@Suppress("TooManyFunctions", "LongParameterList")
+@Suppress("TooManyFunctions", "LongParameterList", "LargeClass")
 class DashboardViewModel(
     private val orderRepository: OrderRepository,
     private val customerRepository: CustomerRepository,
@@ -319,6 +325,67 @@ class DashboardViewModel(
             }
             is DashboardAction.OnMeasurementsPickerRowClick -> onMeasurementsPickerRowClick(action.row)
             DashboardAction.OnDismissMeasurementsPicker -> _state.update { it.copy(measurementsPicker = null) }
+            is DashboardAction.OnAdvanceStage -> handleAdvanceStage(action.orderId, action.fromStage)
+        }
+    }
+
+    /**
+     * Staff dashboard focus-queue hero CTA — advances [orderId] from [fromStage]
+     * to its next stage via the same two repository calls Order Detail's
+     * production-timeline "Update" action uses (`updateOrderStatus` +
+     * `updateSubStatus`; see `OrderDetailViewModel.performStatusUpdate`).
+     *
+     * Guards, in order:
+     *  1. Re-entrancy — [orderId] already has an in-flight advance recorded in
+     *     [DashboardState.advancingOrders]; a second tap before it resolves is
+     *     ignored outright (checked, and the flag set, synchronously — before
+     *     the coroutine launches — so a same-frame double-tap can't race past it).
+     *  2. Stale tap — the order's live stage (from [DashboardState.staffOpenQueue])
+     *     no longer matches [fromStage], meaning a concurrent update elsewhere
+     *     already moved it; no-op rather than advancing from a state the CTA
+     *     wasn't actually looking at.
+     *
+     * No optimistic stage change: the in-flight flag only disables the CTA.
+     * The visible stage updates when the order listener's next tick echoes it
+     * (see `updateStaffState`'s pruning of stale `advancingOrders` entries),
+     * which also self-heals the flag — no dedicated cleanup call needed on the
+     * success path.
+     */
+    @Suppress("ReturnCount")
+    private fun handleAdvanceStage(orderId: String, fromStage: PipelineStage) {
+        val current = _state.value
+        if (current.advancingOrders.containsKey(orderId)) return
+        val liveStage = current.staffOpenQueue.firstOrNull { it.orderId == orderId }?.stage
+        if (liveStage != fromStage) return
+        val nextStage = fromStage.next() ?: return
+        _state.update { it.copy(advancingOrders = it.advancingOrders + (orderId to fromStage)) }
+        viewModelScope.launch {
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: run {
+                _state.update { it.copy(advancingOrders = it.advancingOrders - orderId) }
+                return@launch
+            }
+            val (newStatus, newSubStatus) = nextStage.toOrderStatusAndSubStatus()
+            val statusResult = orderRepository.updateOrderStatus(userId, orderId, newStatus)
+            if (statusResult is Result.Error) {
+                _state.update {
+                    it.copy(
+                        advancingOrders = it.advancingOrders - orderId,
+                        errorMessage = UiText.StringResourceText(Res.string.staff_advance_stage_error),
+                    )
+                }
+                return@launch
+            }
+            val subResult = orderRepository.updateSubStatus(userId, orderId, newSubStatus)
+            if (subResult is Result.Error) {
+                _state.update {
+                    it.copy(
+                        advancingOrders = it.advancingOrders - orderId,
+                        errorMessage = UiText.StringResourceText(Res.string.staff_advance_stage_error),
+                    )
+                }
+            }
+            // Success: leave the in-flight flag set. updateStaffState prunes it
+            // once the listener's next tick shows the order past fromStage.
         }
     }
 
@@ -585,6 +652,8 @@ class DashboardViewModel(
                 uiState = DashboardUiState.BrandNew,
                 staffPipeline = null,
                 staffMineCount = 0,
+                staffOpenQueue = emptyList(),
+                advancingOrders = emptyMap(),
                 overdue = emptyList(),
                 dueToday = emptyList(),
                 ready = emptyList(),
@@ -664,6 +733,14 @@ class DashboardViewModel(
             .toLocalDateTime(timeZone).date
         val buckets = BucketCalculator.compute(orders, today, timeZone)
         val user = resolveUser(authUser, combined.firestoreUser)
+        // Self-heals advancingOrders (focus-queue design): an entry survives only
+        // while the live order's stage still matches what it was recorded as when
+        // the advance tap landed — the moment this tick's fresh openQueue shows it
+        // moved on (or it drops off the queue entirely, e.g. it reached READY), the
+        // in-flight flag clears itself with no dedicated cleanup call.
+        val prunedAdvancing = _state.value.advancingOrders.filter { (orderId, fromStage) ->
+            buckets.openQueue.firstOrNull { it.orderId == orderId }?.stage == fromStage
+        }
         _state.update {
             it.copy(
                 isStaff = true,
@@ -682,6 +759,8 @@ class DashboardViewModel(
                 // "Mine" count tile — orders assigned to THIS session's authUid, not the
                 // whole workshop's roster (mirrors OrderListViewModel's "My work" match).
                 staffMineCount = orders.count { order -> order.assignedMemberId == staffAuthUid },
+                staffOpenQueue = buckets.openQueue.map { row -> row.moneyFree() },
+                advancingOrders = prunedAdvancing,
                 errorMessage = (ordersResult as? Result.Error)?.error?.toDashboardUiText(),
             )
         }
@@ -771,6 +850,8 @@ class DashboardViewModel(
                 viewerMemberId = authUser.id,
                 staffPipeline = null,
                 staffMineCount = 0,
+                staffOpenQueue = emptyList(),
+                advancingOrders = emptyMap(),
                 businessName = workshopName,
                 businessLogoUrl = user.businessLogoUrl,
                 greeting = greeting,
