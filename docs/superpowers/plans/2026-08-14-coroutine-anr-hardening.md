@@ -168,6 +168,8 @@ git commit -m "fix(core): route uncaught app-scope exceptions to AppLogger inste
 
 ---
 
+> **EXECUTION NOTE (2026-08-14):** Tasks 2 and 3 were SUPERSEDED mid-execution. An instrumented debugging pass (`.superpowers` report `absorber-test-debug-report.md`, preserved in the PR description) proved `flowOn(CoroutineExceptionHandler)` never receives a listener close cause — it is delivered downstream where `.catch`/`retryWhen` already intercept it, and the cancellation race drops it benignly. The absorber wiring was removed again; the crash-class protection is Task 1's scope handlers + Task 12's retry migration. Task 15's guardrail now checks listener retry coverage instead of absorber coverage.
+
 ### Task 2: Wire `absorbLateListenerErrors` into all 26 `snapshots` sources
 
 **Files (Modify — all under `composeApp/src/commonMain/kotlin/com/danzucker/stitchpad/`):**
@@ -1205,43 +1207,44 @@ git commit -m "fix(presentation): supervise sibling collectors in dashboard and 
 **Files:**
 - Modify: `composeApp/build.gradle.kts` (append at end)
 
-- [ ] **Step 1: Add the absorber-coverage check task**
+- [ ] **Step 1: Add the listener-retry coverage check task**
 
-Manual discipline will not hold at 34 sites and growing; encode the invariant as a build check:
+Manual discipline will not hold at 26 sites and growing; encode the invariant as a build check. (Amended per the execution note: the absorber was proven inert and removed — the invariant that actually protects the app is that every Firestore listener file keeps its flows alive with a retry/catch operator.)
 
 ```kotlin
-// Guardrail from the 2026-08 coroutine audit: every GitLive listener source in
-// commonMain must be wrapped in absorbLateListenerErrors — an undeliverable
-// listener close-cause otherwise bypasses catch/retryWhen and kills the process.
-// Heuristic: per file, absorber call count must cover snapshots + auth sources.
-tasks.register("checkListenerAbsorbers") {
+// Guardrail from the 2026-08 coroutine audit: every file with a GitLive
+// .snapshots listener source in commonMain must carry at least as many
+// listener-survival operators (retryWithFallback/retryWhen/catch) as sources —
+// a listener flow with no terminal error operator crashes its collector, and
+// a terminating catch without retry permanently freezes the screen (audit S1).
+// Per-file count heuristic; refine only if it ever false-positives.
+tasks.register("checkListenerRetryCoverage") {
     group = "verification"
-    description = "Every .snapshots/.authStateChanged/.idTokenChanged source must be absorbed"
+    description = "Every .snapshots listener file must retry/catch each source"
     val srcDir = layout.projectDirectory.dir("src/commonMain/kotlin")
     inputs.dir(srcDir)
     doLast {
-        val sourcePattern = Regex("""\.snapshots\b|\.authStateChanged\b|\.idTokenChanged\b""")
-        val absorberPattern = Regex("""\.absorbLateListenerErrors\(""")
+        val sourcePattern = Regex("""\.snapshots\b""")
+        val survivalPattern = Regex("""\.retryWithFallback\(|\.retryWhen\b|\.catch\b""")
         val offenders = srcDir.asFileTree.matching { include("**/*.kt") }.files
-            .filterNot { it.name == "ListenerErrorAbsorber.kt" }
             .mapNotNull { file ->
                 val text = file.readText()
                 val sources = sourcePattern.findAll(text).count()
-                val absorbed = absorberPattern.findAll(text).count()
-                if (sources > absorbed) "${file.relativeTo(projectDir)}: $sources listener source(s), $absorbed absorbed" else null
+                val survivals = survivalPattern.findAll(text).count()
+                if (sources > survivals) "${file.relativeTo(projectDir)}: $sources listener source(s), $survivals retry/catch operator(s)" else null
             }
         check(offenders.isEmpty()) {
-            "Unabsorbed listener sources (wrap each in .absorbLateListenerErrors(TAG)):\n" +
+            "Listener sources without survival operators (add retryWithFallback/retryWhen/catch):\n" +
                 offenders.joinToString("\n")
         }
     }
 }
-tasks.named("check") { dependsOn("checkListenerAbsorbers") }
+tasks.named("check") { dependsOn("checkListenerRetryCoverage") }
 ```
 
 - [ ] **Step 2: Prove the guardrail works**
 
-Run: `./gradlew :composeApp:checkListenerAbsorbers` — PASS. Then temporarily delete one `.absorbLateListenerErrors(TAG)` call, run again — must FAIL naming the file. Restore the call, run again — PASS.
+Run: `./gradlew :composeApp:checkListenerRetryCoverage` — PASS. Then temporarily delete one `.retryWithFallback(...)` block from a repository, run again — must FAIL naming the file. Restore, run again — PASS.
 
 - [ ] **Step 3: Full verification sweep**
 
