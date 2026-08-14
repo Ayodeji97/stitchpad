@@ -2,6 +2,8 @@ package com.danzucker.stitchpad.feature.dashboard.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.analytics.domain.Analytics
+import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
 import com.danzucker.stitchpad.core.config.domain.CommunityJoinTracker
 import com.danzucker.stitchpad.core.config.domain.isUsableCommunityInviteUrl
@@ -26,11 +28,13 @@ import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.collection.domain.CollectionCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.BucketCalculator
+import com.danzucker.stitchpad.feature.dashboard.domain.FocusQueue
 import com.danzucker.stitchpad.feature.dashboard.domain.FocusResolver
 import com.danzucker.stitchpad.feature.dashboard.domain.NbaCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.ReconnectCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.StaffPipelineCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.WeeklyGoalCalculator
+import com.danzucker.stitchpad.feature.dashboard.domain.computeFocusQueue
 import com.danzucker.stitchpad.feature.dashboard.domain.internal.simpleLabel
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
 import com.danzucker.stitchpad.feature.dashboard.domain.model.PipelineStage
@@ -107,6 +111,7 @@ class DashboardViewModel(
     private val dismissal: CommunityBannerDismissal,
     private val activeWorkshopProvider: ActiveWorkshopProvider,
     private val staffMembershipPrefs: StaffMembershipPrefsStore,
+    private val analytics: Analytics,
 ) : ViewModel() {
 
     private var hasLoadedInitialData = false
@@ -375,6 +380,9 @@ class DashboardViewModel(
                 }
                 return@launch
             }
+            // Matches OrderDetailViewModel.performStatusUpdate exactly: logged right
+            // after the status write succeeds, before the sub-status write is attempted.
+            analytics.logEvent(AnalyticsEvent.OrderStatusAdvanced(status = newStatus.name.lowercase()))
             val subResult = orderRepository.updateSubStatus(userId, orderId, newSubStatus)
             if (subResult is Result.Error) {
                 _state.update {
@@ -653,6 +661,7 @@ class DashboardViewModel(
                 staffPipeline = null,
                 staffMineCount = 0,
                 staffOpenQueue = emptyList(),
+                focusQueue = FocusQueue(hero = null, thenQueue = emptyList(), shopQueue = emptyList()),
                 advancingOrders = emptyMap(),
                 overdue = emptyList(),
                 dueToday = emptyList(),
@@ -741,6 +750,11 @@ class DashboardViewModel(
         val prunedAdvancing = _state.value.advancingOrders.filter { (orderId, fromStage) ->
             buckets.openQueue.firstOrNull { it.orderId == orderId }?.stage == fromStage
         }
+        val staffOpenQueue = buckets.openQueue.map { row -> row.moneyFree() }
+        // Business logic lives here, not in the composable (CLAUDE.md) — the
+        // hero/then/shop-queue split is computed once per tick and handed to the
+        // UI as plain state.
+        val focusQueue = computeFocusQueue(staffOpenQueue, staffAuthUid)
         _state.update {
             it.copy(
                 isStaff = true,
@@ -759,9 +773,14 @@ class DashboardViewModel(
                 // "Mine" count tile — orders assigned to THIS session's authUid, not the
                 // whole workshop's roster (mirrors OrderListViewModel's "My work" match).
                 staffMineCount = orders.count { order -> order.assignedMemberId == staffAuthUid },
-                staffOpenQueue = buckets.openQueue.map { row -> row.moneyFree() },
+                staffOpenQueue = staffOpenQueue,
+                focusQueue = focusQueue,
                 advancingOrders = prunedAdvancing,
-                errorMessage = (ordersResult as? Result.Error)?.error?.toDashboardUiText(),
+                // Only a genuine NEW listener error overwrites errorMessage. A Success
+                // tick must not silently wipe an action error (e.g. staff_advance_stage_error,
+                // set moments earlier by handleAdvanceStage) that the UI hasn't shown/
+                // dismissed yet — design review, PR #366.
+                errorMessage = (ordersResult as? Result.Error)?.error?.toDashboardUiText() ?: it.errorMessage,
             )
         }
     }
@@ -851,6 +870,7 @@ class DashboardViewModel(
                 staffPipeline = null,
                 staffMineCount = 0,
                 staffOpenQueue = emptyList(),
+                focusQueue = FocusQueue(hero = null, thenQueue = emptyList(), shopQueue = emptyList()),
                 advancingOrders = emptyMap(),
                 businessName = workshopName,
                 businessLogoUrl = user.businessLogoUrl,

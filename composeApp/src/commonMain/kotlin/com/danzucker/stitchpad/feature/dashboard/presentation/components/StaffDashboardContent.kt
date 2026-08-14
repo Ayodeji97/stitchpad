@@ -31,7 +31,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -40,8 +39,11 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.feature.dashboard.domain.FocusQueue
@@ -89,9 +91,10 @@ import stitchpad.composeapp.generated.resources.staff_due_today
 import stitchpad.composeapp.generated.resources.staff_due_tomorrow
 import stitchpad.composeapp.generated.resources.staff_due_weekday
 import stitchpad.composeapp.generated.resources.staff_on_track
+import stitchpad.composeapp.generated.resources.staff_shop_queue_header_count
 import stitchpad.composeapp.generated.resources.staff_stage_now
+import stitchpad.composeapp.generated.resources.staff_stage_progress_cd
 import stitchpad.composeapp.generated.resources.staff_then_header
-import stitchpad.composeapp.generated.resources.staff_unassigned_header_count
 import stitchpad.composeapp.generated.resources.staff_up_next_header
 import stitchpad.composeapp.generated.resources.weekday_abbrev_fri
 import stitchpad.composeapp.generated.resources.weekday_abbrev_mon
@@ -101,8 +104,8 @@ import stitchpad.composeapp.generated.resources.weekday_abbrev_thu
 import stitchpad.composeapp.generated.resources.weekday_abbrev_tue
 import stitchpad.composeapp.generated.resources.weekday_abbrev_wed
 
-/** "Unassigned in the shop" ticket cards render at 70% opacity per the design spec. */
-private const val UNASSIGNED_CARD_OPACITY = 0.7f
+/** "Rest of the shop" ticket cards render at 70% opacity per the design spec. */
+private const val SHOP_QUEUE_CARD_OPACITY = 0.7f
 
 /**
  * The money-free STAFF dashboard (Slice 6b; focus-queue redesign 2026-08-14). A
@@ -114,10 +117,15 @@ private const val UNASSIGNED_CARD_OPACITY = 0.7f
  * urgency-weighted count tiles (overdue / due today / in progress) -> the
  * pipeline-by-stage segmented bar -> the focus queue: an "Up next" hero (the
  * single highest-priority order assigned to the viewer, with a one-tap stage
- * advance) -> a "Then" queue of the viewer's remaining assigned tickets -> an
- * "Unassigned in the shop" queue at reduced opacity. When the viewer has no
- * assigned open orders, [StaffAllCaughtUp] renders in place of the hero/then
- * sections (the unassigned shop queue, if any, still renders below it).
+ * advance) -> a "Then" queue of the viewer's remaining assigned tickets -> a
+ * "rest of the shop" queue (everyone else's open orders — unassigned AND
+ * teammate-assigned, staff see the whole workshop) at reduced opacity. When
+ * the viewer has no assigned open orders, [StaffAllCaughtUp] renders in place
+ * of the hero/then sections (the shop queue, if any, still renders below it).
+ *
+ * [DashboardState.focusQueue] is computed once in [com.danzucker.stitchpad.feature.dashboard.presentation.DashboardViewModel]
+ * (not here — MVI keeps business logic out of composables) from
+ * [DashboardState.staffOpenQueue].
  *
  * [DashboardState.staffPipeline] is null until the first data load lands — that
  * is the loading sentinel (header shows, body is a spinner).
@@ -162,11 +170,8 @@ fun StaffDashboardContent(
         if (!pipeline.isEmpty) {
             StaffPipelineBar(pipeline)
         }
-        val focusQueue = remember(state.staffOpenQueue, state.viewerMemberId) {
-            computeFocusQueue(state.staffOpenQueue, state.viewerMemberId)
-        }
         StaffFocusQueueSection(
-            focusQueue = focusQueue,
+            focusQueue = state.focusQueue,
             today = today,
             viewerMemberId = state.viewerMemberId,
             advancingOrders = state.advancingOrders,
@@ -445,11 +450,11 @@ private fun StageLegendItem(stage: StageLegend, modifier: Modifier = Modifier) {
 // ── Focus queue ──────────────────────────────────────────────────
 
 /**
- * The "Up next" hero + "Then" queue + "Unassigned in the shop" sections. When
+ * The "Up next" hero + "Then" queue + "rest of the shop" queue sections. When
  * [FocusQueue.hero] is null the viewer has no assigned open orders — renders
- * [StaffAllCaughtUp] in its place, but the unassigned shop queue (if any)
- * still renders below it (per the design spec: "the existing StaffAllCaughtUp
- * shows above the shop queue").
+ * [StaffAllCaughtUp] in its place, but the shop queue (if any) still renders
+ * below it (per the design spec: "the existing StaffAllCaughtUp shows above
+ * the shop queue").
  */
 @Composable
 private fun StaffFocusQueueSection(
@@ -489,12 +494,12 @@ private fun StaffFocusQueueSection(
     } else {
         StaffAllCaughtUp()
     }
-    if (focusQueue.unassigned.isNotEmpty()) {
+    if (focusQueue.shopQueue.isNotEmpty()) {
         Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
             FocusSectionHeader(
-                stringResource(Res.string.staff_unassigned_header_count, focusQueue.unassigned.size)
+                stringResource(Res.string.staff_shop_queue_header_count, focusQueue.shopQueue.size)
             )
-            focusQueue.unassigned.forEach { row ->
+            focusQueue.shopQueue.forEach { row ->
                 TicketRow(
                     row = row,
                     today = today,
@@ -610,72 +615,109 @@ private fun HeroFooter(row: DashboardOrderRow, viewerMemberId: String?) {
     }
 }
 
+private val HERO_SEGMENT_HEIGHT = 6.dp
+
 /**
- * 5-segment stepper (Pending/Cutting/Sewing/Fitting/Ready): done = indigo,
- * current = saffron, upcoming = neutral outline. Stepline labels: done stages
- * show a checkmark, the current stage shows "‹Stage› — now", upcoming stages
- * show their plain name.
+ * 5-segment stepper (Pending/Cutting/Sewing/Fitting/Ready): rounded-bar
+ * segments, done = primary, current = saffron (the heritage accent's one
+ * sanctioned use here — never as text, see [DesignTokens]'s brand rule),
+ * upcoming = neutral outline. Below the segments, exactly three labels
+ * anchored start/center/end (not one label per segment — five labels under
+ * five SpaceBetween segments drift out of alignment with their segment by
+ * the time you reach the first/last one): a "✓" at the start once any stage
+ * is done, "‹Stage› — now" centered (onSurface + SemiBold carries the
+ * emphasis instead of colour, since saffron text fails the brand's contrast
+ * rule), and the terminal stage's name at the end.
  */
 @Composable
 private fun HeroStageStepper(stage: PipelineStage) {
+    val progressDescription = stageProgressDescription(stage)
     Column {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(HERO_SEGMENT_HEIGHT)
+                .clearAndSetSemantics { contentDescription = progressDescription },
+            horizontalArrangement = Arrangement.spacedBy(DesignTokens.space1),
+        ) {
             PipelineStage.entries.forEach { s ->
-                HeroStepNode(done = s.ordinal < stage.ordinal, current = s == stage)
-            }
-        }
-        Spacer(Modifier.height(DesignTokens.space1))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            PipelineStage.entries.forEach { s ->
-                val done = s.ordinal < stage.ordinal
-                val current = s == stage
-                Text(
-                    text = when {
-                        done -> "✓"
-                        current -> stringResource(Res.string.staff_stage_now, stageLabel(s))
-                        else -> stageLabel(s)
-                    },
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = if (current) FontWeight.SemiBold else FontWeight.Normal,
-                    color = when {
-                        current -> DesignTokens.saffron500
-                        done -> DesignTokens.indigo500
-                        else -> MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                    textAlign = TextAlign.Center,
+                HeroStepSegment(
+                    done = s.ordinal < stage.ordinal,
+                    current = s == stage,
                     modifier = Modifier.weight(1f),
                 )
             }
+        }
+        Spacer(Modifier.height(DesignTokens.space1))
+        Box(Modifier.fillMaxWidth()) {
+            if (stage.ordinal > 0) {
+                Text(
+                    text = "✓",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    modifier = Modifier.align(Alignment.CenterStart),
+                )
+            }
+            Text(
+                text = stringResource(Res.string.staff_stage_now, stageLabel(stage)),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.align(Alignment.Center),
+            )
+            Text(
+                text = stageLabel(PipelineStage.entries.last()),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.align(Alignment.CenterEnd),
+            )
         }
     }
 }
 
 @Composable
-private fun HeroStepNode(done: Boolean, current: Boolean) {
+private fun HeroStepSegment(done: Boolean, current: Boolean, modifier: Modifier = Modifier) {
     val color = when {
-        done -> DesignTokens.indigo500
+        done -> MaterialTheme.colorScheme.primary
         current -> DesignTokens.saffron500
         else -> MaterialTheme.colorScheme.outlineVariant
     }
+    val shape = RoundedCornerShape(DesignTokens.radiusFull)
     Box(
-        modifier = Modifier
-            .size(if (current) 16.dp else 12.dp)
-            .clip(CircleShape)
+        modifier = modifier
+            .fillMaxHeight()
+            .clip(shape)
             .then(
                 if (done || current) {
                     Modifier.background(color)
                 } else {
-                    Modifier.border(1.5.dp, color, CircleShape)
+                    Modifier.border(1.5.dp, color, shape)
                 }
             ),
     )
 }
 
+/** "Sewing, stage 3 of 5" — shared content description for the hero stepper and ticket stage dots. */
+@Composable
+private fun stageProgressDescription(stage: PipelineStage): String = stringResource(
+    Res.string.staff_stage_progress_cd,
+    stageLabel(stage),
+    stage.ordinal + 1,
+    PipelineStage.entries.size,
+)
+
 /**
- * A compact ticket card for the "Then" and "Unassigned in the shop" sections:
+ * A compact ticket card for the "Then" and "rest of the shop" sections:
  * avatar + name + garment + urgency chip, then a tear-line footer with stage
- * dots + stage name (left) and an assignee chip (right). [dimmed] renders the
- * whole card at 70% opacity for the unassigned section.
+ * dots + stage name (left) and an assignee chip (right) — "You" / a teammate's
+ * name / "Unassigned", resolved generically from [DashboardOrderRow.assignedMemberId]
+ * vs [viewerMemberId]. [dimmed] renders the whole card at 70% opacity for the
+ * shop-queue section.
  */
 @Composable
 private fun TicketRow(
@@ -692,7 +734,7 @@ private fun TicketRow(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier
             .fillMaxWidth()
-            .alpha(if (dimmed) UNASSIGNED_CARD_OPACITY else 1f)
+            .alpha(if (dimmed) SHOP_QUEUE_CARD_OPACITY else 1f)
             .clickable(onClick = onClick),
     ) {
         Column {
@@ -762,13 +804,18 @@ private fun TicketAvatar(name: String) {
     }
 }
 
-/** `●●●○○` — done = indigo, current = saffron, upcoming = neutral. */
+/** `●●●○○` — done = primary, current = saffron, upcoming = neutral. */
 @Composable
 private fun StageDots(stage: PipelineStage) {
-    Row(horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.CenterVertically) {
+    val progressDescription = stageProgressDescription(stage)
+    Row(
+        modifier = Modifier.clearAndSetSemantics { contentDescription = progressDescription },
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         PipelineStage.entries.forEach { s ->
             val color = when {
-                s.ordinal < stage.ordinal -> DesignTokens.indigo500
+                s.ordinal < stage.ordinal -> MaterialTheme.colorScheme.primary
                 s == stage -> DesignTokens.saffron500
                 else -> MaterialTheme.colorScheme.outlineVariant
             }
@@ -928,6 +975,41 @@ private fun previewRow(
     stage = stage,
 )
 
+// Garment labels mirror BucketCalculator.garmentLabel()'s real production format
+// (plain name, "· Qty N" only when N > 1) — a preview must render what production
+// can actually produce, not a hand-typed shape it can't (design review, PR #366).
+private val previewStaffOpenQueue = listOf(
+    previewRow(
+        orderId = "ord-c3d4",
+        customerName = "Chidi Okafor",
+        primaryLabel = "Agbada",
+        stage = PipelineStage.CUTTING,
+        daysLate = 2,
+    ),
+    previewRow(
+        orderId = "ord-a1b2",
+        customerName = "Amaka Nwosu",
+        primaryLabel = "Kaftan · Qty 2",
+        stage = PipelineStage.SEWING,
+        daysUntilDeadline = 1,
+    ),
+    // Teammate-assigned — belongs in the shop queue with a "Tunde B." chip, not
+    // dropped (this is exactly what the design review's Important #1 fixed).
+    previewRow(
+        orderId = "ord-9f8e",
+        customerName = "Tunde Bakare",
+        primaryLabel = "Senator suit",
+        stage = PipelineStage.FITTING,
+        daysUntilDeadline = 6,
+    ).copy(assignedMemberId = "uid-tunde", assignedMemberName = "Tunde B."),
+    previewRow(
+        orderId = "ord-7c6d",
+        customerName = "Bola Adeyemi",
+        primaryLabel = "Gown",
+        stage = PipelineStage.PENDING,
+    ).copy(assignedMemberId = null, assignedMemberName = null),
+)
+
 private val previewStaffState = DashboardState(
     isStaff = true,
     firstName = "Gabby",
@@ -946,35 +1028,8 @@ private val previewStaffState = DashboardState(
         ),
     ),
     dueToday = emptyList(),
-    staffOpenQueue = listOf(
-        previewRow(
-            orderId = "ord-c3d4",
-            customerName = "Chidi Okafor",
-            primaryLabel = "Agbada · 1",
-            stage = PipelineStage.CUTTING,
-            daysLate = 2,
-        ),
-        previewRow(
-            orderId = "ord-a1b2",
-            customerName = "Amaka Nwosu",
-            primaryLabel = "Kaftan · 2",
-            stage = PipelineStage.SEWING,
-            daysUntilDeadline = 1,
-        ),
-        previewRow(
-            orderId = "ord-9f8e",
-            customerName = "Tunde Bakare",
-            primaryLabel = "Senator suit · 1",
-            stage = PipelineStage.FITTING,
-            daysUntilDeadline = 6,
-        ),
-        previewRow(
-            orderId = "ord-7c6d",
-            customerName = "Bola Adeyemi",
-            primaryLabel = "Gown · 1",
-            stage = PipelineStage.PENDING,
-        ).copy(assignedMemberId = null, assignedMemberName = null),
-    ),
+    staffOpenQueue = previewStaffOpenQueue,
+    focusQueue = computeFocusQueue(previewStaffOpenQueue, viewerMemberId = "uid-gabby"),
 )
 
 @Suppress("UnusedPrivateMember")
@@ -1005,6 +1060,7 @@ private fun StaffDashboardAllCaughtUpPreview() {
                 overdue = emptyList(),
                 dueToday = emptyList(),
                 staffOpenQueue = emptyList(),
+                focusQueue = FocusQueue(hero = null, thenQueue = emptyList(), shopQueue = emptyList()),
                 staffPipeline = StaffPipelineCounts(cutting = 0, sewing = 4, fitting = 0, ready = 2),
             ),
             onAction = {},

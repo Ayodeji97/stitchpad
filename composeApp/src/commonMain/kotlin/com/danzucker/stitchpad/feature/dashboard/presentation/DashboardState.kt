@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.dashboard.presentation
 
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.feature.dashboard.domain.FocusQueue
 import com.danzucker.stitchpad.feature.dashboard.domain.StaffPipelineCounts
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
 import com.danzucker.stitchpad.feature.dashboard.domain.model.PipelineStage
@@ -46,9 +47,12 @@ data class DashboardState(
     // (Order.assignedMemberId == the session's authUid) — drives the "Mine" count tile.
     val staffMineCount: Int = 0,
     // Staff-only (focus-queue design, 2026-08-14): the full, uncapped, money-free
-    // candidate pool (Buckets.openQueue) the "Up next" hero, "Then" queue, and
-    // "Unassigned in the shop" sections are derived from via computeFocusQueue.
+    // candidate pool (Buckets.openQueue) [focusQueue] is derived from.
     val staffOpenQueue: List<DashboardOrderRow> = emptyList(),
+    // Staff-only: computeFocusQueue(staffOpenQueue, viewerMemberId), computed once
+    // in DashboardViewModel.updateStaffState — kept out of the composable per
+    // CLAUDE.md's "no business logic in composables" rule (design review, PR #366).
+    val focusQueue: FocusQueue = FocusQueue(hero = null, thenQueue = emptyList(), shopQueue = emptyList()),
     // Staff-only: orders with a stage-advance CTA tap currently in flight, keyed by
     // orderId, valued by the stage the order was AT when the tap landed. The CTA
     // disables while its orderId is a key here. Self-heals: updateStaffState prunes

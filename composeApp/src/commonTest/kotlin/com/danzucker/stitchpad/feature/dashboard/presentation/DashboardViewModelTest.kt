@@ -1,6 +1,8 @@
 package com.danzucker.stitchpad.feature.dashboard.presentation
 
 import app.cash.turbine.test
+import com.danzucker.stitchpad.core.analytics.FakeAnalytics
+import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeMeasurementRepository
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
@@ -117,6 +119,7 @@ class DashboardViewModelTest {
     private lateinit var notificationRepository: FakeDashboardNotificationRepository
     private lateinit var activeWorkshopProvider: FakeActiveWorkshopProvider
     private lateinit var staffMembershipPrefs: FakeStaffMembershipPrefsStore
+    private lateinit var analytics: FakeAnalytics
 
     private val testTimeZone = TimeZone.UTC
     private val today = LocalDate(2026, 4, 22)
@@ -134,6 +137,7 @@ class DashboardViewModelTest {
         notificationRepository = FakeDashboardNotificationRepository()
         activeWorkshopProvider = FakeActiveWorkshopProvider()
         staffMembershipPrefs = FakeStaffMembershipPrefsStore()
+        analytics = FakeAnalytics()
     }
 
     @AfterTest
@@ -168,6 +172,7 @@ class DashboardViewModelTest {
             dismissal = CommunityBannerDismissal(FakeOnboardingPreferences()),
             activeWorkshopProvider = activeWorkshopProvider,
             staffMembershipPrefs = staffMembershipPrefs,
+            analytics = analytics,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -459,6 +464,32 @@ class DashboardViewModelTest {
         assertEquals(PipelineStage.CUTTING, queue.single().stage)
     }
 
+    // Design review (PR #366): the hero/then/shop-queue split is business logic
+    // and must live in the VM, not be recomputed in the composable's `remember`.
+    @Test
+    fun activeStaffMember_populatesFocusQueueSections() = runTest {
+        signIn()
+        becomeActiveStaff() // authUid = "staff-uid", workshopUid = "owner-uid"
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "mine", status = OrderStatus.IN_PROGRESS, deadline = LocalDate(2026, 4, 20))
+                .copy(subStatus = OrderSubStatus.CUTTING, assignedMemberId = "staff-uid"),
+            fakeOrder(id = "colleague", status = OrderStatus.PENDING, deadline = null)
+                .copy(assignedMemberId = "other-staffer"),
+            fakeOrder(id = "unassigned", status = OrderStatus.PENDING, deadline = null),
+            fakeOrder(id = "ready", status = OrderStatus.READY, deadline = null)
+                .copy(assignedMemberId = "staff-uid"),
+        )
+
+        val vm = createViewModel()
+        val focusQueue = vm.state.value.focusQueue
+
+        assertEquals("mine", focusQueue.hero?.orderId)
+        assertEquals(emptyList(), focusQueue.thenQueue)
+        // Staff observe the whole workshop: both the unassigned AND the
+        // teammate-assigned order surface in the shop queue. READY orders never do.
+        assertEquals(setOf("colleague", "unassigned"), focusQueue.shopQueue.map { it.orderId }.toSet())
+    }
+
     @Test
     fun advanceStage_success_callsRepositoryWithNextStageAndSelfHealsInFlightFlag() = runTest {
         signIn()
@@ -478,6 +509,33 @@ class DashboardViewModelTest {
         // dedicated cleanup call.
         assertTrue(vm.state.value.advancingOrders.isEmpty())
         assertNull(vm.state.value.errorMessage)
+        // Matches OrderDetailViewModel.performStatusUpdate's analytics call exactly.
+        val expectedEvents: List<AnalyticsEvent> = listOf(AnalyticsEvent.OrderStatusAdvanced(status = "in_progress"))
+        assertEquals(expectedEvents, analytics.events)
+    }
+
+    @Test
+    fun advanceStage_errorSurvivesSubsequentSuccessfulListenerTick() = runTest {
+        signIn()
+        becomeActiveStaff()
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "o1", status = OrderStatus.IN_PROGRESS, deadline = null)
+                .copy(subStatus = OrderSubStatus.CUTTING, assignedMemberId = "staff-uid"),
+        )
+        val vm = createViewModel()
+        orderRepository.shouldReturnError = DataError.Network.UNKNOWN
+
+        vm.onAction(DashboardAction.OnAdvanceStage(orderId = "o1", fromStage = PipelineStage.CUTTING))
+        val errorAfterAdvanceFailure = assertNotNull(vm.state.value.errorMessage)
+
+        // A live listener tick unrelated to the advance (e.g. another order edited
+        // elsewhere) must not silently clear the still-unshown advance error.
+        orderRepository.shouldReturnError = null
+        orderRepository.ordersList = orderRepository.ordersList +
+            fakeOrder(id = "o2", status = OrderStatus.PENDING, deadline = null)
+        runCurrent()
+
+        assertEquals(errorAfterAdvanceFailure, vm.state.value.errorMessage)
     }
 
     @Test

@@ -124,7 +124,7 @@ class FocusQueueSelectorTest {
     }
 
     @Test
-    fun unassignedRowsNeverBecomeHeroButAppearInUnassignedList() {
+    fun unassignedRowsNeverBecomeHeroButAppearInShopQueue() {
         val rows = listOf(
             row(orderId = "mine", assignedMemberId = VIEWER),
             row(orderId = "unassigned1", assignedMemberId = null),
@@ -134,11 +134,14 @@ class FocusQueueSelectorTest {
         val queue = computeFocusQueue(rows, viewerMemberId = VIEWER)
 
         assertEquals("mine", queue.hero?.orderId)
-        assertEquals(listOf("unassigned2", "unassigned1"), queue.unassigned.map { it.orderId })
+        assertEquals(listOf("unassigned2", "unassigned1"), queue.shopQueue.map { it.orderId })
     }
 
+    // Design review (PR #366): staff observe the WHOLE workshop, so a
+    // teammate's order must still surface — in the shop queue, never in
+    // "Then" (which is viewer-only) and never as the hero.
     @Test
-    fun otherMembersOrdersNeverAppearInThenOrUnassigned() {
+    fun teammateOrdersNeverBecomeHeroOrThenButAppearInShopQueue() {
         val rows = listOf(
             row(orderId = "mine", assignedMemberId = VIEWER),
             row(orderId = "colleague", assignedMemberId = "other-uid"),
@@ -148,7 +151,19 @@ class FocusQueueSelectorTest {
 
         assertEquals("mine", queue.hero?.orderId)
         assertEquals(emptyList(), queue.thenQueue)
-        assertEquals(emptyList(), queue.unassigned)
+        assertEquals(listOf("colleague"), queue.shopQueue.map { it.orderId })
+    }
+
+    @Test
+    fun shopQueueMixesUnassignedAndTeammateRowsInPriorityOrder() {
+        val rows = listOf(
+            row(orderId = "colleagueOnTrack", assignedMemberId = "other-uid"),
+            row(orderId = "unassignedLate", assignedMemberId = null, daysLate = 4),
+        )
+
+        val queue = computeFocusQueue(rows, viewerMemberId = VIEWER)
+
+        assertEquals(listOf("unassignedLate", "colleagueOnTrack"), queue.shopQueue.map { it.orderId })
     }
 
     @Test
@@ -158,7 +173,17 @@ class FocusQueueSelectorTest {
         val queue = computeFocusQueue(rows, viewerMemberId = null)
 
         assertNull(queue.hero)
-        assertEquals(listOf("o1"), queue.unassigned.map { it.orderId })
+        assertEquals(listOf("o1"), queue.shopQueue.map { it.orderId })
+    }
+
+    @Test
+    fun nullViewerId_teammateRowsStillAppearInShopQueue() {
+        val rows = listOf(row(orderId = "o1", assignedMemberId = "other-uid"))
+
+        val queue = computeFocusQueue(rows, viewerMemberId = null)
+
+        assertNull(queue.hero)
+        assertEquals(listOf("o1"), queue.shopQueue.map { it.orderId })
     }
 
     @Test
@@ -168,6 +193,6 @@ class FocusQueueSelectorTest {
         val queue = computeFocusQueue(rows, viewerMemberId = VIEWER)
 
         assertNull(queue.hero)
-        assertEquals(emptyList(), queue.unassigned)
+        assertEquals(emptyList(), queue.shopQueue)
     }
 }

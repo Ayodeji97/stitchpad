@@ -44,6 +44,7 @@ class BucketCalculatorTest {
         balanceRemaining: Double = 0.0,
         totalPrice: Double? = null,
         garment: GarmentType = GarmentType.AGBADA,
+        quantity: Int = 1,
         customerName: String = "Test",
         assignedMemberId: String? = null,
         assignedMemberName: String? = null,
@@ -57,7 +58,13 @@ class BucketCalculatorTest {
             customerId = "c1",
             customerName = customerName,
             items = listOf(
-                OrderItem(id = "i-$id", garmentType = garment, description = "", price = resolvedTotalPrice)
+                OrderItem(
+                    id = "i-$id",
+                    garmentType = garment,
+                    description = "",
+                    price = resolvedTotalPrice,
+                    quantity = quantity,
+                )
             ),
             status = status,
             subStatus = subStatus,
@@ -413,6 +420,35 @@ class BucketCalculatorTest {
         assertEquals("m1", row.assignedMemberId)
         assertEquals("Chidi Okafor", row.assignedMemberName)
         assertEquals(millisAt(today.minusDays(2)), row.createdAtEpochMillis)
+    }
+
+    // --- Garment label + quantity (design review, PR #366) ---
+
+    @Test
+    fun primaryLabelOmitsQuantityWhenOne() {
+        val orders = listOf(order(id = "o1", garment = GarmentType.AGBADA, quantity = 1))
+
+        val buckets = BucketCalculator.compute(orders, today, tz)
+
+        assertEquals("Agbada", buckets.openQueue.single().primaryLabel)
+    }
+
+    @Test
+    fun primaryLabelIncludesQuantityWhenGreaterThanOne() {
+        val orders = listOf(order(id = "o1", garment = GarmentType.AGBADA, quantity = 3))
+
+        val buckets = BucketCalculator.compute(orders, today, tz)
+
+        assertEquals("Agbada · Qty 3", buckets.openQueue.single().primaryLabel)
+    }
+
+    @Test
+    fun overdueRowAlsoIncludesQuantityWhenGreaterThanOne() {
+        val orders = listOf(order(id = "o1", deadline = today.minusDays(1), garment = GarmentType.AGBADA, quantity = 2))
+
+        val buckets = BucketCalculator.compute(orders, today, tz)
+
+        assertEquals("Agbada · Qty 2", buckets.overdue.single().primaryLabel)
     }
 
     private fun LocalDate.minusDays(n: Long): LocalDate =
