@@ -213,7 +213,12 @@ class CustomerDetailViewModel(
                 return@launch
             }
             // supervisorScope: these four listeners render independent screen
-            // sections — one failing must not blank the other three.
+            // sections — a failure in one must not cancel the siblings. (The
+            // collected flows are non-throwing by construction — they all go
+            // through retryWithFallback — so this is defense-in-depth for
+            // future refactors, not a guard against an actual throwing child;
+            // an actually-throwing child would still reach the platform
+            // handler despite supervisorScope.)
             supervisorScope {
                 launch { observeCustomer(userId, customerId) }
                 launch { observeCustomFieldLabels(userId) }
