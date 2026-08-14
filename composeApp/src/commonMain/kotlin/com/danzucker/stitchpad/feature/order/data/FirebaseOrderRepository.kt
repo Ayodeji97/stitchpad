@@ -42,11 +42,16 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.shareIn
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -428,29 +433,35 @@ class FirebaseOrderRepository(
     // measured the unshared decode at seconds of main-thread work per snapshot
     // burst at realistic order counts.
     //
-    // Not @Volatile (kotlin.concurrent.Volatile is commonMain-safe since Kotlin 1.9
-    // but adds no real safety here): a benign race on concurrent first calls for the
-    // same userId can build and shareIn() two upstream flows before the second write
-    // wins the memo — both collect from the same underlying Firestore listener setup
-    // path, so the loser is simply discarded and garbage-collected, never observed.
-    private var sharedOrders: Pair<String, Flow<Result<List<Order>, DataError.Network>>>? = null
+    // Resolved under shareMutex at COLLECTION time (codex, PR #360): a plain
+    // check-then-set memo races on concurrent first calls — and the loser is NOT
+    // discarded, because its caller collects the instance it was handed, keeping a
+    // duplicate Firestore listener + decode pipeline alive for that screen's whole
+    // life. Not all callers are Main-serialized (SmartOpenOrdersAdapter resolves on
+    // the smart feature's Default scope), so the window is real. observeOrders is
+    // non-suspend, so the lock lives inside the returned cold flow, where a
+    // suspending context exists; every collector then emits from the one canonical
+    // shared instance.
+    private val shareMutex = Mutex()
+    private var sharedOrders: Pair<String, SharedFlow<Result<List<Order>, DataError.Network>>>? = null
 
-    override fun observeOrders(userId: String): Flow<Result<List<Order>, DataError.Network>> {
-        sharedOrders?.let { (cachedUserId, flow) -> if (cachedUserId == userId) return flow }
-        val shared = buildOrdersFlow(userId).shareIn(
-            scope = shareScope,
-            started = SharingStarted.WhileSubscribed(
-                stopTimeoutMillis = SHARE_STOP_TIMEOUT_MS,
-                // Drop the replay cache as soon as the upstream stops so a
-                // re-subscription after every collector left (e.g. sign-out, or a
-                // long backgrounded app) doesn't hand a new/different signed-in user
-                // stale order data from the previous session.
-                replayExpirationMillis = 0L,
-            ),
-            replay = 1,
-        )
-        sharedOrders = userId to shared
-        return shared
+    override fun observeOrders(userId: String): Flow<Result<List<Order>, DataError.Network>> = flow {
+        val shared = shareMutex.withLock {
+            sharedOrders?.takeIf { it.first == userId }?.second
+                ?: buildOrdersFlow(userId).shareIn(
+                    scope = shareScope,
+                    started = SharingStarted.WhileSubscribed(
+                        stopTimeoutMillis = SHARE_STOP_TIMEOUT_MS,
+                        // Drop the replay cache as soon as the upstream stops so a
+                        // re-subscription after every collector left (e.g. sign-out, or a
+                        // long backgrounded app) doesn't hand a new/different signed-in user
+                        // stale order data from the previous session.
+                        replayExpirationMillis = 0L,
+                    ),
+                    replay = 1,
+                ).also { sharedOrders = userId to it }
+        }
+        emitAll(shared)
     }
 
     private fun buildOrdersFlow(userId: String): Flow<Result<List<Order>, DataError.Network>> =
