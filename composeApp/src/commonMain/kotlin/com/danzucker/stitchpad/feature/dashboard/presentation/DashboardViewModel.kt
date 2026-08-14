@@ -667,6 +667,7 @@ class DashboardViewModel(
         _state.update {
             it.copy(
                 isStaff = true,
+                viewerMemberId = staffAuthUid,
                 firstName = firstNameFor(user),
                 // Owner's workshop name comes from redeem-time prefs — staff can't
                 // read the owner user doc, so it never comes from Firestore here.
@@ -767,6 +768,7 @@ class DashboardViewModel(
                 // holds at the state level, not just while `isStaff` composable guards
                 // are in effect.
                 isStaff = false,
+                viewerMemberId = authUser.id,
                 staffPipeline = null,
                 staffMineCount = 0,
                 businessName = workshopName,

@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Checkroom
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -43,6 +44,10 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.model.TodayWorkBuc
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.TodayWorkRowUi
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
+import org.jetbrains.compose.resources.stringResource
+import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.staff_card_assigned_to
+import stitchpad.composeapp.generated.resources.staff_card_assigned_you
 
 private val ACCENT_BAR_WIDTH = 4.dp
 private val AVATAR_SIZE = 56.dp
@@ -108,6 +113,7 @@ fun TodayWorkRichRow(
                             overflow = TextOverflow.Ellipsis,
                         )
                         GarmentRowSlim(label = row.primaryLabel)
+                        AssigneeRowSlim(assigneeName = row.assigneeName, isAssignedToViewer = row.isAssignedToViewer)
                     }
                     StatusChip(
                         bucket = row.bucket,
@@ -167,6 +173,42 @@ private fun GarmentRowSlim(label: String) {
         )
         Text(
             text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = scheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/**
+ * Assignee affordance — mirrors [GarmentRowSlim]'s icon + label styling. Renders
+ * nothing when [assigneeName] is null (order unassigned), matching the "unassigned
+ * orders show nothing new" requirement. Shared by both the staff and owner
+ * dashboards since they render the same [TodayWorkRichRow] — an owner sees who on
+ * the team a card belongs to, a staff member sees "Assigned to you" on their own.
+ */
+@Composable
+private fun AssigneeRowSlim(assigneeName: String?, isAssignedToViewer: Boolean) {
+    if (assigneeName == null) return
+    val scheme = MaterialTheme.colorScheme
+    val text = if (isAssignedToViewer) {
+        stringResource(Res.string.staff_card_assigned_you)
+    } else {
+        stringResource(Res.string.staff_card_assigned_to, assigneeName)
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Default.Person,
+            contentDescription = null,
+            tint = scheme.primary,
+            modifier = Modifier.size(META_ICON_SIZE),
+        )
+        Text(
+            text = text,
             style = MaterialTheme.typography.bodySmall,
             color = scheme.onSurfaceVariant,
             maxLines = 1,
@@ -297,7 +339,7 @@ private fun TodayWorkRichRowOverduePreview() {
                 accent = DesignTokens.error500,
                 chip = "1 day late",
                 bucket = TodayWorkBucket.Overdue,
-            ),
+            ).copy(assigneeName = "Chidi Okafor", isAssignedToViewer = true),
             onClick = {},
             modifier = Modifier.padding(DesignTokens.space4),
         )
@@ -317,7 +359,7 @@ private fun TodayWorkRichRowReadyPreview() {
                 accent = DesignTokens.success500,
                 chip = "Ready",
                 bucket = TodayWorkBucket.Ready,
-            ),
+            ).copy(assigneeName = "Ngozi Eze", isAssignedToViewer = false),
             onClick = {},
             modifier = Modifier.padding(DesignTokens.space4),
         )

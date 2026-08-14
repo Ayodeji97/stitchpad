@@ -31,6 +31,12 @@ data class DashboardState(
     // top-level render branch), set from the ActiveWorkshopProvider session as
     // soon as it resolves so the header never flashes the owner layout.
     val isStaff: Boolean = false,
+    // The signed-in person's own member id (owner's authUid, or the active staff
+    // session's authUid) — set for both roles from the same `authUser.id` source
+    // in DashboardViewModel. Lets order-card rows resolve "Assigned to you" the
+    // same way for an owner viewing their own dashboard or a staff member viewing
+    // theirs. Null until the first load resolves it.
+    val viewerMemberId: String? = null,
     // Staff-only production-stage counts (money-free) for the pipeline strip and
     // the "In progress" tile. Null until the staff dashboard's first data load
     // completes — doubles as the staff loading sentinel (isStaff && null = spinner).

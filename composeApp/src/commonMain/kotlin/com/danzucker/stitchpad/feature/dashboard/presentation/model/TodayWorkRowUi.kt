@@ -33,6 +33,17 @@ data class TodayWorkRowUi(
      * without re-deriving the bucket from the colours.
      */
     val bucket: TodayWorkBucket = TodayWorkBucket.Overdue,
+    /**
+     * Assignee's display name, straight from `DashboardOrderRow.assignedMemberName`.
+     * Null → the order is unassigned, so the row renders no assignee affordance.
+     */
+    val assigneeName: String? = null,
+    /**
+     * True when the assignee is the person currently looking at the dashboard
+     * (owner or staff) — resolved in [buildTodayWorkRows] against the viewer's
+     * own member id so the row can render "Assigned to you" instead of their name.
+     */
+    val isAssignedToViewer: Boolean = false,
 ) {
     companion object {
         /** Convenience factory used only in @Preview composables. */

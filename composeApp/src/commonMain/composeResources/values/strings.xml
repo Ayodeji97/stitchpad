@@ -916,6 +916,10 @@
     <string name="dashboard_staff_stage_ready">Ready</string>
     <string name="dashboard_staff_empty_title">All caught up</string>
     <string name="dashboard_staff_empty_body">Nothing overdue or due today. Keep the pipeline moving. Tap Orders to advance a job.</string>
+    <!-- Order card assignee affordance (Today's Work rich row) — shown on both
+         the staff and owner dashboards since they share the same row component. -->
+    <string name="staff_card_assigned_you">Assigned to you</string>
+    <string name="staff_card_assigned_to">Assigned to %1$s</string>
     <!-- Workshop summary row — collapsed single-line replacement for the
          two-bucket Work Pipeline section -->
     <string name="dashboard_workshop_summary_title">In the workshop</string>

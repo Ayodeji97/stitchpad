@@ -119,8 +119,8 @@ fun StaffDashboardContent(
             onInProgressClick = { onAction(DashboardAction.OnViewPipelineInProgressClick) },
             onMineClick = { onAction(DashboardAction.OnViewMyWorkClick) },
         )
-        val rows = remember(state.overdue, state.dueToday) {
-            buildTodayWorkRows(state.overdue, state.dueToday, emptyList())
+        val rows = remember(state.overdue, state.dueToday, state.viewerMemberId) {
+            buildTodayWorkRows(state.overdue, state.dueToday, emptyList(), state.viewerMemberId)
         }
         if (rows.isNotEmpty()) {
             StaffNeedsAttentionSection(
@@ -473,11 +473,25 @@ private val previewStaffState = DashboardState(
     businessName = "Ade Fashions",
     staffPipeline = StaffPipelineCounts(cutting = 3, sewing = 5, fitting = 3, ready = 4),
     staffMineCount = 4,
+    viewerMemberId = "uid-gabby",
     overdue = listOf(
-        DashboardOrderRow(orderId = "1", customerName = "Chidi O.", primaryLabel = "Agbada", daysLate = 2),
+        DashboardOrderRow(
+            orderId = "1",
+            customerName = "Chidi O.",
+            primaryLabel = "Agbada",
+            daysLate = 2,
+            assignedMemberId = "uid-gabby",
+            assignedMemberName = "Gabby",
+        ),
     ),
     dueToday = listOf(
-        DashboardOrderRow(orderId = "2", customerName = "Amaka N.", primaryLabel = "Kaftan"),
+        DashboardOrderRow(
+            orderId = "2",
+            customerName = "Amaka N.",
+            primaryLabel = "Kaftan",
+            assignedMemberId = "uid-tunde",
+            assignedMemberName = "Tunde",
+        ),
         DashboardOrderRow(orderId = "3", customerName = "Bola A.", primaryLabel = "Gown"),
     ),
 )
