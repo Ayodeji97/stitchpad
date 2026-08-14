@@ -1,6 +1,8 @@
 package com.danzucker.stitchpad.feature.dashboard.presentation
 
 import app.cash.turbine.test
+import com.danzucker.stitchpad.core.analytics.FakeAnalytics
+import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeMeasurementRepository
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
@@ -21,12 +23,15 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.NotificationRepository
+import com.danzucker.stitchpad.core.domain.repository.OrderRepository
+import com.danzucker.stitchpad.feature.dashboard.domain.model.PipelineStage
 import com.danzucker.stitchpad.core.config.FakeAppConfigRepository
 import com.danzucker.stitchpad.core.config.FakeCommunityJoinTracker
 import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
@@ -114,6 +119,7 @@ class DashboardViewModelTest {
     private lateinit var notificationRepository: FakeDashboardNotificationRepository
     private lateinit var activeWorkshopProvider: FakeActiveWorkshopProvider
     private lateinit var staffMembershipPrefs: FakeStaffMembershipPrefsStore
+    private lateinit var analytics: FakeAnalytics
 
     private val testTimeZone = TimeZone.UTC
     private val today = LocalDate(2026, 4, 22)
@@ -131,6 +137,7 @@ class DashboardViewModelTest {
         notificationRepository = FakeDashboardNotificationRepository()
         activeWorkshopProvider = FakeActiveWorkshopProvider()
         staffMembershipPrefs = FakeStaffMembershipPrefsStore()
+        analytics = FakeAnalytics()
     }
 
     @AfterTest
@@ -145,6 +152,7 @@ class DashboardViewModelTest {
         nowMillis: () -> Long = { millisAt(today, hour = 9) },
         entitlements: EntitlementsProvider = FakeEntitlementsProvider(),
         measurementRepository: MeasurementRepository = this@DashboardViewModelTest.measurementRepository,
+        orderRepository: OrderRepository = this@DashboardViewModelTest.orderRepository,
     ): DashboardViewModel {
         val vm = DashboardViewModel(
             orderRepository = orderRepository,
@@ -164,6 +172,7 @@ class DashboardViewModelTest {
             dismissal = CommunityBannerDismissal(FakeOnboardingPreferences()),
             activeWorkshopProvider = activeWorkshopProvider,
             staffMembershipPrefs = staffMembershipPrefs,
+            analytics = analytics,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -428,6 +437,184 @@ class DashboardViewModelTest {
         assertTrue(state.overdue.isEmpty())
         assertTrue(state.dueToday.isEmpty())
         assertEquals(1, assertNotNull(state.staffPipeline).inProgressTotal)
+    }
+
+    // --- Focus-queue design (2026-08-14): staffOpenQueue + OnAdvanceStage ---
+
+    @Test
+    fun activeStaffMember_populatesOpenQueueMoneyFreeExcludingReady() = runTest {
+        signIn()
+        becomeActiveStaff()
+        orderRepository.ordersList = listOf(
+            fakeOrder(
+                id = "wip1",
+                status = OrderStatus.IN_PROGRESS,
+                deadline = null,
+                totalPrice = 5_000.0,
+                balanceRemaining = 5_000.0,
+            ).copy(subStatus = OrderSubStatus.CUTTING),
+            fakeOrder(id = "ready1", status = OrderStatus.READY, deadline = null),
+        )
+
+        val vm = createViewModel()
+        val queue = vm.state.value.staffOpenQueue
+
+        assertEquals(listOf("wip1"), queue.map { it.orderId })
+        assertTrue(queue.all { it.orderValue == null && it.paymentStatus == null })
+        assertEquals(PipelineStage.CUTTING, queue.single().stage)
+    }
+
+    // Design review (PR #366): the hero/then/shop-queue split is business logic
+    // and must live in the VM, not be recomputed in the composable's `remember`.
+    @Test
+    fun activeStaffMember_populatesFocusQueueSections() = runTest {
+        signIn()
+        becomeActiveStaff() // authUid = "staff-uid", workshopUid = "owner-uid"
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "mine", status = OrderStatus.IN_PROGRESS, deadline = LocalDate(2026, 4, 20))
+                .copy(subStatus = OrderSubStatus.CUTTING, assignedMemberId = "staff-uid"),
+            fakeOrder(id = "colleague", status = OrderStatus.PENDING, deadline = null)
+                .copy(assignedMemberId = "other-staffer"),
+            fakeOrder(id = "unassigned", status = OrderStatus.PENDING, deadline = null),
+            fakeOrder(id = "ready", status = OrderStatus.READY, deadline = null)
+                .copy(assignedMemberId = "staff-uid"),
+        )
+
+        val vm = createViewModel()
+        val focusQueue = vm.state.value.focusQueue
+
+        assertEquals("mine", focusQueue.hero?.orderId)
+        assertEquals(emptyList(), focusQueue.thenQueue)
+        // Staff observe the whole workshop: both the unassigned AND the
+        // teammate-assigned order surface in the shop queue. READY orders never do.
+        assertEquals(setOf("colleague", "unassigned"), focusQueue.shopQueue.map { it.orderId }.toSet())
+    }
+
+    @Test
+    fun advanceStage_success_callsRepositoryWithNextStageAndSelfHealsInFlightFlag() = runTest {
+        signIn()
+        becomeActiveStaff() // authUid = "staff-uid", workshopUid = "owner-uid"
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "o1", status = OrderStatus.IN_PROGRESS, deadline = null)
+                .copy(subStatus = OrderSubStatus.CUTTING, assignedMemberId = "staff-uid"),
+        )
+        val vm = createViewModel()
+
+        vm.onAction(DashboardAction.OnAdvanceStage(orderId = "o1", fromStage = PipelineStage.CUTTING))
+
+        assertEquals("o1" to OrderStatus.IN_PROGRESS, orderRepository.lastStatusUpdate)
+        assertEquals("o1" to OrderSubStatus.SEWING, orderRepository.lastSubStatusUpdate)
+        // Listener echo (FakeOrderRepository mutates its own flow) advanced the
+        // live stage past fromStage, so the in-flight flag self-heals without any
+        // dedicated cleanup call.
+        assertTrue(vm.state.value.advancingOrders.isEmpty())
+        assertNull(vm.state.value.errorMessage)
+        // Matches OrderDetailViewModel.performStatusUpdate's analytics call exactly.
+        val expectedEvents: List<AnalyticsEvent> = listOf(AnalyticsEvent.OrderStatusAdvanced(status = "in_progress"))
+        assertEquals(expectedEvents, analytics.events)
+    }
+
+    @Test
+    fun advanceStage_errorSurvivesSubsequentSuccessfulListenerTick() = runTest {
+        signIn()
+        becomeActiveStaff()
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "o1", status = OrderStatus.IN_PROGRESS, deadline = null)
+                .copy(subStatus = OrderSubStatus.CUTTING, assignedMemberId = "staff-uid"),
+        )
+        val vm = createViewModel()
+        orderRepository.shouldReturnError = DataError.Network.UNKNOWN
+
+        vm.onAction(DashboardAction.OnAdvanceStage(orderId = "o1", fromStage = PipelineStage.CUTTING))
+        val errorAfterAdvanceFailure = assertNotNull(vm.state.value.errorMessage)
+
+        // A live listener tick unrelated to the advance (e.g. another order edited
+        // elsewhere) must not silently clear the still-unshown advance error.
+        orderRepository.shouldReturnError = null
+        orderRepository.ordersList = orderRepository.ordersList +
+            fakeOrder(id = "o2", status = OrderStatus.PENDING, deadline = null)
+        runCurrent()
+
+        assertEquals(errorAfterAdvanceFailure, vm.state.value.errorMessage)
+    }
+
+    @Test
+    fun advanceStage_error_setsErrorMessageAndClearsInFlightFlag() = runTest {
+        signIn()
+        becomeActiveStaff()
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "o1", status = OrderStatus.IN_PROGRESS, deadline = null)
+                .copy(subStatus = OrderSubStatus.CUTTING, assignedMemberId = "staff-uid"),
+        )
+        val vm = createViewModel()
+        orderRepository.shouldReturnError = DataError.Network.UNKNOWN
+
+        vm.onAction(DashboardAction.OnAdvanceStage(orderId = "o1", fromStage = PipelineStage.CUTTING))
+
+        assertNotNull(vm.state.value.errorMessage)
+        assertTrue(vm.state.value.advancingOrders.isEmpty())
+    }
+
+    @Test
+    fun advanceStage_staleFromStage_noOpsWithoutCallingRepository() = runTest {
+        signIn()
+        becomeActiveStaff()
+        // Order is already at SEWING — a tap captured back when it was CUTTING
+        // (a concurrent update elsewhere landed first) must no-op.
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "o1", status = OrderStatus.IN_PROGRESS, deadline = null)
+                .copy(subStatus = OrderSubStatus.SEWING, assignedMemberId = "staff-uid"),
+        )
+        val vm = createViewModel()
+
+        vm.onAction(DashboardAction.OnAdvanceStage(orderId = "o1", fromStage = PipelineStage.CUTTING))
+
+        assertNull(orderRepository.lastStatusUpdate)
+        assertNull(orderRepository.lastSubStatusUpdate)
+        assertTrue(vm.state.value.advancingOrders.isEmpty())
+    }
+
+    @Test
+    fun advanceStage_reentrancyGuard_secondDispatchWhileInFlightIsIgnored() = runTest {
+        signIn()
+        becomeActiveStaff()
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "o1", status = OrderStatus.IN_PROGRESS, deadline = null)
+                .copy(subStatus = OrderSubStatus.CUTTING, assignedMemberId = "staff-uid"),
+        )
+        val gate = CompletableDeferred<Unit>()
+        val gatedRepository = GatedOrderRepository(orderRepository, gate)
+        val vm = createViewModel(orderRepository = gatedRepository)
+
+        vm.onAction(DashboardAction.OnAdvanceStage(orderId = "o1", fromStage = PipelineStage.CUTTING))
+        // First dispatch is parked mid-flight on the gate — the in-flight flag is
+        // already set (it's recorded synchronously before the repo call launches).
+        assertEquals(mapOf("o1" to PipelineStage.CUTTING), vm.state.value.advancingOrders)
+
+        vm.onAction(DashboardAction.OnAdvanceStage(orderId = "o1", fromStage = PipelineStage.CUTTING))
+
+        gate.complete(Unit)
+        runCurrent()
+
+        assertEquals(1, gatedRepository.updateOrderStatusCallCount)
+    }
+
+    /** Wraps [delegate] so [updateOrderStatus] blocks on [gate] — lets a test hold a stage-advance call open mid-flight. */
+    private class GatedOrderRepository(
+        private val delegate: OrderRepository,
+        private val gate: CompletableDeferred<Unit>,
+    ) : OrderRepository by delegate {
+        var updateOrderStatusCallCount = 0
+
+        override suspend fun updateOrderStatus(
+            userId: String,
+            orderId: String,
+            newStatus: OrderStatus,
+        ): EmptyResult<DataError.Network> {
+            updateOrderStatusCallCount++
+            gate.await()
+            return delegate.updateOrderStatus(userId, orderId, newStatus)
+        }
     }
 
     // Task 1 (staff phase2 assignment): kill-switch / revocation must bite mid-session —

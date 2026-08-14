@@ -1,8 +1,10 @@
 package com.danzucker.stitchpad.feature.dashboard.presentation
 
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.feature.dashboard.domain.FocusQueue
 import com.danzucker.stitchpad.feature.dashboard.domain.StaffPipelineCounts
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
+import com.danzucker.stitchpad.feature.dashboard.domain.model.PipelineStage
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.CustomerReadyUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FirstOrderSetupUi
@@ -44,6 +46,20 @@ data class DashboardState(
     // Staff-only: count of orders currently assigned to the signed-in staff member
     // (Order.assignedMemberId == the session's authUid) — drives the "Mine" count tile.
     val staffMineCount: Int = 0,
+    // Staff-only (focus-queue design, 2026-08-14): the full, uncapped, money-free
+    // candidate pool (Buckets.openQueue) [focusQueue] is derived from.
+    val staffOpenQueue: List<DashboardOrderRow> = emptyList(),
+    // Staff-only: computeFocusQueue(staffOpenQueue, viewerMemberId), computed once
+    // in DashboardViewModel.updateStaffState — kept out of the composable per
+    // CLAUDE.md's "no business logic in composables" rule (design review, PR #366).
+    val focusQueue: FocusQueue = FocusQueue(hero = null, thenQueue = emptyList(), shopQueue = emptyList()),
+    // Staff-only: orders with a stage-advance CTA tap currently in flight, keyed by
+    // orderId, valued by the stage the order was AT when the tap landed. The CTA
+    // disables while its orderId is a key here. Self-heals: updateStaffState prunes
+    // an entry the moment the live order's stage no longer matches the recorded
+    // value (the repository listener "echoed" the change, or the tap turned out to
+    // be an error and was explicitly cleared) — no dedicated timeout/cleanup path.
+    val advancingOrders: Map<String, PipelineStage> = emptyMap(),
     val overdue: List<DashboardOrderRow> = emptyList(),
     val dueToday: List<DashboardOrderRow> = emptyList(),
     val ready: List<DashboardOrderRow> = emptyList(),

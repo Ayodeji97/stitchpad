@@ -910,12 +910,32 @@
     <string name="dashboard_staff_tile_mine">Mine</string>
     <string name="dashboard_staff_tile_view">View</string>
     <string name="dashboard_staff_workshop_count">%1$d in workshop</string>
-    <string name="dashboard_staff_needs_attention">Needs attention</string>
-    <string name="dashboard_staff_all_orders">All orders</string>
     <string name="dashboard_staff_pipeline">Pipeline</string>
     <string name="dashboard_staff_stage_ready">Ready</string>
     <string name="dashboard_staff_empty_title">All caught up</string>
-    <string name="dashboard_staff_empty_body">Nothing overdue or due today. Keep the pipeline moving. Tap Orders to advance a job.</string>
+    <!-- Viewer-scoped: fires when the SIGNED-IN staffer has no assigned open
+         orders, even if the shop queue below is full of late work belonging
+         to teammates — the old "Nothing overdue or due today" copy read as
+         a whole-shop claim it wasn't (design review, PR #366). -->
+    <string name="dashboard_staff_empty_body">No orders assigned to you right now. Anything in the shop queue below is up for grabs.</string>
+    <!-- Focus-queue redesign (2026-08-14 design spec) — "Up next" hero + ticket
+         cards replacing the "Needs attention" list below. -->
+    <string name="staff_up_next_header">Up next</string>
+    <string name="staff_then_header">Then</string>
+    <!-- "Rest of the shop": every other open order in the workshop — unassigned
+         AND teammate-assigned (design review, PR #366: staff observe the whole
+         workshop, so a teammate's order must still surface here, not just
+         unassigned ones). -->
+    <string name="staff_shop_queue_header_count">Rest of the shop · %1$d</string>
+    <string name="staff_advance_stage_cta">Mark %1$s done → %2$s</string>
+    <string name="staff_due_today">Due today</string>
+    <string name="staff_due_tomorrow">Due tomorrow</string>
+    <string name="staff_due_weekday">Due %1$s</string>
+    <string name="staff_on_track">On track</string>
+    <string name="staff_stage_now">%1$s — now</string>
+    <string name="staff_advance_stage_error">Couldn&apos;t update the order. Try again.</string>
+    <!-- Stepper / stage-dots content description, e.g. "Sewing, stage 3 of 5" -->
+    <string name="staff_stage_progress_cd">%1$s, stage %2$d of %3$d</string>
     <!-- Order card assignee affordance (Today's Work rich row) — shown on both
          the staff and owner dashboards since they share the same row component. -->
     <string name="staff_card_assigned_you">Assigned to you</string>

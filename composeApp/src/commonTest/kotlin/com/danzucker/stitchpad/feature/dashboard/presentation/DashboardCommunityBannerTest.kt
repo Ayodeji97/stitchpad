@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.dashboard.presentation
 
 import app.cash.turbine.test
+import com.danzucker.stitchpad.core.analytics.FakeAnalytics
 import com.danzucker.stitchpad.core.config.FakeAppConfigRepository
 import com.danzucker.stitchpad.core.config.FakeCommunityJoinTracker
 import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
@@ -112,6 +113,7 @@ class DashboardCommunityBannerTest {
             dismissal = dismissal,
             activeWorkshopProvider = FakeActiveWorkshopProvider(),
             staffMembershipPrefs = FakeStaffMembershipPrefsStore(),
+            analytics = FakeAnalytics(),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm

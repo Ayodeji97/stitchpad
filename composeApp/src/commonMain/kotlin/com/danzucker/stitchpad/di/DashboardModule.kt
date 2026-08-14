@@ -22,6 +22,7 @@ val dashboardPresentationModule = module {
             dismissal = get(),
             activeWorkshopProvider = get(),
             staffMembershipPrefs = get(),
+            analytics = get(),
         )
     }
 }

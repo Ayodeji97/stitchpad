@@ -5,9 +5,11 @@ import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
+import com.danzucker.stitchpad.feature.dashboard.domain.model.PipelineStage
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -37,13 +39,16 @@ class BucketCalculatorTest {
     private fun order(
         id: String = "o",
         status: OrderStatus = OrderStatus.PENDING,
+        subStatus: OrderSubStatus? = null,
         deadline: LocalDate? = null,
         balanceRemaining: Double = 0.0,
         totalPrice: Double? = null,
         garment: GarmentType = GarmentType.AGBADA,
+        quantity: Int = 1,
         customerName: String = "Test",
         assignedMemberId: String? = null,
         assignedMemberName: String? = null,
+        createdAt: Long = millisAt(today),
     ): Order {
         val resolvedTotalPrice = totalPrice ?: balanceRemaining
         val depositAmount = (resolvedTotalPrice - balanceRemaining).coerceAtLeast(0.0)
@@ -53,9 +58,16 @@ class BucketCalculatorTest {
             customerId = "c1",
             customerName = customerName,
             items = listOf(
-                OrderItem(id = "i-$id", garmentType = garment, description = "", price = resolvedTotalPrice)
+                OrderItem(
+                    id = "i-$id",
+                    garmentType = garment,
+                    description = "",
+                    price = resolvedTotalPrice,
+                    quantity = quantity,
+                )
             ),
             status = status,
+            subStatus = subStatus,
             priority = OrderPriority.NORMAL,
             statusHistory = emptyList(),
             totalPrice = resolvedTotalPrice,
@@ -64,7 +76,7 @@ class BucketCalculatorTest {
             notes = null,
             assignedMemberId = assignedMemberId,
             assignedMemberName = assignedMemberName,
-            createdAt = millisAt(today),
+            createdAt = createdAt,
             updatedAt = millisAt(today),
         )
     }
@@ -288,6 +300,155 @@ class BucketCalculatorTest {
 
         assertEquals("m2", row.assignedMemberId)
         assertEquals("Ngozi Eze", row.assignedMemberName)
+    }
+
+    // --- Focus-queue design: PipelineStage population + openQueue bucket ---
+
+    @Test
+    fun overdueRowCarriesStageFromOrderStatusAndSubStatus() {
+        val orders = listOf(order(id = "o1", deadline = today.minusDays(2), status = OrderStatus.IN_PROGRESS, subStatus = OrderSubStatus.SEWING))
+
+        val buckets = BucketCalculator.compute(orders, today, tz)
+
+        assertEquals(PipelineStage.SEWING, buckets.overdue.single().stage)
+    }
+
+    @Test
+    fun pipelineRowCarriesStageFromOrderStatusAndSubStatus() {
+        val orders = listOf(
+            order(id = "o1", deadline = today.plusDays(5), status = OrderStatus.IN_PROGRESS, subStatus = OrderSubStatus.FITTING)
+        )
+
+        val buckets = BucketCalculator.compute(orders, today, tz)
+
+        assertEquals(PipelineStage.FITTING, buckets.pipelineInProgress.single().stage)
+    }
+
+    @Test
+    fun inProgressNullSubStatusCountsAsCuttingStage() {
+        val orders = listOf(order(id = "o1", deadline = today.minusDays(1), status = OrderStatus.IN_PROGRESS, subStatus = null))
+
+        val buckets = BucketCalculator.compute(orders, today, tz)
+
+        assertEquals(PipelineStage.CUTTING, buckets.overdue.single().stage)
+    }
+
+    @Test
+    fun readyRowCarriesReadyStage() {
+        val orders = listOf(order(id = "o1", status = OrderStatus.READY))
+
+        val buckets = BucketCalculator.compute(orders, today, tz)
+
+        assertEquals(PipelineStage.READY, buckets.ready.single().stage)
+    }
+
+    @Test
+    fun openQueueExcludesReadyAndDeliveredOrders() {
+        val orders = listOf(
+            order(id = "pending", status = OrderStatus.PENDING),
+            order(id = "wip", status = OrderStatus.IN_PROGRESS, subStatus = OrderSubStatus.SEWING),
+            order(id = "ready", status = OrderStatus.READY),
+            order(id = "delivered", status = OrderStatus.DELIVERED),
+        )
+
+        val buckets = BucketCalculator.compute(orders, today, tz)
+
+        assertEquals(setOf("pending", "wip"), buckets.openQueue.map { it.orderId }.toSet())
+    }
+
+    @Test
+    fun openQueueRowExposesDaysLateWhenOverdue() {
+        val orders = listOf(order(id = "o1", status = OrderStatus.PENDING, deadline = today.minusDays(3)))
+
+        val buckets = BucketCalculator.compute(orders, today, tz)
+        val row = buckets.openQueue.single()
+
+        assertEquals(3, row.daysLate)
+        assertNull(row.daysUntilDeadline)
+    }
+
+    @Test
+    fun openQueueRowExposesZeroDaysUntilDeadlineWhenDueToday() {
+        val orders = listOf(order(id = "o1", status = OrderStatus.PENDING, deadline = today))
+
+        val buckets = BucketCalculator.compute(orders, today, tz)
+        val row = buckets.openQueue.single()
+
+        assertNull(row.daysLate)
+        assertEquals(0, row.daysUntilDeadline)
+    }
+
+    @Test
+    fun openQueueRowExposesDaysUntilDeadlineWhenInFuture() {
+        val orders = listOf(order(id = "o1", status = OrderStatus.PENDING, deadline = today.plusDays(4)))
+
+        val buckets = BucketCalculator.compute(orders, today, tz)
+        val row = buckets.openQueue.single()
+
+        assertNull(row.daysLate)
+        assertEquals(4, row.daysUntilDeadline)
+    }
+
+    @Test
+    fun openQueueRowHasNoDeadlineFieldsWhenOrderHasNoDeadline() {
+        val orders = listOf(order(id = "o1", status = OrderStatus.PENDING, deadline = null))
+
+        val buckets = BucketCalculator.compute(orders, today, tz)
+        val row = buckets.openQueue.single()
+
+        assertNull(row.daysLate)
+        assertNull(row.daysUntilDeadline)
+    }
+
+    @Test
+    fun openQueueRowCarriesCreatedAtAssigneeAndStage() {
+        val orders = listOf(
+            order(
+                id = "o1",
+                status = OrderStatus.IN_PROGRESS,
+                subStatus = OrderSubStatus.CUTTING,
+                assignedMemberId = "m1",
+                assignedMemberName = "Chidi Okafor",
+                createdAt = millisAt(today.minusDays(2)),
+            )
+        )
+
+        val buckets = BucketCalculator.compute(orders, today, tz)
+        val row = buckets.openQueue.single()
+
+        assertEquals(PipelineStage.CUTTING, row.stage)
+        assertEquals("m1", row.assignedMemberId)
+        assertEquals("Chidi Okafor", row.assignedMemberName)
+        assertEquals(millisAt(today.minusDays(2)), row.createdAtEpochMillis)
+    }
+
+    // --- Garment label + quantity (design review, PR #366) ---
+
+    @Test
+    fun primaryLabelOmitsQuantityWhenOne() {
+        val orders = listOf(order(id = "o1", garment = GarmentType.AGBADA, quantity = 1))
+
+        val buckets = BucketCalculator.compute(orders, today, tz)
+
+        assertEquals("Agbada", buckets.openQueue.single().primaryLabel)
+    }
+
+    @Test
+    fun primaryLabelIncludesQuantityWhenGreaterThanOne() {
+        val orders = listOf(order(id = "o1", garment = GarmentType.AGBADA, quantity = 3))
+
+        val buckets = BucketCalculator.compute(orders, today, tz)
+
+        assertEquals("Agbada · Qty 3", buckets.openQueue.single().primaryLabel)
+    }
+
+    @Test
+    fun overdueRowAlsoIncludesQuantityWhenGreaterThanOne() {
+        val orders = listOf(order(id = "o1", deadline = today.minusDays(1), garment = GarmentType.AGBADA, quantity = 2))
+
+        val buckets = BucketCalculator.compute(orders, today, tz)
+
+        assertEquals("Agbada · Qty 2", buckets.overdue.single().primaryLabel)
     }
 
     private fun LocalDate.minusDays(n: Long): LocalDate =

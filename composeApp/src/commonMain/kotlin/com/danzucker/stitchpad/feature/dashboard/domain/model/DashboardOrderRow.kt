@@ -24,4 +24,11 @@ data class DashboardOrderRow(
     val assignedMemberId: String? = null,
     /** Carried straight from `Order.assignedMemberName`. Null → unassigned. */
     val assignedMemberName: String? = null,
+    /**
+     * The order's current production stage, derived from `Order.status` +
+     * `Order.subStatus` via [stageOf]. Null-safe default for legacy call sites
+     * and tests that don't supply it. Drives the staff dashboard focus-queue's
+     * hero stepper and ticket footer stage dots (2026-08-14 design spec).
+     */
+    val stage: PipelineStage? = null,
 )
