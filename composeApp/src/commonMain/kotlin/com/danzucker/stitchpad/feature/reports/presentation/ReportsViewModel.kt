@@ -13,9 +13,15 @@ import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.reports.domain.CustomerInsightsCalculator
 import com.danzucker.stitchpad.feature.reports.domain.KpiCalculator
 import com.danzucker.stitchpad.feature.reports.domain.ProductionCountsCalculator
+import com.danzucker.stitchpad.feature.reports.domain.model.CappedList
 import com.danzucker.stitchpad.feature.reports.domain.model.CustomRange
+import com.danzucker.stitchpad.feature.reports.domain.model.CustomerRanking
 import com.danzucker.stitchpad.feature.reports.domain.model.DebtorEntry
+import com.danzucker.stitchpad.feature.reports.domain.model.KpiSummary
+import com.danzucker.stitchpad.feature.reports.domain.model.ProductionCounts
 import com.danzucker.stitchpad.feature.reports.domain.model.ReportsPeriod
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -26,6 +32,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -39,7 +46,8 @@ class ReportsViewModel(
     private val authRepository: AuthRepository,
     private val entitlementsProvider: EntitlementsProvider,
     private val nowMillis: () -> Long = { Clock.System.now().toEpochMilliseconds() },
-    private val timeZone: TimeZone = TimeZone.currentSystemDefault()
+    private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
+    private val computeDispatcher: CoroutineDispatcher = Dispatchers.Default
 ) : ViewModel() {
 
     private var hasLoadedInitialData = false
@@ -138,8 +146,15 @@ class ReportsViewModel(
         val isPremium: Boolean
     )
 
+    private data class Computed(
+        val kpiSummary: KpiSummary?,
+        val productionCounts: ProductionCounts?,
+        val topCustomers: CappedList<CustomerRanking>,
+        val debtors: CappedList<DebtorEntry>
+    )
+
     @Suppress("LongMethod")
-    private fun recompute(inputs: Inputs) {
+    private suspend fun recompute(inputs: Inputs) {
         val orders = (inputs.ordersResult as? Result.Success)?.data ?: emptyList()
         val customers = (inputs.customersResult as? Result.Success)?.data ?: emptyList()
         cachedCustomers = customers
@@ -160,32 +175,34 @@ class ReportsViewModel(
         } else {
             inputs.period
         }
-        val kpiSummary = if (hasAnyOrders) {
-            KpiCalculator.computeSummary(
-                orders = orders,
-                period = effectivePeriod,
-                today = today,
-                timeZone = timeZone,
-                customRange = inputs.customRange
+        // The aggregation passes are O(orders × buckets) and re-fire on every
+        // snapshot; off Main so a large workshop can't stall input dispatch.
+        val computed = withContext(computeDispatcher) {
+            Computed(
+                kpiSummary = if (hasAnyOrders) {
+                    KpiCalculator.computeSummary(
+                        orders = orders,
+                        period = effectivePeriod,
+                        today = today,
+                        timeZone = timeZone,
+                        customRange = inputs.customRange
+                    )
+                } else {
+                    null
+                },
+                productionCounts = if (hasAnyOrders) ProductionCountsCalculator.compute(orders) else null,
+                topCustomers = CustomerInsightsCalculator.topCustomers(
+                    orders = orders,
+                    customers = customers,
+                    period = effectivePeriod,
+                    today = today,
+                    timeZone = timeZone,
+                    customRange = inputs.customRange
+                ),
+                debtors = CustomerInsightsCalculator.debtors(orders, customers, timeZone)
             )
-        } else {
-            null
         }
-        val productionCounts = if (hasAnyOrders) {
-            ProductionCountsCalculator.compute(orders)
-        } else {
-            null
-        }
-        val topCustomers = CustomerInsightsCalculator.topCustomers(
-            orders = orders,
-            customers = customers,
-            period = effectivePeriod,
-            today = today,
-            timeZone = timeZone,
-            customRange = inputs.customRange
-        )
-        val debtors = CustomerInsightsCalculator.debtors(orders, customers, timeZone)
-        cachedDebtors = debtors.items
+        cachedDebtors = computed.debtors.items
 
         _state.update {
             it.copy(
@@ -194,10 +211,10 @@ class ReportsViewModel(
                 selectedPeriod = inputs.period,
                 customRange = inputs.customRange,
                 hasAnyOrders = hasAnyOrders,
-                kpiSummary = kpiSummary,
-                productionCounts = productionCounts,
-                topCustomers = topCustomers,
-                debtors = debtors,
+                kpiSummary = computed.kpiSummary,
+                productionCounts = computed.productionCounts,
+                topCustomers = computed.topCustomers,
+                debtors = computed.debtors,
                 today = today,
                 errorMessage = error
             )
