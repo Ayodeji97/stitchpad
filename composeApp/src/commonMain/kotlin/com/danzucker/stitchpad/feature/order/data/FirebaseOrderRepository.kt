@@ -39,12 +39,14 @@ import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.shareIn
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
@@ -53,6 +55,7 @@ import kotlin.uuid.Uuid
 private const val TAG = "OrderRepo"
 private const val LEGACY_DEPOSIT_PAYMENT_ID = "legacy-deposit"
 private const val SHARE_STOP_TIMEOUT_MS = 5_000L
+private const val ORDERS_RETRY_BACKOFF_MS = 5_000L
 
 /**
  * Stamps the authoritative Firestore *document* id onto a decoded [OrderDto].
@@ -426,13 +429,26 @@ class FirebaseOrderRepository(
     // and ONE decode pass per snapshot instead of one per collector — the audit
     // measured the unshared decode at seconds of main-thread work per snapshot
     // burst at realistic order counts.
+    //
+    // Not @Volatile (kotlin.concurrent.Volatile is commonMain-safe since Kotlin 1.9
+    // but adds no real safety here): a benign race on concurrent first calls for the
+    // same userId can build and shareIn() two upstream flows before the second write
+    // wins the memo — both collect from the same underlying Firestore listener setup
+    // path, so the loser is simply discarded and garbage-collected, never observed.
     private var sharedOrders: Pair<String, Flow<Result<List<Order>, DataError.Network>>>? = null
 
     override fun observeOrders(userId: String): Flow<Result<List<Order>, DataError.Network>> {
         sharedOrders?.let { (cachedUserId, flow) -> if (cachedUserId == userId) return flow }
         val shared = buildOrdersFlow(userId).shareIn(
             scope = shareScope,
-            started = SharingStarted.WhileSubscribed(stopTimeoutMillis = SHARE_STOP_TIMEOUT_MS),
+            started = SharingStarted.WhileSubscribed(
+                stopTimeoutMillis = SHARE_STOP_TIMEOUT_MS,
+                // Drop the replay cache as soon as the upstream stops so a
+                // re-subscription after every collector left (e.g. sign-out, or a
+                // long backgrounded app) doesn't hand a new/different signed-in user
+                // stale order data from the previous session.
+                replayExpirationMillis = 0L,
+            ),
             replay = 1,
         )
         sharedOrders = userId to shared
@@ -452,9 +468,21 @@ class FirebaseOrderRepository(
                 .map { it.withMoney(money[it.id]) }
             Result.Success(orders) as Result<List<Order>, DataError.Network>
         }
-            .catch { throwable ->
-                AppLogger.e(tag = TAG, throwable = throwable) { "observeOrders failed" }
+            // retryWhen (not .catch): this flow is now shared via shareIn, and .catch
+            // COMPLETES the upstream on error — shareIn's sharing coroutine only
+            // re-collects on a fresh 0->1 subscriber transition, so a transient
+            // listener error (e.g. PERMISSION_DENIED during a staff-claim token
+            // refresh) would otherwise freeze order data app-wide for the rest of the
+            // session while any screen stays subscribed. retryWhen surfaces the error
+            // to current subscribers, then keeps the upstream alive by re-collecting
+            // after a fixed backoff.
+            .retryWhen { throwable, attempt ->
+                AppLogger.w(tag = TAG, throwable = throwable) {
+                    "observeOrders failed; retrying (attempt ${attempt + 1})"
+                }
                 emit(Result.Error(DataError.Network.UNKNOWN))
+                delay(ORDERS_RETRY_BACKOFF_MS)
+                true
             }
             .flowOn(Dispatchers.Default)
 
