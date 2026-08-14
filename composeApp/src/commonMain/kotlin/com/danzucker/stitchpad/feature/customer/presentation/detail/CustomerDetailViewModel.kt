@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.customer_delete_orders_load_failed
 import stitchpad.composeapp.generated.resources.customer_delete_pending_orders_load
@@ -211,10 +212,14 @@ class CustomerDetailViewModel(
                 _state.update { it.copy(isLoading = false) }
                 return@launch
             }
-            launch { observeCustomer(userId, customerId) }
-            launch { observeCustomFieldLabels(userId) }
-            launch { observeOrders(userId, customerId) }
-            observeMeasurements(userId, customerId)
+            // supervisorScope: these four listeners render independent screen
+            // sections — one failing must not blank the other three.
+            supervisorScope {
+                launch { observeCustomer(userId, customerId) }
+                launch { observeCustomFieldLabels(userId) }
+                launch { observeOrders(userId, customerId) }
+                launch { observeMeasurements(userId, customerId) }
+            }
         }
     }
 

@@ -43,6 +43,7 @@ import com.danzucker.stitchpad.feature.measurement.presentation.entry.Measuremen
 import com.danzucker.stitchpad.feature.measurement.presentation.entry.MeasurementEntryResolver
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
 import com.danzucker.stitchpad.feature.order.presentation.list.OrderListFilter
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -63,6 +64,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -407,31 +409,41 @@ class DashboardViewModel(
             // leave a first snapshot pending forever, and one stuck customer must not
             // hold the whole sheet in its loading state (codex, PR #261 — mirrors
             // MeasurementEntryResolver's bound).
-            val rows = latestCustomers.map { customer ->
-                async {
-                    val result = withTimeoutOrNull(COUNT_FETCH_TIMEOUT_MS) {
-                        measurementRepository.observeMeasurements(userId, customer.id).first()
+            val rows = supervisorScope {
+                latestCustomers.map { customer ->
+                    async {
+                        val result = try {
+                            withTimeoutOrNull(COUNT_FETCH_TIMEOUT_MS) {
+                                measurementRepository.observeMeasurements(userId, customer.id).first()
+                            }
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
+                            // A throwing repo (future refactor) must degrade to the same
+                            // unknown-count row as a timeout, not cancel every sibling.
+                            null
+                        }
+                        when (result) {
+                            is Result.Success -> MeasurementsPickerRow(
+                                customerId = customer.id,
+                                name = customer.name,
+                                measurementCount = result.data.size,
+                                singleMeasurementId = result.data.singleOrNull()?.id,
+                            )
+                            // Errors AND timeouts must not masquerade as "no measurements" —
+                            // that would show the destructive "+ Add" affordance and route
+                            // to the create form for a customer who may already have data.
+                            // Unknown count routes to customer detail instead (Bugbot, PR #261).
+                            else -> MeasurementsPickerRow(
+                                customerId = customer.id,
+                                name = customer.name,
+                                measurementCount = null,
+                                singleMeasurementId = null,
+                            )
+                        }
                     }
-                    when (result) {
-                        is Result.Success -> MeasurementsPickerRow(
-                            customerId = customer.id,
-                            name = customer.name,
-                            measurementCount = result.data.size,
-                            singleMeasurementId = result.data.singleOrNull()?.id,
-                        )
-                        // Errors AND timeouts must not masquerade as "no measurements" —
-                        // that would show the destructive "+ Add" affordance and route
-                        // to the create form for a customer who may already have data.
-                        // Unknown count routes to customer detail instead (Bugbot, PR #261).
-                        else -> MeasurementsPickerRow(
-                            customerId = customer.id,
-                            name = customer.name,
-                            measurementCount = null,
-                            singleMeasurementId = null,
-                        )
-                    }
-                }
-            }.awaitAll()
+                }.awaitAll()
+            }
                 .sortedWith(
                     // Unknown-count rows (null) group with has-measurements rows since
                     // the customer may well have data — only a confirmed zero sorts last.
