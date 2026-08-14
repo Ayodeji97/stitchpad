@@ -257,7 +257,7 @@ class TeamViewModel(
 
     private fun onShareLink() {
         val invite = _state.value.invite ?: return
-        emit(TeamEvent.ShareViaWhatsApp("$JOIN_LINK_BASE${invite.code}"))
+        emit(TeamEvent.ShareInviteLink("$JOIN_LINK_BASE${invite.code}"))
     }
 
     /**

@@ -60,7 +60,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -77,8 +76,7 @@ import com.danzucker.stitchpad.core.domain.staff.TeamMemberKind
 import com.danzucker.stitchpad.core.domain.staff.TeamMemberStatus
 import com.danzucker.stitchpad.core.domain.staff.rosterDisplayName
 import com.danzucker.stitchpad.core.presentation.UiText
-import com.danzucker.stitchpad.core.presentation.openUriSafely
-import com.danzucker.stitchpad.core.sharing.buildWhatsAppUrl
+import com.danzucker.stitchpad.core.sharing.ImageSharer
 import com.danzucker.stitchpad.ui.components.MemberAvatar
 import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.components.StitchPadButtonVariant
@@ -89,6 +87,7 @@ import com.danzucker.stitchpad.util.ObserveAsEvents
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.order_assign_you
@@ -106,6 +105,7 @@ import stitchpad.composeapp.generated.resources.team_invite_cta
 import stitchpad.composeapp.generated.resources.team_invite_expires_days
 import stitchpad.composeapp.generated.resources.team_invite_expires_tomorrow
 import stitchpad.composeapp.generated.resources.team_invite_first_cta
+import stitchpad.composeapp.generated.resources.team_invite_share_error
 import stitchpad.composeapp.generated.resources.team_invite_share_link
 import stitchpad.composeapp.generated.resources.team_invite_sheet_sub
 import stitchpad.composeapp.generated.resources.team_invite_sheet_title
@@ -145,16 +145,20 @@ fun TeamRoot(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
-    val uriHandler = LocalUriHandler.current
+    val sharer: ImageSharer = koinInject()
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             TeamEvent.NavigateBack -> onNavigateBack()
             is TeamEvent.CopyToClipboard -> clipboard.setText(AnnotatedString(event.text))
-            is TeamEvent.ShareViaWhatsApp -> scope.launch {
+            is TeamEvent.ShareInviteLink -> scope.launch {
+                // Platform share sheet, not a WhatsApp deep link: the owner picks
+                // the channel (WhatsApp, SMS, email, …) instead of being forced
+                // into one app they may not use.
                 val message = getString(Res.string.team_invite_whatsapp_message, event.url)
-                // Empty phone opens WhatsApp's share picker (same path as the gift/invite rows).
-                uriHandler.openUriSafely(buildWhatsAppUrl("", message), tag = "TeamScreen")
+                if (!sharer.shareText(message)) {
+                    snackbarHostState.showSnackbar(getString(Res.string.team_invite_share_error))
+                }
             }
             is TeamEvent.ShowSnackbar -> scope.launch {
                 snackbarHostState.showSnackbar(event.text.resolve())
