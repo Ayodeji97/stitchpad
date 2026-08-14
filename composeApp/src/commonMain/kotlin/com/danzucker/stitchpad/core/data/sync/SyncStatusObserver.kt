@@ -1,6 +1,5 @@
 package com.danzucker.stitchpad.core.data.sync
 
-import com.danzucker.stitchpad.core.data.absorbLateListenerErrors
 import com.danzucker.stitchpad.core.domain.model.SyncStatus
 import com.danzucker.stitchpad.core.logging.AppLogger
 import dev.gitlive.firebase.firestore.FirebaseFirestore
@@ -27,7 +26,6 @@ class SyncStatusObserver(
     fun observe(userId: String): Flow<SyncStatus> =
         firestore.collection(USERS).document(userId)
             .snapshots(includeMetadataChanges = true)
-            .absorbLateListenerErrors(TAG)
             .map { snapshot ->
                 syncStatusOf(
                     isFromCache = snapshot.metadata.isFromCache,

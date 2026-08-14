@@ -1,6 +1,5 @@
 package com.danzucker.stitchpad.feature.goals.data
 
-import com.danzucker.stitchpad.core.data.absorbLateListenerErrors
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
@@ -32,7 +31,6 @@ class FirebaseWeeklyGoalRepository(
             .collection("goals")
             .document(GOAL_DOC_ID)
             .snapshots
-            .absorbLateListenerErrors(TAG)
             .map { snapshot ->
                 val goal = if (snapshot.exists) {
                     runCatching { snapshot.data<WeeklyGoalDto>().toWeeklyGoal() }.getOrNull()

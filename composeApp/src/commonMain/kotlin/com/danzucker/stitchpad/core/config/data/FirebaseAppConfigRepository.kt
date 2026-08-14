@@ -4,7 +4,6 @@ import com.danzucker.stitchpad.core.config.data.dto.AppConfigDto
 import com.danzucker.stitchpad.core.config.data.mapper.toAppConfig
 import com.danzucker.stitchpad.core.config.domain.model.AppConfig
 import com.danzucker.stitchpad.core.config.domain.repository.AppConfigRepository
-import com.danzucker.stitchpad.core.data.absorbLateListenerErrors
 import com.danzucker.stitchpad.core.logging.AppLogger
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
@@ -24,7 +23,6 @@ class FirebaseAppConfigRepository(
         firestore.collection(CONFIG_COLLECTION)
             .document(CONFIG_DOC_ID)
             .snapshots
-            .absorbLateListenerErrors(TAG)
             .map { snapshot ->
                 if (snapshot.exists) {
                     runCatching { snapshot.data<AppConfigDto>().toAppConfig() }

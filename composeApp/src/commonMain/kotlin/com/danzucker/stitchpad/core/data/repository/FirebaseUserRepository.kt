@@ -2,7 +2,6 @@
 
 package com.danzucker.stitchpad.core.data.repository
 
-import com.danzucker.stitchpad.core.data.absorbLateListenerErrors
 import com.danzucker.stitchpad.core.data.dto.UserDto
 import com.danzucker.stitchpad.core.data.mapper.toUser
 import com.danzucker.stitchpad.core.domain.currentPlatformName
@@ -170,7 +169,6 @@ class FirebaseUserRepository(
     @Suppress("INLINE_FROM_HIGHER_PLATFORM")
     override fun observeUser(userId: String): Flow<User?> {
         return firestore.collection(USERS).document(userId).snapshots
-            .absorbLateListenerErrors(TAG)
             .map { snapshot ->
                 if (!snapshot.exists) return@map null
                 val dto = snapshot.data(UserDto.serializer())

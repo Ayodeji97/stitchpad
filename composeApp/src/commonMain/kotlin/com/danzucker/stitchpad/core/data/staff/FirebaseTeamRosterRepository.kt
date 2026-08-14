@@ -1,6 +1,5 @@
 package com.danzucker.stitchpad.core.data.staff
 
-import com.danzucker.stitchpad.core.data.absorbLateListenerErrors
 import com.danzucker.stitchpad.core.data.decodeDocOrLog
 import com.danzucker.stitchpad.core.data.dto.TeamMemberDto
 import com.danzucker.stitchpad.core.domain.error.DataError
@@ -61,7 +60,6 @@ class FirebaseTeamRosterRepository(
     override fun observeTeam(workshopUid: String): Flow<Result<List<TeamMember>, DataError.Network>> =
         teamCollection(workshopUid)
             .snapshots()
-            .absorbLateListenerErrors(TAG)
             .map { snapshot ->
                 val members = snapshot.documents
                     .mapNotNull { doc ->

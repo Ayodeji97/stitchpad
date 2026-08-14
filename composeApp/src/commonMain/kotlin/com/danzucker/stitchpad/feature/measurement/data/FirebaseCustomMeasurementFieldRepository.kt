@@ -1,6 +1,5 @@
 package com.danzucker.stitchpad.feature.measurement.data
 
-import com.danzucker.stitchpad.core.data.absorbLateListenerErrors
 import com.danzucker.stitchpad.core.data.decodeDocOrLog
 import com.danzucker.stitchpad.core.data.dto.CustomMeasurementFieldDto
 import com.danzucker.stitchpad.core.data.mapper.toCustomMeasurementField
@@ -35,7 +34,6 @@ class FirebaseCustomMeasurementFieldRepository(
     ): Flow<Result<List<CustomMeasurementField>, DataError.Network>> =
         collection(userId)
             .snapshots()
-            .absorbLateListenerErrors(TAG)
             .map { snapshot ->
                 val fields = snapshot.documents
                     .mapNotNull { doc ->

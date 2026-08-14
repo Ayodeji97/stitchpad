@@ -1,6 +1,5 @@
 package com.danzucker.stitchpad.feature.notification.data
 
-import com.danzucker.stitchpad.core.data.absorbLateListenerErrors
 import com.danzucker.stitchpad.core.data.dto.NotificationDto
 import com.danzucker.stitchpad.core.data.mapper.toNotification
 import com.danzucker.stitchpad.core.domain.error.DataError
@@ -35,7 +34,6 @@ class FirebaseNotificationRepository(
     @Suppress("INLINE_FROM_HIGHER_PLATFORM")
     override fun observeNotifications(userId: String): Flow<Result<List<Notification>, DataError.Network>> =
         collection(userId).snapshots()
-            .absorbLateListenerErrors(TAG)
             .map { snapshot ->
                 val list = snapshot.documents
                     .mapNotNull { doc ->
@@ -71,7 +69,6 @@ class FirebaseNotificationRepository(
     @Suppress("INLINE_FROM_HIGHER_PLATFORM")
     override fun observeUnreadCount(userId: String): Flow<Int> =
         collection(userId).where { "isRead" equalTo false }.snapshots()
-            .absorbLateListenerErrors(TAG)
             .map { snapshot ->
                 snapshot.documents.count { doc ->
                     runCatching { doc.data(NotificationDto.serializer()) }.isSuccess

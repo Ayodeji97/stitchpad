@@ -1,6 +1,5 @@
 package com.danzucker.stitchpad.feature.order.data
 
-import com.danzucker.stitchpad.core.data.absorbLateListenerErrors
 import com.danzucker.stitchpad.core.data.decodeDocOrLog
 import com.danzucker.stitchpad.core.data.dto.CustomGarmentTypeDto
 import com.danzucker.stitchpad.core.data.mapper.toCustomGarmentType
@@ -54,7 +53,6 @@ class FirebaseCustomGarmentTypeRepository(
     ): Flow<Result<List<CustomGarmentType>, DataError.Network>> =
         collection(userId)
             .snapshots()
-            .absorbLateListenerErrors(TAG)
             .map<_, Result<List<CustomGarmentType>, DataError.Network>> { snapshot ->
                 val customs = snapshot.documents
                     .mapNotNull { doc ->

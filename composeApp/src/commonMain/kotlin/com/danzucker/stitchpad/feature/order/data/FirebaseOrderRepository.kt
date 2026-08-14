@@ -1,6 +1,5 @@
 package com.danzucker.stitchpad.feature.order.data
 
-import com.danzucker.stitchpad.core.data.absorbLateListenerErrors
 import com.danzucker.stitchpad.core.data.decodeDocOrLog
 import com.danzucker.stitchpad.core.data.dto.FabricImageRefDto
 import com.danzucker.stitchpad.core.data.dto.OrderCostDto
@@ -316,7 +315,6 @@ class FirebaseOrderRepository(
         firestore.collectionGroup("private")
             .where { "ownerId" equalTo userId }
             .snapshots()
-            .absorbLateListenerErrors(TAG)
             .map { snapshot ->
                 snapshot.documents
                     .filter { it.id == "money" }
@@ -333,7 +331,6 @@ class FirebaseOrderRepository(
     private fun orderMoneyFlow(userId: String, orderId: String): Flow<OrderMoneyDto?> =
         orderMoneyDoc(userId, orderId)
             .snapshots
-            .absorbLateListenerErrors(TAG)
             .map { snapshot ->
                 if (snapshot.exists) {
                     decodeDocOrLog(tag = TAG, docId = orderId) { snapshot.data<OrderMoneyDto>() }
@@ -422,7 +419,7 @@ class FirebaseOrderRepository(
             // includeMetadataChanges is what lets the badge CLEAR: without it, no new
             // snapshot arrives when a queued write is acknowledged, so the row would
             // stay marked "Not synced" until its content next changed.
-            ordersCollection(userId).snapshots(includeMetadataChanges = true).absorbLateListenerErrors(TAG),
+            ordersCollection(userId).snapshots(includeMetadataChanges = true),
             moneyByOrderId(userId),
         ) { snapshot, money ->
             val orders = snapshot.documents.toOrders(userId)
@@ -439,7 +436,7 @@ class FirebaseOrderRepository(
         userId: String,
     ): Flow<Result<List<Order>, DataError.Network>> =
         combine(
-            ordersCollection(userId).snapshots(includeMetadataChanges = true).absorbLateListenerErrors(TAG),
+            ordersCollection(userId).snapshots(includeMetadataChanges = true),
             moneyByOrderId(userId),
         ) { snapshot, money ->
             val archived = snapshot.documents.toOrders(userId)
@@ -458,7 +455,7 @@ class FirebaseOrderRepository(
         orderId: String
     ): Flow<Result<Order, DataError.Network>> =
         combine(
-            ordersCollection(userId).document(orderId).snapshots.absorbLateListenerErrors(TAG),
+            ordersCollection(userId).document(orderId).snapshots,
             orderMoneyFlow(userId, orderId),
         ) { snapshot, money ->
             if (!snapshot.exists) {

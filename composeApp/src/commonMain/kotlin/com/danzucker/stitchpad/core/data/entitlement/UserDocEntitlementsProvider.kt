@@ -1,6 +1,5 @@
 package com.danzucker.stitchpad.core.data.entitlement
 
-import com.danzucker.stitchpad.core.data.absorbLateListenerErrors
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsCalculator
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
@@ -130,7 +129,6 @@ internal class UserDocEntitlementsProvider(
                         flowOf<SnapshotSignal>(SnapshotSignal.SignedOut)
                     } else {
                         firestore.collection("users").document(uid).snapshots
-                            .absorbLateListenerErrors(TAG)
                             .map<_, SnapshotSignal> { snap ->
                                 SnapshotSignal.Loaded(
                                     if (snap.exists) snap.data<UserEntitlementsDoc>() else null

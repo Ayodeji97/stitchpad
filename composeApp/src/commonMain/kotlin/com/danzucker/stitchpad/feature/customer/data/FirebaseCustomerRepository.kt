@@ -1,6 +1,5 @@
 package com.danzucker.stitchpad.feature.customer.data
 
-import com.danzucker.stitchpad.core.data.absorbLateListenerErrors
 import com.danzucker.stitchpad.core.data.decodeDocOrLog
 import com.danzucker.stitchpad.core.data.dto.CustomerContactDto
 import com.danzucker.stitchpad.core.data.dto.CustomerDto
@@ -110,7 +109,6 @@ class FirebaseCustomerRepository(
         firestore.collectionGroup("private")
             .where { "ownerId" equalTo userId }
             .snapshots()
-            .absorbLateListenerErrors(TAG)
             .map { snapshot ->
                 snapshot.documents
                     .filter { it.id == "contact" }
@@ -127,7 +125,6 @@ class FirebaseCustomerRepository(
     private fun customerContactFlow(userId: String, customerId: String): Flow<CustomerContactDto?> =
         contactDoc(userId, customerId)
             .snapshots
-            .absorbLateListenerErrors(TAG)
             .map { snapshot ->
                 if (snapshot.exists) {
                     decodeDocOrLog(tag = TAG, docId = customerId) { snapshot.data<CustomerContactDto>() }
@@ -148,8 +145,7 @@ class FirebaseCustomerRepository(
             // snapshot arrives when a queued write is acknowledged, so the row would
             // stay marked "Not synced" until its content next changed.
             firestore.collection("users").document(userId).collection("customers")
-                .snapshots(includeMetadataChanges = true)
-                .absorbLateListenerErrors(TAG),
+                .snapshots(includeMetadataChanges = true),
             contactByCustomerId(userId),
         ) { snapshot, contacts ->
             val decoded = snapshot.documents.mapNotNull { doc ->
@@ -175,8 +171,7 @@ class FirebaseCustomerRepository(
     ): Flow<Result<Customer, DataError.Network>> =
         combine(
             firestore.collection("users").document(userId)
-                .collection("customers").document(customerId).snapshots
-                .absorbLateListenerErrors(TAG),
+                .collection("customers").document(customerId).snapshots,
             customerContactFlow(userId, customerId),
         ) { snapshot, contact ->
             if (!snapshot.exists) {

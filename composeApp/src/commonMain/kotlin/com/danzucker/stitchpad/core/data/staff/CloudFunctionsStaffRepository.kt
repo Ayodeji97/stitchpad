@@ -1,6 +1,5 @@
 package com.danzucker.stitchpad.core.data.staff
 
-import com.danzucker.stitchpad.core.data.absorbLateListenerErrors
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
@@ -34,7 +33,6 @@ internal class CloudFunctionsStaffRepository(
     override fun observeMemberships(ownerUid: String): Flow<Result<List<Membership>, StaffError>> =
         firestore.collection("users").document(ownerUid).collection("memberships")
             .snapshots()
-            .absorbLateListenerErrors(TAG)
             .map { snapshot ->
                 val members = snapshot.documents.map { doc ->
                     val dto = doc.data<MembershipDto>()
