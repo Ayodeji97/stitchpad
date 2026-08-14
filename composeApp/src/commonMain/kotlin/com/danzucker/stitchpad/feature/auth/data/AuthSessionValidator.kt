@@ -5,10 +5,12 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.auth.domain.AuthError
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val TAG = "AuthSessionValidator"
 
@@ -28,25 +30,37 @@ private const val TAG = "AuthSessionValidator"
  * invalid-user/invalid-refresh-token — triggers sign-out; transient failures
  * (network, backend) leave the session untouched, so a cold start in a dead
  * zone can never eject a valid user.
+ *
+ * Stale-result safety (cursor, PR #363): a slow refresh must never eject a
+ * session it didn't validate. `collectLatest` cancels an in-flight validation
+ * the moment the uid changes, and the [currentUserId] guard covers the residual
+ * emission-latency gap where the auth state has already switched but the flow
+ * hasn't dispatched the new uid yet. The sign-out itself runs [NonCancellable]
+ * so our own sign-out's null emission can't truncate the sequence midway.
  */
 class AuthSessionValidator(
     private val userIdSource: Flow<String?>,
     private val validateSession: suspend () -> EmptyResult<AuthError>,
+    private val currentUserId: suspend () -> String?,
     private val signOut: suspend () -> Unit,
     private val scope: CoroutineScope,
 ) {
     fun start() {
-        userIdSource
-            .distinctUntilChanged()
-            .onEach { userId -> if (userId != null) validate() }
-            .launchIn(scope)
+        scope.launch {
+            userIdSource
+                .distinctUntilChanged()
+                .collectLatest { userId -> if (userId != null) validate(userId) }
+        }
     }
 
-    private suspend fun validate() {
+    private suspend fun validate(userId: String) {
         val result = validateSession()
-        if (result is Result.Error && result.error == AuthError.USER_NOT_FOUND) {
-            AppLogger.w(tag = TAG) { "auth session invalid (${result.error}); forcing local sign-out" }
-            signOut()
+        if (result !is Result.Error || result.error != AuthError.USER_NOT_FOUND) return
+        if (currentUserId() != userId) {
+            AppLogger.w(tag = TAG) { "stale invalid-session result ignored; auth switched during refresh" }
+            return
         }
+        AppLogger.w(tag = TAG) { "auth session invalid (${result.error}); forcing local sign-out" }
+        withContext(NonCancellable) { signOut() }
     }
 }

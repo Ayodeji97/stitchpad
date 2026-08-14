@@ -61,6 +61,7 @@ val authDataModule = module {
         AuthSessionValidator(
             userIdSource = get<FirebaseAuth>().authStateChanged.map { it?.uid },
             validateSession = { authRepository.forceRefreshIdToken() },
+            currentUserId = { authRepository.getCurrentUser()?.id },
             signOut = { signOutUseCase() },
             scope = get(qualifier = named("authSessionAppScope")),
         ).also { it.start() }
