@@ -42,13 +42,22 @@ class PushTokenRegistrationWorker(
     }
 
     private suspend fun registerToken(token: String?): Result {
-        // Missing payload or signed out: drop quietly — PushTokenRegistrar
+        // Missing payload or signed out: drop quietly — the registrar
         // re-registers on the next authenticated app open (pre-existing path).
         if (token != null) {
             val koin = GlobalContext.get()
             val userId = koin.get<AuthRepository>().getCurrentUser()?.id
             if (userId != null) {
-                koin.get<PushTokenRegistrar>().register(userId, token)
+                // The repository directly, NOT PushTokenRegistrar.register: the
+                // registrar swallows write failures by design (its call sites are
+                // best-effort), which would turn every failed Firestore write into
+                // Result.success() and dead-code this worker's retry path
+                // (cursor, PR #360). Here the throw IS the retry signal.
+                koin.get<PushTokenRepository>().registerToken(
+                    userId = userId,
+                    token = token,
+                    platform = "android",
+                )
             }
         }
         return Result.success()
