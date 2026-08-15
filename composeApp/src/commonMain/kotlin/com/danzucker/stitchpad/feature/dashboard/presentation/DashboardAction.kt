@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.dashboard.presentation
 
+import com.danzucker.stitchpad.feature.dashboard.domain.model.PipelineStage
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.MeasurementsPickerRow
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestAction
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.ReconnectCandidate
@@ -104,4 +105,11 @@ sealed interface DashboardAction {
 
     /** Measurements picker sheet dismissed (scrim tap, swipe, back). */
     data object OnDismissMeasurementsPicker : DashboardAction
+
+    /**
+     * Staff dashboard focus-queue hero CTA tapped ("Mark ‹stage› done → ‹next›").
+     * [fromStage] is the stage the CTA was rendered for — guards a stale tap
+     * racing a concurrent update elsewhere (see [DashboardState.advancingOrders]).
+     */
+    data class OnAdvanceStage(val orderId: String, val fromStage: PipelineStage) : DashboardAction
 }
