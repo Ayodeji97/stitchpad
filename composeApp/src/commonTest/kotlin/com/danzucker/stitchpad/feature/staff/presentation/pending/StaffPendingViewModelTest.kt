@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.staff.presentation.pending
 
 import app.cash.turbine.test
+import com.danzucker.stitchpad.feature.auth.domain.NoOpRemoteSyncGate
 import com.danzucker.stitchpad.core.data.staff.FakeInviteRedemptionRepository
 import com.danzucker.stitchpad.core.data.staff.FakeStaffMembershipPrefsStore
 import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
@@ -53,7 +54,7 @@ class StaffPendingViewModelTest {
         activeWorkshopProvider = provider,
         staffMembershipPrefs = prefs,
         inviteRedemptionRepository = repo,
-        signOutUseCase = SignOutUseCase(authRepo, NoOpRegistrar(), PendingDeepLinkHolder(), FakeStaffMembershipPrefsStore()),
+        signOutUseCase = SignOutUseCase(authRepo, NoOpRegistrar(), PendingDeepLinkHolder(), FakeStaffMembershipPrefsStore(), NoOpRemoteSyncGate()),
     )
 
     private class NoOpRegistrar : PushTokenRegistrar {

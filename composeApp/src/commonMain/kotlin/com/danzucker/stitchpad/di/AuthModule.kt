@@ -6,12 +6,14 @@ import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.feature.auth.data.AuthSessionValidator
 import com.danzucker.stitchpad.feature.auth.data.EmailPatternValidator
 import com.danzucker.stitchpad.feature.auth.data.FirebaseAuthRepository
+import com.danzucker.stitchpad.feature.auth.data.FirebaseRemoteSyncGate
 import com.danzucker.stitchpad.feature.auth.data.GitLivePasswordResetEmailSender
 import com.danzucker.stitchpad.feature.auth.data.GitLiveVerificationEmailSender
 import com.danzucker.stitchpad.feature.auth.data.PasswordResetEmailSender
 import com.danzucker.stitchpad.feature.auth.data.VerificationEmailSender
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.PatternValidator
+import com.danzucker.stitchpad.feature.auth.domain.RemoteSyncGate
 import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
 import com.danzucker.stitchpad.feature.auth.presentation.forgotpassword.ForgotPasswordViewModel
 import com.danzucker.stitchpad.feature.auth.presentation.login.LoginViewModel
@@ -22,6 +24,8 @@ import com.danzucker.stitchpad.feature.main.presentation.SyncStatusViewModel
 import com.danzucker.stitchpad.feature.onboarding.presentation.workshop.WorkshopSetupViewModel
 import dev.gitlive.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.map
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.viewModel
@@ -33,6 +37,15 @@ import org.koin.dsl.module
 val authDataModule = module {
     singleOf(::FirebaseAuthRepository) bind AuthRepository::class
     singleOf(::SignOutUseCase)
+    // Own long-lived scope (not a shared named one): the gate's auto-reopen
+    // listener must outlive any screen and keeps running for the app's lifetime.
+    single<RemoteSyncGate> {
+        FirebaseRemoteSyncGate(
+            firestore = get(),
+            auth = get(),
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+        )
+    }
     // FirebaseFunctions is provided by smartDataModule (Firebase.functions("europe-west1")).
     singleOf(::GitLiveVerificationEmailSender) bind VerificationEmailSender::class
     singleOf(::GitLivePasswordResetEmailSender) bind PasswordResetEmailSender::class

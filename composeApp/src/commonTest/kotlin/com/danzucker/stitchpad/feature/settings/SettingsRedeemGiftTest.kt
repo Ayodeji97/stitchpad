@@ -1,4 +1,5 @@
 package com.danzucker.stitchpad.feature.settings
+import com.danzucker.stitchpad.feature.auth.domain.NoOpRemoteSyncGate
 import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
 import com.danzucker.stitchpad.core.data.staff.FakeInviteRedemptionRepository
 
@@ -98,7 +99,7 @@ class SettingsRedeemGiftTest {
             receiptImagePreferencesStore = RedeemFakeReceiptImagePreferencesStore(),
             smartUsageStore = RedeemFakeSmartUsageStore(),
             smartUsageDocSource = RedeemFakeSmartUsageDocSource(),
-            signOutUseCase = SignOutUseCase(authRepo, RedeemNoOpPushTokenRegistrar(), PendingDeepLinkHolder(), FakeStaffMembershipPrefsStore()),
+            signOutUseCase = SignOutUseCase(authRepo, RedeemNoOpPushTokenRegistrar(), PendingDeepLinkHolder(), FakeStaffMembershipPrefsStore(), NoOpRemoteSyncGate()),
             pushPermissionController = RedeemNoOpPushPermissionController(),
             appConfigRepository = FakeAppConfigRepository(),
             communityJoinTracker = FakeCommunityJoinTracker(),

@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.staff.presentation.redeem
 
 import app.cash.turbine.test
+import com.danzucker.stitchpad.feature.auth.domain.NoOpRemoteSyncGate
 import com.danzucker.stitchpad.core.data.staff.FakeInviteRedemptionRepository
 import com.danzucker.stitchpad.core.data.staff.FakeStaffMembershipPrefsStore
 import com.danzucker.stitchpad.core.domain.error.Result
@@ -46,7 +47,7 @@ class RedeemInviteViewModelTest {
     private fun buildViewModel() = RedeemInviteViewModel(
         inviteRedemptionRepository = repo,
         staffMembershipPrefs = prefs,
-        signOutUseCase = SignOutUseCase(authRepo, NoOpRegistrar(), PendingDeepLinkHolder(), FakeStaffMembershipPrefsStore()),
+        signOutUseCase = SignOutUseCase(authRepo, NoOpRegistrar(), PendingDeepLinkHolder(), FakeStaffMembershipPrefsStore(), NoOpRemoteSyncGate()),
         pendingDeepLink = deepLink,
     )
 
