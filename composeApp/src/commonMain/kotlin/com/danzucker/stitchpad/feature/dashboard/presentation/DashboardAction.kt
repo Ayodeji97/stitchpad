@@ -112,4 +112,16 @@ sealed interface DashboardAction {
      * racing a concurrent update elsewhere (see [DashboardState.advancingOrders]).
      */
     data class OnAdvanceStage(val orderId: String, val fromStage: PipelineStage) : DashboardAction
+
+    /**
+     * Move an order to an arbitrary stage (undo snackbar / stage sheet).
+     * [fromStage] is the stage the UI believed current at tap time — the
+     * handler no-ops when it no longer matches, same stale guard as
+     * [OnAdvanceStage].
+     */
+    data class OnSetStage(
+        val orderId: String,
+        val fromStage: PipelineStage,
+        val toStage: PipelineStage,
+    ) : DashboardAction
 }

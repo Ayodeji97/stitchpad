@@ -330,24 +330,32 @@ class DashboardViewModel(
             }
             is DashboardAction.OnMeasurementsPickerRowClick -> onMeasurementsPickerRowClick(action.row)
             DashboardAction.OnDismissMeasurementsPicker -> _state.update { it.copy(measurementsPicker = null) }
-            is DashboardAction.OnAdvanceStage -> handleAdvanceStage(action.orderId, action.fromStage)
+            is DashboardAction.OnAdvanceStage -> {
+                val next = action.fromStage.next()
+                if (next != null) {
+                    handleSetStage(action.orderId, action.fromStage, next, announceAdvance = true)
+                }
+            }
+            is DashboardAction.OnSetStage ->
+                handleSetStage(action.orderId, action.fromStage, action.toStage, announceAdvance = false)
         }
     }
 
     /**
-     * Staff dashboard focus-queue hero CTA — advances [orderId] from [fromStage]
-     * to its next stage via the same two repository calls Order Detail's
-     * production-timeline "Update" action uses (`updateOrderStatus` +
-     * `updateSubStatus`; see `OrderDetailViewModel.performStatusUpdate`).
+     * Staff dashboard focus-queue hero CTA / undo snackbar / stage sheet — moves
+     * [orderId] from [fromStage] to [toStage] via the same two repository calls
+     * Order Detail's production-timeline "Update" action uses (`updateOrderStatus`
+     * + `updateSubStatus`; see `OrderDetailViewModel.performStatusUpdate`).
      *
      * Guards, in order:
-     *  1. Re-entrancy — [orderId] already has an in-flight advance recorded in
+     *  1. No-op — [toStage] already equals [fromStage]; nothing to do.
+     *  2. Re-entrancy — [orderId] already has an in-flight move recorded in
      *     [DashboardState.advancingOrders]; a second tap before it resolves is
      *     ignored outright (checked, and the flag set, synchronously — before
      *     the coroutine launches — so a same-frame double-tap can't race past it).
-     *  2. Stale tap — the order's live stage (from [DashboardState.staffOpenQueue])
+     *  3. Stale tap — the order's live stage (from [DashboardState.staffOpenQueue])
      *     no longer matches [fromStage], meaning a concurrent update elsewhere
-     *     already moved it; no-op rather than advancing from a state the CTA
+     *     already moved it; no-op rather than moving from a state the caller
      *     wasn't actually looking at.
      *
      * No optimistic stage change: the in-flight flag only disables the CTA.
@@ -355,21 +363,32 @@ class DashboardViewModel(
      * (see `updateStaffState`'s pruning of stale `advancingOrders` entries),
      * which also self-heals the flag — no dedicated cleanup call needed on the
      * success path.
+     *
+     * Analytics only fires for forward moves ([toStage] ordinal > [fromStage]
+     * ordinal), matching the hero CTA's original behavior. When [announceAdvance]
+     * is true and both repository calls succeed, emits [DashboardEvent.StageAdvanced]
+     * so the caller (the hero CTA) can offer an undo snackbar; backward/sheet moves
+     * (`OnSetStage`) pass `announceAdvance = false` so undo is never re-offered.
      */
     @Suppress("ReturnCount")
-    private fun handleAdvanceStage(orderId: String, fromStage: PipelineStage) {
+    private fun handleSetStage(
+        orderId: String,
+        fromStage: PipelineStage,
+        toStage: PipelineStage,
+        announceAdvance: Boolean,
+    ) {
+        if (toStage == fromStage) return
         val current = _state.value
         if (current.advancingOrders.containsKey(orderId)) return
         val liveStage = current.staffOpenQueue.firstOrNull { it.orderId == orderId }?.stage
         if (liveStage != fromStage) return
-        val nextStage = fromStage.next() ?: return
         _state.update { it.copy(advancingOrders = it.advancingOrders + (orderId to fromStage)) }
         viewModelScope.launch {
             val userId = activeWorkshopProvider.workshopUidOrNull() ?: run {
                 _state.update { it.copy(advancingOrders = it.advancingOrders - orderId) }
                 return@launch
             }
-            val (newStatus, newSubStatus) = nextStage.toOrderStatusAndSubStatus()
+            val (newStatus, newSubStatus) = toStage.toOrderStatusAndSubStatus()
             val statusResult = orderRepository.updateOrderStatus(userId, orderId, newStatus)
             if (statusResult is Result.Error) {
                 _state.update {
@@ -382,7 +401,9 @@ class DashboardViewModel(
             }
             // Matches OrderDetailViewModel.performStatusUpdate exactly: logged right
             // after the status write succeeds, before the sub-status write is attempted.
-            analytics.logEvent(AnalyticsEvent.OrderStatusAdvanced(status = newStatus.name.lowercase()))
+            if (toStage.ordinal > fromStage.ordinal) {
+                analytics.logEvent(AnalyticsEvent.OrderStatusAdvanced(status = newStatus.name.lowercase()))
+            }
             val subResult = orderRepository.updateSubStatus(userId, orderId, newSubStatus)
             if (subResult is Result.Error) {
                 _state.update {
@@ -391,9 +412,13 @@ class DashboardViewModel(
                         errorMessage = UiText.StringResourceText(Res.string.staff_advance_stage_error),
                     )
                 }
+                return@launch
             }
             // Success: leave the in-flight flag set. updateStaffState prunes it
             // once the listener's next tick shows the order past fromStage.
+            if (announceAdvance) {
+                emitEvent(DashboardEvent.StageAdvanced(orderId, fromStage, toStage))
+            }
         }
     }
 

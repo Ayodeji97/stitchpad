@@ -528,6 +528,8 @@ private fun handleDashboardEvent(
             onNavigateToMeasurementDetail(event.customerId, event.measurementId)
         is DashboardEvent.NavigateToAddMeasurement ->
             onNavigateToAddMeasurementForCustomer(event.customerId)
+        // Undo snackbar wiring lands in Task 9's screen work.
+        is DashboardEvent.StageAdvanced -> Unit
     }
 }
 

@@ -617,6 +617,92 @@ class DashboardViewModelTest {
         }
     }
 
+    // --- Task 7 (2026-08-16): generalized OnSetStage + StageAdvanced undo event ---
+
+    @Test
+    fun setStageMovesBackwardViaRepository() = runTest {
+        signIn()
+        becomeActiveStaff()
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "order-1", status = OrderStatus.IN_PROGRESS, deadline = null)
+                .copy(subStatus = OrderSubStatus.FITTING, assignedMemberId = "staff-uid"),
+        )
+        val vm = createViewModel()
+
+        vm.onAction(
+            DashboardAction.OnSetStage("order-1", fromStage = PipelineStage.FITTING, toStage = PipelineStage.SEWING),
+        )
+
+        assertEquals("order-1" to OrderStatus.IN_PROGRESS, orderRepository.lastStatusUpdate)
+        assertEquals("order-1" to OrderSubStatus.SEWING, orderRepository.lastSubStatusUpdate)
+        assertNull(vm.state.value.errorMessage)
+        // Backward move — must not fire the "advanced" analytics event.
+        assertEquals(emptyList(), analytics.events)
+    }
+
+    @Test
+    fun setStageWithStaleFromStageNoOps() = runTest {
+        signIn()
+        becomeActiveStaff()
+        // Live stage is already FITTING — an action captured back when it was
+        // SEWING (a concurrent update elsewhere landed first) must no-op.
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "order-1", status = OrderStatus.IN_PROGRESS, deadline = null)
+                .copy(subStatus = OrderSubStatus.FITTING, assignedMemberId = "staff-uid"),
+        )
+        val vm = createViewModel()
+
+        vm.onAction(
+            DashboardAction.OnSetStage("order-1", fromStage = PipelineStage.SEWING, toStage = PipelineStage.CUTTING),
+        )
+
+        assertNull(orderRepository.lastStatusUpdate)
+        assertNull(orderRepository.lastSubStatusUpdate)
+        assertTrue(vm.state.value.advancingOrders.isEmpty())
+    }
+
+    @Test
+    fun advanceEmitsStageAdvancedEventForUndo() = runTest {
+        signIn()
+        becomeActiveStaff()
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "order-1", status = OrderStatus.IN_PROGRESS, deadline = null)
+                .copy(subStatus = OrderSubStatus.FITTING, assignedMemberId = "staff-uid"),
+        )
+        val vm = createViewModel()
+
+        vm.events.test {
+            vm.onAction(DashboardAction.OnAdvanceStage("order-1", PipelineStage.FITTING))
+            assertEquals(
+                DashboardEvent.StageAdvanced("order-1", fromStage = PipelineStage.FITTING, toStage = PipelineStage.READY),
+                awaitItem(),
+            )
+        }
+    }
+
+    @Test
+    fun setStageDoesNotEmitStageAdvanced() = runTest {
+        signIn()
+        becomeActiveStaff()
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "order-1", status = OrderStatus.IN_PROGRESS, deadline = null)
+                .copy(subStatus = OrderSubStatus.FITTING, assignedMemberId = "staff-uid"),
+        )
+        val vm = createViewModel()
+
+        vm.events.test {
+            vm.onAction(
+                DashboardAction.OnSetStage(
+                    "order-1",
+                    fromStage = PipelineStage.FITTING,
+                    toStage = PipelineStage.SEWING,
+                ),
+            )
+            // Undo/sheet moves must never re-offer their own undo.
+            expectNoEvents()
+        }
+    }
+
     // Task 1 (staff phase2 assignment): kill-switch / revocation must bite mid-session —
     // loadData's combine must not stay pinned to the workshop/role it started on.
     @Test
