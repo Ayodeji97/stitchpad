@@ -23,6 +23,7 @@ import dev.gitlive.firebase.firestore.firestore
 import dev.gitlive.firebase.storage.storage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filterNot
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.retryWhen
 import org.koin.core.qualifier.named
@@ -92,7 +93,18 @@ val coreModule = module {
             staffFeatureEnabled = get<AppConfigRepository>().config.map { it.staffFeatureEnabled },
             membershipStatusFlow = { workshopUid, authUid ->
                 firestore.collection("users").document(workshopUid)
-                    .collection("memberships").document(authUid).snapshots
+                    .collection("memberships").document(authUid)
+                    // Server-confirmed snapshots ONLY. The cache serves a stale
+                    // status first — e.g. 'revoked' left over from a previous
+                    // membership on this device, the instant after re-redeeming —
+                    // and status transitions drive irreversible actions (prefs
+                    // clear on revoked, token refresh on active), so acting on a
+                    // cached value can tear down a live pending window.
+                    // includeMetadataChanges=true guarantees the server's
+                    // confirmation arrives as its own event even when its data
+                    // matches the already-emitted cache snapshot.
+                    .snapshots(includeMetadataChanges = true)
+                    .filterNot { snap -> snap.metadata.isFromCache }
                     .map { snap ->
                         MembershipStatus.fromWire(
                             if (snap.exists) snap.data<MembershipStatusDto>().status else null,
@@ -112,6 +124,10 @@ val coreModule = module {
             // After approval the claim is not yet on the live token; force a
             // refresh so idTokenChanged re-emits with the staff claim.
             refreshToken = { authRepository.forceRefreshIdToken() },
+            // Observed revocation (mid-session or pending window): drop the
+            // redeem-time workshopUid so the dead pending window cannot be
+            // re-entered once the token refreshes claimless.
+            onStaffRevoked = { membershipPrefs.clear() },
         )
     }
 

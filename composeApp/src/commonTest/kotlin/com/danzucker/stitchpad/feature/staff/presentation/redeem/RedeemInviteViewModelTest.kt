@@ -16,6 +16,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -95,6 +96,19 @@ class RedeemInviteViewModelTest {
         assertEquals("K7QP3RM9", repo.lastCode)
         assertEquals("owner-9", prefs.workshopUid.value)
         assertEquals("Ade Fashions", prefs.workshopName.value)
+        assertEquals(false, vm.state.value.isLoading)
+    }
+
+    @Test
+    fun successfulRedeemDoesNotSuspendWithoutAnAttachedEventCollector() = runTest {
+        val vm = buildViewModel()
+        vm.onAction(RedeemInviteAction.OnCodeChange("K7QP3RM9"))
+
+        vm.onAction(RedeemInviteAction.OnJoinClick)
+        advanceUntilIdle()
+
+        assertEquals("owner-9", prefs.workshopUid.value)
+        assertEquals(false, vm.state.value.isLoading)
     }
 
     @Test

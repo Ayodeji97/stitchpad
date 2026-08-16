@@ -18,6 +18,7 @@ import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
 import com.danzucker.stitchpad.core.domain.session.StaffRole
+import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.auth.presentation.forgotpassword.ForgotPasswordRoot
@@ -34,10 +35,7 @@ import com.danzucker.stitchpad.feature.onboarding.presentation.welcome.WelcomeRo
 import com.danzucker.stitchpad.feature.onboarding.presentation.workshop.WorkshopSetupRoot
 import com.danzucker.stitchpad.feature.staff.presentation.pending.StaffPendingRoot
 import com.danzucker.stitchpad.feature.staff.presentation.redeem.RedeemInviteRoot
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -240,18 +238,34 @@ private fun StaffRoleChangeRedirectEffect(navController: NavHostController) {
     val authUid = session.authUid
     LaunchedEffect(authUid) {
         if (authUid.isBlank()) return@LaunchedEffect
-        activeWorkshopProvider.flow
-            .map { it.role }
-            .distinctUntilChanged()
-            .drop(1) // skip the role this session already resolved to
-            .collect {
+        var previous: WorkshopSession? = null
+        activeWorkshopProvider.flow.collect { current ->
+            val prior = previous
+            previous = current
+            if (prior != null && shouldRedirectHomeForStaffSessionChange(prior, current)) {
                 navController.navigate(HomeRoute) {
                     popUpTo(navController.graph.id) { inclusive = false }
                     launchSingleTop = true
                 }
             }
+        }
     }
 }
+
+/**
+ * The global redirect owns only mid-session loss of an ACTIVE staff session
+ * (revocation or the staff kill-switch). Pending onboarding owns its own
+ * OWNER -> STAFF/PENDING -> STAFF/ACTIVE navigation, and auth screens own
+ * sign-out. Redirecting those transitions races their one-shot events and can
+ * strand the redeem screen in loading or send a signed-out user back to Home.
+ */
+internal fun shouldRedirectHomeForStaffSessionChange(
+    previous: WorkshopSession,
+    current: WorkshopSession,
+): Boolean = previous.isActiveStaff &&
+    current.isOwner &&
+    current.authUid.isNotBlank() &&
+    current.authUid == previous.authUid
 
 /**
  * Logs a screen_view for every destination the user lands on. One hook covers every

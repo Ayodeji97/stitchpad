@@ -46,7 +46,7 @@ object WorkshopSessionResolver {
         // Precedence: server-authoritative claim, then the membership-doc fallback
         // (drives the waiting UI before an approved token refreshes), then the
         // fail-safe.
-        return staffFromClaim(authUid, claimWorkshopUid, claimRole)
+        return staffFromClaim(authUid, claimWorkshopUid, claimRole, membershipStatus)
             ?: staffFromMembership(authUid, membershipStatus)
             ?: WorkshopSession.ownerOfSelf(authUid)
     }
@@ -55,8 +55,18 @@ object WorkshopSessionResolver {
         authUid: String,
         claimWorkshopUid: String?,
         claimRole: String?,
+        membershipStatus: MembershipStatus?,
     ): WorkshopSession? =
-        if (claimRole == CLAIM_ROLE_STAFF && claimWorkshopUid != null) {
+        // A REVOKED doc overrides the claim — the one case where the doc beats
+        // it. Server rules deny the instant the doc flips (revoke clears the
+        // claim but cannot touch an already-minted token), so honouring the
+        // stale claim would keep every listener on the owner's tree in a
+        // permission-denied retry loop until the token refreshes. null (doc
+        // unread or missing, e.g. a cold cache miss) does NOT demote.
+        if (claimRole == CLAIM_ROLE_STAFF &&
+            claimWorkshopUid != null &&
+            membershipStatus != MembershipStatus.REVOKED
+        ) {
             WorkshopSession(
                 authUid = authUid,
                 workshopUid = claimWorkshopUid,

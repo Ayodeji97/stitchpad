@@ -57,6 +57,10 @@ internal class FirebaseActiveWorkshopProvider(
     private val membershipStatusFlow: (workshopUid: String, authUid: String) -> Flow<MembershipStatus?> =
         { _, _ -> flowOf(null) },
     private val refreshToken: suspend () -> Unit = {},
+    // Fired when a revoked membership doc is observed (active session or pending
+    // window). Wired to clearing the redeem-time prefs so the stale workshopUid
+    // cannot re-enter the pending window after demotion.
+    private val onStaffRevoked: suspend () -> Unit = {},
 ) : ActiveWorkshopProvider {
 
     private val _flow = MutableStateFlow(WorkshopSession.signedOut())
@@ -105,9 +109,10 @@ internal class FirebaseActiveWorkshopProvider(
     }
 
     private fun resolvedFlow(claims: WorkshopClaims, storedWs: String?): Flow<WorkshopSession> {
-        // (1) Server-authoritative staff claim → active staff; no doc read needed.
+        // (1) Server-authoritative staff claim → active staff, but keep watching
+        // the membership doc for the session's whole life — see [activeStaffFlow].
         val fromClaim = resolve(claims, membershipStatus = null)
-        if (fromClaim.role == StaffRole.STAFF) return flowOf(fromClaim)
+        if (fromClaim.role == StaffRole.STAFF) return activeStaffFlow(claims, fromClaim)
 
         // (2) No staff claim: a real owner, or a staff member in the pending
         // window whose claim has not been minted yet. Only the latter recorded a
@@ -119,6 +124,39 @@ internal class FirebaseActiveWorkshopProvider(
             pendingWindowFlow(claims, storedWs)
         }
     }
+
+    /**
+     * Watches the staff member's own membership doc for the whole life of a
+     * claim-backed active staff session. Revocation clears the claim server-side
+     * but cannot touch the already-minted token — the doc flip to `revoked` is
+     * the ONLY signal the client gets before the hourly token refresh, and the
+     * rules deny every owner-tree read the moment it flips. Without this watch
+     * each listener enters a permission-denied retry loop (UI flashing between
+     * stale cached data and the error fallback) until the token expires.
+     *
+     * On an observed revocation: demote to owner-of-self immediately (the
+     * resolver treats a REVOKED doc as overriding the claim), clear the
+     * redeem-time prefs via [onStaffRevoked], and force a token refresh so the
+     * stale claim is dropped. A null status (doc unread or missing — e.g. a cold
+     * cache miss) never demotes; only an explicit revoked flip does.
+     */
+    private fun activeStaffFlow(claims: WorkshopClaims, fromClaim: WorkshopSession): Flow<WorkshopSession> =
+        membershipStatusFlow(fromClaim.workshopUid, claims.authUid)
+            // Listener resubscribes re-emit the same status; without dedup each
+            // re-emission would re-fire the refresh below.
+            .distinctUntilChanged()
+            .onEach { status ->
+                if (status == MembershipStatus.REVOKED) {
+                    // Prefs first: once the token refreshes claimless, a still-
+                    // stored workshopUid would re-enter the pending window.
+                    onStaffRevoked()
+                    refreshToken()
+                }
+            }
+            .map { status -> resolve(claims, membershipStatus = status) }
+            // The claim alone is authoritative while the first snapshot is in
+            // flight — emit immediately so hydration never waits on Firestore.
+            .onStart { emit(fromClaim) }
 
     /**
      * Watches the staffer's membership doc during the pending window and, once
@@ -137,6 +175,11 @@ internal class FirebaseActiveWorkshopProvider(
                 // the doc to active, so a refresh triggered here reliably returns
                 // the claim (no denied-read window, no refresh loop).
                 if (status == MembershipStatus.ACTIVE) refreshToken()
+                // Revoked (or declined) while pending/claimless: clear the stored
+                // workshopUid so the dead pending window is not re-entered on
+                // every later claims emission (each re-entry flashes a transient
+                // provisional PENDING through the session flow).
+                if (status == MembershipStatus.REVOKED) onStaffRevoked()
             }
             .map { status -> resolve(claims, membershipStatus = status) }
             // Emit a provisional STAFF/PENDING (on the user's OWN tree) first, so

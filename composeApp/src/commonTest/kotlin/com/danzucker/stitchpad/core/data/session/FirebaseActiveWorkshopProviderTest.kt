@@ -83,6 +83,69 @@ class FirebaseActiveWorkshopProviderTest {
         assertNull(uid)
     }
 
+    // ── Active-claim window: the membership doc is watched for the whole life
+    //    of a claim-backed staff session so mid-session revocation propagates
+    //    without waiting for the hourly token refresh. ──────────────────────────
+
+    @Test
+    fun revoking_an_active_staff_session_demotes_to_owner_of_self() = runTest {
+        val claims = MutableStateFlow<WorkshopClaims?>(staff("staff-1", "owner-9"))
+        val membership = MutableStateFlow<MembershipStatus?>(MembershipStatus.ACTIVE)
+        var watchedWorkshop: String? = null
+        var refreshes = 0
+        var revokedCallbacks = 0
+        val provider = FirebaseActiveWorkshopProvider(
+            authClaims = claims,
+            scope = backgroundScope,
+            membershipStatusFlow = { workshopUid, _ -> watchedWorkshop = workshopUid; membership },
+            refreshToken = { refreshes++ },
+            onStaffRevoked = { revokedCallbacks++ },
+        )
+        assertTrue(provider.awaitHydrated().isActiveStaff)
+        assertEquals("owner-9", watchedWorkshop)
+
+        // Owner revokes: the doc flips while the token still carries the claim.
+        membership.value = MembershipStatus.REVOKED
+        runCurrent()
+
+        assertTrue(provider.current().isOwner)
+        assertEquals("staff-1", provider.current().workshopUid)
+        // The stale claim must be refreshed off the token, and the redeem-time
+        // prefs cleared so the stale uid cannot re-enter the pending window.
+        assertTrue(refreshes >= 1)
+        assertTrue(revokedCallbacks >= 1)
+    }
+
+    @Test
+    fun an_active_staff_claim_stays_active_before_the_first_membership_snapshot() = runTest {
+        // Hydration must never wait on Firestore, and a cold cache miss must not
+        // bounce an active staffer off the owner's tree — only an explicit
+        // revoked flip demotes.
+        val claims = MutableStateFlow<WorkshopClaims?>(staff("staff-1", "owner-9"))
+        val provider = FirebaseActiveWorkshopProvider(
+            authClaims = claims,
+            scope = backgroundScope,
+            membershipStatusFlow = { _, _ -> emptyFlow() },
+        )
+
+        val session = withTimeout(1_000) { provider.awaitHydrated() }
+
+        assertTrue(session.isActiveStaff)
+        assertEquals("owner-9", session.workshopUid)
+    }
+
+    @Test
+    fun a_missing_membership_doc_does_not_demote_an_active_staff_claim() = runTest {
+        val claims = MutableStateFlow<WorkshopClaims?>(staff("staff-1", "owner-9"))
+        val provider = FirebaseActiveWorkshopProvider(
+            authClaims = claims,
+            scope = backgroundScope,
+            membershipStatusFlow = { _, _ -> MutableStateFlow(null) },
+        )
+
+        assertTrue(provider.awaitHydrated().isActiveStaff)
+    }
+
     // ── Pending window: no claim yet, driven by the stored workshopUid +
     //    the watched membership doc (before the approval token refresh). ──────
 

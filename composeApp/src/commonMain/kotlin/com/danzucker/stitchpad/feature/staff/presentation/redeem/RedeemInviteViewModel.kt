@@ -31,7 +31,9 @@ class RedeemInviteViewModel(
     private val _state = MutableStateFlow(RedeemInviteState())
     val state = _state.asStateFlow()
 
-    private val _events = Channel<RedeemInviteEvent>()
+    // Navigation must not suspend the redeem coroutine if Compose briefly
+    // disposes/restarts its collector during the session transition to PENDING.
+    private val _events = Channel<RedeemInviteEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
     init {
@@ -68,6 +70,7 @@ class RedeemInviteViewModel(
                     // membership doc until the approval claim lands. The name rides
                     // along for the staff dashboard header once approved.
                     staffMembershipPrefs.setWorkshop(result.data.workshopUid, result.data.workshopName)
+                    _state.update { it.copy(isLoading = false) }
                     _events.send(RedeemInviteEvent.NavigateToPending(result.data.workshopName))
                 }
 
