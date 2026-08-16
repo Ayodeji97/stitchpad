@@ -56,13 +56,12 @@ fun StageDots(stage: PipelineStage, modifier: Modifier = Modifier) {
 }
 
 /**
- * Maps a [PipelineStage] to its display string resource. Shared with
- * DashboardScreen's undo-snackbar message, which needs the resource id
- * itself (not a resolved string) to call `getString` from a coroutine
- * outside composition. Kept here — not in `PipelineStage.kt` — because
- * that file sits in the domain layer, which can't reference compose
- * resources; Task 10 relocates this alongside [stageLabel] to the shared
- * `StageDots.kt` file.
+ * The single [PipelineStage] -> label-resource mapping, shared by the staff
+ * dashboard's hero stepper, the stage sheet, and the order rows' stage dots.
+ * Exposed as the resource id (not a resolved string) so DashboardScreen's
+ * undo-snackbar message can call `getString` from a coroutine outside
+ * composition. Kept here — not in `PipelineStage.kt` — because that file
+ * sits in the domain layer, which can't reference compose resources.
  */
 fun stageLabelRes(stage: PipelineStage): StringResource = when (stage) {
     PipelineStage.PENDING -> Res.string.order_stage_pending

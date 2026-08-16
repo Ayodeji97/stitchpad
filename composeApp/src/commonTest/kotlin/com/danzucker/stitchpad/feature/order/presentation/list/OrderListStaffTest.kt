@@ -35,7 +35,7 @@ import kotlin.test.assertTrue
  * Slice 6c — the Orders LIST must be money-free for an active staff member. The list
  * VM has no per-row contact actions, so this covers the two staff-relevant surfaces:
  * the [OrderListState.isActiveStaff] flag (the screen hides every price / payment /
- * profit affordance off it) and the profit-toggle guard.
+ * profit affordance off it) and the hide-amounts toggle.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class OrderListStaffTest {

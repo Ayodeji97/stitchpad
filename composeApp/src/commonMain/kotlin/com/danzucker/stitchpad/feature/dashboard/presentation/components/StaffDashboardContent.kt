@@ -32,6 +32,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -187,6 +188,17 @@ fun StaffDashboardContent(
     // dropping out of the queue entirely while the sheet is open — no crash, sheet
     // just stops rendering (state.stageSheetOrderId still closes normally on dismiss).
     val sheetRow = state.staffOpenQueue.firstOrNull { it.orderId == state.stageSheetOrderId }
+    // If the sheet's id is set but can't be resolved to a row/stage (e.g. the
+    // order left staffOpenQueue — reached READY — while the sheet was open), the
+    // block below simply stops rendering. Without this effect the id would stay
+    // stranded in state: OnStageStepperClick can't be re-dispatched for the same
+    // id (it's a toggle onto the SAME sheet, not a re-open), so nothing would ever
+    // clear it. Dispatch the dismissal explicitly instead.
+    LaunchedEffect(state.stageSheetOrderId, sheetRow?.stage) {
+        if (state.stageSheetOrderId != null && sheetRow?.stage == null) {
+            onAction(DashboardAction.OnDismissStageSheet)
+        }
+    }
     sheetRow?.stage?.let { current ->
         StageSheet(
             currentStage = current,

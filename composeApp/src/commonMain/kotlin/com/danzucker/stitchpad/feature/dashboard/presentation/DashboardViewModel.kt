@@ -357,10 +357,13 @@ class DashboardViewModel(
      *     [DashboardState.advancingOrders]; a second tap before it resolves is
      *     ignored outright (checked, and the flag set, synchronously — before
      *     the coroutine launches — so a same-frame double-tap can't race past it).
-     *  3. Stale tap — the order's live stage (from [DashboardState.staffOpenQueue])
-     *     no longer matches [fromStage], meaning a concurrent update elsewhere
-     *     already moved it; no-op rather than moving from a state the caller
-     *     wasn't actually looking at.
+     *  3. Stale tap — the order's live stage (from [DashboardState.staffStageByOrderId],
+     *     which — unlike [DashboardState.staffOpenQueue] — still covers READY
+     *     orders, so the undo snackbar's backward move off a READY advance can
+     *     resolve a live stage instead of finding null) no longer matches
+     *     [fromStage], meaning a concurrent update elsewhere already moved it;
+     *     no-op rather than moving from a state the caller wasn't actually
+     *     looking at.
      *
      * No optimistic stage change: the in-flight flag only disables the CTA.
      * The visible stage updates when the order listener's next tick echoes it
@@ -388,7 +391,7 @@ class DashboardViewModel(
         if (toStage == fromStage) return
         val current = _state.value
         if (current.advancingOrders.containsKey(orderId)) return
-        val liveStage = current.staffOpenQueue.firstOrNull { it.orderId == orderId }?.stage
+        val liveStage = current.staffStageByOrderId[orderId]
         if (liveStage != fromStage) return
         _state.update { it.copy(advancingOrders = it.advancingOrders + (orderId to fromStage)) }
         viewModelScope.launch {
@@ -694,6 +697,7 @@ class DashboardViewModel(
                 staffPipeline = null,
                 staffMineCount = 0,
                 staffOpenQueue = emptyList(),
+                staffStageByOrderId = emptyMap(),
                 focusQueue = FocusQueue(hero = null, thenQueue = emptyList(), shopQueue = emptyList()),
                 advancingOrders = emptyMap(),
                 overdue = emptyList(),
@@ -775,13 +779,25 @@ class DashboardViewModel(
             .toLocalDateTime(timeZone).date
         val buckets = BucketCalculator.compute(orders, today, timeZone)
         val user = resolveUser(authUser, combined.firestoreUser)
+        // Every staff-visible order's live stage, INCLUDING READY — unlike
+        // buckets.openQueue (staffOpenQueue's source), which BucketCalculator
+        // filters READY out of. Union of openQueue + ready together covers exactly
+        // BucketCalculator's `active` set (non-DELIVERED orders), since READY and
+        // non-READY are disjoint, exhaustive subsets of it. This is the source both
+        // handleSetStage's stale-tap guard and the advancingOrders pruning below
+        // use, so a hero advance landing on READY doesn't strand the undo snackbar.
+        val staffStageByOrderId = buildMap {
+            buckets.openQueue.forEach { row -> row.stage?.let { put(row.orderId, it) } }
+            buckets.ready.forEach { row -> row.stage?.let { put(row.orderId, it) } }
+        }
         // Self-heals advancingOrders (focus-queue design): an entry survives only
         // while the live order's stage still matches what it was recorded as when
-        // the advance tap landed — the moment this tick's fresh openQueue shows it
-        // moved on (or it drops off the queue entirely, e.g. it reached READY), the
-        // in-flight flag clears itself with no dedicated cleanup call.
+        // the advance/undo tap landed — the moment this tick's fresh stage map
+        // shows it moved on (or it drops out of the map entirely, e.g. the order
+        // was delivered), the in-flight flag clears itself with no dedicated
+        // cleanup call.
         val prunedAdvancing = _state.value.advancingOrders.filter { (orderId, fromStage) ->
-            buckets.openQueue.firstOrNull { it.orderId == orderId }?.stage == fromStage
+            staffStageByOrderId[orderId] == fromStage
         }
         val staffOpenQueue = buckets.openQueue.map { row -> row.moneyFree() }
         // Business logic lives here, not in the composable (CLAUDE.md) — the
@@ -807,6 +823,7 @@ class DashboardViewModel(
                 // whole workshop's roster (mirrors OrderListViewModel's "My work" match).
                 staffMineCount = orders.count { order -> order.assignedMemberId == staffAuthUid },
                 staffOpenQueue = staffOpenQueue,
+                staffStageByOrderId = staffStageByOrderId,
                 focusQueue = focusQueue,
                 advancingOrders = prunedAdvancing,
                 // Only a genuine NEW listener error overwrites errorMessage. A Success
@@ -903,6 +920,7 @@ class DashboardViewModel(
                 staffPipeline = null,
                 staffMineCount = 0,
                 staffOpenQueue = emptyList(),
+                staffStageByOrderId = emptyMap(),
                 focusQueue = FocusQueue(hero = null, thenQueue = emptyList(), shopQueue = emptyList()),
                 advancingOrders = emptyMap(),
                 businessName = workshopName,

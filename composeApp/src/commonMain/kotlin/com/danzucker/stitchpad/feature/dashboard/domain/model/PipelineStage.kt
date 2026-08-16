@@ -26,9 +26,6 @@ enum class PipelineStage {
 
     /** The stage the "Mark done" CTA advances to. Null when already at the terminal READY stage. */
     fun next(): PipelineStage? = entries.getOrNull(ordinal + 1)
-
-    /** Step back one stage; null at PENDING. Powers undo and the stage sheet. */
-    fun previous(): PipelineStage? = entries.getOrNull(ordinal - 1)
 }
 
 /**

@@ -93,9 +93,12 @@ internal class FirebaseActiveWorkshopProvider(
                 // session — discarding the demotion (regression covered by
                 // revoking_mid_session_demotes_without_racing_the_prefs_clear_flow_restart).
                 .distinctUntilChangedBy { (claims, storedWs, staffEnabled) ->
-                    // Same predicate the resolver uses to decide the claim path wins
-                    // (WorkshopClaims.isStaffClaim) — a hand-mirrored copy here could
-                    // drift from the resolver and silently re-open the race above.
+                    // The SAME predicate resolvedFlow's path-1 decision uses
+                    // (WorkshopSessionResolver.staffFromClaim requires both the staff role
+                    // AND a non-null workshopUid) — a staff-role claim with no workshopUid
+                    // does NOT take path (1), so storedWs must still be part of its key. A
+                    // hand-mirrored copy here would drift from the resolver and silently
+                    // re-open the race above, hence the shared extension.
                     val storedWsKey = if (claims?.isStaffClaim == true) null else storedWs
                     Triple(claims, storedWsKey, staffEnabled)
                 }

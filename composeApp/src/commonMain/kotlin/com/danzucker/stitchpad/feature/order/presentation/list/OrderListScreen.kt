@@ -66,6 +66,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -93,6 +95,7 @@ import com.danzucker.stitchpad.ui.components.StageDots
 import com.danzucker.stitchpad.ui.components.StrikethroughPrice
 import com.danzucker.stitchpad.ui.components.fallbackMemberColorSeed
 import com.danzucker.stitchpad.ui.components.stageLabel
+import com.danzucker.stitchpad.ui.components.stageProgressDescription
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
@@ -836,10 +839,16 @@ private fun OrderListItem(
 
             val stage = stageOf(order.status, order.subStatus)
             if (stage != null && stage != PipelineStage.READY) {
+                // clearAndSetSemantics collapses this Row to ONE TalkBack node: without
+                // it, StageDots' own contentDescription AND the adjacent Text below would
+                // both announce, reading the stage progress twice.
+                val progressDescription = stageProgressDescription(stage)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
-                    modifier = Modifier.padding(top = DesignTokens.space1),
+                    modifier = Modifier
+                        .padding(top = DesignTokens.space1)
+                        .clearAndSetSemantics { contentDescription = progressDescription },
                 ) {
                     StageDots(stage)
                     Text(

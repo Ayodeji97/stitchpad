@@ -703,6 +703,34 @@ class DashboardViewModelTest {
         }
     }
 
+    // Final review wave (2026-08-16): the undo snackbar was a dead button when a hero
+    // advance landed on READY — handleSetStage's stale guard resolved the live stage
+    // from staffOpenQueue, which BucketCalculator filters READY out of, so the undo's
+    // OnSetStage(from=READY, to=FITTING) found liveStage == null and silently no-op'd.
+    @Test
+    fun undoAfterReadyAdvance_writesBackwardMoveViaRepository() = runTest {
+        signIn()
+        becomeActiveStaff()
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "order-1", status = OrderStatus.IN_PROGRESS, deadline = null)
+                .copy(subStatus = OrderSubStatus.FITTING, assignedMemberId = "staff-uid"),
+        )
+        val vm = createViewModel()
+
+        vm.onAction(DashboardAction.OnAdvanceStage("order-1", PipelineStage.FITTING))
+
+        // The order landed on READY and — as designed — dropped out of staffOpenQueue.
+        assertTrue(vm.state.value.staffOpenQueue.none { it.orderId == "order-1" })
+
+        vm.onAction(
+            DashboardAction.OnSetStage("order-1", fromStage = PipelineStage.READY, toStage = PipelineStage.FITTING),
+        )
+
+        assertEquals("order-1" to OrderStatus.IN_PROGRESS, orderRepository.lastStatusUpdate)
+        assertEquals("order-1" to OrderSubStatus.FITTING, orderRepository.lastSubStatusUpdate)
+        assertNull(vm.state.value.errorMessage)
+    }
+
     // --- Task 9 (2026-08-16): tappable-stepper stage sheet (Decision 2B) ---
 
     @Test
