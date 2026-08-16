@@ -40,8 +40,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -86,6 +88,7 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupSt
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.StaffDashboardContent
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.TodayWorkCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.YoureOwedCard
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.stageLabelRes
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FirstOrderSetupUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
@@ -190,6 +193,8 @@ import stitchpad.composeapp.generated.resources.push_prompt_confirm
 import stitchpad.composeapp.generated.resources.push_prompt_dismiss
 import stitchpad.composeapp.generated.resources.push_prompt_title
 import stitchpad.composeapp.generated.resources.reconnect_whatsapp_template
+import stitchpad.composeapp.generated.resources.staff_stage_moved_snackbar
+import stitchpad.composeapp.generated.resources.staff_stage_undo
 import kotlin.math.roundToLong
 
 private const val THOUSANDS = 1_000L
@@ -331,6 +336,7 @@ fun DashboardRoot(
             snackbarHostState = snackbarHostState,
             signature = signature,
             whatsAppLauncher = whatsAppLauncher,
+            onAction = viewModel::onAction,
             onNavigateToOrderDetail = onNavigateToOrderDetail,
             onNavigateToOrders = onNavigateToOrders,
             onNavigateToToCollect = onNavigateToToCollect,
@@ -473,6 +479,7 @@ private fun handleDashboardEvent(
     snackbarHostState: SnackbarHostState,
     signature: String,
     whatsAppLauncher: WhatsAppLauncher,
+    onAction: (DashboardAction) -> Unit,
     onNavigateToOrderDetail: (String) -> Unit,
     onNavigateToOrders: (String?) -> Unit,
     onNavigateToToCollect: () -> Unit,
@@ -528,8 +535,12 @@ private fun handleDashboardEvent(
             onNavigateToMeasurementDetail(event.customerId, event.measurementId)
         is DashboardEvent.NavigateToAddMeasurement ->
             onNavigateToAddMeasurementForCustomer(event.customerId)
-        // Undo snackbar wiring lands in Task 9's screen work.
-        is DashboardEvent.StageAdvanced -> Unit
+        is DashboardEvent.StageAdvanced -> showStageAdvancedSnackbar(
+            scope,
+            snackbarHostState,
+            onAction,
+            event,
+        )
     }
 }
 
@@ -546,6 +557,33 @@ private fun launchWhatsAppForAction(
         if (!launched) {
             snackbarHostState.showSnackbar(
                 getString(Res.string.dashboard_whatsapp_launch_failed)
+            )
+        }
+    }
+}
+
+private fun showStageAdvancedSnackbar(
+    scope: CoroutineScope,
+    snackbarHostState: SnackbarHostState,
+    onAction: (DashboardAction) -> Unit,
+    event: DashboardEvent.StageAdvanced,
+) {
+    scope.launch {
+        val result = snackbarHostState.showSnackbar(
+            message = getString(
+                Res.string.staff_stage_moved_snackbar,
+                getString(stageLabelRes(event.toStage)),
+            ),
+            actionLabel = getString(Res.string.staff_stage_undo),
+            duration = SnackbarDuration.Long,
+        )
+        if (result == SnackbarResult.ActionPerformed) {
+            onAction(
+                DashboardAction.OnSetStage(
+                    orderId = event.orderId,
+                    fromStage = event.toStage,
+                    toStage = event.fromStage,
+                )
             )
         }
     }

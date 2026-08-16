@@ -65,6 +65,7 @@ import com.danzucker.stitchpad.ui.theme.JetBrainsMonoFamily
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.dashboard_staff_badge
@@ -924,14 +925,25 @@ private fun weekdayAbbrevRes(day: DayOfWeek) = when (day) {
     DayOfWeek.SUNDAY -> Res.string.weekday_abbrev_sun
 }
 
-@Composable
-private fun stageLabel(stage: PipelineStage): String = when (stage) {
-    PipelineStage.PENDING -> stringResource(Res.string.order_stage_pending)
-    PipelineStage.CUTTING -> stringResource(Res.string.order_stage_cutting)
-    PipelineStage.SEWING -> stringResource(Res.string.order_stage_sewing)
-    PipelineStage.FITTING -> stringResource(Res.string.order_stage_fitting)
-    PipelineStage.READY -> stringResource(Res.string.order_stage_ready)
+/**
+ * Maps a [PipelineStage] to its display string resource. Shared with
+ * DashboardScreen's undo-snackbar message, which needs the resource id
+ * itself (not a resolved string) to call `getString` from a coroutine
+ * outside composition. Kept here — not in `PipelineStage.kt` — because
+ * that file sits in the domain layer, which can't reference compose
+ * resources; Task 10 relocates this alongside [stageLabel] to the shared
+ * `StageDots.kt` file.
+ */
+internal fun stageLabelRes(stage: PipelineStage): StringResource = when (stage) {
+    PipelineStage.PENDING -> Res.string.order_stage_pending
+    PipelineStage.CUTTING -> Res.string.order_stage_cutting
+    PipelineStage.SEWING -> Res.string.order_stage_sewing
+    PipelineStage.FITTING -> Res.string.order_stage_fitting
+    PipelineStage.READY -> Res.string.order_stage_ready
 }
+
+@Composable
+private fun stageLabel(stage: PipelineStage): String = stringResource(stageLabelRes(stage))
 
 /** Dashed top border — the ticket/hero "tear-line" footer divider. */
 private fun Modifier.tearLineTop(color: Color): Modifier = drawBehind {
