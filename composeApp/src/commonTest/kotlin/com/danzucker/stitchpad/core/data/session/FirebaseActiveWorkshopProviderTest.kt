@@ -3,12 +3,15 @@ package com.danzucker.stitchpad.core.data.session
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
 import com.danzucker.stitchpad.core.domain.session.StaffRole
 import com.danzucker.stitchpad.core.domain.session.WorkshopClaims
+import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import com.danzucker.stitchpad.core.domain.session.workshopUidOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.yield
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -114,6 +117,62 @@ class FirebaseActiveWorkshopProviderTest {
         // prefs cleared so the stale uid cannot re-enter the pending window.
         assertTrue(refreshes >= 1)
         assertTrue(revokedCallbacks >= 1)
+    }
+
+    @Test
+    fun revoking_mid_session_demotes_without_racing_the_prefs_clear_flow_restart() = runTest {
+        // Reproduces the production coupling (di/CoreModule.kt):
+        // `onStaffRevoked = { membershipPrefs.clear() }` clears the SAME flow
+        // `storedWorkshopUid` observes, and that flow is part of the outer
+        // combine's flatMapLatest key. A mid-session active staffer still has a
+        // populated storedWorkshopUid (StaffPendingViewModel never clears it on
+        // promotion), so clearing prefs here can restart the outer flow WHILE
+        // refreshToken() is still in flight, cancelling the in-flight demotion
+        // before it reaches collectors.
+        val claims = MutableStateFlow<WorkshopClaims?>(staff("staff-1", "owner-9"))
+        val membership = MutableStateFlow<MembershipStatus?>(MembershipStatus.ACTIVE)
+        val storedWs = MutableStateFlow<String?>("owner-9")
+        var refreshes = 0
+        var revokedCallbacks = 0
+        var membershipSubscriptions = 0
+        val provider = FirebaseActiveWorkshopProvider(
+            authClaims = claims,
+            scope = backgroundScope,
+            storedWorkshopUid = storedWs,
+            membershipStatusFlow = { _, _ -> membershipSubscriptions++; membership },
+            // A real forceRefreshIdToken() call suspends on network I/O; yield()
+            // mirrors that suspension so the outer combine gets a chance to react
+            // to the prefs clear before this side effect completes.
+            refreshToken = { refreshes++; yield() },
+            // Mirrors CoreModule's `onStaffRevoked = { membershipPrefs.clear() }`
+            // — the SAME flow instance storedWorkshopUid observes, unlike the
+            // decoupled `flowOf(null)` used by the sibling test above.
+            onStaffRevoked = { revokedCallbacks++; storedWs.value = null },
+        )
+        assertTrue(provider.awaitHydrated().isActiveStaff)
+        assertEquals(1, membershipSubscriptions)
+
+        val emissions = mutableListOf<WorkshopSession>()
+        val collectJob = launch { provider.flow.collect { emissions.add(it) } }
+        runCurrent()
+
+        // Owner revokes: the doc flips while the token still carries the claim.
+        membership.value = MembershipStatus.REVOKED
+        runCurrent()
+        collectJob.cancel()
+
+        val demotedIndex = emissions.indexOfFirst { it.isOwner }
+        assertTrue(demotedIndex >= 0, "expected a demotion to be emitted; got $emissions")
+        assertTrue(
+            emissions.drop(demotedIndex).none { it.isActiveStaff },
+            "demotion regressed back to active staff after being emitted: $emissions",
+        )
+        // The demotion must land from the FIRST REVOKED snapshot: no wasted
+        // extra forceRefreshIdToken call and no listener resubscribe caused by
+        // the prefs-clear racing the flatMapLatest restart.
+        assertEquals(1, refreshes, "demotion required more than one refreshToken() pass")
+        assertEquals(1, revokedCallbacks, "onStaffRevoked fired more than once")
+        assertEquals(1, membershipSubscriptions, "the membership doc listener was resubscribed")
     }
 
     @Test

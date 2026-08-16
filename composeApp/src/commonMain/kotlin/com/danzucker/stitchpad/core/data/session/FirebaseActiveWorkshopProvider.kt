@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -79,6 +80,21 @@ internal class FirebaseActiveWorkshopProvider(
                 storedWorkshopUid.distinctUntilChanged(),
                 staffFeatureEnabled.distinctUntilChanged(),
             ) { claims, storedWs, staffEnabled -> Triple(claims, storedWs, staffEnabled) }
+                // A claim-backed active-staff session (resolvedFlow's path (1))
+                // never reads storedWs, so a storedWs-only change must not
+                // restart flatMapLatest while that path is active. Without this,
+                // onStaffRevoked() clearing the SAME prefs storedWorkshopUid
+                // observes (production wiring: onStaffRevoked = {
+                // membershipPrefs.clear() }) races activeStaffFlow's
+                // refreshToken(): flatMapLatest cancels the in-flight demotion
+                // mid-suspension, re-subscribes with the still-stale STAFF
+                // claim, and activeStaffFlow's onStart re-asserts the active
+                // session — discarding the demotion (regression covered by
+                // revoking_mid_session_demotes_without_racing_the_prefs_clear_flow_restart).
+                .distinctUntilChangedBy { (claims, storedWs, staffEnabled) ->
+                    val storedWsKey = if (claims?.role == WorkshopSessionResolver.CLAIM_ROLE_STAFF) null else storedWs
+                    Triple(claims, storedWsKey, staffEnabled)
+                }
                 .flatMapLatest { (claims, storedWs, staffEnabled) ->
                     sessionFlow(claims, storedWs, staffEnabled)
                 }
