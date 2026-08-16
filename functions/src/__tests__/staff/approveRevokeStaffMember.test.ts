@@ -1,5 +1,6 @@
 import { approveStaffMemberHandler } from '../../staff/approveStaffMember';
 import { revokeStaffMemberHandler } from '../../staff/revokeStaffMember';
+import { buildLaunchGrantFields, LAUNCH_GRANT_SOURCE } from '../../freemium/launchGrant';
 import { makeStaffDb, makeClaimsRecorder, authedCtx } from './staffTestDb';
 
 const NOW = new Date('2026-07-28T10:00:00Z');
@@ -8,6 +9,25 @@ const deps = (db: ReturnType<typeof makeStaffDb>['db'], claims = makeClaimsRecor
   setClaims: claims.setClaims,
   now: () => NOW,
   _claims: claims.claims,
+});
+
+// Revoke-only deps: adds the launch-grant hooks on top of the shared `deps()` shape.
+// `writeGrant` mirrors production exactly (real buildLaunchGrantFields through the fake
+// db) so tests assert on real field content, not a stub.
+const revokeDeps = (
+  db: ReturnType<typeof makeStaffDb>['db'],
+  overrides: Partial<{
+    isGrantEnabled: () => Promise<boolean>;
+    writeGrant: (uid: string, now: Date) => Promise<void>;
+  }> = {},
+  claims = makeClaimsRecorder(),
+) => ({
+  ...deps(db, claims),
+  isGrantEnabled: async () => true,
+  writeGrant: async (uid: string, now: Date) => {
+    await db.doc(`users/${uid}`).set(buildLaunchGrantFields(now), { merge: true });
+  },
+  ...overrides,
 });
 
 describe('approveStaffMemberHandler', () => {
@@ -147,7 +167,7 @@ describe('approveStaffMemberHandler', () => {
 describe('revokeStaffMemberHandler', () => {
   it('revokes an active membership and clears the staff custom claim', async () => {
     const { db, store } = makeStaffDb({ 'users/alice/memberships/chidi': { status: 'active' } });
-    const d = deps(db);
+    const d = revokeDeps(db);
     // seed a prior claim so we can see it cleared
     await d.setClaims('chidi', { workshopUid: 'alice', role: 'staff' });
 
@@ -161,7 +181,7 @@ describe('revokeStaffMemberHandler', () => {
   it('404s an unknown membership', async () => {
     const { db } = makeStaffDb();
     await expect(
-      revokeStaffMemberHandler({ staffAuthUid: 'ghost' }, authedCtx('alice'), deps(db)),
+      revokeStaffMemberHandler({ staffAuthUid: 'ghost' }, authedCtx('alice'), revokeDeps(db)),
     ).rejects.toMatchObject({ code: 'not-found' });
   });
 
@@ -177,6 +197,8 @@ describe('revokeStaffMemberHandler', () => {
         db,
         setClaims: failingClaims,
         now: () => NOW,
+        isGrantEnabled: async () => true,
+        writeGrant: async () => {},
       }),
     ).rejects.toThrow('claims_backend_down');
     expect(store.get('users/alice/memberships/chidi')).toMatchObject({ status: 'revoked' });
@@ -187,7 +209,7 @@ describe('revokeStaffMemberHandler', () => {
       'users/alice/memberships/chidi': { status: 'active' },
       'users/alice/team/chidi': { name: 'Chidi O', kind: 'staff', status: 'active', colorSeed: 3 },
     });
-    await revokeStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), deps(db));
+    await revokeStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), revokeDeps(db));
     expect(store.get('users/alice/team/chidi')).toMatchObject({ status: 'archived', name: 'Chidi O' });
   });
 
@@ -197,7 +219,62 @@ describe('revokeStaffMemberHandler', () => {
     const { db, store } = makeStaffDb({
       'users/alice/memberships/chidi': { status: 'pending' },
     });
-    await revokeStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), deps(db));
+    await revokeStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), revokeDeps(db));
     expect(store.has('users/alice/team/chidi')).toBe(false);
+  });
+
+  it('grants launch-free to the revoked staffer when they have no users/{uid} doc', async () => {
+    const { db, store } = makeStaffDb({ 'users/alice/memberships/chidi': { status: 'active' } });
+    await revokeStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), revokeDeps(db));
+    expect(store.get('users/chidi')).toMatchObject({
+      subscriptionTier: 'atelier',
+      subscriptionStatus: 'active',
+      grantSource: LAUNCH_GRANT_SOURCE,
+    });
+  });
+
+  it('grants launch-free to a revoked staffer whose doc exists as lapsed/free', async () => {
+    const { db, store } = makeStaffDb({
+      'users/alice/memberships/chidi': { status: 'active' },
+      'users/chidi': { subscriptionTier: 'pro', subscriptionStatus: 'expired' },
+    });
+    await revokeStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), revokeDeps(db));
+    expect(store.get('users/chidi')).toMatchObject({
+      subscriptionTier: 'atelier',
+      subscriptionStatus: 'active',
+      grantSource: LAUNCH_GRANT_SOURCE,
+    });
+  });
+
+  it('skips the grant when the launch-free flag is off', async () => {
+    const { db, store } = makeStaffDb({ 'users/alice/memberships/chidi': { status: 'active' } });
+    await revokeStaffMemberHandler(
+      { staffAuthUid: 'chidi' },
+      authedCtx('alice'),
+      revokeDeps(db, { isGrantEnabled: async () => false }),
+    );
+    expect(store.has('users/chidi')).toBe(false);
+  });
+
+  it('skips the grant for an active atelier/pro subscriber', async () => {
+    const { db, store } = makeStaffDb({
+      'users/alice/memberships/chidi': { status: 'active' },
+      'users/chidi': { subscriptionTier: 'atelier', subscriptionStatus: 'active' },
+    });
+    await revokeStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), revokeDeps(db));
+    expect(store.get('users/chidi')).toEqual({ subscriptionTier: 'atelier', subscriptionStatus: 'active' });
+  });
+
+  it('revocation still succeeds when the grant write throws', async () => {
+    const { db, store } = makeStaffDb({ 'users/alice/memberships/chidi': { status: 'active' } });
+    const d = revokeDeps(db, {
+      writeGrant: async () => {
+        throw new Error('grant_write_failed');
+      },
+    });
+    const res = await revokeStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), d);
+    expect(res).toEqual({ staffAuthUid: 'chidi', status: 'revoked' });
+    expect(store.get('users/alice/memberships/chidi')).toMatchObject({ status: 'revoked' });
+    expect(d._claims.get('chidi')).toBeNull();
   });
 });

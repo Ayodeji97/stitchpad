@@ -13,10 +13,12 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.toRoute
 import com.danzucker.stitchpad.core.analytics.domain.Analytics
 import com.danzucker.stitchpad.core.debug.isDebugBuild
+import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
 import com.danzucker.stitchpad.core.domain.session.StaffRole
 import com.danzucker.stitchpad.core.domain.session.WorkshopSession
+import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.auth.presentation.forgotpassword.ForgotPasswordRoot
@@ -68,6 +70,38 @@ private suspend fun needsWorkshopSetupForCurrentUser(
 ): Boolean {
     val userId = authRepository.getCurrentUser()?.id ?: return false
     return resolveNeedsWorkshopSetup(userId)
+}
+
+/**
+ * Demotion-only workshop-setup check. Deliberately bypasses [ResolveNeedsWorkshopSetup]'s
+ * local per-user "completed" fast path and goes straight to the remote profile via
+ * [UserRepository.hasWorkshopProfile]. That fast path is set by Workshop Setup's "Skip for
+ * now" action WITHOUT creating the user's `users/{uid}` doc — a staffer who skipped setup
+ * while still staff (staff never need a profile) then gets revoked would otherwise read as
+ * "already done" here too and land on Home with no doc ever created. Because
+ * `grantLaunchFreeOnSignup` only fires on that doc's CREATE, such a user would silently
+ * default to FREE forever. Re-checking the remote profile for exactly this transition forces
+ * a re-prompt so the doc gets seeded (and, as of the server-side revocation grant, the
+ * launch Atelier entitlement lands even if the user never revisits Workshop Setup). On any
+ * read error/exception this defaults to needsWorkshopSetup = false (send Home) — a flaky
+ * network must never strand a real owner in setup.
+ */
+@Suppress("TooGenericExceptionCaught")
+private suspend fun needsWorkshopSetupForDemotedStaff(
+    authRepository: AuthRepository,
+    userRepository: UserRepository,
+): Boolean {
+    val userId = authRepository.getCurrentUser()?.id ?: return false
+    return try {
+        !userRepository.hasWorkshopProfile(userId)
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        AppLogger.w(tag = "NavGraph", throwable = e) {
+            "needsWorkshopSetupForDemotedStaff read failed userId=$userId"
+        }
+        false
+    }
 }
 
 /**
@@ -233,7 +267,7 @@ private fun PushDeepLinkRedirectEffect(navController: NavHostController) {
 private fun StaffRoleChangeRedirectEffect(navController: NavHostController) {
     val activeWorkshopProvider: ActiveWorkshopProvider = koinInject()
     val authRepository: AuthRepository = koinInject()
-    val resolveNeedsWorkshopSetup: ResolveNeedsWorkshopSetup = koinInject()
+    val userRepository: UserRepository = koinInject()
     val session by activeWorkshopProvider.flow.collectAsStateWithLifecycle()
     val authUid = session.authUid
     LaunchedEffect(authUid) {
@@ -244,9 +278,9 @@ private fun StaffRoleChangeRedirectEffect(navController: NavHostController) {
             previous = current
             if (prior != null && shouldRedirectHomeForStaffSessionChange(prior, current)) {
                 val destination = staffDemotionDestination(
-                    needsWorkshopSetup = needsWorkshopSetupForCurrentUser(
+                    needsWorkshopSetup = needsWorkshopSetupForDemotedStaff(
                         authRepository,
-                        resolveNeedsWorkshopSetup,
+                        userRepository,
                     ),
                 )
                 // Re-check the session before navigating: the resolve spans a network

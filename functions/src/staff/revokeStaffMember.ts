@@ -2,6 +2,7 @@ import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { REGION, MembershipStatus, membershipDocPath, teamMemberDocPath } from './staffConstants';
 import { StaffClaimsDeps } from './approveStaffMember';
+import { buildLaunchGrantFields, grantLaunchFreeOnStaffDeparture, LaunchGrantFlagDeps } from '../freemium/launchGrant';
 
 export interface RevokeStaffMemberRequest {
   staffAuthUid?: unknown;
@@ -12,10 +13,12 @@ export interface RevokeStaffMemberResponse {
   status: MembershipStatus;
 }
 
+export type RevokeStaffMemberDeps = StaffClaimsDeps & LaunchGrantFlagDeps;
+
 export async function revokeStaffMemberHandler(
   data: RevokeStaffMemberRequest,
   context: functions.https.CallableContext,
-  deps: StaffClaimsDeps,
+  deps: RevokeStaffMemberDeps,
 ): Promise<RevokeStaffMemberResponse> {
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'auth_required');
@@ -54,16 +57,34 @@ export async function revokeStaffMemberHandler(
     // resolvable anyway, and a stub roster doc would pollute the team namespace.
   }
 
+  try {
+    await grantLaunchFreeOnStaffDeparture(deps.db, deps, staffAuthUid, deps.now());
+  } catch (err) {
+    // Best-effort, same as the roster archive above: a revoked staffer who never
+    // gets the launch grant just falls back to FREE (the pre-existing behavior),
+    // it must never fail the revocation itself.
+    functions.logger.error('launch-free grant on staff revoke failed', { staffAuthUid, err });
+  }
+
   return { staffAuthUid, status: 'revoked' };
 }
 
 export const revokeStaffMember = functions
   .region(REGION)
   .https.onCall(
-    async (data, context): Promise<RevokeStaffMemberResponse> =>
-      revokeStaffMemberHandler(data as RevokeStaffMemberRequest, context, {
-        db: admin.firestore(),
+    async (data, context): Promise<RevokeStaffMemberResponse> => {
+      const db = admin.firestore();
+      return revokeStaffMemberHandler(data as RevokeStaffMemberRequest, context, {
+        db,
         setClaims: (uid, claims) => admin.auth().setCustomUserClaims(uid, claims),
         now: () => new Date(),
-      }),
+        isGrantEnabled: async () => {
+          const snap = await db.doc('config/app').get();
+          return snap.get('launchFreeGrantEnabled') === true;
+        },
+        writeGrant: async (uid, now) => {
+          await db.doc(`users/${uid}`).set(buildLaunchGrantFields(now), { merge: true });
+        },
+      });
+    },
   );

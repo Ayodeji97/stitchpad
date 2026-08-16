@@ -2,6 +2,7 @@ import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { REGION, MembershipStatus, membershipDocPath, teamMemberDocPath } from './staffConstants';
 import { StaffClaimsDeps } from './approveStaffMember';
+import { buildLaunchGrantFields, grantLaunchFreeOnStaffDeparture, LaunchGrantFlagDeps } from '../freemium/launchGrant';
 
 export interface CancelStaffMembershipRequest {
   workshopUid?: unknown;
@@ -12,6 +13,8 @@ export interface CancelStaffMembershipResponse {
   status: MembershipStatus;
 }
 
+export type CancelStaffMembershipDeps = StaffClaimsDeps & LaunchGrantFlagDeps;
+
 /**
  * Staff-initiated cancel of their OWN membership in [workshopUid] — the "leave
  * workshop" action. Works for a pending request (before approval) and for an
@@ -21,7 +24,7 @@ export interface CancelStaffMembershipResponse {
 export async function cancelStaffMembershipHandler(
   data: CancelStaffMembershipRequest,
   context: functions.https.CallableContext,
-  deps: StaffClaimsDeps,
+  deps: CancelStaffMembershipDeps,
 ): Promise<CancelStaffMembershipResponse> {
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'auth_required');
@@ -69,16 +72,34 @@ export async function cancelStaffMembershipHandler(
     // resolvable anyway, and a stub roster doc would pollute the team namespace.
   }
 
+  try {
+    await grantLaunchFreeOnStaffDeparture(deps.db, deps, staffAuthUid, deps.now());
+  } catch (err) {
+    // Best-effort, same as the roster archive above: a departing staffer who never
+    // gets the launch grant just falls back to FREE (the pre-existing behavior),
+    // it must never fail the leave itself.
+    functions.logger.error('launch-free grant on staff cancel failed', { staffAuthUid, err });
+  }
+
   return { workshopUid, status: 'revoked' };
 }
 
 export const cancelStaffMembership = functions
   .region(REGION)
   .https.onCall(
-    async (data, context): Promise<CancelStaffMembershipResponse> =>
-      cancelStaffMembershipHandler(data as CancelStaffMembershipRequest, context, {
-        db: admin.firestore(),
+    async (data, context): Promise<CancelStaffMembershipResponse> => {
+      const db = admin.firestore();
+      return cancelStaffMembershipHandler(data as CancelStaffMembershipRequest, context, {
+        db,
         setClaims: (uid, claims) => admin.auth().setCustomUserClaims(uid, claims),
         now: () => new Date(),
-      }),
+        isGrantEnabled: async () => {
+          const snap = await db.doc('config/app').get();
+          return snap.get('launchFreeGrantEnabled') === true;
+        },
+        writeGrant: async (uid, now) => {
+          await db.doc(`users/${uid}`).set(buildLaunchGrantFields(now), { merge: true });
+        },
+      });
+    },
   );

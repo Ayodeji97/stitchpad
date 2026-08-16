@@ -71,3 +71,42 @@ export function buildLaunchGrantFields(now: Date) {
     appleLastSignedDate: del,
   };
 }
+
+/** The `isGrantEnabled` / `writeGrant` hooks a caller extends its deps with, mirroring the
+ * shape `onUserCreated.ts` uses for the onCreate trigger. */
+export interface LaunchGrantFlagDeps {
+  isGrantEnabled: () => Promise<boolean>;
+  writeGrant: (uid: string, now: Date) => Promise<void>;
+}
+
+/**
+ * Best-effort launch-free grant applied when a staff member is revoked or leaves
+ * (cancels) their own membership. A staffer who never seeded their own
+ * `users/{uid}` doc — e.g. they skipped Workshop Setup while still staff, since
+ * staff never need one — would otherwise fall back to FREE forever once demoted:
+ * `grantLaunchFreeOnSignup` only fires on doc CREATE, and nothing else creates
+ * that doc for them. This reads the doc directly (a revocation has no onCreate
+ * snapshot to work from, unlike the trigger), applies the same
+ * [shouldGrantLaunchFree] predicate so an active paid subscriber is left alone,
+ * and is idempotent — a doc already granted reads as active/atelier and is
+ * skipped on any later call (owner re-invites, revokes again, etc).
+ *
+ * Callers must wrap this in their own try/catch: a throw here (e.g. Firestore
+ * hiccup) must never fail the revocation/cancel it is attached to.
+ */
+export async function grantLaunchFreeOnStaffDeparture(
+  db: admin.firestore.Firestore,
+  hooks: LaunchGrantFlagDeps,
+  staffUid: string,
+  now: Date,
+): Promise<void> {
+  if (!(await hooks.isGrantEnabled())) {
+    return;
+  }
+  const snap = await db.doc(`users/${staffUid}`).get();
+  const data = snap.exists ? (snap.data() as UserSubscriptionFields) : undefined;
+  if (!shouldGrantLaunchFree(data)) {
+    return;
+  }
+  await hooks.writeGrant(staffUid, now);
+}
