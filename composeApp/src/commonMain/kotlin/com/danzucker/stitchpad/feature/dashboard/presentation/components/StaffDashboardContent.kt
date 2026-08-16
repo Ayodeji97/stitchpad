@@ -73,7 +73,6 @@ import stitchpad.composeapp.generated.resources.dashboard_staff_pipeline
 import stitchpad.composeapp.generated.resources.dashboard_staff_stage_ready
 import stitchpad.composeapp.generated.resources.dashboard_staff_tile_due_today
 import stitchpad.composeapp.generated.resources.dashboard_staff_tile_in_progress
-import stitchpad.composeapp.generated.resources.dashboard_staff_tile_mine
 import stitchpad.composeapp.generated.resources.dashboard_staff_tile_overdue
 import stitchpad.composeapp.generated.resources.dashboard_staff_tile_view
 import stitchpad.composeapp.generated.resources.dashboard_staff_workshop_count
@@ -90,6 +89,7 @@ import stitchpad.composeapp.generated.resources.staff_advance_stage_cta
 import stitchpad.composeapp.generated.resources.staff_due_today
 import stitchpad.composeapp.generated.resources.staff_due_tomorrow
 import stitchpad.composeapp.generated.resources.staff_due_weekday
+import stitchpad.composeapp.generated.resources.staff_my_work_link
 import stitchpad.composeapp.generated.resources.staff_on_track
 import stitchpad.composeapp.generated.resources.staff_shop_queue_header_count
 import stitchpad.composeapp.generated.resources.staff_stage_now
@@ -161,11 +161,9 @@ fun StaffDashboardContent(
             overdue = state.overdue.size,
             dueToday = state.dueToday.size,
             inProgress = pipeline.inProgressTotal,
-            mine = state.staffMineCount,
             onOverdueClick = { onAction(DashboardAction.OnViewOverdueClick) },
             onDueTodayClick = { onAction(DashboardAction.OnViewDueTodayClick) },
             onInProgressClick = { onAction(DashboardAction.OnViewPipelineInProgressClick) },
-            onMineClick = { onAction(DashboardAction.OnViewMyWorkClick) },
         )
         if (!pipeline.isEmpty) {
             StaffPipelineBar(pipeline)
@@ -175,6 +173,7 @@ fun StaffDashboardContent(
             today = today,
             viewerMemberId = state.viewerMemberId,
             advancingOrders = state.advancingOrders,
+            mineCount = state.staffMineCount,
             onAction = onAction,
         )
     }
@@ -240,13 +239,11 @@ private fun StaffCountTiles(
     overdue: Int,
     dueToday: Int,
     inProgress: Int,
-    mine: Int,
     onOverdueClick: () -> Unit,
     onDueTodayClick: () -> Unit,
     onInProgressClick: () -> Unit,
-    onMineClick: () -> Unit,
 ) {
-    // IntrinsicSize.Min keeps all four tiles the height of the tallest, so the "View"
+    // IntrinsicSize.Min keeps all three tiles the height of the tallest, so the "View"
     // affordance on populated tiles never leaves a zero-count tile looking clipped.
     Row(
         modifier = Modifier.height(IntrinsicSize.Min),
@@ -274,14 +271,6 @@ private fun StaffCountTiles(
             accent = MaterialTheme.colorScheme.primary,
             tinted = false,
             onClick = onInProgressClick,
-            modifier = Modifier.weight(1f).fillMaxHeight(),
-        )
-        StaffCountTile(
-            count = mine,
-            label = stringResource(Res.string.dashboard_staff_tile_mine),
-            accent = MaterialTheme.colorScheme.primary,
-            tinted = false,
-            onClick = onMineClick,
             modifier = Modifier.weight(1f).fillMaxHeight(),
         )
     }
@@ -462,12 +451,38 @@ private fun StaffFocusQueueSection(
     today: LocalDate,
     viewerMemberId: String?,
     advancingOrders: Map<String, PipelineStage>,
+    mineCount: Int,
     onAction: (DashboardAction) -> Unit,
 ) {
     val hero = focusQueue.hero
     if (hero != null) {
         Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space3)) {
-            FocusSectionHeader(stringResource(Res.string.staff_up_next_header))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                FocusSectionHeader(stringResource(Res.string.staff_up_next_header))
+                if (mineCount > 0) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { onAction(DashboardAction.OnViewMyWorkClick) },
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.staff_my_work_link, mineCount),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(14.dp),
+                        )
+                    }
+                }
+            }
             UpNextHero(
                 row = hero,
                 today = today,
