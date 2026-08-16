@@ -4,6 +4,7 @@ import com.danzucker.stitchpad.core.domain.session.MembershipStatus
 import com.danzucker.stitchpad.core.domain.session.StaffRole
 import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -47,5 +48,15 @@ class StaffRoleChangeRedirectTest {
     @Test
     fun activeStaffSignOutDoesNotRedirectHome() {
         assertFalse(shouldRedirectHomeForStaffSessionChange(active, WorkshopSession.signedOut()))
+    }
+
+    @Test
+    fun demotionWithoutWorkshopProfileGoesToWorkshopSetup() {
+        assertEquals(WorkshopSetupRoute, staffDemotionDestination(needsWorkshopSetup = true))
+    }
+
+    @Test
+    fun demotionWithExistingProfileGoesHome() {
+        assertEquals(HomeRoute, staffDemotionDestination(needsWorkshopSetup = false))
     }
 }

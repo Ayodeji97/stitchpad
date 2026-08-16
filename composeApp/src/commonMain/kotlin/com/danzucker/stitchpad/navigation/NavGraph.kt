@@ -234,6 +234,8 @@ private fun PushDeepLinkRedirectEffect(navController: NavHostController) {
 @Composable
 private fun StaffRoleChangeRedirectEffect(navController: NavHostController) {
     val activeWorkshopProvider: ActiveWorkshopProvider = koinInject()
+    val authRepository: AuthRepository = koinInject()
+    val resolveNeedsWorkshopSetup: ResolveNeedsWorkshopSetup = koinInject()
     val session by activeWorkshopProvider.flow.collectAsStateWithLifecycle()
     val authUid = session.authUid
     LaunchedEffect(authUid) {
@@ -243,7 +245,13 @@ private fun StaffRoleChangeRedirectEffect(navController: NavHostController) {
             val prior = previous
             previous = current
             if (prior != null && shouldRedirectHomeForStaffSessionChange(prior, current)) {
-                navController.navigate(HomeRoute) {
+                val destination = staffDemotionDestination(
+                    needsWorkshopSetup = needsWorkshopSetupForCurrentUser(
+                        authRepository,
+                        resolveNeedsWorkshopSetup,
+                    ),
+                )
+                navController.navigate(destination) {
                     popUpTo(navController.graph.id) { inclusive = false }
                     launchSingleTop = true
                 }
@@ -266,6 +274,16 @@ internal fun shouldRedirectHomeForStaffSessionChange(
     current.isOwner &&
     current.authUid.isNotBlank() &&
     current.authUid == previous.authUid
+
+/**
+ * Where a just-demoted (revoked) staffer lands. A staff-only user has no
+ * users/{uid} doc — Workshop Setup is the only path that seeds it, and the
+ * server-side launch Atelier grant fires on that doc's creation. Sending a
+ * profile-less demoted staffer straight Home would strand them on FREE/15
+ * entitlement defaults until their next cold start.
+ */
+internal fun staffDemotionDestination(needsWorkshopSetup: Boolean): Any =
+    if (needsWorkshopSetup) WorkshopSetupRoute else HomeRoute
 
 /**
  * Logs a screen_view for every destination the user lands on. One hook covers every
