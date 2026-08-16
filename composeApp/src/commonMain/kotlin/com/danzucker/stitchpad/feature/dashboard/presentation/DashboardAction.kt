@@ -124,4 +124,10 @@ sealed interface DashboardAction {
         val fromStage: PipelineStage,
         val toStage: PipelineStage,
     ) : DashboardAction
+
+    /** Staff tapped the hero's stage stepper — open the stage sheet for that order. */
+    data class OnStageStepperClick(val orderId: String) : DashboardAction
+
+    /** Stage sheet dismissed (scrim tap, swipe, back). */
+    data object OnDismissStageSheet : DashboardAction
 }

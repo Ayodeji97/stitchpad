@@ -936,6 +936,10 @@
     <string name="staff_advance_stage_error">Couldn&apos;t update the order. Try again.</string>
     <!-- Stepper / stage-dots content description, e.g. "Sewing, stage 3 of 5" -->
     <string name="staff_stage_progress_cd">%1$s, stage %2$d of %3$d</string>
+    <!-- Tappable-stepper stage sheet (Decision 2B: move any direction, not just forward) -->
+    <string name="staff_stage_sheet_title">Set stage</string>
+    <!-- contentDescription on the hero stepper's tap affordance -->
+    <string name="staff_change_stage_cd">Change stage</string>
     <!-- Undo snackbar after a one-tap hero stage advance -->
     <string name="staff_stage_moved_snackbar">Moved to %1$s</string>
     <string name="staff_stage_undo">Undo</string>

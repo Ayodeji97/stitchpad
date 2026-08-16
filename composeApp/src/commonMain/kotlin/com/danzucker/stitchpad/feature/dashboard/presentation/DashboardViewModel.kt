@@ -338,6 +338,10 @@ class DashboardViewModel(
             }
             is DashboardAction.OnSetStage ->
                 handleSetStage(action.orderId, action.fromStage, action.toStage, announceAdvance = false)
+            is DashboardAction.OnStageStepperClick ->
+                _state.update { it.copy(stageSheetOrderId = action.orderId) }
+            DashboardAction.OnDismissStageSheet ->
+                _state.update { it.copy(stageSheetOrderId = null) }
         }
     }
 
@@ -377,6 +381,10 @@ class DashboardViewModel(
         toStage: PipelineStage,
         announceAdvance: Boolean,
     ) {
+        // Selection always closes the sheet, even when a guard below then no-ops
+        // the move (stale fromStage, an in-flight duplicate, no toStage change) —
+        // the sheet is a one-shot picker, not a form that stays open on rejection.
+        _state.update { it.copy(stageSheetOrderId = null) }
         if (toStage == fromStage) return
         val current = _state.value
         if (current.advancingOrders.containsKey(orderId)) return

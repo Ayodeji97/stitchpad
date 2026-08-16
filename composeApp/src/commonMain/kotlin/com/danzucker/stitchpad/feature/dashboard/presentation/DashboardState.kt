@@ -107,5 +107,9 @@ data class DashboardState(
     val unreadNotificationCount: Int = 0,
     // Measurements shortcut's customer picker sheet — null means closed.
     val measurementsPicker: MeasurementsPickerUi? = null,
+    // Staff dashboard: the order id whose stage sheet is open (tapped the hero's
+    // stage stepper). Null means closed. The sheet's row is resolved live from
+    // [staffOpenQueue] by this id, not stored separately — StaffDashboardContent.
+    val stageSheetOrderId: String? = null,
     val errorMessage: UiText? = null
 )

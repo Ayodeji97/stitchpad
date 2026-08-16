@@ -89,6 +89,7 @@ import stitchpad.composeapp.generated.resources.order_stage_pending
 import stitchpad.composeapp.generated.resources.order_stage_ready
 import stitchpad.composeapp.generated.resources.order_stage_sewing
 import stitchpad.composeapp.generated.resources.staff_advance_stage_cta
+import stitchpad.composeapp.generated.resources.staff_change_stage_cd
 import stitchpad.composeapp.generated.resources.staff_due_today
 import stitchpad.composeapp.generated.resources.staff_due_tomorrow
 import stitchpad.composeapp.generated.resources.staff_due_weekday
@@ -178,6 +179,24 @@ fun StaffDashboardContent(
             advancingOrders = state.advancingOrders,
             mineCount = state.staffMineCount,
             onAction = onAction,
+        )
+    }
+    // Tappable-stepper stage sheet (Decision 2B): resolved live from staffOpenQueue
+    // by id rather than cached, so a row that changes stage or disappears mid-display
+    // (e.g. a concurrent update elsewhere) is picked up on the next tick instead of
+    // rendering a stale sheet. `sheetRow?.stage?.let` is the null-safety net for a row
+    // dropping out of the queue entirely while the sheet is open — no crash, sheet
+    // just stops rendering (state.stageSheetOrderId still closes normally on dismiss).
+    val sheetRow = state.staffOpenQueue.firstOrNull { it.orderId == state.stageSheetOrderId }
+    sheetRow?.stage?.let { current ->
+        StageSheet(
+            currentStage = current,
+            customerName = sheetRow.customerName,
+            orderCode = orderCodeFor(sheetRow.orderId),
+            onSelect = { picked ->
+                onAction(DashboardAction.OnSetStage(sheetRow.orderId, fromStage = current, toStage = picked))
+            },
+            onDismiss = { onAction(DashboardAction.OnDismissStageSheet) },
         )
     }
 }
@@ -495,6 +514,7 @@ private fun StaffFocusQueueSection(
                 isAdvancing = advancingOrders.containsKey(hero.orderId),
                 onAdvance = { fromStage -> onAction(DashboardAction.OnAdvanceStage(hero.orderId, fromStage)) },
                 onClick = { onAction(DashboardAction.OnOrderClick(hero.orderId)) },
+                onStepperClick = { onAction(DashboardAction.OnStageStepperClick(hero.orderId)) },
             )
         }
         if (focusQueue.thenQueue.isNotEmpty()) {
@@ -559,6 +579,7 @@ private fun UpNextHero(
     isAdvancing: Boolean,
     onAdvance: (PipelineStage) -> Unit,
     onClick: () -> Unit,
+    onStepperClick: () -> Unit,
 ) {
     val stage = row.stage ?: return
     val nextStage = stage.next()
@@ -592,7 +613,17 @@ private fun UpNextHero(
                     UrgencyChip(daysLate = row.daysLate, daysUntilDeadline = row.daysUntilDeadline, today = today)
                 }
                 Spacer(Modifier.height(DesignTokens.space4))
-                HeroStageStepper(stage = stage)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            onClick = onStepperClick,
+                            onClickLabel = stringResource(Res.string.staff_change_stage_cd),
+                            role = Role.Button,
+                        ),
+                ) {
+                    HeroStageStepper(stage = stage)
+                }
                 if (nextStage != null) {
                     Spacer(Modifier.height(DesignTokens.space4))
                     StitchPadButton(

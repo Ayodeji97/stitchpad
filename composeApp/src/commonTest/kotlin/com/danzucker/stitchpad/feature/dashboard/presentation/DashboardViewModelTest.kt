@@ -703,6 +703,61 @@ class DashboardViewModelTest {
         }
     }
 
+    // --- Task 9 (2026-08-16): tappable-stepper stage sheet (Decision 2B) ---
+
+    @Test
+    fun stepperClickOpensStageSheetForThatOrder() = runTest {
+        signIn()
+        becomeActiveStaff()
+        val vm = createViewModel()
+
+        vm.onAction(DashboardAction.OnStageStepperClick("order-1"))
+
+        assertEquals("order-1", vm.state.value.stageSheetOrderId)
+    }
+
+    @Test
+    fun dismissAndStageSelectionCloseTheSheet() = runTest {
+        signIn()
+        becomeActiveStaff()
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "order-1", status = OrderStatus.IN_PROGRESS, deadline = null)
+                .copy(subStatus = OrderSubStatus.FITTING, assignedMemberId = "staff-uid"),
+        )
+        val vm = createViewModel()
+
+        vm.onAction(DashboardAction.OnStageStepperClick("order-1"))
+        vm.onAction(DashboardAction.OnDismissStageSheet)
+        assertNull(vm.state.value.stageSheetOrderId)
+
+        vm.onAction(DashboardAction.OnStageStepperClick("order-1"))
+        vm.onAction(DashboardAction.OnSetStage("order-1", PipelineStage.FITTING, PipelineStage.SEWING))
+        assertNull(vm.state.value.stageSheetOrderId)
+    }
+
+    // OnSetStage's stale-fromStage guard (see setStageWithStaleFromStageNoOps above)
+    // must not leave the sheet stuck open — the sheet is a one-shot picker, so a
+    // selection always closes it even when the write itself is discarded.
+    @Test
+    fun staleSetStageStillClosesSheetEvenThoughGuardNoOps() = runTest {
+        signIn()
+        becomeActiveStaff()
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "order-1", status = OrderStatus.IN_PROGRESS, deadline = null)
+                .copy(subStatus = OrderSubStatus.FITTING, assignedMemberId = "staff-uid"),
+        )
+        val vm = createViewModel()
+
+        vm.onAction(DashboardAction.OnStageStepperClick("order-1"))
+        vm.onAction(
+            DashboardAction.OnSetStage("order-1", fromStage = PipelineStage.SEWING, toStage = PipelineStage.CUTTING),
+        )
+
+        assertNull(vm.state.value.stageSheetOrderId)
+        // The guard actually no-op'd — no repository write happened.
+        assertNull(orderRepository.lastStatusUpdate)
+    }
+
     // Task 1 (staff phase2 assignment): kill-switch / revocation must bite mid-session —
     // loadData's combine must not stay pinned to the workshop/role it started on.
     @Test
