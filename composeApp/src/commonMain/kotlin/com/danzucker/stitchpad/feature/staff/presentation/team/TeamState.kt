@@ -40,7 +40,6 @@ data class TeamState(
      */
     val currentUserId: String? = null,
     val showAddMemberSheet: Boolean = false,
-    val addMemberName: String = "",
     /** Non-null while the rename sheet is shown for this roster row. */
     val renameTarget: TeamMember? = null,
     /**

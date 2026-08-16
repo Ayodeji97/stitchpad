@@ -354,27 +354,17 @@ class TeamViewModelTest {
     }
 
     @Test
-    fun onAddMemberClickOpensSheetAndClearsPreviousDraft() {
+    fun onAddMemberClickOpensSheet() {
         val vm = buildViewModel()
-        vm.onAction(TeamAction.OnAddMemberNameChange("stale draft"))
         vm.onAction(TeamAction.OnAddMemberClick)
         assertTrue(vm.state.value.showAddMemberSheet)
-        assertEquals("", vm.state.value.addMemberName)
-    }
-
-    @Test
-    fun onAddMemberNameChangeUpdatesState() {
-        val vm = buildViewModel()
-        vm.onAction(TeamAction.OnAddMemberNameChange("Ngozi"))
-        assertEquals("Ngozi", vm.state.value.addMemberName)
     }
 
     @Test
     fun onConfirmAddMemberWithBlankNameIsNoOp() {
         val vm = buildViewModel()
         vm.onAction(TeamAction.OnAddMemberClick)
-        vm.onAction(TeamAction.OnAddMemberNameChange("   "))
-        vm.onAction(TeamAction.OnConfirmAddMember)
+        vm.onAction(TeamAction.OnConfirmAddMember("   "))
         assertNull(rosterRepo.lastAddedName)
         assertTrue(vm.state.value.showAddMemberSheet)
     }
@@ -383,11 +373,9 @@ class TeamViewModelTest {
     fun onConfirmAddMemberWithRealNameCallsAddNamedMemberAndClosesSheet() {
         val vm = buildViewModel()
         vm.onAction(TeamAction.OnAddMemberClick)
-        vm.onAction(TeamAction.OnAddMemberNameChange("Ngozi Eze"))
-        vm.onAction(TeamAction.OnConfirmAddMember)
+        vm.onAction(TeamAction.OnConfirmAddMember("Ngozi Eze"))
         assertEquals("Ngozi Eze", rosterRepo.lastAddedName)
         assertFalse(vm.state.value.showAddMemberSheet)
-        assertEquals("", vm.state.value.addMemberName)
     }
 
     @Test
@@ -398,9 +386,8 @@ class TeamViewModelTest {
         rosterRepo.seedMembers(listOf(rosterMember("owner-1", "Owner", kind = TeamMemberKind.OWNER)))
         rosterRepo.operationError = DataError.Network.UNKNOWN
         val vm = buildViewModel()
-        vm.onAction(TeamAction.OnAddMemberNameChange("Ngozi Eze"))
         vm.events.test {
-            vm.onAction(TeamAction.OnConfirmAddMember)
+            vm.onAction(TeamAction.OnConfirmAddMember("Ngozi Eze"))
             assertIs<TeamEvent.ShowSnackbar>(awaitItem())
         }
     }
