@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.feature.dashboard.domain.model.PipelineStage
+import com.danzucker.stitchpad.ui.components.stageLabelRes
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.JetBrainsMonoFamily
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme

@@ -59,13 +59,15 @@ import com.danzucker.stitchpad.feature.dashboard.domain.resolveUrgencyLevel
 import com.danzucker.stitchpad.feature.dashboard.presentation.DashboardAction
 import com.danzucker.stitchpad.feature.dashboard.presentation.DashboardState
 import com.danzucker.stitchpad.ui.components.LoadingDots
+import com.danzucker.stitchpad.ui.components.StageDots
 import com.danzucker.stitchpad.ui.components.StitchPadButton
+import com.danzucker.stitchpad.ui.components.stageLabel
+import com.danzucker.stitchpad.ui.components.stageProgressDescription
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.JetBrainsMonoFamily
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
-import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.dashboard_staff_badge
@@ -85,8 +87,6 @@ import stitchpad.composeapp.generated.resources.order_assign_you
 import stitchpad.composeapp.generated.resources.order_filter_unassigned
 import stitchpad.composeapp.generated.resources.order_stage_cutting
 import stitchpad.composeapp.generated.resources.order_stage_fitting
-import stitchpad.composeapp.generated.resources.order_stage_pending
-import stitchpad.composeapp.generated.resources.order_stage_ready
 import stitchpad.composeapp.generated.resources.order_stage_sewing
 import stitchpad.composeapp.generated.resources.staff_advance_stage_cta
 import stitchpad.composeapp.generated.resources.staff_change_stage_cd
@@ -97,7 +97,6 @@ import stitchpad.composeapp.generated.resources.staff_my_work_link
 import stitchpad.composeapp.generated.resources.staff_on_track
 import stitchpad.composeapp.generated.resources.staff_shop_queue_header_count
 import stitchpad.composeapp.generated.resources.staff_stage_now
-import stitchpad.composeapp.generated.resources.staff_stage_progress_cd
 import stitchpad.composeapp.generated.resources.staff_then_header
 import stitchpad.composeapp.generated.resources.staff_up_next_header
 import stitchpad.composeapp.generated.resources.weekday_abbrev_fri
@@ -753,15 +752,6 @@ private fun HeroStepSegment(done: Boolean, current: Boolean, modifier: Modifier 
     )
 }
 
-/** "Sewing, stage 3 of 5" — shared content description for the hero stepper and ticket stage dots. */
-@Composable
-private fun stageProgressDescription(stage: PipelineStage): String = stringResource(
-    Res.string.staff_stage_progress_cd,
-    stageLabel(stage),
-    stage.ordinal + 1,
-    PipelineStage.entries.size,
-)
-
 /**
  * A compact ticket card for the "Then" and "rest of the shop" sections:
  * avatar + name + garment + urgency chip, then a tear-line footer with stage
@@ -855,26 +845,6 @@ private fun TicketAvatar(name: String) {
     }
 }
 
-/** `●●●○○` — done = primary, current = saffron, upcoming = neutral. */
-@Composable
-private fun StageDots(stage: PipelineStage) {
-    val progressDescription = stageProgressDescription(stage)
-    Row(
-        modifier = Modifier.clearAndSetSemantics { contentDescription = progressDescription },
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        PipelineStage.entries.forEach { s ->
-            val color = when {
-                s.ordinal < stage.ordinal -> MaterialTheme.colorScheme.primary
-                s == stage -> DesignTokens.saffron500
-                else -> MaterialTheme.colorScheme.outlineVariant
-            }
-            Box(Modifier.size(6.dp).clip(CircleShape).background(color))
-        }
-    }
-}
-
 /** "You" (filled indigo, viewer-assigned) / teammate name (quiet outline) / "Unassigned" (quiet outline). */
 @Composable
 private fun AssigneeChip(assignedMemberId: String?, assignedMemberName: String?, viewerMemberId: String?) {
@@ -955,26 +925,6 @@ private fun weekdayAbbrevRes(day: DayOfWeek) = when (day) {
     DayOfWeek.SATURDAY -> Res.string.weekday_abbrev_sat
     DayOfWeek.SUNDAY -> Res.string.weekday_abbrev_sun
 }
-
-/**
- * Maps a [PipelineStage] to its display string resource. Shared with
- * DashboardScreen's undo-snackbar message, which needs the resource id
- * itself (not a resolved string) to call `getString` from a coroutine
- * outside composition. Kept here — not in `PipelineStage.kt` — because
- * that file sits in the domain layer, which can't reference compose
- * resources; Task 10 relocates this alongside [stageLabel] to the shared
- * `StageDots.kt` file.
- */
-internal fun stageLabelRes(stage: PipelineStage): StringResource = when (stage) {
-    PipelineStage.PENDING -> Res.string.order_stage_pending
-    PipelineStage.CUTTING -> Res.string.order_stage_cutting
-    PipelineStage.SEWING -> Res.string.order_stage_sewing
-    PipelineStage.FITTING -> Res.string.order_stage_fitting
-    PipelineStage.READY -> Res.string.order_stage_ready
-}
-
-@Composable
-private fun stageLabel(stage: PipelineStage): String = stringResource(stageLabelRes(stage))
 
 /** Dashed top border — the ticket/hero "tear-line" footer divider. */
 private fun Modifier.tearLineTop(color: Color): Modifier = drawBehind {

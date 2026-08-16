@@ -88,7 +88,6 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupSt
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.StaffDashboardContent
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.TodayWorkCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.YoureOwedCard
-import com.danzucker.stitchpad.feature.dashboard.presentation.components.stageLabelRes
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FirstOrderSetupUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
@@ -110,6 +109,7 @@ import com.danzucker.stitchpad.ui.components.SpeedDialAction
 import com.danzucker.stitchpad.ui.components.StitchPadSpeedDialFab
 import com.danzucker.stitchpad.ui.components.WeeklyGoalsCard
 import com.danzucker.stitchpad.ui.components.WeeklyGoalsCardState
+import com.danzucker.stitchpad.ui.components.stageLabelRes
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.LocalIsDarkTheme
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme

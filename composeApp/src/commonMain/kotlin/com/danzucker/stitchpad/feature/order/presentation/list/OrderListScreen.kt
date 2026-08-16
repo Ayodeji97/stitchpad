@@ -82,13 +82,17 @@ import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.feature.dashboard.domain.model.PipelineStage
+import com.danzucker.stitchpad.feature.dashboard.domain.model.stageOf
 import com.danzucker.stitchpad.feature.order.presentation.garmentSummaryRes
 import com.danzucker.stitchpad.feature.tutorials.domain.model.TutorialTopic
 import com.danzucker.stitchpad.feature.tutorials.presentation.hint.TutorialHintRoot
 import com.danzucker.stitchpad.ui.components.MemberAvatar
 import com.danzucker.stitchpad.ui.components.PendingSyncBadge
+import com.danzucker.stitchpad.ui.components.StageDots
 import com.danzucker.stitchpad.ui.components.StrikethroughPrice
 import com.danzucker.stitchpad.ui.components.fallbackMemberColorSeed
+import com.danzucker.stitchpad.ui.components.stageLabel
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
@@ -828,6 +832,22 @@ private fun OrderListItem(
             Spacer(Modifier.height(2.dp))
 
             DeadlineLine(deadline = order.deadline, now = now, status = order.status)
+
+            val stage = stageOf(order.status, order.subStatus)
+            if (stage != null && stage != PipelineStage.READY) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+                    modifier = Modifier.padding(top = DesignTokens.space1),
+                ) {
+                    StageDots(stage)
+                    Text(
+                        text = stageLabel(stage),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
 
             if (order.isPendingSync || order.assignedMemberName != null) {
                 Row(
