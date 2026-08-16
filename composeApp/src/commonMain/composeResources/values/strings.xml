@@ -1406,6 +1406,8 @@
     <string name="settings_row_invite">Invite a tailor</string>
     <string name="settings_row_team">Team</string>
     <string name="settings_row_team_subtitle">Invite staff and manage who can access your workshop</string>
+    <string name="settings_row_join_workshop">Join a workshop</string>
+    <string name="settings_row_join_workshop_subtitle">Enter an invite code from a workshop owner</string>
     <string name="settings_row_invite_subtitle">Grow your network</string>
     <string name="referral_code_settings_row">Have a referral code?</string>
     <string name="referral_code_settings_subtitle">Enter a code from whoever referred you</string>

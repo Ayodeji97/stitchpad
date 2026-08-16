@@ -118,6 +118,7 @@ import org.koin.compose.viewmodel.koinViewModel
 fun MainRoot(
     onSignedOut: () -> Unit,
     onNavigateToDebugMenu: () -> Unit,
+    onNavigateToJoinWorkshop: () -> Unit,
 ) {
     val innerNavController = rememberNavController()
     val navBackStackEntry by innerNavController.currentBackStackEntryAsState()
@@ -256,6 +257,7 @@ fun MainRoot(
                 navController = innerNavController,
                 onSignedOut = onSignedOut,
                 onNavigateToDebugMenu = onNavigateToDebugMenu,
+                onNavigateToJoinWorkshop = onNavigateToJoinWorkshop,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -267,6 +269,7 @@ private fun MainNavGraph(
     navController: NavHostController,
     onSignedOut: () -> Unit,
     onNavigateToDebugMenu: () -> Unit,
+    onNavigateToJoinWorkshop: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     NavHost(
@@ -693,6 +696,7 @@ private fun MainNavGraph(
                 onNavigateToChangePassword = { navController.navigate(ChangePasswordRoute) },
                 onNavigateToReferralCode = { navController.navigate(ReferralCodeRoute) },
                 onNavigateToTeam = { navController.navigate(TeamRoute) },
+                onNavigateToJoinWorkshop = onNavigateToJoinWorkshop,
                 onNavigateToDeleteAccount = { navController.navigate(DeleteAccountRoute) },
                 onSignedOut = onSignedOut,
                 onNavigateToDebugMenu = onNavigateToDebugMenu,

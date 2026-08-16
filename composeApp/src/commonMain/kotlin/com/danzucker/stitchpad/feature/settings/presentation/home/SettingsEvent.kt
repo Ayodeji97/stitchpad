@@ -12,6 +12,9 @@ sealed interface SettingsEvent {
 
     /** Slice 7: navigate to owner Team management. */
     data object NavigateToTeam : SettingsEvent
+
+    /** Navigate to the root-level invite-code redeem screen. */
+    data object NavigateToJoinWorkshop : SettingsEvent
     data object NavigateToDeleteAccount : SettingsEvent
     data object NavigateToLoginAfterSignOut : SettingsEvent
     data object NavigateToDebugMenu : SettingsEvent

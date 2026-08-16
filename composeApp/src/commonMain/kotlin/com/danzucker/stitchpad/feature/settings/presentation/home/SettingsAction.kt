@@ -12,6 +12,9 @@ sealed interface SettingsAction {
 
     /** Slice 7: owner opens the Team management screen. */
     data object OnTeamClick : SettingsAction
+
+    /** Standalone/demoted user opens the invite-code redeem screen (code shared as text, no deep link). */
+    data object OnJoinWorkshopClick : SettingsAction
     data object OnSignOutRowClick : SettingsAction
     data object OnSignOutConfirm : SettingsAction
     data object OnSignOutDismiss : SettingsAction

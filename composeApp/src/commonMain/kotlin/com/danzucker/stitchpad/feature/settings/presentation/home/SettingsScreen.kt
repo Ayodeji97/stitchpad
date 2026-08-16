@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.CardGiftcard
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.GroupAdd
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Info
@@ -105,6 +106,8 @@ import stitchpad.composeapp.generated.resources.settings_row_invite
 import stitchpad.composeapp.generated.resources.settings_row_invite_rewards
 import stitchpad.composeapp.generated.resources.settings_row_invite_rewards_subtitle
 import stitchpad.composeapp.generated.resources.settings_row_invite_subtitle
+import stitchpad.composeapp.generated.resources.settings_row_join_workshop
+import stitchpad.composeapp.generated.resources.settings_row_join_workshop_subtitle
 import stitchpad.composeapp.generated.resources.settings_row_legal_about
 import stitchpad.composeapp.generated.resources.settings_row_legal_about_subtitle
 import stitchpad.composeapp.generated.resources.settings_row_measurement_units
@@ -408,6 +411,18 @@ private fun SettingsLandingLegacy(
             label = stringResource(Res.string.settings_row_sign_out),
             onClick = { onAction(SettingsAction.OnSignOutRowClick) },
         )
+        // A revoked/standalone user whose owner shared the code as plain text
+        // (no deep link) needs an in-app path to the redeem screen.
+        if (!state.isActiveStaff) {
+            SettingsRowDivider()
+            SettingsRow(
+                icon = Icons.Outlined.GroupAdd,
+                label = stringResource(Res.string.settings_row_join_workshop),
+                subtitle = stringResource(Res.string.settings_row_join_workshop_subtitle),
+                onClick = { onAction(SettingsAction.OnJoinWorkshopClick) },
+                trailing = { SettingsRowChevron() },
+            )
+        }
         // Staff-only: leave the owner's workshop. Sits with Sign out because both
         // end the current session; it's destructive so it routes through a dialog.
         if (state.isActiveStaff) {
@@ -653,6 +668,18 @@ private fun SettingsLandingHub(
                 label = stringResource(Res.string.settings_row_team),
                 subtitle = stringResource(Res.string.settings_row_team_subtitle),
                 onClick = { onAction(SettingsAction.OnTeamClick) },
+                trailing = { SettingsRowChevron() },
+            )
+        }
+        // A revoked/standalone user whose owner shared the code as plain text
+        // (no deep link) needs an in-app path to the redeem screen.
+        if (!state.isActiveStaff) {
+            SettingsRowDivider()
+            SettingsRow(
+                icon = Icons.Outlined.GroupAdd,
+                label = stringResource(Res.string.settings_row_join_workshop),
+                subtitle = stringResource(Res.string.settings_row_join_workshop_subtitle),
+                onClick = { onAction(SettingsAction.OnJoinWorkshopClick) },
                 trailing = { SettingsRowChevron() },
             )
         }
