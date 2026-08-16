@@ -607,6 +607,7 @@
     <!-- Payment status -->
     <string name="payment_paid">Paid</string>
     <string name="payment_partial">%1$s paid</string>
+    <string name="payment_partial_masked">Part-paid</string>
     <string name="payment_unpaid">Unpaid</string>
 
     <!-- Order status labels -->
@@ -1888,8 +1889,8 @@
     <string name="order_costs_add_cost">Add cost</string>
     <string name="order_costs_edit">Edit costs</string>
     <string name="order_costs_add_button">Add costs</string>
-    <string name="order_show_profit">Show profit</string>
-    <string name="order_hide_profit">Hide profit</string>
+    <string name="order_show_amounts">Show amounts</string>
+    <string name="order_hide_amounts">Hide amounts</string>
     <string name="order_costs_empty_body">Add what this order cost you to see your real profit.</string>
     <string name="order_costs_private_caption">Private — never shown on receipts</string>
     <string name="costs_editor_title">Record costs</string>

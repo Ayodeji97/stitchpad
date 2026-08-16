@@ -122,13 +122,13 @@ import stitchpad.composeapp.generated.resources.order_filter_archived
 import stitchpad.composeapp.generated.resources.order_filter_assigned_to
 import stitchpad.composeapp.generated.resources.order_filter_my_work
 import stitchpad.composeapp.generated.resources.order_filter_unassigned
-import stitchpad.composeapp.generated.resources.order_hide_profit
+import stitchpad.composeapp.generated.resources.order_hide_amounts
 import stitchpad.composeapp.generated.resources.order_list_title
 import stitchpad.composeapp.generated.resources.order_priority_rush
 import stitchpad.composeapp.generated.resources.order_priority_urgent
 import stitchpad.composeapp.generated.resources.order_restore_cta
 import stitchpad.composeapp.generated.resources.order_restored_snackbar
-import stitchpad.composeapp.generated.resources.order_show_profit
+import stitchpad.composeapp.generated.resources.order_show_amounts
 import stitchpad.composeapp.generated.resources.order_status_delivered
 import stitchpad.composeapp.generated.resources.order_status_in_progress
 import stitchpad.composeapp.generated.resources.order_status_pending
@@ -210,11 +210,11 @@ fun OrderListScreen(
                     titleContentColor = MaterialTheme.colorScheme.onSurface
                 ),
                 actions = {
-                    // Profit is money — hidden entirely for active staff (Slice 6c).
+                    // Money is hidden entirely for active staff (Slice 6c).
                     if (!state.isActiveStaff) {
-                        ProfitToggleAction(
-                            showProfit = state.showProfit,
-                            onToggle = { onAction(OrderListAction.OnToggleShowProfit) },
+                        AmountsToggleAction(
+                            hideAmounts = state.hideAmounts,
+                            onToggle = { onAction(OrderListAction.OnToggleHideAmounts) },
                         )
                     }
                 },
@@ -321,7 +321,7 @@ fun OrderListScreen(
                                     SwipeableOrderItem(
                                         order = order,
                                         now = now,
-                                        showProfit = state.showProfit,
+                                        hideAmounts = state.hideAmounts,
                                         isActiveStaff = state.isActiveStaff,
                                         onClick = { onAction(OrderListAction.OnOrderClick(order)) },
                                         onDelete = { onAction(OrderListAction.OnDeleteOrderClick(order)) }
@@ -337,7 +337,7 @@ fun OrderListScreen(
                                 SwipeableOrderItem(
                                     order = order,
                                     now = now,
-                                    showProfit = state.showProfit,
+                                    hideAmounts = state.hideAmounts,
                                     isActiveStaff = state.isActiveStaff,
                                     onClick = { onAction(OrderListAction.OnOrderClick(order)) },
                                     onDelete = { onAction(OrderListAction.OnDeleteOrderClick(order)) }
@@ -694,16 +694,17 @@ private fun OrderEmptyState(
 }
 
 @Composable
-private fun ProfitToggleAction(showProfit: Boolean, onToggle: () -> Unit) {
+private fun AmountsToggleAction(hideAmounts: Boolean, onToggle: () -> Unit) {
     val label = stringResource(
-        if (showProfit) Res.string.order_hide_profit else Res.string.order_show_profit,
+        if (hideAmounts) Res.string.order_show_amounts else Res.string.order_hide_amounts,
     )
     TextButton(
         onClick = onToggle,
         contentPadding = PaddingValues(horizontal = DesignTokens.space3),
     ) {
         Icon(
-            imageVector = if (showProfit) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+            // Eye open = amounts visible.
+            imageVector = if (hideAmounts) Icons.Default.VisibilityOff else Icons.Default.Visibility,
             contentDescription = null,
             modifier = Modifier.size(18.dp),
         )
@@ -721,7 +722,7 @@ private fun ProfitToggleAction(showProfit: Boolean, onToggle: () -> Unit) {
 private fun SwipeableOrderItem(
     order: Order,
     now: Long,
-    showProfit: Boolean,
+    hideAmounts: Boolean,
     isActiveStaff: Boolean = false,
     onClick: () -> Unit,
     onDelete: () -> Unit
@@ -774,7 +775,7 @@ private fun SwipeableOrderItem(
             OrderListItem(
                 order = order,
                 now = now,
-                showProfit = showProfit,
+                hideAmounts = hideAmounts,
                 isActiveStaff = isActiveStaff,
                 onClick = onClick,
             )
@@ -786,7 +787,7 @@ private fun SwipeableOrderItem(
 private fun OrderListItem(
     order: Order,
     now: Long,
-    showProfit: Boolean,
+    hideAmounts: Boolean,
     isActiveStaff: Boolean = false,
     onClick: () -> Unit,
 ) {
@@ -869,17 +870,23 @@ private fun OrderListItem(
         // active staff (Slice 6c): they see garment / customer / status / date only.
         if (!isActiveStaff) {
             Column(horizontalAlignment = Alignment.End) {
-                StrikethroughPrice(
-                    grossPrice = order.totalPrice,
-                    netPrice = order.payableTotal,
-                    discount = order.discount,
-                    netStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                    netColor = MaterialTheme.colorScheme.onSurface,
-                    stacked = true,
+                if (!hideAmounts) {
+                    StrikethroughPrice(
+                        grossPrice = order.totalPrice,
+                        netPrice = order.payableTotal,
+                        discount = order.discount,
+                        netStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        netColor = MaterialTheme.colorScheme.onSurface,
+                        stacked = true,
+                    )
+                    Spacer(Modifier.height(2.dp))
+                }
+                PaymentStatusText(
+                    depositPaid = order.depositPaid,
+                    amountOwed = order.payableTotal,
+                    showAmounts = !hideAmounts,
                 )
-                Spacer(Modifier.height(2.dp))
-                PaymentStatusText(depositPaid = order.depositPaid, amountOwed = order.payableTotal)
-                if (showProfit && order.hasCosts) {
+                if (!hideAmounts && order.hasCosts) {
                     Spacer(Modifier.height(2.dp))
                     OrderRowProfit(profit = order.profit)
                 }

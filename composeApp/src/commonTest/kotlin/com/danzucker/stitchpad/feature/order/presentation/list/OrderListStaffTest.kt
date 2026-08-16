@@ -98,22 +98,22 @@ class OrderListStaffTest {
     }
 
     @Test
-    fun onToggleShowProfit_forStaff_isNoOp() = runTest {
-        setStaffSession()
+    fun toggleHideAmountsFlips() = runTest {
         val vm = createViewModel()
 
-        vm.onAction(OrderListAction.OnToggleShowProfit)
+        vm.onAction(OrderListAction.OnToggleHideAmounts)
 
-        assertFalse(vm.state.value.showProfit)
+        assertTrue(vm.state.value.hideAmounts)
     }
 
     @Test
-    fun onToggleShowProfit_forOwner_stillToggles() = runTest {
+    fun staffCannotToggleAmounts() = runTest {
+        setStaffSession()
         val vm = createViewModel()
 
-        vm.onAction(OrderListAction.OnToggleShowProfit)
+        vm.onAction(OrderListAction.OnToggleHideAmounts)
 
-        assertTrue(vm.state.value.showProfit)
+        assertFalse(vm.state.value.hideAmounts)
     }
 
     @Test

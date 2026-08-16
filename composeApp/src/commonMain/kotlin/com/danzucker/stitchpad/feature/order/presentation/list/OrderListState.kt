@@ -7,7 +7,13 @@ import com.danzucker.stitchpad.core.presentation.UiText
 data class OrderListState(
     val orders: List<Order> = emptyList(),
     val statusFilter: OrderStatus? = null,
-    val showProfit: Boolean = false,
+    /**
+     * When true, every naira on the list is hidden — price, payment status figures,
+     * and profit — regardless of whether an order has recorded costs. Default false
+     * shows everything (including profit-when-costed): the eye toggle's job is
+     * privacy from bystanders, not opt-in margin reveal.
+     */
+    val hideAmounts: Boolean = false,
     /**
      * True when the signed-in user is an approved staff member (Slice 6c). Staff
      * may view garment / status / dates / customer name but never money, so every
