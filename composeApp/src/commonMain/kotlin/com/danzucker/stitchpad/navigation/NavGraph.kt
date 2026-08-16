@@ -3,7 +3,6 @@ package com.danzucker.stitchpad.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -14,7 +13,6 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.toRoute
 import com.danzucker.stitchpad.core.analytics.domain.Analytics
 import com.danzucker.stitchpad.core.debug.isDebugBuild
-import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
 import com.danzucker.stitchpad.core.domain.session.StaffRole
@@ -329,12 +327,9 @@ fun StitchPadNavHost(
     onboardingPreferences: OnboardingPreferences
 ) {
     val authRepository: AuthRepository = koinInject()
-    val userRepository: UserRepository = koinInject()
     val activeWorkshopProvider: ActiveWorkshopProvider = koinInject()
     val pendingDeepLink: PendingDeepLinkHolder = koinInject()
-    val resolveNeedsWorkshopSetup = remember(onboardingPreferences, userRepository) {
-        ResolveNeedsWorkshopSetup(onboardingPreferences, userRepository)
-    }
+    val resolveNeedsWorkshopSetup: ResolveNeedsWorkshopSetup = koinInject()
 
     PushDeepLinkRedirectEffect(navController)
     ScreenViewTrackingEffect(navController)
