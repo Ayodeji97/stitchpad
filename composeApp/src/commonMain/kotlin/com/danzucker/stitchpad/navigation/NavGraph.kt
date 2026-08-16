@@ -251,9 +251,14 @@ private fun StaffRoleChangeRedirectEffect(navController: NavHostController) {
                         resolveNeedsWorkshopSetup,
                     ),
                 )
-                navController.navigate(destination) {
-                    popUpTo(navController.graph.id) { inclusive = false }
-                    launchSingleTop = true
+                // Re-check the session before navigating: the resolve spans a network
+                // call, during which the session may have changed (sign-out, or re-activation
+                // as staff). Only navigate if the demotion is still current.
+                if (demotionStillCurrent(current, activeWorkshopProvider.flow.value)) {
+                    navController.navigate(destination) {
+                        popUpTo(navController.graph.id) { inclusive = false }
+                        launchSingleTop = true
+                    }
                 }
             }
         }
@@ -284,6 +289,20 @@ internal fun shouldRedirectHomeForStaffSessionChange(
  */
 internal fun staffDemotionDestination(needsWorkshopSetup: Boolean): Any =
     if (needsWorkshopSetup) WorkshopSetupRoute else HomeRoute
+
+/**
+ * Whether the demotion we're about to navigate for is still current. The redirect
+ * branch spans a suspend call (needsWorkshopSetupForCurrentUser → getCurrentUser +
+ * Firestore get). During this window, the session may change: sign-out (authUid
+ * becomes blank), or re-activation as staff (isOwner flips back to false). Both
+ * scenarios make the redirect stale — we must not navigate based on a snapshot
+ * from before the async resolve. Only navigate if the latest session still shows
+ * the same authUid AND is still an owner (the demotion signature).
+ */
+internal fun demotionStillCurrent(
+    acted: WorkshopSession,
+    latest: WorkshopSession,
+): Boolean = latest.authUid == acted.authUid && latest.isOwner
 
 /**
  * Logs a screen_view for every destination the user lands on. One hook covers every

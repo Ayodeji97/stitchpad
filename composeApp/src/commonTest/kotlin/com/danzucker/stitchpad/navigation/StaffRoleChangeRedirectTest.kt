@@ -59,4 +59,36 @@ class StaffRoleChangeRedirectTest {
     fun demotionWithExistingProfileGoesHome() {
         assertEquals(HomeRoute, staffDemotionDestination(needsWorkshopSetup = false))
     }
+
+    @Test
+    fun demotionStillCurrentWhenAuthUidAndOwnerMatch() {
+        // Demotion was acted on this session state
+        val acted = active
+        // Latest session state still matches (same authUid, still owner)
+        val latest = owner
+        assertTrue(demotionStillCurrent(acted, latest))
+    }
+
+    @Test
+    fun demotionStaleWhenSignedOut() {
+        // Demotion was acted on this session state
+        val acted = active
+        // Latest session is signed out (authUid blank, authUid changed)
+        val latest = WorkshopSession.signedOut()
+        assertFalse(demotionStillCurrent(acted, latest))
+    }
+
+    @Test
+    fun demotionStaleWhenReActivatedAsStaff() {
+        // Demotion was acted on this session state
+        val acted = active
+        // Latest session is re-activated as staff (authUid same, but isOwner is false)
+        val reactivated = WorkshopSession(
+            authUid = "staff-1",
+            workshopUid = "owner-9",
+            role = StaffRole.STAFF,
+            membershipStatus = MembershipStatus.ACTIVE,
+        )
+        assertFalse(demotionStillCurrent(acted, reactivated))
+    }
 }
