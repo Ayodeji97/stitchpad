@@ -20,6 +20,7 @@
  *   node scripts/sendTestEngagementPush.js you@example.com            # list devices, send nothing
  *   node scripts/sendTestEngagementPush.js you@example.com --send     # actually deliver
  *   node scripts/sendTestEngagementPush.js you@example.com --send --target inbox
+ *   node scripts/sendTestEngagementPush.js you@example.com --send --loud   # iOS banner+sound
  */
 const admin = require('firebase-admin');
 
@@ -31,6 +32,9 @@ const VALID_TARGETS = ['inbox', 'to_collect', 'dashboard', 'founding_tailors'];
 const args = process.argv.slice(2);
 const email = args.find((a) => !a.startsWith('--'));
 const doSend = args.includes('--send');
+// --loud drops the APNs passive level so iOS shows a real banner + sound. Lets you
+// compare the two tiers on a device before committing to one in engagementPush.ts.
+const loud = args.includes('--loud');
 const targetArg = args[args.indexOf('--target') + 1];
 const target = args.includes('--target') ? targetArg : 'founding_tailors';
 
@@ -91,11 +95,11 @@ admin.initializeApp({ projectId: PROJECT_ID });
     android: {
       notification: { channelId: ANNOUNCEMENTS_CHANNEL_ID, tag: ANNOUNCEMENT_NOTIFICATION_TAG },
     },
-    apns: { payload: { aps: { 'interruption-level': 'passive' } } },
+    ...(loud ? {} : { apns: { payload: { aps: { 'interruption-level': 'passive' } } } }),
     data: { target },
   };
 
-  console.log(`\nSending (target: ${target})…`);
+  console.log(`\nSending (target: ${target}, iOS level: ${loud ? 'ACTIVE — banner + sound' : 'passive — Notification Centre only'})…`);
   const res = await admin.messaging().sendEachForMulticast(message);
   console.log(`success: ${res.successCount}  failure: ${res.failureCount}\n`);
 
