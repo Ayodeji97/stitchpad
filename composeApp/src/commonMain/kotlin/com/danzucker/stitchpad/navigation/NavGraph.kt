@@ -200,9 +200,14 @@ private fun PushDeepLinkRedirectEffect(navController: NavHostController) {
             // link is preserved across login: the user must sign in (or sign up) to
             // upgrade / claim, which is exactly the gift flow for a brand-new tailor.
             // Once Home is reached, MainRoot consumes it.
+            // Engagement-push targets (DASHBOARD / FOUNDING_TAILORS) drop for the same
+            // reason as INBOX: they are addressed to one specific tailor's account, so
+            // routing whoever signs in next would show them someone else's nudge.
             if (pendingDeepLinkTarget == DeepLinkTarget.INBOX ||
                 pendingDeepLinkTarget == DeepLinkTarget.ORDER ||
-                pendingDeepLinkTarget == DeepLinkTarget.TO_COLLECT
+                pendingDeepLinkTarget == DeepLinkTarget.TO_COLLECT ||
+                pendingDeepLinkTarget == DeepLinkTarget.DASHBOARD ||
+                pendingDeepLinkTarget == DeepLinkTarget.FOUNDING_TAILORS
             ) {
                 pendingDeepLink.clear()
             }

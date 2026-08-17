@@ -175,6 +175,16 @@ fun MainRoot(
             // to RedeemInviteRoute. Do NOT consume it here — clearing it would race
             // that effect and turn the invite tap into a no-op.
             DeepLinkTarget.JOIN_WORKSHOP -> Unit
+            // Engagement push (target: founding_tailors). FoundingTailorsRoute is
+            // registered on the inner NavHost, so this mirrors INBOX/TO_COLLECT.
+            DeepLinkTarget.FOUNDING_TAILORS -> {
+                pendingDeepLink.clear()
+                innerNavController.navigate(FoundingTailorsRoute) { launchSingleTop = true }
+            }
+            // Engagement push (target: dashboard). Opening the app already lands on
+            // the dashboard, so consuming the target is the whole job — navigating
+            // would only risk popping a screen the tailor was mid-way through.
+            DeepLinkTarget.DASHBOARD -> pendingDeepLink.clear()
             null -> Unit
         }
     }
