@@ -9,6 +9,18 @@
 /** Orders that mark a shop as busy enough to plausibly need staff. */
 export const BUSY_ORDER_THRESHOLD = 10;
 
+/**
+ * Days without a new order before a tailor counts as dormant.
+ *
+ * 21 is deliberately past "quiet spell" and short of "gone". The daily digest goes
+ * SILENT for these tailors by design — nothing is due, so nothing is sent — which
+ * means the people closest to churning are the ones we say least to.
+ */
+export const DORMANT_DAYS = 21;
+
+/** Days left in the First Month window that trigger the ending nudge. */
+export const WELCOME_ENDING_DAYS = 3;
+
 export type Segment =
   /** Signed up, never added a customer. The very first step. */
   | 'no_customer'
@@ -16,6 +28,10 @@ export type Segment =
   | 'no_order'
   /** Real order volume, still working solo — team feature discovery. */
   | 'busy_no_team'
+  /** Free tier, First Month window about to expire — the cap is about to drop. */
+  | 'welcome_ending'
+  /** Was working, but has logged no new order in DORMANT_DAYS. The churn cohort. */
+  | 'dormant'
   /** Working, but nothing due/overdue/owed today — the digest sends them nothing. */
   | 'quiet'
   /** Activated tailor who has never pulled their referral link. */
@@ -27,6 +43,8 @@ export const SEGMENTS: readonly Segment[] = [
   'no_customer',
   'no_order',
   'busy_no_team',
+  'welcome_ending',
+  'dormant',
   'quiet',
   'no_referral',
   'all',
@@ -53,6 +71,16 @@ export interface UserSignals extends ActivationSignals {
   /** digestDetector found nothing actionable today — only computed when needed. */
   digestEmpty: boolean;
   /**
+   * Whole days since the most recent order was CREATED, or null when unknown
+   * (no orders, or the orders read was skipped this run).
+   */
+  daysSinceLastOrder: number | null;
+  /**
+   * Whole days until the free First Month window expires, or null when it does not
+   * apply — paid tier, window already over, or never granted.
+   */
+  welcomeDaysLeft: number | null;
+  /**
    * Carried so copy can differ between an honest upgrade prompt (free) and pure
    * feature discovery (paid) for the same segment. Nothing here branches on tier —
    * campaigns do.
@@ -77,8 +105,9 @@ export function activationSegment(s: ActivationSignals): Segment | null {
 
 /**
  * True when deciding this tailor's segments still needs their full order list
- * (i.e. `digestEmpty`). Only tailors who have cleared every activation rung can
- * reach `quiet`, so everyone else skips the orders read entirely.
+ * (`digestEmpty` and `daysSinceLastOrder` both come from it). Only tailors who have
+ * cleared every activation rung can reach `quiet` or `dormant`, so everyone else
+ * skips the orders read entirely.
  *
  * This is the per-user cost lever: without it, one live `quiet` campaign would
  * scan every order of every user, including the majority whose segment was
@@ -112,8 +141,20 @@ export function segmentChain(s: UserSignals): Segment[] {
   const chain: Segment[] = [];
   const activation = activationSegment(s);
   if (activation) {
+    // Someone who has not added a customer yet has no use for "your First Month is
+    // ending" or "it's been a while" — the basics come first, always.
     chain.push(activation);
   } else {
+    // Time-boxed and therefore first: this one expires, the others keep.
+    if (s.welcomeDaysLeft !== null && s.welcomeDaysLeft <= WELCOME_ENDING_DAYS) {
+      chain.push('welcome_ending');
+    }
+    // Dormant supersedes quiet — same tailor, but a much sharper signal that earns
+    // sharper copy. Quiet stays in the chain behind it as a fallback once the
+    // dormant campaigns are spent.
+    if (s.daysSinceLastOrder !== null && s.daysSinceLastOrder >= DORMANT_DAYS) {
+      chain.push('dormant');
+    }
     if (s.digestEmpty) chain.push('quiet');
     if (!s.hasReferralLink) chain.push('no_referral');
   }

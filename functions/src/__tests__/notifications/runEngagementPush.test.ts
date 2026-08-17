@@ -36,6 +36,9 @@ const recip = (over: Partial<EngagementRecipient> = {}): EngagementRecipient => 
   announcementsEnabled: true,
   tier: 'free',
   hasReferralLink: false,
+  businessName: 'Apeke Couture',
+  points: 0,
+  welcomeDaysLeft: null,
   ...over,
 });
 
@@ -57,7 +60,7 @@ const counts = (over: Partial<EngagementCounts> = {}): EngagementCounts => ({
 
 interface Spy {
   io: EngagementIO;
-  pushes: { uid: string; campaignId: string; tokens: string[] }[];
+  pushes: { uid: string; campaignId: string; tokens: string[]; title: string; body: string }[];
   recorded: { uid: string; campaignId: string; dateKey: string; dayIndex: number }[];
   deleted: { uid: string; tokens: string[] }[];
   calls: { listRecipients: number; loadOrders: number; loadCounts: number };
@@ -100,7 +103,10 @@ function fakeIO(over: {
     },
     loadPushTokens: async (uid) => over.tokensByUid?.[uid] ?? ['tok-1'],
     sendPush: async (tokens, campaign) => {
-      pushes.push({ uid: 'n/a', campaignId: campaign.id, tokens });
+      pushes.push({
+        uid: 'n/a', campaignId: campaign.id, tokens,
+        title: campaign.title, body: campaign.body,
+      });
       const invalid = over.invalidTokens ?? [];
       const successCount = over.pushSuccessCount !== undefined
         ? over.pushSuccessCount
@@ -382,5 +388,139 @@ describe('runEngagementPush — orders read is avoided when possible', () => {
     const r = await runEngagementPush(s.io, TUESDAY);
     expect(r.skippedNoCampaign).toBe(1);
     expect(s.pushes).toEqual([]);
+  });
+});
+
+describe('runEngagementPush — templating', () => {
+  it('fills {{businessName}} and {{points}} from the recipient', async () => {
+    const s = fakeIO({
+      config: rawConfig({
+        campaigns: [rawCampaign({
+          id: 'personal',
+          segment: 'no_customer',
+          title: '{{businessName}}, you are on {{points}} points',
+          body: 'You have {{customerCount}} customers and {{orderCount}} orders.',
+        })],
+      }),
+      recipients: [recip({ businessName: 'Apeke Couture', points: 12 })],
+      countsByUid: { u1: counts({ customerCount: 0, orderCount: 4 }) },
+    });
+    await runEngagementPush(s.io, TUESDAY);
+    expect(s.pushes[0].title).toBe('Apeke Couture, you are on 12 points');
+    expect(s.pushes[0].body).toBe('You have 0 customers and 4 orders.');
+  });
+
+  it('renders 0 points for a tailor who never minted a referral link', async () => {
+    const s = fakeIO({
+      config: rawConfig({
+        campaigns: [rawCampaign({ id: 'p', title: '{{points}} points', body: 'b' })],
+      }),
+      recipients: [recip({ points: 0 })],
+    });
+    await runEngagementPush(s.io, TUESDAY);
+    expect(s.pushes[0].title).toBe('0 points');
+  });
+
+  // The parser is the guard, so bad variables never reach the send path at all.
+  it('drops a campaign whose copy uses an unfillable variable', async () => {
+    const s = fakeIO({
+      config: rawConfig({
+        campaigns: [rawCampaign({ id: 'typo', title: 'Hi {{bussinessName}}', body: 'b' })],
+      }),
+    });
+    const r = await runEngagementPush(s.io, TUESDAY);
+    expect(r.skippedNoValidCampaigns).toBe(1);
+    expect(s.pushes).toEqual([]);
+  });
+
+  it('leaves copy without placeholders untouched', async () => {
+    const s = fakeIO();
+    await runEngagementPush(s.io, TUESDAY);
+    expect(s.pushes[0].title).toBe('Start with one customer');
+  });
+});
+
+describe('runEngagementPush — dormant', () => {
+  const DAY = 86_400_000;
+  const activatedCounts = counts({ customerCount: 4, orderCount: 4, teamCount: 1 });
+  const dormantConfig = rawConfig({
+    campaigns: [
+      rawCampaign({ id: 'come-back', segment: 'dormant', title: 'It has been a while', body: 'b' }),
+      rawCampaign({ id: 'quiet-nudge', segment: 'quiet', title: 'Nothing due today', body: 'b' }),
+    ],
+  });
+  const orderCreated = (daysAgo: number) => ([{
+    id: 'o1', customerName: 'C', status: 'DELIVERED', deadline: null, archivedAt: null,
+    totalPrice: 0, payments: [], items: [], createdAt: TUESDAY - daysAgo * DAY,
+  }] as OrderScanDoc[]);
+
+  it('sends the dormant nudge when the newest order is old', async () => {
+    const s = fakeIO({
+      config: dormantConfig,
+      recipients: [recip({ hasReferralLink: true })],
+      countsByUid: { u1: activatedCounts },
+      ordersByUid: { u1: orderCreated(40) },
+    });
+    await runEngagementPush(s.io, TUESDAY);
+    expect(s.recorded[0].campaignId).toBe('come-back');
+  });
+
+  // Dormancy is the sharper signal, so it must win over quiet for the same tailor.
+  it('prefers dormant over quiet, but falls back to quiet once dormant is spent', async () => {
+    const spent = fakeIO({
+      config: rawConfig({
+        campaigns: [
+          rawCampaign({ id: 'come-back', segment: 'dormant', title: 't', body: 'b', maxSendsPerUser: 1 }),
+          rawCampaign({ id: 'quiet-nudge', segment: 'quiet', title: 't', body: 'b' }),
+        ],
+      }),
+      recipients: [recip({ hasReferralLink: true })],
+      countsByUid: { u1: activatedCounts },
+      ordersByUid: { u1: orderCreated(40) },
+      stateByUid: { u1: state({ campaignCounts: { 'come-back': 1 } }) },
+    });
+    await runEngagementPush(spent.io, TUESDAY);
+    expect(spent.recorded[0].campaignId).toBe('quiet-nudge');
+  });
+
+  it('does not fire for a tailor who logged an order recently', async () => {
+    const s = fakeIO({
+      config: dormantConfig,
+      recipients: [recip({ hasReferralLink: true })],
+      countsByUid: { u1: activatedCounts },
+      ordersByUid: { u1: orderCreated(2) },
+    });
+    await runEngagementPush(s.io, TUESDAY);
+    // Recent order, and the digest is empty (DELIVERED, nothing owed) -> quiet.
+    expect(s.recorded[0].campaignId).toBe('quiet-nudge');
+  });
+});
+
+describe('runEngagementPush — welcome_ending', () => {
+  it('sends the welcome nudge inside the window and skips it outside', async () => {
+    const cfg = rawConfig({
+      campaigns: [
+        rawCampaign({
+          id: 'welcome', segment: 'welcome_ending',
+          title: 'Your First Month is ending', body: 'b',
+        }),
+        rawCampaign({ id: 'catchall', segment: 'all', title: 'c', body: 'b' }),
+      ],
+    });
+    const inside = fakeIO({
+      config: cfg,
+      recipients: [recip({ hasReferralLink: true, welcomeDaysLeft: 2 })],
+      countsByUid: { u1: counts({ customerCount: 4, orderCount: 4, teamCount: 1 }) },
+    });
+    await runEngagementPush(inside.io, TUESDAY);
+    expect(inside.recorded[0].campaignId).toBe('welcome');
+
+    const outside = fakeIO({
+      config: cfg,
+      recipients: [recip({ hasReferralLink: true, welcomeDaysLeft: 20 })],
+      countsByUid: { u1: counts({ customerCount: 4, orderCount: 4, teamCount: 1 }) },
+    });
+    await runEngagementPush(outside.io, TUESDAY);
+    expect(outside.recorded[0].campaignId).toBe('catchall');
   });
 });

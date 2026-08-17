@@ -127,6 +127,39 @@ describe('parseEngagementConfig — campaign validation', () => {
     expect(c.campaigns[0].title).toBe('First');
   });
 
+  // Template variables are validated HERE so a console typo silences one campaign
+  // with a logged reason, instead of rendering "Hi {{bussinessName}}" to real users.
+  it('accepts every documented template variable', () => {
+    const c = parseEngagementConfig({
+      enabled: true,
+      campaigns: [validCampaign({
+        title: '{{businessName}}, you are on {{points}} points',
+        body: '{{customerCount}} customers, {{orderCount}} orders',
+      })],
+    });
+    expect(c.campaigns).toHaveLength(1);
+  });
+
+  it.each([
+    ['a misspelled variable in the title', { title: 'Hi {{bussinessName}}' }],
+    ['a misspelled variable in the body', { body: 'You have {{pointz}}' }],
+    ['a wrong-case variable', { title: '{{BusinessName}}' }],
+  ])('drops a campaign with %s', (_label, over) => {
+    const c = parseEngagementConfig({ enabled: true, campaigns: [validCampaign(over)] });
+    expect(c.campaigns).toEqual([]);
+  });
+
+  it('keeps valid siblings when one campaign has a bad variable', () => {
+    const c = parseEngagementConfig({
+      enabled: true,
+      campaigns: [
+        validCampaign({ id: 'good', title: 'Hi {{businessName}}' }),
+        validCampaign({ id: 'bad', title: 'Hi {{nope}}' }),
+      ],
+    });
+    expect(c.campaigns.map((x) => x.id)).toEqual(['good']);
+  });
+
   it('drops a campaign whose window ends before it starts', () => {
     const c = parseEngagementConfig({
       enabled: true,

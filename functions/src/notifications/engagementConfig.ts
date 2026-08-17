@@ -17,6 +17,7 @@
  * indistinguishable from "nothing to send".
  */
 import * as functions from 'firebase-functions/v1';
+import { unknownTemplateVariables } from './campaignTemplate';
 import { Segment, SEGMENTS } from './segmentDetector';
 
 /** Deep-link targets the client knows how to route. Keep in sync with PushTargetParser.kt. */
@@ -117,6 +118,14 @@ function parseCampaign(raw: unknown, index: number): EngagementCampaign | null {
 
   const body = cleanString(raw.body);
   if (!body) return reject('missing_or_oversized_body', { id });
+
+  // A {{variable}} we cannot fill would render literally on a lock screen. Catch the
+  // typo here — where it silences one campaign and logs why — rather than at send
+  // time, where it would reach real users.
+  const unknownVars = [...unknownTemplateVariables(title), ...unknownTemplateVariables(body)];
+  if (unknownVars.length > 0) {
+    return reject('unknown_template_variable', { id, variables: [...new Set(unknownVars)] });
+  }
 
   const startAt = cleanBound(raw.startAt);
   const endAt = cleanBound(raw.endAt);

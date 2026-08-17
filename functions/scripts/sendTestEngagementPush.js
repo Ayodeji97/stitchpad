@@ -63,7 +63,33 @@ const CAMPAIGNS = {
     body: 'Invite them. Top 3 each month win a free StitchPad shirt.',
     target: 'founding_tailors',
   },
+  welcome_ending: {
+    title: '{{businessName}}, 3 days left',
+    body: 'Your First Month ends soon. Upgrade to keep every customer on your list.',
+    target: 'dashboard',
+  },
+  dormant: {
+    title: "It's been a while",
+    body: 'Add the jobs you are working on and StitchPad tracks the deadlines again.',
+    target: 'dashboard',
+  },
 };
+
+/**
+ * Stand-in values for {{variables}} so templated copy can be previewed. The real job
+ * fills these from the user doc and the leaderboard.
+ */
+const PREVIEW_VARS = {
+  businessName: 'Apeke Couture',
+  points: 12,
+  customerCount: 7,
+  orderCount: 23,
+};
+
+function renderPreview(text) {
+  return text.replace(/\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g,
+    (whole, name) => (name in PREVIEW_VARS ? String(PREVIEW_VARS[name]) : whole));
+}
 
 const args = process.argv.slice(2);
 const email = args.find((a) => !a.startsWith('--'));
@@ -82,8 +108,8 @@ if (campaignKey && !CAMPAIGNS[campaignKey]) {
   process.exit(1);
 }
 const campaign = CAMPAIGNS[campaignKey] || CAMPAIGNS.no_referral;
-const title = arg('--title') || campaign.title;
-const body = arg('--body') || campaign.body;
+const title = renderPreview(arg('--title') || campaign.title);
+const body = renderPreview(arg('--body') || campaign.body);
 const target = arg('--target') || campaign.target;
 
 if (args.includes('--list-campaigns')) {

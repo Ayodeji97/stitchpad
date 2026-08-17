@@ -19,13 +19,24 @@ staff accounts.
 | 1 | `no_customer` | 0 customers | Add your first customer |
 | 2 | `no_order` | has customers, 0 orders | Turn a customer into an order |
 | 3 | `busy_no_team` | >= 10 orders, 0 active staff | Add your staff and assign orders |
-| 4 | `quiet` | activated, but nothing due/overdue/owed today | Add this week's jobs |
-| 5 | `no_referral` | activated, never minted a referral link | Invite a tailor, win a shirt |
-| 6 | `all` | everyone — always the last link in the chain | Announcements |
+| 4 | `welcome_ending` | free tier, First Month ends in <= 3 days | Upgrade before the cap drops |
+| 5 | `dormant` | no new order logged in 21+ days | Come back, add this week's jobs |
+| 6 | `quiet` | activated, but nothing due/overdue/owed today | Add this week's jobs |
+| 7 | `no_referral` | activated, never minted a referral link | Invite a tailor, win a shirt |
+| 8 | `all` | everyone — always the last link in the chain | Announcements |
 
 `quiet` deliberately outranks `no_referral`: a message about the tailor's own work
-beats a message about our growth. Rungs 4 and 5 apply only once 1–3 are cleared —
-asking someone with zero customers to recruit is the noise this ladder prevents.
+beats a message about our growth. Rungs 4–7 apply only once 1–3 are cleared — asking
+someone with zero customers to upgrade, come back, or recruit is the noise this ladder
+prevents.
+
+`welcome_ending` sits highest of those because it **expires**: the others will still be
+true next week. `dormant` sits above `quiet` because it is the sharper signal on the
+same tailor — and `quiet` stays behind it as a fallback once the dormant copy is spent.
+
+`dormant` measures the newest order's `createdAt`, not `updatedAt`: editing an old
+order is not starting new work, and `updatedAt` is also bumped by our own server
+writes, which would mask the very state being detected.
 
 `busy_no_team` counts **active, non-owner** roster rows only — every workshop has
 an auto-created owner row, and archived members are never deleted.
@@ -134,6 +145,27 @@ Every campaign uses `target: "inbox"` deliberately: **every already-shipped clie
 understands it.** Switch to `founding_tailors` or `dashboard` only once the build
 carrying those targets has real adoption. An unknown target is harmless — the
 notification still shows and the tap just opens the app — but it wastes the tap.
+
+### Personalising copy
+
+`title` and `body` may use `{{variables}}`:
+
+| Variable | Value |
+|---|---|
+| `{{businessName}}` | businessName, falling back to displayName, then "Tailor" — never blank |
+| `{{points}}` | Founding Tailors points this month; `0` for a tailor with no referral link |
+| `{{customerCount}}` | customers on their list |
+| `{{orderCount}}` | orders they have logged |
+
+> "**{{businessName}}, you're on {{points}} points**" — Invite one more tailor to climb
+> the Founding Tailors board. Top 3 this month win a free shirt.
+
+An unrecognised variable **drops that campaign at parse time** (`unknown_template_variable`
+in the logs) rather than rendering `Hi {{bussinessName}}` onto somebody's lock screen.
+Names are case-sensitive.
+
+`{{points}}` costs two reads for the whole run — `marketers` maps uid to marketer, and
+`leaderboards/current` holds every score in one document — not two reads per user.
 
 ### Field reference
 

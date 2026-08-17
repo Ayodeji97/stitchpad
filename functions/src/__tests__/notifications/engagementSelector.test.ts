@@ -100,6 +100,12 @@ describe('needsOrders', () => {
     expect(needsOrders(c, TUESDAY)).toBe(true);
   });
 
+  // dormant needs the newest order's createdAt, which comes from the same read.
+  it('is true when a live campaign targets dormant', () => {
+    const c = config({ campaigns: [campaign({ id: 'd', segment: 'dormant' })] });
+    expect(needsOrders(c, TUESDAY)).toBe(true);
+  });
+
   it('is false when the only quiet campaign is outside its window', () => {
     const c = config({
       campaigns: [campaign({ id: 'q', segment: 'quiet', endAt: TUESDAY - 1 })],

@@ -31,9 +31,11 @@ import {
   loadPushTokens,
   sendMulticast,
 } from './fcm';
-import { lagosDateKey, lagosDayIndex } from './lagosTime';
+import { DAY_MS, lagosDateKey, lagosDayIndex } from './lagosTime';
+import { welcomeEndsAtMs } from '../freemium/reconcileSlots';
 import { isDigestTester, isEngagementAllowed } from './rollout';
-import { runEngagementPush } from './runEngagementPush';
+import { daysSinceNewestOrder, runEngagementPush } from './runEngagementPush';
+import { renderTemplate } from './campaignTemplate';
 import { segmentChain, Tier } from './segmentDetector';
 import { mapOrderScanDoc } from './orderScan';
 
@@ -72,14 +74,87 @@ function resolveAnnouncementsEnabled(u: DocumentData): boolean {
   return u.dailyDigestEmailEnabled !== false;
 }
 
-function recipientFromDoc(uid: string, u: DocumentData): EngagementRecipient {
+/** Firestore Timestamp | epoch millis | absent -> epoch millis | undefined. */
+function toEpochMs(v: unknown): number | undefined {
+  if (typeof v === 'number') return v;
+  if (v && typeof (v as admin.firestore.Timestamp).toMillis === 'function') {
+    return (v as admin.firestore.Timestamp).toMillis();
+  }
+  return undefined;
+}
+
+/**
+ * Whole days until the free First Month window expires, or null when it does not
+ * apply — paid tier, never granted, or already over.
+ *
+ * Reuses welcomeEndsAtMs from reconcileSlots so the window is computed in exactly one
+ * place; the client's EntitlementsCalculator is pinned to the same constant.
+ */
+function welcomeDaysLeftFor(u: DocumentData, tier: Tier, now: number): number | null {
+  if (tier !== 'free') return null;
+  const appliedAt = toEpochMs(u.welcomeBonusAppliedAt);
+  if (appliedAt === undefined) return null;
+  const endsAt = welcomeEndsAtMs(appliedAt);
+  if (now >= endsAt) return null; // already over
+  return Math.ceil((endsAt - now) / DAY_MS);
+}
+
+function recipientFromDoc(
+  uid: string,
+  u: DocumentData,
+  now: number,
+  pointsByUid: Map<string, number>,
+): EngagementRecipient {
+  const tier = resolveTier(u.subscriptionTier);
   return {
     uid,
     email: typeof u.email === 'string' ? u.email : '',
     announcementsEnabled: resolveAnnouncementsEnabled(u),
-    tier: resolveTier(u.subscriptionTier),
+    tier,
     hasReferralLink: typeof u.referralCode === 'string' && u.referralCode.trim().length > 0,
+    // Mirrors dailyDigest's name resolution so both jobs address a tailor identically.
+    businessName: (u.businessName?.trim() || u.displayName?.trim() || 'Tailor'),
+    points: pointsByUid.get(uid) ?? 0,
+    welcomeDaysLeft: welcomeDaysLeftFor(u, tier, now),
   };
+}
+
+/**
+ * uid -> Founding Tailors points for the current month, for `{{points}}`.
+ *
+ * TWO reads for the whole run, not per user: `marketers` maps referrerUid ->
+ * marketerId (the collection only holds tailors who actually minted a link), and
+ * `leaderboards/current` carries every marketer's points in a single document.
+ * Resolving this per user would have meant two extra reads each.
+ *
+ * Best-effort: a failure yields an empty map, so `{{points}}` renders 0 rather than
+ * failing the run. A wrong-looking zero is better than no nudges at all.
+ */
+async function loadPointsByUid(db: Firestore): Promise<Map<string, number>> {
+  const byUid = new Map<string, number>();
+  try {
+    const [marketers, leaderboard] = await Promise.all([
+      db.collection('marketers').get(),
+      db.doc('leaderboards/current').get(),
+    ]);
+    const uidByMarketer = new Map<string, string>();
+    marketers.forEach((d) => {
+      const uid = d.data()?.referrerUid;
+      if (typeof uid === 'string' && uid) uidByMarketer.set(d.id, uid);
+    });
+    const entries = leaderboard.data()?.entries;
+    if (Array.isArray(entries)) {
+      for (const e of entries) {
+        const uid = uidByMarketer.get(e?.marketerId);
+        if (uid && typeof e?.points === 'number') byUid.set(uid, e.points);
+      }
+    }
+  } catch (err) {
+    functions.logger.warn('engagement push: points lookup failed — {{points}} will render 0', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+  return byUid;
 }
 
 /**
@@ -194,16 +269,18 @@ export function productionEngagementIO(): EngagementIO {
      * onOrderCollectible already uses.
      */
     listRecipients: async () => {
-      const [snap, staffUids] = await Promise.all([
+      const now = Date.now();
+      const [snap, staffUids, pointsByUid] = await Promise.all([
         db.collection('users').get(),
         loadActiveStaffUids(db),
+        loadPointsByUid(db),
       ]);
       const recipients: EngagementRecipient[] = [];
       for (const doc of snap.docs) {
         // Staff accounts operate in the owner's workshop; nudging them about their
         // own (permanently empty) data would be pure noise.
         if (staffUids.has(doc.id)) continue;
-        const r = recipientFromDoc(doc.id, doc.data());
+        const r = recipientFromDoc(doc.id, doc.data(), now, pointsByUid);
         if (!r.email) {
           r.email = await admin.auth().getUser(doc.id)
             .then((u) => u.email ?? '')
@@ -295,17 +372,23 @@ export const debugSendMyEngagementPush = functions
     if (config.campaigns.length === 0) return { sent: false, reason: 'no_valid_campaigns' };
 
     const now = Date.now();
-    const userSnap = await db.collection('users').doc(uid).get();
-    const recipient = recipientFromDoc(uid, userSnap.data() ?? {});
+    const [userSnap, pointsByUid] = await Promise.all([
+      db.collection('users').doc(uid).get(),
+      loadPointsByUid(db),
+    ]);
+    const recipient = recipientFromDoc(uid, userSnap.data() ?? {}, now, pointsByUid);
     if (!recipient.announcementsEnabled) return { sent: false, reason: 'opted_out' };
 
     const state = await io.loadState(uid);
     const counts = await io.loadCounts(uid);
-    const digestEmpty = isDigestEmpty(digestDetector(await io.loadOrders(uid), now));
+    const orders = await io.loadOrders(uid);
+    const digestEmpty = isDigestEmpty(digestDetector(orders, now));
     const segments = segmentChain({
       ...counts,
       hasReferralLink: recipient.hasReferralLink,
       digestEmpty,
+      daysSinceLastOrder: daysSinceNewestOrder(orders, now),
+      welcomeDaysLeft: recipient.welcomeDaysLeft,
       tier: recipient.tier,
     });
 
@@ -319,7 +402,20 @@ export const debugSendMyEngagementPush = functions
     const tokens = await io.loadPushTokens(uid);
     if (tokens.length === 0) return { sent: false, reason: 'no_tokens', segments };
 
-    const { successCount, invalidTokens } = await io.sendPush(tokens, campaign);
+    // Same rendering the scheduled run applies, so QA sees the real message.
+    const templateVars = {
+      businessName: recipient.businessName,
+      points: recipient.points,
+      customerCount: counts.customerCount,
+      orderCount: counts.orderCount,
+    };
+    const rendered = {
+      ...campaign,
+      title: renderTemplate(campaign.title, templateVars),
+      body: renderTemplate(campaign.body, templateVars),
+    };
+
+    const { successCount, invalidTokens } = await io.sendPush(tokens, rendered);
     if (invalidTokens.length > 0) await io.deletePushTokens(uid, invalidTokens);
     if (successCount > 0) {
       await io.recordSent(uid, campaign.id, lagosDateKey(now), lagosDayIndex(now));
@@ -329,8 +425,8 @@ export const debugSendMyEngagementPush = functions
       sent: successCount > 0,
       segments,
       campaignId: campaign.id,
-      title: campaign.title,
-      body: campaign.body,
+      title: rendered.title,
+      body: rendered.body,
       successCount,
       tokenCount: tokens.length,
     };

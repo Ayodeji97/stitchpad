@@ -20,6 +20,15 @@ export interface EngagementRecipient {
    * the same user doc that supplies `tier` and the opt-out — no extra read.
    */
   hasReferralLink: boolean;
+  /** businessName || displayName || 'Tailor'. Used by {{businessName}}. */
+  businessName: string;
+  /** Founding Tailors points, resolved once per run from leaderboards/current. */
+  points: number;
+  /**
+   * Whole days until the free First Month window expires; null when it does not
+   * apply. From `welcomeBonusAppliedAt` on the user doc — no extra read.
+   */
+  welcomeDaysLeft: number | null;
 }
 
 /** Per-user engagement history, read from `users/{uid}/private/digestState`. */
@@ -52,7 +61,7 @@ export interface EngagementIO {
   listRecipients(): Promise<EngagementRecipient[]>;
   loadState(uid: string): Promise<EngagementUserState>;
   loadCounts(uid: string): Promise<EngagementCounts>;
-  /** Only called when a live campaign targets the `quiet` segment. */
+  /** Only called when a live campaign targets `quiet` or `dormant`. */
   loadOrders(uid: string): Promise<OrderScanDoc[]>;
   loadPushTokens(uid: string): Promise<string[]>;
   sendPush(

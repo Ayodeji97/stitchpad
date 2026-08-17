@@ -11,8 +11,25 @@ import { digestDetector, isDigestEmpty } from './digestDetector';
 import { parseEngagementConfig } from './engagementConfig';
 import { isEngagementDay, needsOrders, selectCampaign } from './engagementSelector';
 import { EngagementIO, EngagementRunResult } from './engagementTypes';
-import { lagosDateKey, lagosDayIndex, lagosWeekday } from './lagosTime';
+import { renderTemplate } from './campaignTemplate';
+import { DAY_MS, lagosDateKey, lagosDayIndex, lagosWeekday } from './lagosTime';
 import { needsDigestForSegments, segmentChain } from './segmentDetector';
+
+/**
+ * Whole days since the most recently CREATED order, or null when there are none.
+ *
+ * createdAt, not updatedAt: dormancy is about whether new work is being logged. A
+ * tailor who edits an old order has not started anything new, and updatedAt is also
+ * bumped by our own server writes, which would mask the very state we are detecting.
+ */
+export function daysSinceNewestOrder(orders: { createdAt?: number }[], now: number): number | null {
+  const newest = orders.reduce<number | null>((max, o) => {
+    const t = typeof o.createdAt === 'number' ? o.createdAt : null;
+    return t !== null && (max === null || t > max) ? t : max;
+  }, null);
+  if (newest === null) return null;
+  return Math.max(0, Math.floor((now - newest) / DAY_MS));
+}
 
 function emptyResult(): EngagementRunResult {
   return {
@@ -96,9 +113,13 @@ export async function runEngagementPush(io: EngagementIO, now: number): Promise<
       // already settled by the two count queries above. Skipping them is the
       // difference between scanning every order of every user and scanning the
       // orders of the activated minority.
-      const digestEmpty = wantOrders && needsDigestForSegments(counts)
-        ? isDigestEmpty(digestDetector(await io.loadOrders(r.uid), now))
-        : false;
+      let digestEmpty = false;
+      let daysSinceLastOrder: number | null = null;
+      if (wantOrders && needsDigestForSegments(counts)) {
+        const orders = await io.loadOrders(r.uid);
+        digestEmpty = isDigestEmpty(digestDetector(orders, now));
+        daysSinceLastOrder = daysSinceNewestOrder(orders, now);
+      }
 
       const segments = segmentChain({
         customerCount: counts.customerCount,
@@ -106,8 +127,17 @@ export async function runEngagementPush(io: EngagementIO, now: number): Promise<
         teamCount: counts.teamCount,
         hasReferralLink: r.hasReferralLink,
         digestEmpty,
+        daysSinceLastOrder,
+        welcomeDaysLeft: r.welcomeDaysLeft,
         tier: r.tier,
       });
+
+      const templateVars = {
+        businessName: r.businessName,
+        points: r.points,
+        customerCount: counts.customerCount,
+        orderCount: counts.orderCount,
+      };
 
       const campaign = selectCampaign(
         config,
@@ -119,7 +149,14 @@ export async function runEngagementPush(io: EngagementIO, now: number): Promise<
       const tokens = await io.loadPushTokens(r.uid);
       if (tokens.length === 0) { result.skippedNoTokens++; continue; }
 
-      const { successCount, invalidTokens } = await io.sendPush(tokens, campaign);
+      // Personalise last, so selection stays pure and testable on the raw copy.
+      const rendered = {
+        ...campaign,
+        title: renderTemplate(campaign.title, templateVars),
+        body: renderTemplate(campaign.body, templateVars),
+      };
+
+      const { successCount, invalidTokens } = await io.sendPush(tokens, rendered);
       if (invalidTokens.length > 0) await io.deletePushTokens(r.uid, invalidTokens);
 
       // Record only on a real delivery. Stamping a failed send would burn the

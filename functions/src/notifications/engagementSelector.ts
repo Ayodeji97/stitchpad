@@ -29,15 +29,19 @@ export function liveCampaigns(config: EngagementConfig, now: number): Engagement
   return config.campaigns.filter((c) => isInWindow(c, now));
 }
 
+/** Segments that can only be decided by reading a tailor's full order list. */
+const ORDER_DEPENDENT_SEGMENTS: readonly Segment[] = ['quiet', 'dormant'];
+
 /**
  * Whether this run needs each tailor's full order list.
  *
- * Only the `quiet` segment requires running digestDetector, and that is the one
- * expensive read in the loop. When no live campaign targets `quiet`, skipping it
- * turns an O(users × orders) run into an O(users) one.
+ * `quiet` needs digestDetector and `dormant` needs the newest order's createdAt —
+ * both come from the same read, which is the one expensive call in the loop. When no
+ * live campaign targets either, skipping it turns an O(users × orders) run into an
+ * O(users) one.
  */
 export function needsOrders(config: EngagementConfig, now: number): boolean {
-  return liveCampaigns(config, now).some((c) => c.segment === 'quiet');
+  return liveCampaigns(config, now).some((c) => ORDER_DEPENDENT_SEGMENTS.includes(c.segment));
 }
 
 export interface SelectionContext {

@@ -3,6 +3,8 @@ import {
   needsDigestForSegments,
   segmentChain,
   BUSY_ORDER_THRESHOLD,
+  DORMANT_DAYS,
+  WELCOME_ENDING_DAYS,
   UserSignals,
 } from '../../notifications/segmentDetector';
 
@@ -13,6 +15,8 @@ const activated = (over: Partial<UserSignals> = {}): UserSignals => ({
   teamCount: 1,
   hasReferralLink: true,
   digestEmpty: false,
+  daysSinceLastOrder: 0,
+  welcomeDaysLeft: null,
   tier: 'pro',
   ...over,
 });
@@ -56,6 +60,8 @@ describe('segmentChain — most specific segment', () => {
         teamCount: 0,
         hasReferralLink: false,
         digestEmpty: true,
+        daysSinceLastOrder: null,
+        welcomeDaysLeft: 1,
         tier: 'free',
       };
       expect(firstSegment(brandNew)).toBe('no_customer');
@@ -178,5 +184,65 @@ describe('segmentChain — fallback chain', () => {
 
   it('is just all for a fully-activated tailor with a link and work to do', () => {
     expect(segmentChain(activated({ hasReferralLink: true, digestEmpty: false }))).toEqual(['all']);
+  });
+});
+
+describe('welcome_ending', () => {
+  it('fires inside the warning window', () => {
+    expect(segmentChain(activated({ welcomeDaysLeft: WELCOME_ENDING_DAYS })))
+      .toContain('welcome_ending');
+    expect(segmentChain(activated({ welcomeDaysLeft: 1 }))).toContain('welcome_ending');
+  });
+
+  it('does not fire while there is still plenty of window left', () => {
+    expect(segmentChain(activated({ welcomeDaysLeft: WELCOME_ENDING_DAYS + 1 })))
+      .not.toContain('welcome_ending');
+  });
+
+  it('does not fire when the window does not apply', () => {
+    expect(segmentChain(activated({ welcomeDaysLeft: null }))).not.toContain('welcome_ending');
+  });
+
+  // Time-boxed, so it outranks the segments that will still be true next week.
+  it('outranks dormant and quiet', () => {
+    const chain = segmentChain(activated({
+      welcomeDaysLeft: 2, daysSinceLastOrder: 60, digestEmpty: true,
+    }));
+    expect(chain[0]).toBe('welcome_ending');
+  });
+
+  // A tailor with no customers is not an upsell candidate; the basics come first.
+  it('never applies before the activation rungs are cleared', () => {
+    expect(segmentChain(activated({ customerCount: 0, welcomeDaysLeft: 1 })))
+      .toEqual(['no_customer', 'all']);
+  });
+});
+
+describe('dormant', () => {
+  it('fires at the threshold and beyond', () => {
+    expect(segmentChain(activated({ daysSinceLastOrder: DORMANT_DAYS })))
+      .toContain('dormant');
+    expect(segmentChain(activated({ daysSinceLastOrder: 90 }))).toContain('dormant');
+  });
+
+  it('does not fire one day short', () => {
+    expect(segmentChain(activated({ daysSinceLastOrder: DORMANT_DAYS - 1 })))
+      .not.toContain('dormant');
+  });
+
+  it('does not fire when the orders read was skipped', () => {
+    expect(segmentChain(activated({ daysSinceLastOrder: null }))).not.toContain('dormant');
+  });
+
+  // Dormant is the sharper signal, but quiet stays behind it so a tailor whose
+  // dormant copy is spent still has somewhere to fall back to.
+  it('outranks quiet, and quiet remains as a fallback', () => {
+    const chain = segmentChain(activated({ daysSinceLastOrder: 30, digestEmpty: true }));
+    expect(chain.indexOf('dormant')).toBeLessThan(chain.indexOf('quiet'));
+  });
+
+  it('never applies before the activation rungs are cleared', () => {
+    expect(segmentChain(activated({ orderCount: 0, daysSinceLastOrder: 99 })))
+      .toEqual(['no_order', 'all']);
   });
 });
