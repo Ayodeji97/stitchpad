@@ -189,30 +189,114 @@ any config mistake. Check the logs in this order — each step logs its reason:
   is run-level (the config parsed to nothing); `skippedNoCampaign` is per-tailor (no
   live campaign matched any segment in their chain).
 
-## Local smoke test
+## Smoke testing
 
-`functions/scripts/engagementPushSmoke.js` runs the REAL `runEngagementPush` +
-`productionEngagementIO` against the local emulators, stubbing only the FCM transport
-(which cannot be emulated) so the exact outgoing payload can be asserted:
+Three tiers. Tier 1 is 2 minutes and catches most regressions; do Tier 2 before any
+release that touches notifications; Tier 3 only when you want to see a real push.
 
+### Tier 1 — backend only (fast, no device)
+
+```bash
+# terminal 1 — repo root
+firebase emulators:start --config firebase.emulator.json
+
+# terminal 2 — from functions/
+export FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 \
+       FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 \
+       GCLOUD_PROJECT=stitchpad-30607
+npm run build                          # lib/ must be current — the driver loads from it
+node scripts/emulatorSetupStaff.js     # seeds Fola (owner) + Gabby (staff)
+node scripts/engagementPushSmoke.js    # 10 checks
 ```
-firebase emulators:start --config firebase.emulator.json      # terminal 1
-cd functions && npm run build                                  # lib/ must be current
-node scripts/emulatorSetupStaff.js                             # seeds Fola + Gabby
-node scripts/engagementPushSmoke.js                            # 10 checks
-```
 
-Ends in `ALL CHECKS PASSED`. It covers: the owner is nudged, an ACTIVE STAFF account is
+Must end in `ALL CHECKS PASSED`. It runs the REAL `runEngagementPush` +
+`productionEngagementIO` and asserts: the owner is nudged, an ACTIVE STAFF account is
 excluded, the announcements channel + android tag + APNs passive flag are set, the
 deep-link target is carried, state is stamped, and a second run the same day sends
-nothing.
+nothing. FCM is stubbed (it has no emulator) so nothing is delivered.
 
-Two traps it encodes, both of which cost real debugging time:
+### Tier 2 — device: channels + deep links (no FCM needed)
+
+A notification tap is just `MainActivity` started with `target`/`orderId` extras, so
+`am start` exercises the identical path end to end.
+
+```bash
+# 1. Point the debug app at the emulators, build, and install OVER the existing build.
+#    Set USE_FIREBASE_EMULATOR = true in
+#    composeApp/src/commonMain/.../core/config/EmulatorConfig.kt
+./gradlew :composeApp:assembleDebug
+adb install -r composeApp/build/outputs/apk/debug/composeApp-debug.apk
+```
+
+> **Install with `-r`, do NOT uninstall first.** The in-place upgrade IS the regression
+> test: `ensureNotificationChannels` used to early-return once `daily_reminders`
+> existed, so on an upgraded install the new channel was never created. A clean install
+> hides that bug entirely.
+> If you hit `INSTALL_FAILED_VERSION_DOWNGRADE`, the device has a newer versionCode —
+> uninstall and accept that you lose the upgrade-path check for this run.
+
+```bash
+# 2. Sign in as fola@gmail.com / fola123, then allow notifications.
+adb shell pm grant com.danzucker.stitchpad android.permission.POST_NOTIFICATIONS
+
+# 3. Both channels must exist, with the right importances (3 = DEFAULT, 2 = LOW).
+adb shell dumpsys notification --noredact \
+  | grep -oE "mId='(daily_reminders|announcements)'[^}]*mImportance=[0-9]+" | sort -u
+# expect: announcements ... mImportance=2   AND   daily_reminders ... mImportance=3
+
+# 4. Fire each deep link and check where the app lands.
+fire() { adb shell am start -n com.danzucker.stitchpad/com.danzucker.stitchpad.MainActivity \
+         -e target "$1" --activity-single-top --activity-clear-top; }
+fire founding_tailors   # -> Founding Tailors
+fire inbox              # -> Notifications
+fire to_collect         # -> Money to collect
+fire dashboard          # -> Dashboard (run this while on ANOTHER screen; that is the
+                        #    warm-resume case where it used to do nothing)
+fire some_future_target # -> nothing happens, no crash (forward-compat)
+```
+
+### Tier 3 — a real push you can see and tap
+
+FCM has no emulator, so a genuine delivery needs real credentials.
+
+**Locally**, opt in explicitly — the app must be signed in so it has registered a real
+device token:
+
+```bash
+ENGAGEMENT_SMOKE_REAL_FCM=1 node scripts/engagementPushSmoke.js
+```
+
+The synthetic `tok-*` entries fail by design; the real registered token is what
+delivers. Then:
+
+```bash
+adb shell dumpsys notification --noredact | grep -A6 "pkg=com.danzucker.stitchpad"
+```
+
+Expect `id=2002`, `channel=announcements`, `importance=2`, `sound=null`. In the shade it
+appears under the OS **"Silent"** group — that is IMPORTANCE_LOW working. Tap it and
+confirm it lands on the campaign's `target` screen.
+
+**Against production**, the supported path is the tester-gated callable
+`debugSendMyEngagementPush` (see Rollout order above), which bypasses the weekday,
+cadence and already-pushed-today gates and returns the resolved segment plus the chosen
+copy — so you can see exactly why you got the message you got.
+
+### Afterwards
+
+**Set `USE_FIREBASE_EMULATOR` back to `false`** and rebuild, or you will ship or keep
+testing an emulator-pointed build. `git status` should be clean.
+
+### Two traps the driver encodes
+
 - The seeded `users/*` docs have **no `email` field**; uids resolve through Auth, the
-  same fallback `productionEngagementIO` uses for legacy docs.
+  same fallback `productionEngagementIO` uses for legacy docs. Looking them up by the
+  doc field silently yields an empty map and every assertion fails against
+  `users/undefined/...`.
 - `esModuleInterop` compiles `import * as admin` to `__importStar`, giving each module
-  its **own copy** of the namespace — so stubbing `admin.messaging` in the driver never
-  reaches `fcm.ts`. Patch the Messaging **singleton instance** instead.
+  its **own copy** of the namespace — so stubbing `admin.messaging` never reaches
+  `fcm.ts`, and the driver sends to real FCM instead. Patch the Messaging **singleton
+  instance**, which every caller shares.
 
 ## Related
 

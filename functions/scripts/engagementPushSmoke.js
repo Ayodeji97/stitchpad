@@ -19,11 +19,22 @@ const db = admin.firestore();
 // admin.messaging() shares this one instance.
 const sends = [];
 const messaging = admin.messaging();
-messaging.sendEachForMulticast = async (msg) => {
-  sends.push(msg);
-  return { successCount: msg.tokens.length, failureCount: 0,
-           responses: msg.tokens.map(() => ({ success: true })) };
-};
+const REAL_FCM = process.env.ENGAGEMENT_SMOKE_REAL_FCM === '1';
+if (REAL_FCM) {
+  // Opt-in: actually deliver, so you can SEE the notification land on a device and
+  // tap it. Requires real credentials (GOOGLE_APPLICATION_CREDENTIALS or an
+  // authenticated gcloud/firebase login) because FCM has no emulator. The payload is
+  // still captured for the assertions below.
+  const realSend = messaging.sendEachForMulticast.bind(messaging);
+  messaging.sendEachForMulticast = async (msg) => { sends.push(msg); return realSend(msg); };
+  console.log('!! ENGAGEMENT_SMOKE_REAL_FCM=1 — sending REAL pushes to registered devices');
+} else {
+  messaging.sendEachForMulticast = async (msg) => {
+    sends.push(msg);
+    return { successCount: msg.tokens.length, failureCount: 0,
+             responses: msg.tokens.map(() => ({ success: true })) };
+  };
+}
 
 const { runEngagementPush } = require('../lib/notifications/runEngagementPush');
 const { productionEngagementIO } = require('../lib/notifications/engagementPush');
@@ -81,6 +92,10 @@ const check = (label, cond, extra='') => {
   console.log('\nChecks:');
   const sentTokens = sends.flatMap((s) => s.tokens);
   check('Fola (owner) received a nudge', sentTokens.includes(`tok-${folaUid}`));
+  if (REAL_FCM) {
+    console.log('  i real-FCM mode: the synthetic tok-* entries fail by design;');
+    console.log('    a genuine device token registered by the signed-in app is what delivers.');
+  }
   check('Gabby (ACTIVE STAFF) was excluded — the staff-exclusion fix',
         gabbyUid ? !sentTokens.includes(`tok-${gabbyUid}`) : false,
         gabbyUid ? `(gabby token present: ${sentTokens.includes('tok-'+gabbyUid)})` : '(gabby uid not found)');
