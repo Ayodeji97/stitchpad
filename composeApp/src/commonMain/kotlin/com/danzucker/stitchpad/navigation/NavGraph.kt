@@ -173,19 +173,6 @@ private suspend fun resolvePostAuthDestination(
 }
 
 /**
- * Outer-nav handler for a pending push-tap deep link. The inbox route lives in MainRoot's
- * INNER nav, so if a tap arrives while the user is on a non-Home OUTER route (e.g. the
- * debug menu) MainRoot isn't composed to consume it — bring the app back to Home first
- * (MainRoot then routes to the inbox). Only when Home is ALREADY in the back stack (the
- * user has cleared the splash / email-verification / workshop-setup gates), so a tap can
- * never bypass those gates. When signed out, a push INBOX, ORDER, or TO_COLLECT link is
- * dropped so it can't auto-navigate the next session's (possibly different) user to the
- * prior user's inbox/order without a fresh tap — a stale ORDER carries a prior user's
- * orderId and could route a different account to an order that fails under their
- * permissions. An UPGRADE email-link target is preserved across login (the account owner
- * asked to renew and must sign in to do so) and consumed once Home is reached.
- */
-/**
  * Deep-link targets addressed to ONE specific tailor's account, dropped when the app is
  * signed out. Routing them after a fresh sign-in could show whoever logs in next the
  * previous user's inbox, order, or nudge — and a stale ORDER carries a prior user's
@@ -202,6 +189,20 @@ private val ACCOUNT_SCOPED_DEEP_LINKS = setOf(
     DeepLinkTarget.DASHBOARD,
     DeepLinkTarget.FOUNDING_TAILORS,
 )
+
+/**
+ * Outer-nav handler for a pending push-tap deep link. The inbox route lives in MainRoot's
+ * INNER nav, so if a tap arrives while the user is on a non-Home OUTER route (e.g. the
+ * debug menu) MainRoot isn't composed to consume it — bring the app back to Home first
+ * (MainRoot then routes to the inbox). Only when Home is ALREADY in the back stack (the
+ * user has cleared the splash / email-verification / workshop-setup gates), so a tap can
+ * never bypass those gates. When signed out, a push INBOX, ORDER, or TO_COLLECT link is
+ * dropped so it can't auto-navigate the next session's (possibly different) user to the
+ * prior user's inbox/order without a fresh tap — a stale ORDER carries a prior user's
+ * orderId and could route a different account to an order that fails under their
+ * permissions. An UPGRADE email-link target is preserved across login (the account owner
+ * asked to renew and must sign in to do so) and consumed once Home is reached.
+ */
 
 @Composable
 private fun PushDeepLinkRedirectEffect(navController: NavHostController) {

@@ -818,10 +818,17 @@ private fun handleInnerDeepLink(
             pendingDeepLink.clear()
             innerNavController.navigate(FoundingTailorsRoute) { launchSingleTop = true }
         }
-        // Engagement push (target: dashboard). Opening the app already lands on the
-        // dashboard, so consuming the target is the whole job — navigating would only
-        // risk popping a screen the tailor was mid-way through.
-        DeepLinkTarget.DASHBOARD -> pendingDeepLink.clear()
+        // Engagement push (target: dashboard). Must actually navigate: "opening the app
+        // already lands on the dashboard" only holds for a COLD start. A warm resume
+        // keeps the inner back stack, so a tailor sitting on Orders (or inside an order)
+        // would tap the nudge and see nothing happen.
+        DeepLinkTarget.DASHBOARD -> {
+            pendingDeepLink.clear()
+            innerNavController.navigate(DashboardRoute) {
+                popUpTo(DashboardRoute) { inclusive = false }
+                launchSingleTop = true
+            }
+        }
         null -> Unit
     }
 }

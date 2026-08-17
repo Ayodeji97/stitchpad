@@ -11,8 +11,8 @@ import { digestDetector, isDigestEmpty } from './digestDetector';
 import { parseEngagementConfig } from './engagementConfig';
 import { isEngagementDay, needsOrders, selectCampaign } from './engagementSelector';
 import { EngagementIO, EngagementRunResult } from './engagementTypes';
-import { lagosDateKey, lagosDayIndex } from './lagosTime';
-import { detectSegment } from './segmentDetector';
+import { lagosDateKey, lagosDayIndex, lagosWeekday } from './lagosTime';
+import { needsDigestForSegments, segmentChain } from './segmentDetector';
 
 function emptyResult(): EngagementRunResult {
   return {
@@ -24,6 +24,7 @@ function emptyResult(): EngagementRunResult {
     skippedNotAllowed: 0,
     skippedPushedToday: 0,
     skippedCadence: 0,
+    skippedNoValidCampaigns: 0,
     skippedNoCampaign: 0,
     skippedNoTokens: 0,
     failed: 0,
@@ -45,11 +46,17 @@ export async function runEngagementPush(io: EngagementIO, now: number): Promise<
   // invoke still cannot turn a twice-weekly nudge into a daily one.
   if (!isEngagementDay(config, now)) {
     result.skippedNotEngagementDay = 1;
-    functions.logger.info('engagement push: not a configured send day');
+    // Deliberately logs BOTH sides. config.daysOfWeek can only narrow the deployed
+    // cron, never move it, so an operator who sets days the cron never fires on gets
+    // silence — this line is what makes that diagnosable instead of mysterious.
+    functions.logger.info('engagement push: not a configured send day', {
+      lagosWeekday: lagosWeekday(now),
+      configuredDays: config.daysOfWeek,
+    });
     return result;
   }
   if (config.campaigns.length === 0) {
-    result.skippedNoCampaign = 1;
+    result.skippedNoValidCampaigns = 1;
     functions.logger.warn('engagement push: no valid campaigns — check config/engagementPush');
     return result;
   }
@@ -82,12 +89,18 @@ export async function runEngagementPush(io: EngagementIO, now: number): Promise<
       }
 
       const counts = await io.loadCounts(r.uid);
-      // Only pay for the orders read when a live campaign actually needs it.
-      const digestEmpty = wantOrders
+
+      // The orders read is the one expensive call in this loop, so it is decided
+      // PER USER, not once for the run: only a tailor who has cleared every
+      // activation rung can land in `quiet`, so anyone still short of that is
+      // already settled by the two count queries above. Skipping them is the
+      // difference between scanning every order of every user and scanning the
+      // orders of the activated minority.
+      const digestEmpty = wantOrders && needsDigestForSegments(counts)
         ? isDigestEmpty(digestDetector(await io.loadOrders(r.uid), now))
         : false;
 
-      const segment = detectSegment({
+      const segments = segmentChain({
         customerCount: counts.customerCount,
         orderCount: counts.orderCount,
         teamCount: counts.teamCount,
@@ -98,7 +111,7 @@ export async function runEngagementPush(io: EngagementIO, now: number): Promise<
 
       const campaign = selectCampaign(
         config,
-        { segment, sendCount: state.sendCount, campaignCounts: state.campaignCounts },
+        { segments, sendCount: state.sendCount, campaignCounts: state.campaignCounts },
         now,
       );
       if (!campaign) { result.skippedNoCampaign++; continue; }

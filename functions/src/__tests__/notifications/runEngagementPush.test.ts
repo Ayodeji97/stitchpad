@@ -180,11 +180,15 @@ describe('runEngagementPush — global short-circuits', () => {
     expect(s.pushes).toEqual([]);
   });
 
+  // Counted as skippedNoValidCampaigns, NOT skippedNoCampaign: "the config is
+  // broken" and "this tailor matched nothing" are different problems and used to
+  // share one counter, which made the summary log ambiguous.
   it('sends nothing when every campaign was rejected as malformed', async () => {
     const s = fakeIO({ config: rawConfig({ campaigns: [{ id: 'broken' }] }) });
     const r = await runEngagementPush(s.io, TUESDAY);
     expect(s.calls.listRecipients).toBe(0);
-    expect(r.skippedNoCampaign).toBe(1);
+    expect(r.skippedNoValidCampaigns).toBe(1);
+    expect(r.skippedNoCampaign).toBe(0);
   });
 });
 
@@ -232,6 +236,20 @@ describe('runEngagementPush — per-user gates', () => {
     });
     const r = await runEngagementPush(s.io, TUESDAY);
     expect(r.sent).toBe(1);
+  });
+
+  // REGRESSION: staff work inside the OWNER's data, so their own customers/orders
+  // subcollections are permanently empty. They looked like brand-new tailors and
+  // would have received "Add your first customer" twice a week forever. Production
+  // excludes them in listRecipients; this asserts the loop honours an empty list
+  // rather than, say, treating zero recipients as an error.
+  it('sends nothing when every candidate was excluded upstream', async () => {
+    const s = fakeIO({ recipients: [] });
+    const r = await runEngagementPush(s.io, TUESDAY);
+    expect(r.considered).toBe(0);
+    expect(r.sent).toBe(0);
+    expect(r.failed).toBe(0);
+    expect(s.pushes).toEqual([]);
   });
 
   it('skips a user with no registered devices', async () => {
@@ -322,6 +340,25 @@ describe('runEngagementPush — orders read is avoided when possible', () => {
     expect(s.calls.loadOrders).toBe(1);
     expect(r.sent).toBe(1);
     expect(s.recorded[0].campaignId).toBe('quiet-nudge');
+  });
+
+  // REGRESSION (cost): wantOrders used to be decided once for the whole run, so a
+  // single live quiet campaign scanned every order of every user — including the
+  // majority whose segment two count queries had already settled.
+  it('does not load orders for a tailor whose activation rung is already unmet', async () => {
+    const s = fakeIO({
+      config: rawConfig({
+        campaigns: [
+          rawCampaign({ id: 'quiet-nudge', segment: 'quiet' }),
+          rawCampaign({ id: 'first-customer', segment: 'no_customer' }),
+        ],
+      }),
+      countsByUid: { u1: counts() }, // 0 customers -> can never reach `quiet`
+    });
+    const r = await runEngagementPush(s.io, TUESDAY);
+    expect(s.calls.loadOrders).toBe(0);
+    expect(r.sent).toBe(1);
+    expect(s.recorded[0].campaignId).toBe('first-customer');
   });
 
   it('does not treat a tailor with actionable orders as quiet', async () => {

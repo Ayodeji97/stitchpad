@@ -7,6 +7,7 @@ import { buildDigestEmail } from './digestEmailTemplate';
 import { digestDetector, isDigestEmpty } from './digestDetector';
 import {
   DAILY_REMINDERS_CHANNEL_ID,
+  DAILY_REMINDER_NOTIFICATION_TAG,
   deletePushTokens,
   loadPushTokens,
   sendMulticast,
@@ -107,6 +108,9 @@ function productionDigestIO(apiKey: string): DigestIO {
         body: payload.body,
         data: { target: 'to_collect' },
         androidChannelId: DAILY_REMINDERS_CHANNEL_ID,
+        // A daily summary is meant to collapse to one notification. Without a tag it
+        // only did so in the foreground; backgrounded deliveries stacked.
+        androidTag: DAILY_REMINDER_NOTIFICATION_TAG,
       },
       'digest push',
     ),
@@ -126,7 +130,11 @@ function productionDigestIO(apiKey: string): DigestIO {
 
 export const dailyDigest = functions
   .region(REGION)
-  .runWith({ secrets: ['RESEND_API_KEY'] })
+  // Opening STAGING made this loop span every user, and it is serial: one
+  // admin.auth().getUser() AND one Resend HTTP call per recipient. The v1 default 60s
+  // would kill the run mid-loop, and since recipient order is stable the same tail
+  // would be starved every morning — surfacing only as a missing "run complete" log.
+  .runWith({ secrets: ['RESEND_API_KEY'], timeoutSeconds: 540, memory: '512MB' })
   .pubsub.schedule(SCHEDULE)
   .timeZone(TIMEZONE)
   .onRun(async () => {

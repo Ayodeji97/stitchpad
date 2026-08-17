@@ -35,7 +35,7 @@ const config = (over: Partial<EngagementConfig> = {}): EngagementConfig => ({
 });
 
 const ctx = (over: Partial<SelectionContext> = {}): SelectionContext => ({
-  segment: 'no_customer',
+  segments: ['no_customer', 'all'],
   sendCount: 0,
   campaignCounts: {},
   ...over,
@@ -118,8 +118,8 @@ describe('selectCampaign', () => {
     expect(selectCampaign(config({ enabled: false }), ctx(), TUESDAY)).toBeNull();
   });
 
-  it('returns null when no campaign matches the segment', () => {
-    expect(selectCampaign(config(), ctx({ segment: 'busy_no_team' }), TUESDAY)).toBeNull();
+  it('returns null when no campaign matches any segment in the chain', () => {
+    expect(selectCampaign(config(), ctx({ segments: ['busy_no_team'] }), TUESDAY)).toBeNull();
   });
 
   it('matches a campaign to the user segment', () => {
@@ -129,7 +129,7 @@ describe('selectCampaign', () => {
         campaign({ id: 'team', segment: 'busy_no_team' }),
       ],
     });
-    expect(selectCampaign(c, ctx({ segment: 'busy_no_team' }), TUESDAY)?.id).toBe('team');
+    expect(selectCampaign(c, ctx({ segments: ['busy_no_team', 'all'] }), TUESDAY)?.id).toBe('team');
   });
 
   it('excludes a campaign outside its window', () => {
@@ -147,7 +147,7 @@ describe('selectCampaign', () => {
 
     it('alternates deterministically as the send count grows', () => {
       const pick = (sendCount: number) =>
-        selectCampaign(two, ctx({ segment: 'all', sendCount }), TUESDAY)?.id;
+        selectCampaign(two, ctx({ segments: ['all'], sendCount }), TUESDAY)?.id;
       expect(pick(0)).toBe('a-first');
       expect(pick(1)).toBe('b-second');
       expect(pick(2)).toBe('a-first');
@@ -163,13 +163,13 @@ describe('selectCampaign', () => {
           campaign({ id: 'a-first', segment: 'all' }),
         ],
       });
-      expect(selectCampaign(reversed, ctx({ segment: 'all', sendCount: 0 }), TUESDAY)?.id)
+      expect(selectCampaign(reversed, ctx({ segments: ['all'], sendCount: 0 }), TUESDAY)?.id)
         .toBe('a-first');
     });
 
     it('survives a corrupt send count without indexing out of bounds', () => {
-      expect(selectCampaign(two, ctx({ segment: 'all', sendCount: -7 }), TUESDAY)).not.toBeNull();
-      expect(selectCampaign(two, ctx({ segment: 'all', sendCount: 2.9 }), TUESDAY)).not.toBeNull();
+      expect(selectCampaign(two, ctx({ segments: ['all'], sendCount: -7 }), TUESDAY)).not.toBeNull();
+      expect(selectCampaign(two, ctx({ segments: ['all'], sendCount: 2.9 }), TUESDAY)).not.toBeNull();
     });
   });
 
@@ -181,9 +181,9 @@ describe('selectCampaign', () => {
           campaign({ id: 'z-announcement', segment: 'all', priority: 100 }),
         ],
       });
-      expect(selectCampaign(c, ctx({ segment: 'all', sendCount: 0 }), TUESDAY)?.id)
+      expect(selectCampaign(c, ctx({ segments: ['all'], sendCount: 0 }), TUESDAY)?.id)
         .toBe('z-announcement');
-      expect(selectCampaign(c, ctx({ segment: 'all', sendCount: 1 }), TUESDAY)?.id)
+      expect(selectCampaign(c, ctx({ segments: ['all'], sendCount: 1 }), TUESDAY)?.id)
         .toBe('z-announcement');
     });
 
@@ -194,7 +194,7 @@ describe('selectCampaign', () => {
           campaign({ id: 'high', segment: 'all', priority: 50 }),
         ],
       });
-      expect(selectCampaign(c, ctx({ segment: 'all' }), TUESDAY)?.id).toBe('high');
+      expect(selectCampaign(c, ctx({ segments: ['all'] }), TUESDAY)?.id).toBe('high');
     });
 
     it('falls back to id order when priorities tie, so the choice is never arbitrary', () => {
@@ -204,7 +204,7 @@ describe('selectCampaign', () => {
           campaign({ id: 'a', segment: 'all', priority: 10 }),
         ],
       });
-      expect(selectCampaign(c, ctx({ segment: 'all' }), TUESDAY)?.id).toBe('a');
+      expect(selectCampaign(c, ctx({ segments: ['all'] }), TUESDAY)?.id).toBe('a');
     });
 
     it('is ignored once the prioritised campaign is outside its window', () => {
@@ -214,7 +214,7 @@ describe('selectCampaign', () => {
           campaign({ id: 'z-expired', segment: 'all', priority: 100, endAt: TUESDAY - 1 }),
         ],
       });
-      expect(selectCampaign(c, ctx({ segment: 'all' }), TUESDAY)?.id).toBe('a-normal');
+      expect(selectCampaign(c, ctx({ segments: ['all'] }), TUESDAY)?.id).toBe('a-normal');
     });
   });
 
@@ -240,7 +240,7 @@ describe('selectCampaign', () => {
           campaign({ id: 'b', segment: 'all', maxSendsPerUser: 1 }),
         ],
       });
-      expect(selectCampaign(c, ctx({ segment: 'all', campaignCounts: { a: 1, b: 1 } }), TUESDAY))
+      expect(selectCampaign(c, ctx({ segments: ['all'], campaignCounts: { a: 1, b: 1 } }), TUESDAY))
         .toBeNull();
     });
 
@@ -252,9 +252,69 @@ describe('selectCampaign', () => {
         ],
       });
       const picked = selectCampaign(
-        c, ctx({ segment: 'all', sendCount: 0, campaignCounts: { 'a-spent': 1 } }), TUESDAY,
+        c, ctx({ segments: ['all'], sendCount: 0, campaignCounts: { 'a-spent': 1 } }), TUESDAY,
       );
       expect(picked?.id).toBe('b-left');
+    });
+  });
+
+  // Both of these were REAL bugs when selection matched exactly one segment.
+  describe('segment-chain fallback (regressions)', () => {
+    // BUG 1: a `segment: "all"` release announcement reached only fully-activated
+    // tailors on a busy day — i.e. almost nobody — because exact-match selection
+    // never considered `all` for a user sitting in `no_customer`.
+    it('an all-segment announcement reaches a tailor whose specific segment is no_customer', () => {
+      const c = config({
+        campaigns: [
+          campaign({ id: 'first-customer', segment: 'no_customer' }),
+          campaign({ id: 'release-note', segment: 'all', priority: 100 }),
+        ],
+      });
+      expect(selectCampaign(c, ctx({ segments: ['no_customer', 'all'] }), TUESDAY)?.id)
+        .toBe('release-note');
+    });
+
+    // BUG 2: once a tailor exhausted their most specific segment's campaigns they
+    // went PERMANENTLY silent, even with live campaigns that applied to them. Since
+    // most tailors never mint a referral link, that silenced most of the base after
+    // two sends.
+    it('falls through to a later segment once the specific one is exhausted', () => {
+      const c = config({
+        campaigns: [
+          campaign({ id: 'founding', segment: 'no_referral', maxSendsPerUser: 2 }),
+          campaign({ id: 'catchall', segment: 'all' }),
+        ],
+      });
+      const spent = ctx({
+        segments: ['no_referral', 'all'],
+        sendCount: 2,
+        campaignCounts: { founding: 2 },
+      });
+      expect(selectCampaign(c, spent, TUESDAY)?.id).toBe('catchall');
+    });
+
+    it('still prefers the most specific segment while it has copy left', () => {
+      const c = config({
+        campaigns: [
+          campaign({ id: 'founding', segment: 'no_referral', maxSendsPerUser: 2 }),
+          campaign({ id: 'catchall', segment: 'all' }),
+        ],
+      });
+      const fresh = ctx({ segments: ['no_referral', 'all'], campaignCounts: { founding: 1 } });
+      expect(selectCampaign(c, fresh, TUESDAY)?.id).toBe('founding');
+    });
+
+    it('returns null only when every segment in the chain is exhausted', () => {
+      const c = config({
+        campaigns: [
+          campaign({ id: 'founding', segment: 'no_referral', maxSendsPerUser: 1 }),
+          campaign({ id: 'catchall', segment: 'all', maxSendsPerUser: 1 }),
+        ],
+      });
+      expect(selectCampaign(c, ctx({
+        segments: ['no_referral', 'all'],
+        campaignCounts: { founding: 1, catchall: 1 },
+      }), TUESDAY)).toBeNull();
     });
   });
 
@@ -263,7 +323,7 @@ describe('selectCampaign', () => {
       'selects a campaign for %s',
       (segment) => {
         const c = config({ campaigns: [campaign({ id: `c-${segment}`, segment })] });
-        expect(selectCampaign(c, ctx({ segment }), TUESDAY)?.id).toBe(`c-${segment}`);
+        expect(selectCampaign(c, ctx({ segments: [segment] }), TUESDAY)?.id).toBe(`c-${segment}`);
       },
     );
   });

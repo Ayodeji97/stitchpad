@@ -69,10 +69,13 @@ export interface EngagementRunResult {
   sent: number;
   skippedDisabled: number;
   skippedNotEngagementDay: number;
+  /** Run-level: the config parsed to zero usable campaigns. Distinct from skippedNoCampaign. */
+  skippedNoValidCampaigns: number;
   skippedOptedOut: number;
   skippedNotAllowed: number;
   skippedPushedToday: number;
   skippedCadence: number;
+  /** Per-user: no live campaign matched any segment in this tailor's chain. */
   skippedNoCampaign: number;
   skippedNoTokens: number;
   failed: number;

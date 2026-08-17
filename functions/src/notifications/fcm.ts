@@ -19,6 +19,20 @@ export const DAILY_REMINDERS_CHANNEL_ID = 'daily_reminders';
 /** Tips, feature discovery, announcements. Separately mutable; IMPORTANCE_LOW on device. */
 export const ANNOUNCEMENTS_CHANNEL_ID = 'announcements';
 
+/**
+ * Android notification tags. A tag makes a new push REPLACE the previous one with
+ * the same tag instead of stacking beside it.
+ *
+ * These matter specifically for the background/killed case: our own notification
+ * ids in StitchPadMessagingService only apply when the app is in the FOREGROUND and
+ * we post the notification ourselves. When the app is backgrounded the FCM SDK
+ * auto-displays the payload, ignores those ids, and — with no tag — creates a
+ * brand-new notification per message. Without these, an untouched Friday nudge and
+ * Tuesday's would both sit in the shade.
+ */
+export const ANNOUNCEMENT_NOTIFICATION_TAG = 'stitchpad_announcement';
+export const DAILY_REMINDER_NOTIFICATION_TAG = 'stitchpad_daily_reminder';
+
 const FCM_MULTICAST_LIMIT = 500;
 const FIRESTORE_BATCH_LIMIT = 500;
 
@@ -35,6 +49,8 @@ export interface PushPayload {
   data?: Record<string, string>;
   /** Android channel to post on. Defaults to daily reminders. */
   androidChannelId?: string;
+  /** Android notification tag — successive pushes with the same tag replace, not stack. */
+  androidTag?: string;
   /**
    * iOS analogue of Android's IMPORTANCE_LOW: delivered to the list without
    * interrupting. There is no channel concept on iOS, so this is the only way to
@@ -73,7 +89,10 @@ export async function sendMulticast(
       tokens: batch,
       notification: { title: payload.title, body: payload.body },
       android: {
-        notification: { channelId: payload.androidChannelId ?? DAILY_REMINDERS_CHANNEL_ID },
+        notification: {
+          channelId: payload.androidChannelId ?? DAILY_REMINDERS_CHANNEL_ID,
+          ...(payload.androidTag ? { tag: payload.androidTag } : {}),
+        },
       },
       ...(payload.passive
         ? { apns: { payload: { aps: { 'interruption-level': 'passive' } } } }

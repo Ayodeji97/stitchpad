@@ -24,6 +24,13 @@ class NotificationsInboxViewModel(
 ) : ViewModel() {
 
     private var hasLoaded = false
+
+    /**
+     * Unread ids from the UNFILTERED snapshot, including rows hidden from display
+     * (see the UNKNOWN filter in [observe]). Mark-all-read uses this so the
+     * server-side unread badge can always be cleared.
+     */
+    private var allUnreadIds: List<String> = emptyList()
     private val _state = MutableStateFlow(NotificationsInboxState())
     private val _events = Channel<NotificationsInboxEvent>()
     val events = _events.receiveAsFlow()
@@ -64,6 +71,12 @@ class NotificationsInboxViewModel(
                         // Rules forbid client delete, so a bad row would otherwise be stuck
                         // in a user's inbox permanently.
                         val visible = result.data.filter { it.type != NotificationType.UNKNOWN }
+                        // Mark-all-read must cover the HIDDEN rows too. The dashboard bell
+                        // counts unread docs server-side (observeUnreadCount) and does not
+                        // know about this filter, so marking only the visible ones would
+                        // leave the badge showing a count the tailor can see no way to
+                        // clear — they open an empty inbox and the badge never goes away.
+                        allUnreadIds = result.data.filter { !it.isRead }.map { it.id }
                         // Also clear any prior errorMessage so a recovered load
                         // (after retryWhen self-heals) clears the error state.
                         _state.update {
@@ -96,8 +109,7 @@ class NotificationsInboxViewModel(
     private fun markAllRead() {
         viewModelScope.launch {
             val uid = authRepository.getCurrentUser()?.id ?: return@launch
-            val unreadIds = _state.value.notifications.filter { !it.isRead }.map { it.id }
-            notificationRepository.markAllRead(uid, unreadIds)
+            notificationRepository.markAllRead(uid, allUnreadIds)
         }
     }
 }

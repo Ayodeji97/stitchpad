@@ -26,6 +26,7 @@ import {
 } from './engagementTypes';
 import {
   ANNOUNCEMENTS_CHANNEL_ID,
+  ANNOUNCEMENT_NOTIFICATION_TAG,
   deletePushTokens,
   loadPushTokens,
   sendMulticast,
@@ -33,7 +34,7 @@ import {
 import { lagosDateKey, lagosDayIndex } from './lagosTime';
 import { isDigestTester, isEngagementAllowed } from './rollout';
 import { runEngagementPush } from './runEngagementPush';
-import { detectSegment, Tier } from './segmentDetector';
+import { segmentChain, Tier } from './segmentDetector';
 import { mapOrderScanDoc } from './orderScan';
 
 const REGION = 'europe-west1';
@@ -79,6 +80,28 @@ function recipientFromDoc(uid: string, u: DocumentData): EngagementRecipient {
     tier: resolveTier(u.subscriptionTier),
     hasReferralLink: typeof u.referralCode === 'string' && u.referralCode.trim().length > 0,
   };
+}
+
+/**
+ * Auth uids that are ACTIVE staff in somebody else's workshop.
+ *
+ * Staff work inside the owner's data (`users/{ownerUid}/...`), so their OWN
+ * customers/orders subcollections are always empty. Without this exclusion every
+ * staff account looks like a brand-new tailor and gets "Add your first customer"
+ * twice a week forever. The daily digest is immune because it suppresses an empty
+ * model; here empty is the LOUDEST bucket, which inverts the usual safety.
+ *
+ * One unfiltered collectionGroup read for the whole run — filtering on `status`
+ * server-side would need a collection-group index, and memberships are few (the
+ * seat cap is small), so the in-memory filter is cheaper than that migration.
+ */
+async function loadActiveStaffUids(db: Firestore): Promise<Set<string>> {
+  const snap = await db.collectionGroup('memberships').get();
+  const uids = new Set<string>();
+  for (const doc of snap.docs) {
+    if (doc.data()?.status === 'active') uids.add(doc.id);
+  }
+  return uids;
 }
 
 /**
@@ -143,6 +166,11 @@ function pushPayloadFor(campaign: EngagementCampaign) {
     body: campaign.body,
     data: { target: campaign.target },
     androidChannelId: ANNOUNCEMENTS_CHANNEL_ID,
+    // Collapses successive engagement pushes in the shade. The notification id in
+    // StitchPadMessagingService only applies when WE post it (foreground); a
+    // backgrounded app is served by the FCM SDK, which replaces by tag or else
+    // stacks a brand-new notification for every message.
+    androidTag: ANNOUNCEMENT_NOTIFICATION_TAG,
     // iOS has no channel concept, so this is the only way to make a tip land
     // more quietly than an overdue-order alert there.
     passive: true,
@@ -163,9 +191,15 @@ export function productionEngagementIO(): EngagementIO {
      * onOrderCollectible already uses.
      */
     listRecipients: async () => {
-      const snap = await db.collection('users').get();
+      const [snap, staffUids] = await Promise.all([
+        db.collection('users').get(),
+        loadActiveStaffUids(db),
+      ]);
       const recipients: EngagementRecipient[] = [];
       for (const doc of snap.docs) {
+        // Staff accounts operate in the owner's workshop; nudging them about their
+        // own (permanently empty) data would be pure noise.
+        if (staffUids.has(doc.id)) continue;
         const r = recipientFromDoc(doc.id, doc.data());
         if (!r.email) {
           r.email = await admin.auth().getUser(doc.id)
@@ -213,11 +247,25 @@ export function productionEngagementIO(): EngagementIO {
 
 export const engagementPush = functions
   .region(REGION)
+  // The v1 default is 60s. This loop is serial over every user and each iteration
+  // does several Firestore reads plus an FCM send, so the default would kill the run
+  // mid-loop past a few hundred users — and because recipient order is stable, the
+  // SAME tail of users would be starved every single run, visible only as a missing
+  // "run complete" log.
+  .runWith({ timeoutSeconds: 540, memory: '512MB' })
   .pubsub.schedule(SCHEDULE)
   .timeZone(TIMEZONE)
   .onRun(async () => {
     await runEngagementPush(productionEngagementIO(), Date.now());
   });
+
+/**
+ * Weekdays the fixed cron can actually fire on. `config.daysOfWeek` can only ever
+ * NARROW this set — it cannot move the schedule, because SCHEDULE is baked into the
+ * deployed trigger. An operator setting e.g. Mon/Thu would otherwise get silence
+ * with no clue why, so the run loop logs the mismatch.
+ */
+export const CRON_WEEKDAYS: readonly number[] = [2, 5];
 
 /**
  * Debug/QA trigger: sends the caller their own engagement push right now,
@@ -251,17 +299,22 @@ export const debugSendMyEngagementPush = functions
     const state = await io.loadState(uid);
     const counts = await io.loadCounts(uid);
     const digestEmpty = isDigestEmpty(digestDetector(await io.loadOrders(uid), now));
-    const segment = detectSegment({ ...counts, hasReferralLink: recipient.hasReferralLink, digestEmpty, tier: recipient.tier });
+    const segments = segmentChain({
+      ...counts,
+      hasReferralLink: recipient.hasReferralLink,
+      digestEmpty,
+      tier: recipient.tier,
+    });
 
     const campaign = selectCampaign(
       config,
-      { segment, sendCount: state.sendCount, campaignCounts: state.campaignCounts },
+      { segments, sendCount: state.sendCount, campaignCounts: state.campaignCounts },
       now,
     );
-    if (!campaign) return { sent: false, reason: 'no_campaign_for_segment', segment };
+    if (!campaign) return { sent: false, reason: 'no_campaign_for_segment', segments };
 
     const tokens = await io.loadPushTokens(uid);
-    if (tokens.length === 0) return { sent: false, reason: 'no_tokens', segment };
+    if (tokens.length === 0) return { sent: false, reason: 'no_tokens', segments };
 
     const { successCount, invalidTokens } = await io.sendPush(tokens, campaign);
     if (invalidTokens.length > 0) await io.deletePushTokens(uid, invalidTokens);
@@ -271,7 +324,7 @@ export const debugSendMyEngagementPush = functions
 
     return {
       sent: successCount > 0,
-      segment,
+      segments,
       campaignId: campaign.id,
       title: campaign.title,
       body: campaign.body,
