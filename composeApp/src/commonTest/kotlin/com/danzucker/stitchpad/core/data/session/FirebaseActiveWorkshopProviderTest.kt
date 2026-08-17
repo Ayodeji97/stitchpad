@@ -3,12 +3,16 @@ package com.danzucker.stitchpad.core.data.session
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
 import com.danzucker.stitchpad.core.domain.session.StaffRole
 import com.danzucker.stitchpad.core.domain.session.WorkshopClaims
+import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import com.danzucker.stitchpad.core.domain.session.workshopUidOrNull
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.yield
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -81,6 +85,160 @@ class FirebaseActiveWorkshopProviderTest {
 
         val uid = withTimeout(1_000) { provider.workshopUidOrNull() }
         assertNull(uid)
+    }
+
+    // ── Active-claim window: the membership doc is watched for the whole life
+    //    of a claim-backed staff session so mid-session revocation propagates
+    //    without waiting for the hourly token refresh. ──────────────────────────
+
+    @Test
+    fun revoking_an_active_staff_session_demotes_to_owner_of_self() = runTest {
+        val claims = MutableStateFlow<WorkshopClaims?>(staff("staff-1", "owner-9"))
+        val membership = MutableStateFlow<MembershipStatus?>(MembershipStatus.ACTIVE)
+        var watchedWorkshop: String? = null
+        var refreshes = 0
+        var revokedCallbacks = 0
+        val provider = FirebaseActiveWorkshopProvider(
+            authClaims = claims,
+            scope = backgroundScope,
+            membershipStatusFlow = { workshopUid, _ -> watchedWorkshop = workshopUid; membership },
+            refreshToken = { refreshes++ },
+            onStaffRevoked = { revokedCallbacks++ },
+        )
+        assertTrue(provider.awaitHydrated().isActiveStaff)
+        assertEquals("owner-9", watchedWorkshop)
+
+        // Owner revokes: the doc flips while the token still carries the claim.
+        membership.value = MembershipStatus.REVOKED
+        runCurrent()
+
+        assertTrue(provider.current().isOwner)
+        assertEquals("staff-1", provider.current().workshopUid)
+        // The stale claim must be refreshed off the token, and the redeem-time
+        // prefs cleared so the stale uid cannot re-enter the pending window.
+        assertTrue(refreshes >= 1)
+        assertTrue(revokedCallbacks >= 1)
+    }
+
+    @Test
+    fun revoking_mid_session_demotes_without_racing_the_prefs_clear_flow_restart() = runTest {
+        // Reproduces the production coupling (di/CoreModule.kt):
+        // `onStaffRevoked = { membershipPrefs.clear() }` clears the SAME flow
+        // `storedWorkshopUid` observes, and that flow is part of the outer
+        // combine's flatMapLatest key. A mid-session active staffer still has a
+        // populated storedWorkshopUid (StaffPendingViewModel never clears it on
+        // promotion), so clearing prefs here can restart the outer flow WHILE
+        // refreshToken() is still in flight, cancelling the in-flight demotion
+        // before it reaches collectors.
+        val claims = MutableStateFlow<WorkshopClaims?>(staff("staff-1", "owner-9"))
+        val membership = MutableStateFlow<MembershipStatus?>(MembershipStatus.ACTIVE)
+        val storedWs = MutableStateFlow<String?>("owner-9")
+        var refreshes = 0
+        var revokedCallbacks = 0
+        var membershipSubscriptions = 0
+        val provider = FirebaseActiveWorkshopProvider(
+            authClaims = claims,
+            scope = backgroundScope,
+            storedWorkshopUid = storedWs,
+            membershipStatusFlow = { _, _ -> membershipSubscriptions++; membership },
+            // A real forceRefreshIdToken() call suspends on network I/O; yield()
+            // mirrors that suspension so the outer combine gets a chance to react
+            // to the prefs clear before this side effect completes. The provider
+            // now LAUNCHES this instead of awaiting it (so the demotion emits
+            // immediately) — runCurrent() below drains that launch, so the
+            // "exactly one refresh" assertion still holds.
+            refreshToken = { refreshes++; yield() },
+            // Mirrors CoreModule's `onStaffRevoked = { membershipPrefs.clear() }`
+            // — the SAME flow instance storedWorkshopUid observes, unlike the
+            // decoupled `flowOf(null)` used by the sibling test above.
+            onStaffRevoked = { revokedCallbacks++; storedWs.value = null },
+        )
+        assertTrue(provider.awaitHydrated().isActiveStaff)
+        assertEquals(1, membershipSubscriptions)
+
+        val emissions = mutableListOf<WorkshopSession>()
+        val collectJob = launch { provider.flow.collect { emissions.add(it) } }
+        runCurrent()
+
+        // Owner revokes: the doc flips while the token still carries the claim.
+        membership.value = MembershipStatus.REVOKED
+        runCurrent()
+        collectJob.cancel()
+
+        val demotedIndex = emissions.indexOfFirst { it.isOwner }
+        assertTrue(demotedIndex >= 0, "expected a demotion to be emitted; got $emissions")
+        assertTrue(
+            emissions.drop(demotedIndex).none { it.isActiveStaff },
+            "demotion regressed back to active staff after being emitted: $emissions",
+        )
+        // The demotion must land from the FIRST REVOKED snapshot: no wasted
+        // extra forceRefreshIdToken call and no listener resubscribe caused by
+        // the prefs-clear racing the flatMapLatest restart.
+        assertEquals(1, refreshes, "demotion required more than one refreshToken() pass")
+        assertEquals(1, revokedCallbacks, "onStaffRevoked fired more than once")
+        assertEquals(1, membershipSubscriptions, "the membership doc listener was resubscribed")
+    }
+
+    @Test
+    fun revocation_demotes_before_a_slow_token_refresh_completes() = runTest {
+        // The demotion is what stops every owner-tree listener's permission-denied
+        // retry loop, so it must not queue behind forceRefreshIdToken()'s network
+        // round-trip. Here refreshToken() never returns until the test releases it;
+        // the demoted session must already be observable.
+        val claims = MutableStateFlow<WorkshopClaims?>(staff("staff-1", "owner-9"))
+        val membership = MutableStateFlow<MembershipStatus?>(MembershipStatus.ACTIVE)
+        val refreshGate = CompletableDeferred<Unit>()
+        var refreshesStarted = 0
+        val provider = FirebaseActiveWorkshopProvider(
+            authClaims = claims,
+            scope = backgroundScope,
+            membershipStatusFlow = { _, _ -> membership },
+            refreshToken = { refreshesStarted++; refreshGate.await() },
+        )
+        assertTrue(provider.awaitHydrated().isActiveStaff)
+
+        membership.value = MembershipStatus.REVOKED
+        runCurrent()
+
+        assertTrue(provider.current().isOwner, "demotion waited on refreshToken()")
+        assertEquals("staff-1", provider.current().workshopUid)
+        assertEquals(1, refreshesStarted, "the token refresh was not started")
+        assertFalse(refreshGate.isCompleted, "the test gate should still hold the refresh open")
+
+        // Releasing the refresh must not disturb the already-published demotion.
+        refreshGate.complete(Unit)
+        runCurrent()
+        assertTrue(provider.current().isOwner)
+    }
+
+    @Test
+    fun an_active_staff_claim_stays_active_before_the_first_membership_snapshot() = runTest {
+        // Hydration must never wait on Firestore, and a cold cache miss must not
+        // bounce an active staffer off the owner's tree — only an explicit
+        // revoked flip demotes.
+        val claims = MutableStateFlow<WorkshopClaims?>(staff("staff-1", "owner-9"))
+        val provider = FirebaseActiveWorkshopProvider(
+            authClaims = claims,
+            scope = backgroundScope,
+            membershipStatusFlow = { _, _ -> emptyFlow() },
+        )
+
+        val session = withTimeout(1_000) { provider.awaitHydrated() }
+
+        assertTrue(session.isActiveStaff)
+        assertEquals("owner-9", session.workshopUid)
+    }
+
+    @Test
+    fun a_missing_membership_doc_does_not_demote_an_active_staff_claim() = runTest {
+        val claims = MutableStateFlow<WorkshopClaims?>(staff("staff-1", "owner-9"))
+        val provider = FirebaseActiveWorkshopProvider(
+            authClaims = claims,
+            scope = backgroundScope,
+            membershipStatusFlow = { _, _ -> MutableStateFlow(null) },
+        )
+
+        assertTrue(provider.awaitHydrated().isActiveStaff)
     }
 
     // ── Pending window: no claim yet, driven by the stored workshopUid +

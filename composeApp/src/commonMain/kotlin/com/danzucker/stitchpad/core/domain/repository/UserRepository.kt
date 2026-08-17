@@ -1,3 +1,8 @@
+// One user-doc surface (profile, branding, notification prefs) that has grown past the
+// threshold; splitting it would only scatter the same document across interfaces. Matches
+// the suppression already carried by FirebaseUserRepository and OnboardingPreferencesStore.
+@file:Suppress("TooManyFunctions")
+
 package com.danzucker.stitchpad.core.domain.repository
 
 import com.danzucker.stitchpad.core.domain.error.DataError
@@ -44,6 +49,16 @@ interface UserRepository {
      * case is the pre-existing behavior of showing setup again.
      */
     suspend fun hasWorkshopProfile(userId: String): Boolean
+
+    /**
+     * Same one-shot check as [hasWorkshopProfile], but distinguishes "no profile" from
+     * "couldn't tell": returns null when the read itself failed (offline, permission
+     * denied, malformed doc). Callers whose fail-safe differs from "show setup" MUST use
+     * this — notably the staff-demotion router, where treating a network error as "no
+     * profile" would send a real former owner into Workshop Setup and let them overwrite
+     * their own business details.
+     */
+    suspend fun hasWorkshopProfileOrNull(userId: String): Boolean?
 
     /**
      * Stages `bytes` for the deterministic Firebase Storage path

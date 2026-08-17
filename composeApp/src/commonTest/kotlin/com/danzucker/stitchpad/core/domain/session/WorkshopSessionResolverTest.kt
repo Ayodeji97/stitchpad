@@ -134,6 +134,24 @@ class WorkshopSessionResolverTest {
     }
 
     @Test
+    fun staff_claim_with_revoked_membership_reverts_to_owner_of_self() {
+        // Mirrors the server rules: access dies the instant the doc flips to
+        // revoked, even with a still-valid staff claim — revoke clears the claim
+        // server-side but cannot touch an already-minted token, so the doc is
+        // the only revocation signal the client gets before the token refresh.
+        val session = resolve(
+            authUid = "staff-1",
+            claimWorkshopUid = "owner-9",
+            claimRole = WorkshopSessionResolver.CLAIM_ROLE_STAFF,
+            membershipStatus = MembershipStatus.REVOKED,
+        )
+
+        assertEquals("staff-1", session.workshopUid)
+        assertEquals(StaffRole.OWNER, session.role)
+        assertFalse(session.isActiveStaff)
+    }
+
+    @Test
     fun claim_takes_precedence_over_membership_doc() {
         // The claim is server-authoritative; if the two ever disagree, trust the claim.
         val session = resolve(

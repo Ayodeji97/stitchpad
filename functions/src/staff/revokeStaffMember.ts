@@ -2,6 +2,11 @@ import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { REGION, MembershipStatus, membershipDocPath, teamMemberDocPath } from './staffConstants';
 import { StaffClaimsDeps } from './approveStaffMember';
+import {
+  grantLaunchFreeOnStaffDeparture,
+  LaunchGrantFlagDeps,
+  productionLaunchGrantDeps,
+} from '../freemium/launchGrant';
 
 export interface RevokeStaffMemberRequest {
   staffAuthUid?: unknown;
@@ -12,10 +17,12 @@ export interface RevokeStaffMemberResponse {
   status: MembershipStatus;
 }
 
+export type RevokeStaffMemberDeps = StaffClaimsDeps & LaunchGrantFlagDeps;
+
 export async function revokeStaffMemberHandler(
   data: RevokeStaffMemberRequest,
   context: functions.https.CallableContext,
-  deps: StaffClaimsDeps,
+  deps: RevokeStaffMemberDeps,
 ): Promise<RevokeStaffMemberResponse> {
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'auth_required');
@@ -31,6 +38,9 @@ export async function revokeStaffMemberHandler(
   if (!snap.exists) {
     throw new functions.https.HttpsError('not-found', 'membership_not_found');
   }
+  // Owners also use this callable to DECLINE a still-pending request, so the prior
+  // status decides whether the departure grant applies (see below).
+  const priorStatus = snap.data()?.status as MembershipStatus | undefined;
 
   const nowMs = deps.now().getTime();
   // Doc first, then claim. isActiveMember requires BOTH a staff claim AND an
@@ -54,16 +64,34 @@ export async function revokeStaffMemberHandler(
     // resolvable anyway, and a stub roster doc would pollute the team namespace.
   }
 
+  // Gated on the membership having actually been ACTIVE — mirrors cancelStaffMembership.
+  // Declining a PENDING request never cost the requester anything (they were never
+  // staff, never lost their own tree), so it must not hand out Atelier; otherwise an
+  // owner + a friend could farm grants by redeeming and declining on repeat.
+  if (priorStatus === 'active') {
+    try {
+      await grantLaunchFreeOnStaffDeparture(deps.db, deps, staffAuthUid, deps.now());
+    } catch (err) {
+      // Best-effort, same as the roster archive above: a revoked staffer who never
+      // gets the launch grant just falls back to FREE (the pre-existing behavior),
+      // it must never fail the revocation itself.
+      functions.logger.error('launch-free grant on staff revoke failed', { staffAuthUid, err });
+    }
+  }
+
   return { staffAuthUid, status: 'revoked' };
 }
 
 export const revokeStaffMember = functions
   .region(REGION)
   .https.onCall(
-    async (data, context): Promise<RevokeStaffMemberResponse> =>
-      revokeStaffMemberHandler(data as RevokeStaffMemberRequest, context, {
-        db: admin.firestore(),
+    async (data, context): Promise<RevokeStaffMemberResponse> => {
+      const db = admin.firestore();
+      return revokeStaffMemberHandler(data as RevokeStaffMemberRequest, context, {
+        db,
         setClaims: (uid, claims) => admin.auth().setCustomUserClaims(uid, claims),
         now: () => new Date(),
-      }),
+        ...productionLaunchGrantDeps(db),
+      });
+    },
   );

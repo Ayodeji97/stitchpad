@@ -265,7 +265,7 @@ fun TeamScreen(
     }
 
     if (state.showAddMemberSheet) {
-        AddMemberSheet(name = state.addMemberName, onAction = onAction)
+        AddMemberSheet(onAction = onAction)
     }
 
     state.renameTarget?.let { target ->
@@ -669,8 +669,17 @@ private fun UnassignedWorkloadRow(count: Int, onAction: (TeamAction) -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddMemberSheet(name: String, onAction: (TeamAction) -> Unit) {
+private fun AddMemberSheet(onAction: (TeamAction) -> Unit) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    // Local TextFieldValue (not VM state): the contract has no OnAddMemberNameChange
+    // action, only OnConfirmAddMember(String) — mirrors RenameMemberSheet below, which
+    // avoids the cursor-desync a VM-owned string would cause here too. Plain
+    // rememberSaveable (no key) is safe because this composable only exists in
+    // composition while state.showAddMemberSheet is true, so it resets naturally
+    // each time the sheet is (re)opened.
+    var textValue by rememberSaveable(stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue(""))
+    }
     ModalBottomSheet(
         onDismissRequest = { onAction(TeamAction.OnDismissAddMember) },
         sheetState = sheetState,
@@ -690,23 +699,23 @@ private fun AddMemberSheet(name: String, onAction: (TeamAction) -> Unit) {
             )
             Spacer(Modifier.height(DesignTokens.space4))
             OutlinedTextField(
-                // State-driven per MVI: the ViewModel owns addMemberName, unlike the
-                // rename sheet below (no OnRenameNameChange action in the contract).
-                value = name,
-                onValueChange = { onAction(TeamAction.OnAddMemberNameChange(it)) },
+                value = textValue,
+                onValueChange = { textValue = it },
                 label = { Text(stringResource(Res.string.team_member_name_label)) },
                 placeholder = { Text(stringResource(Res.string.team_member_name_placeholder)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { onAction(TeamAction.OnConfirmAddMember) }),
+                keyboardActions = KeyboardActions(
+                    onDone = { onAction(TeamAction.OnConfirmAddMember(textValue.text)) },
+                ),
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(DesignTokens.radiusMd),
             )
             Spacer(Modifier.height(DesignTokens.space4))
             StitchPadButton(
                 text = stringResource(Res.string.team_add_member),
-                onClick = { onAction(TeamAction.OnConfirmAddMember) },
-                enabled = name.isNotBlank(),
+                onClick = { onAction(TeamAction.OnConfirmAddMember(textValue.text)) },
+                enabled = textValue.text.isNotBlank(),
                 modifier = Modifier.fillMaxWidth(),
             )
         }

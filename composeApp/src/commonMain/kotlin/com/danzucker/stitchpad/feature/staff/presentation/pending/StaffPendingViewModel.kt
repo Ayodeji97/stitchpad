@@ -35,7 +35,9 @@ class StaffPendingViewModel(
     private val _state = MutableStateFlow(StaffPendingState(workshopName = workshopName.ifBlank { null }))
     val state = _state.asStateFlow()
 
-    private val _events = Channel<StaffPendingEvent>()
+    // Session changes and sign-out can recompose navigation before the event
+    // collector resumes; buffering keeps those one-shot routes from suspending.
+    private val _events = Channel<StaffPendingEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
     // One-shot navigation guard: once we route away, ignore further session churn

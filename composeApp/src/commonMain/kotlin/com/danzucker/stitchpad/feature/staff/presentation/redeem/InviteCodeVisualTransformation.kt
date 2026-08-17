@@ -10,7 +10,8 @@ private const val GROUP_SIZE = 4
 
 /**
  * Renders a normalised invite code as "K7QP-3RM9" while the field's value stays
- * the raw "K7QP3RM9".
+ * the raw "K7QP3RM9". The trailing hyphen appears the moment [GROUP_SIZE]
+ * characters are typed, so the user never needs to type it.
  *
  * The hyphen MUST be a visual transformation rather than a change to the value.
  * `BasicTextField`'s String overload carries the previous selection across
@@ -23,7 +24,7 @@ internal object InviteCodeVisualTransformation : VisualTransformation {
 
     override fun filter(text: AnnotatedString): TransformedText {
         val raw = text.text
-        if (raw.length <= GROUP_SIZE) {
+        if (raw.length < GROUP_SIZE) {
             return TransformedText(text, OffsetMapping.Identity)
         }
         val grouped = "${raw.take(GROUP_SIZE)}-${raw.drop(GROUP_SIZE)}"
@@ -38,7 +39,7 @@ internal object InviteCodeVisualTransformation : VisualTransformation {
      */
     private object HyphenAfterFirstGroup : OffsetMapping {
         override fun originalToTransformed(offset: Int): Int =
-            if (offset <= GROUP_SIZE) offset else offset + 1
+            if (offset < GROUP_SIZE) offset else offset + 1
 
         override fun transformedToOriginal(offset: Int): Int =
             if (offset <= GROUP_SIZE) offset else offset - 1

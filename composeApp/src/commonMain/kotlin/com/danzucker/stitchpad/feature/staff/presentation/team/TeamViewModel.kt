@@ -77,11 +77,10 @@ class TeamViewModel(
             is TeamAction.OnRevokeClick -> _state.update { it.copy(revokeTarget = action.member) }
             TeamAction.OnConfirmRevoke -> onConfirmRevoke()
             TeamAction.OnDismissRevokeDialog -> _state.update { it.copy(revokeTarget = null) }
-            TeamAction.OnAddMemberClick -> _state.update { it.copy(showAddMemberSheet = true, addMemberName = "") }
-            is TeamAction.OnAddMemberNameChange -> _state.update { it.copy(addMemberName = action.name) }
-            TeamAction.OnConfirmAddMember -> onConfirmAddMember()
+            TeamAction.OnAddMemberClick -> _state.update { it.copy(showAddMemberSheet = true) }
+            is TeamAction.OnConfirmAddMember -> onConfirmAddMember(action.name)
             TeamAction.OnDismissAddMember -> _state.update {
-                it.copy(showAddMemberSheet = false, addMemberName = "", renameTarget = null)
+                it.copy(showAddMemberSheet = false, renameTarget = null)
             }
             is TeamAction.OnRenameMember -> _state.update { it.copy(renameTarget = action.member) }
             is TeamAction.OnConfirmRename -> onConfirmRename(action.name)
@@ -187,10 +186,10 @@ class TeamViewModel(
         emit(TeamEvent.NavigateToMemberOrders(initialFilter))
     }
 
-    private fun onConfirmAddMember() {
-        val name = _state.value.addMemberName.trim()
+    private fun onConfirmAddMember(rawName: String) {
+        val name = rawName.trim()
         if (name.isBlank()) return
-        _state.update { it.copy(showAddMemberSheet = false, addMemberName = "") }
+        _state.update { it.copy(showAddMemberSheet = false) }
         viewModelScope.launch {
             val workshopUid = authRepository.getCurrentUser()?.id ?: return@launch
             teamRosterRepository.addNamedMember(workshopUid, name).onFailure { error ->

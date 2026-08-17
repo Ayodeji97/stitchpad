@@ -12,10 +12,14 @@ class FakeInviteRedemptionRepository : InviteRedemptionRepository {
         Result.Success(RedeemedInvite("owner-9", "Ade Fashions", MembershipStatus.PENDING))
     var lastCode: String? = null
 
+    /** Number of [redeem] calls — asserts the double-tap guard actually blocks. */
+    var redeemCallCount = 0
+
     var cancelResult: EmptyResult<StaffError> = Result.Success(Unit)
     var lastCancelledWorkshopUid: String? = null
 
     override suspend fun redeem(code: String): Result<RedeemedInvite, StaffError> {
+        redeemCallCount++
         lastCode = code
         return result
     }

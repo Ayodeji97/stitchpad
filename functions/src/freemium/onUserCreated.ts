@@ -1,7 +1,7 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import {
-  buildLaunchGrantFields,
+  productionLaunchGrantDeps,
   shouldGrantLaunchFree,
   UserSubscriptionFields,
 } from './launchGrant';
@@ -37,15 +37,8 @@ export async function handleUserCreated(
 }
 
 function productionDeps(): UserCreatedDeps {
-  const db = admin.firestore();
   return {
-    isGrantEnabled: async () => {
-      const snap = await db.doc('config/app').get();
-      return snap.get('launchFreeGrantEnabled') === true;
-    },
-    writeGrant: async (uid, now) => {
-      await db.doc(`users/${uid}`).set(buildLaunchGrantFields(now), { merge: true });
-    },
+    ...productionLaunchGrantDeps(admin.firestore()),
     now: () => new Date(),
   };
 }

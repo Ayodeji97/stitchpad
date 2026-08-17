@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.dashboard.presentation
 
+import com.danzucker.stitchpad.feature.dashboard.domain.model.PipelineStage
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestAction
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.ReconnectCandidate
 
@@ -70,4 +71,11 @@ sealed interface DashboardEvent {
      * customer actions sheet, which routes zero to the empty-mode detail.
      */
     data class NavigateToAddMeasurement(val customerId: String) : DashboardEvent
+
+    /** A one-tap hero advance landed — offer undo back to [fromStage]. */
+    data class StageAdvanced(
+        val orderId: String,
+        val fromStage: PipelineStage,
+        val toStage: PipelineStage,
+    ) : DashboardEvent
 }

@@ -3,7 +3,6 @@ package com.danzucker.stitchpad.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -18,6 +17,7 @@ import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
 import com.danzucker.stitchpad.core.domain.session.StaffRole
+import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.auth.presentation.forgotpassword.ForgotPasswordRoot
@@ -27,6 +27,7 @@ import com.danzucker.stitchpad.feature.auth.presentation.verifyemail.EmailVerifi
 import com.danzucker.stitchpad.feature.debug.presentation.DebugMenuRoot
 import com.danzucker.stitchpad.feature.main.presentation.MainRoot
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferences
+import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferencesStore
 import com.danzucker.stitchpad.feature.onboarding.domain.ResolveNeedsWorkshopSetup
 import com.danzucker.stitchpad.feature.onboarding.presentation.OnboardingRoot
 import com.danzucker.stitchpad.feature.onboarding.presentation.SplashRoot
@@ -34,10 +35,7 @@ import com.danzucker.stitchpad.feature.onboarding.presentation.welcome.WelcomeRo
 import com.danzucker.stitchpad.feature.onboarding.presentation.workshop.WorkshopSetupRoot
 import com.danzucker.stitchpad.feature.staff.presentation.pending.StaffPendingRoot
 import com.danzucker.stitchpad.feature.staff.presentation.redeem.RedeemInviteRoot
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -73,6 +71,49 @@ private suspend fun needsWorkshopSetupForCurrentUser(
     val userId = authRepository.getCurrentUser()?.id ?: return false
     return resolveNeedsWorkshopSetup(userId)
 }
+
+/**
+ * Demotion-only workshop-setup check. Deliberately bypasses [ResolveNeedsWorkshopSetup]'s
+ * local per-user "completed" fast path and goes straight to the remote profile via
+ * [UserRepository.hasWorkshopProfileOrNull]. That fast path is set by Workshop Setup's "Skip
+ * for now" action WITHOUT creating the user's `users/{uid}` doc — a staffer who skipped setup
+ * while still staff (staff never need a profile) then gets revoked would otherwise read as
+ * "already done" here too and land on Home with no doc ever created. Because
+ * `grantLaunchFreeOnSignup` only fires on that doc's CREATE, such a user would silently
+ * default to FREE forever. Re-checking the remote profile for exactly this transition forces
+ * a re-prompt so the doc gets seeded (and, as of the server-side revocation grant, the
+ * launch Atelier entitlement lands even if the user never revisits Workshop Setup).
+ *
+ * The `OrNull` variant is load-bearing: [UserRepository.hasWorkshopProfile] swallows read
+ * failures as `false`, which would send a real former owner into Workshop Setup on a flaky
+ * network — where they could overwrite their own business details. A null (couldn't tell)
+ * therefore routes Home, exactly like a confirmed profile ([demotionNeedsWorkshopSetup]).
+ *
+ * When the remote read CONFIRMS a profile we also heal the per-user cache flag, mirroring
+ * [ResolveNeedsWorkshopSetup] — this path bypasses that resolver, so without the heal the
+ * next launch pays for the same Firestore read again.
+ */
+private suspend fun needsWorkshopSetupForDemotedStaff(
+    authRepository: AuthRepository,
+    userRepository: UserRepository,
+    onboardingPreferences: OnboardingPreferencesStore,
+): Boolean {
+    val userId = authRepository.getCurrentUser()?.id ?: return false
+    val remoteHasProfile = userRepository.hasWorkshopProfileOrNull(userId)
+    if (remoteHasProfile == true) {
+        onboardingPreferences.setConfirmedRemoteWorkshopProfile(userId)
+    }
+    return demotionNeedsWorkshopSetup(remoteHasProfile)
+}
+
+/**
+ * The demotion routing decision, isolated from Firebase so all three cases are testable.
+ * Only a CONFIRMED absence of a remote profile (`false`) sends the demoted staffer to
+ * Workshop Setup. `true` (profile exists) and `null` (the read failed) both send them Home
+ * — the documented fail-safe: a flaky network must never strand a real owner in setup.
+ */
+internal fun demotionNeedsWorkshopSetup(remoteHasProfile: Boolean?): Boolean =
+    remoteHasProfile == false
 
 /**
  * The single post-authentication destination ladder, shared by the Splash, Login
@@ -234,24 +275,81 @@ private fun PushDeepLinkRedirectEffect(navController: NavHostController) {
  * watcher, and workshopUid-only changes are handled by the VMs directly.
  */
 @Composable
-private fun StaffRoleChangeRedirectEffect(navController: NavHostController) {
+private fun StaffRoleChangeRedirectEffect(
+    navController: NavHostController,
+    onboardingPreferences: OnboardingPreferencesStore,
+) {
     val activeWorkshopProvider: ActiveWorkshopProvider = koinInject()
+    val authRepository: AuthRepository = koinInject()
+    val userRepository: UserRepository = koinInject()
     val session by activeWorkshopProvider.flow.collectAsStateWithLifecycle()
     val authUid = session.authUid
     LaunchedEffect(authUid) {
         if (authUid.isBlank()) return@LaunchedEffect
-        activeWorkshopProvider.flow
-            .map { it.role }
-            .distinctUntilChanged()
-            .drop(1) // skip the role this session already resolved to
-            .collect {
-                navController.navigate(HomeRoute) {
-                    popUpTo(navController.graph.id) { inclusive = false }
-                    launchSingleTop = true
+        var previous: WorkshopSession? = null
+        activeWorkshopProvider.flow.collect { current ->
+            val prior = previous
+            previous = current
+            if (prior != null && shouldRedirectHomeForStaffSessionChange(prior, current)) {
+                val destination = staffDemotionDestination(
+                    needsWorkshopSetup = needsWorkshopSetupForDemotedStaff(
+                        authRepository,
+                        userRepository,
+                        onboardingPreferences,
+                    ),
+                )
+                // Re-check the session before navigating: the resolve spans a network
+                // call, during which the session may have changed (sign-out, or re-activation
+                // as staff). Only navigate if the demotion is still current.
+                if (demotionStillCurrent(current, activeWorkshopProvider.flow.value)) {
+                    navController.navigate(destination) {
+                        popUpTo(navController.graph.id) { inclusive = false }
+                        launchSingleTop = true
+                    }
                 }
             }
+        }
     }
 }
+
+/**
+ * The global redirect owns only mid-session loss of an ACTIVE staff session
+ * (revocation or the staff kill-switch). Pending onboarding owns its own
+ * OWNER -> STAFF/PENDING -> STAFF/ACTIVE navigation, and auth screens own
+ * sign-out. Redirecting those transitions races their one-shot events and can
+ * strand the redeem screen in loading or send a signed-out user back to Home.
+ */
+internal fun shouldRedirectHomeForStaffSessionChange(
+    previous: WorkshopSession,
+    current: WorkshopSession,
+): Boolean = previous.isActiveStaff &&
+    current.isOwner &&
+    current.authUid.isNotBlank() &&
+    current.authUid == previous.authUid
+
+/**
+ * Where a just-demoted (revoked) staffer lands. A staff-only user has no
+ * users/{uid} doc — Workshop Setup is the only path that seeds it, and the
+ * server-side launch Atelier grant fires on that doc's creation. Sending a
+ * profile-less demoted staffer straight Home would strand them on FREE/15
+ * entitlement defaults until their next cold start.
+ */
+internal fun staffDemotionDestination(needsWorkshopSetup: Boolean): Any =
+    if (needsWorkshopSetup) WorkshopSetupRoute else HomeRoute
+
+/**
+ * Whether the demotion we're about to navigate for is still current. The redirect
+ * branch spans a suspend call (needsWorkshopSetupForCurrentUser → getCurrentUser +
+ * Firestore get). During this window, the session may change: sign-out (authUid
+ * becomes blank), or re-activation as staff (isOwner flips back to false). Both
+ * scenarios make the redirect stale — we must not navigate based on a snapshot
+ * from before the async resolve. Only navigate if the latest session still shows
+ * the same authUid AND is still an owner (the demotion signature).
+ */
+internal fun demotionStillCurrent(
+    acted: WorkshopSession,
+    latest: WorkshopSession,
+): Boolean = latest.authUid == acted.authUid && latest.isOwner
 
 /**
  * Logs a screen_view for every destination the user lands on. One hook covers every
@@ -278,16 +376,13 @@ fun StitchPadNavHost(
     onboardingPreferences: OnboardingPreferences
 ) {
     val authRepository: AuthRepository = koinInject()
-    val userRepository: UserRepository = koinInject()
     val activeWorkshopProvider: ActiveWorkshopProvider = koinInject()
     val pendingDeepLink: PendingDeepLinkHolder = koinInject()
-    val resolveNeedsWorkshopSetup = remember(onboardingPreferences, userRepository) {
-        ResolveNeedsWorkshopSetup(onboardingPreferences, userRepository)
-    }
+    val resolveNeedsWorkshopSetup: ResolveNeedsWorkshopSetup = koinInject()
 
     PushDeepLinkRedirectEffect(navController)
     ScreenViewTrackingEffect(navController)
-    StaffRoleChangeRedirectEffect(navController)
+    StaffRoleChangeRedirectEffect(navController, onboardingPreferences)
 
     NavHost(
         navController = navController,
@@ -498,6 +593,7 @@ fun StitchPadNavHost(
                     }
                 },
                 onNavigateToDebugMenu = { navController.navigate(DebugMenuRoute) },
+                onNavigateToJoinWorkshop = { navController.navigate(RedeemInviteRoute()) },
             )
         }
         if (isDebugBuild) {

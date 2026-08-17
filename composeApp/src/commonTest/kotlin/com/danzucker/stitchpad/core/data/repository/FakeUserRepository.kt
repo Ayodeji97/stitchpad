@@ -95,9 +95,15 @@ class FakeUserRepository : UserRepository {
     /** Number of times [hasWorkshopProfile] was invoked (asserts short-circuit). */
     var hasWorkshopProfileCallCount = 0
 
-    override suspend fun hasWorkshopProfile(userId: String): Boolean {
+    /** When true the profile read "fails": [hasWorkshopProfileOrNull] returns null. */
+    var hasWorkshopProfileReadFails = false
+
+    override suspend fun hasWorkshopProfile(userId: String): Boolean =
+        hasWorkshopProfileOrNull(userId) ?: false
+
+    override suspend fun hasWorkshopProfileOrNull(userId: String): Boolean? {
         hasWorkshopProfileCallCount++
-        return hasWorkshopProfileResult
+        return if (hasWorkshopProfileReadFails) null else hasWorkshopProfileResult
     }
 
     override suspend fun uploadUserLogo(

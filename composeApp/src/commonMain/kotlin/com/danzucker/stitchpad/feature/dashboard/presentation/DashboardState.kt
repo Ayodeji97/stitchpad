@@ -49,6 +49,14 @@ data class DashboardState(
     // Staff-only (focus-queue design, 2026-08-14): the full, uncapped, money-free
     // candidate pool (Buckets.openQueue) [focusQueue] is derived from.
     val staffOpenQueue: List<DashboardOrderRow> = emptyList(),
+    // Staff-only: every staff-visible order's live [PipelineStage], keyed by
+    // orderId — populated in updateStaffState from the same complete staff order
+    // list BucketCalculator computes buckets from, BEFORE the READY filter that
+    // [staffOpenQueue] applies. Unlike staffOpenQueue, this INCLUDES READY orders,
+    // so handleSetStage's stale-tap guard can still resolve the live stage for the
+    // undo snackbar after a hero advance lands on READY (staffOpenQueue alone
+    // would look up null there and silently no-op the undo).
+    val staffStageByOrderId: Map<String, PipelineStage> = emptyMap(),
     // Staff-only: computeFocusQueue(staffOpenQueue, viewerMemberId), computed once
     // in DashboardViewModel.updateStaffState — kept out of the composable per
     // CLAUDE.md's "no business logic in composables" rule (design review, PR #366).
@@ -107,5 +115,9 @@ data class DashboardState(
     val unreadNotificationCount: Int = 0,
     // Measurements shortcut's customer picker sheet — null means closed.
     val measurementsPicker: MeasurementsPickerUi? = null,
+    // Staff dashboard: the order id whose stage sheet is open (tapped the hero's
+    // stage stepper). Null means closed. The sheet's row is resolved live from
+    // [staffOpenQueue] by this id, not stored separately — StaffDashboardContent.
+    val stageSheetOrderId: String? = null,
     val errorMessage: UiText? = null
 )

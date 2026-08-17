@@ -30,6 +30,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +40,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -57,7 +59,11 @@ import com.danzucker.stitchpad.feature.dashboard.domain.resolveUrgencyLevel
 import com.danzucker.stitchpad.feature.dashboard.presentation.DashboardAction
 import com.danzucker.stitchpad.feature.dashboard.presentation.DashboardState
 import com.danzucker.stitchpad.ui.components.LoadingDots
+import com.danzucker.stitchpad.ui.components.StageDots
 import com.danzucker.stitchpad.ui.components.StitchPadButton
+import com.danzucker.stitchpad.ui.components.stageIndicatorColor
+import com.danzucker.stitchpad.ui.components.stageLabel
+import com.danzucker.stitchpad.ui.components.stageProgressDescription
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.JetBrainsMonoFamily
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -73,7 +79,6 @@ import stitchpad.composeapp.generated.resources.dashboard_staff_pipeline
 import stitchpad.composeapp.generated.resources.dashboard_staff_stage_ready
 import stitchpad.composeapp.generated.resources.dashboard_staff_tile_due_today
 import stitchpad.composeapp.generated.resources.dashboard_staff_tile_in_progress
-import stitchpad.composeapp.generated.resources.dashboard_staff_tile_mine
 import stitchpad.composeapp.generated.resources.dashboard_staff_tile_overdue
 import stitchpad.composeapp.generated.resources.dashboard_staff_tile_view
 import stitchpad.composeapp.generated.resources.dashboard_staff_workshop_count
@@ -83,17 +88,16 @@ import stitchpad.composeapp.generated.resources.order_assign_you
 import stitchpad.composeapp.generated.resources.order_filter_unassigned
 import stitchpad.composeapp.generated.resources.order_stage_cutting
 import stitchpad.composeapp.generated.resources.order_stage_fitting
-import stitchpad.composeapp.generated.resources.order_stage_pending
-import stitchpad.composeapp.generated.resources.order_stage_ready
 import stitchpad.composeapp.generated.resources.order_stage_sewing
 import stitchpad.composeapp.generated.resources.staff_advance_stage_cta
+import stitchpad.composeapp.generated.resources.staff_change_stage_cd
 import stitchpad.composeapp.generated.resources.staff_due_today
 import stitchpad.composeapp.generated.resources.staff_due_tomorrow
 import stitchpad.composeapp.generated.resources.staff_due_weekday
+import stitchpad.composeapp.generated.resources.staff_my_work_link
 import stitchpad.composeapp.generated.resources.staff_on_track
 import stitchpad.composeapp.generated.resources.staff_shop_queue_header_count
 import stitchpad.composeapp.generated.resources.staff_stage_now
-import stitchpad.composeapp.generated.resources.staff_stage_progress_cd
 import stitchpad.composeapp.generated.resources.staff_then_header
 import stitchpad.composeapp.generated.resources.staff_up_next_header
 import stitchpad.composeapp.generated.resources.weekday_abbrev_fri
@@ -161,11 +165,9 @@ fun StaffDashboardContent(
             overdue = state.overdue.size,
             dueToday = state.dueToday.size,
             inProgress = pipeline.inProgressTotal,
-            mine = state.staffMineCount,
             onOverdueClick = { onAction(DashboardAction.OnViewOverdueClick) },
             onDueTodayClick = { onAction(DashboardAction.OnViewDueTodayClick) },
             onInProgressClick = { onAction(DashboardAction.OnViewPipelineInProgressClick) },
-            onMineClick = { onAction(DashboardAction.OnViewMyWorkClick) },
         )
         if (!pipeline.isEmpty) {
             StaffPipelineBar(pipeline)
@@ -175,7 +177,26 @@ fun StaffDashboardContent(
             today = today,
             viewerMemberId = state.viewerMemberId,
             advancingOrders = state.advancingOrders,
+            mineCount = state.staffMineCount,
             onAction = onAction,
+        )
+    }
+    // Tappable-stepper stage sheet (Decision 2B): resolved live from staffOpenQueue
+    // by id rather than cached, so a row that changes stage or disappears mid-display
+    // (e.g. a concurrent update elsewhere) is picked up on the next tick instead of
+    // rendering a stale sheet. `sheetRow?.stage?.let` is the null-safety net for a row
+    // dropping out of the queue entirely while the sheet is open — no crash, sheet
+    // just stops rendering (state.stageSheetOrderId still closes normally on dismiss).
+    val sheetRow = state.staffOpenQueue.firstOrNull { it.orderId == state.stageSheetOrderId }
+    sheetRow?.stage?.let { current ->
+        StageSheet(
+            currentStage = current,
+            customerName = sheetRow.customerName,
+            orderCode = orderCodeFor(sheetRow.orderId),
+            onSelect = { picked ->
+                onAction(DashboardAction.OnSetStage(sheetRow.orderId, fromStage = current, toStage = picked))
+            },
+            onDismiss = { onAction(DashboardAction.OnDismissStageSheet) },
         )
     }
 }
@@ -240,13 +261,11 @@ private fun StaffCountTiles(
     overdue: Int,
     dueToday: Int,
     inProgress: Int,
-    mine: Int,
     onOverdueClick: () -> Unit,
     onDueTodayClick: () -> Unit,
     onInProgressClick: () -> Unit,
-    onMineClick: () -> Unit,
 ) {
-    // IntrinsicSize.Min keeps all four tiles the height of the tallest, so the "View"
+    // IntrinsicSize.Min keeps all three tiles the height of the tallest, so the "View"
     // affordance on populated tiles never leaves a zero-count tile looking clipped.
     Row(
         modifier = Modifier.height(IntrinsicSize.Min),
@@ -274,14 +293,6 @@ private fun StaffCountTiles(
             accent = MaterialTheme.colorScheme.primary,
             tinted = false,
             onClick = onInProgressClick,
-            modifier = Modifier.weight(1f).fillMaxHeight(),
-        )
-        StaffCountTile(
-            count = mine,
-            label = stringResource(Res.string.dashboard_staff_tile_mine),
-            accent = MaterialTheme.colorScheme.primary,
-            tinted = false,
-            onClick = onMineClick,
             modifier = Modifier.weight(1f).fillMaxHeight(),
         )
     }
@@ -452,9 +463,9 @@ private fun StageLegendItem(stage: StageLegend, modifier: Modifier = Modifier) {
 /**
  * The "Up next" hero + "Then" queue + "rest of the shop" queue sections. When
  * [FocusQueue.hero] is null the viewer has no assigned open orders — renders
- * [StaffAllCaughtUp] in its place, but the shop queue (if any) still renders
- * below it (per the design spec: "the existing StaffAllCaughtUp shows above
- * the shop queue").
+ * [StaffAllCaughtUp] in its place (under the same "Up next" header + My-work link),
+ * but the shop queue (if any) still renders below it (per the design spec: "the
+ * existing StaffAllCaughtUp shows above the shop queue").
  */
 @Composable
 private fun StaffFocusQueueSection(
@@ -462,12 +473,46 @@ private fun StaffFocusQueueSection(
     today: LocalDate,
     viewerMemberId: String?,
     advancingOrders: Map<String, PipelineStage>,
+    mineCount: Int,
     onAction: (DashboardAction) -> Unit,
 ) {
     val hero = focusQueue.hero
-    if (hero != null) {
-        Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space3)) {
+    // The header row is OUTSIDE the hero/empty branch on purpose. "My work · N" is the
+    // only route to the viewer's assigned-orders list, and the two counts don't move
+    // together: [mineCount] counts every order assigned to the viewer, while `hero` only
+    // covers the ACTIONABLE ones (computeFocusQueue drops READY). A staffer whose assigned
+    // orders have all reached READY therefore has mineCount > 0 with hero == null — and
+    // used to lose the link entirely at exactly the moment they'd want to review them.
+    Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space3)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             FocusSectionHeader(stringResource(Res.string.staff_up_next_header))
+            if (mineCount > 0) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clickable(onClick = { onAction(DashboardAction.OnViewMyWorkClick) }, role = Role.Button)
+                        .minimumInteractiveComponentSize(),
+                ) {
+                    Text(
+                        text = stringResource(Res.string.staff_my_work_link, mineCount),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(14.dp),
+                    )
+                }
+            }
+        }
+        if (hero != null) {
             UpNextHero(
                 row = hero,
                 today = today,
@@ -475,24 +520,26 @@ private fun StaffFocusQueueSection(
                 isAdvancing = advancingOrders.containsKey(hero.orderId),
                 onAdvance = { fromStage -> onAction(DashboardAction.OnAdvanceStage(hero.orderId, fromStage)) },
                 onClick = { onAction(DashboardAction.OnOrderClick(hero.orderId)) },
+                onStepperClick = { onAction(DashboardAction.OnStageStepperClick(hero.orderId)) },
             )
+        } else {
+            StaffAllCaughtUp()
         }
-        if (focusQueue.thenQueue.isNotEmpty()) {
-            Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
-                FocusSectionHeader(stringResource(Res.string.staff_then_header))
-                focusQueue.thenQueue.forEach { row ->
-                    TicketRow(
-                        row = row,
-                        today = today,
-                        viewerMemberId = viewerMemberId,
-                        dimmed = false,
-                        onClick = { onAction(DashboardAction.OnOrderClick(row.orderId)) },
-                    )
-                }
+    }
+    // thenQueue is `viewerRows.drop(1)` — always empty when there is no hero.
+    if (focusQueue.thenQueue.isNotEmpty()) {
+        Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
+            FocusSectionHeader(stringResource(Res.string.staff_then_header))
+            focusQueue.thenQueue.forEach { row ->
+                TicketRow(
+                    row = row,
+                    today = today,
+                    viewerMemberId = viewerMemberId,
+                    dimmed = false,
+                    onClick = { onAction(DashboardAction.OnOrderClick(row.orderId)) },
+                )
             }
         }
-    } else {
-        StaffAllCaughtUp()
     }
     if (focusQueue.shopQueue.isNotEmpty()) {
         Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
@@ -539,6 +586,7 @@ private fun UpNextHero(
     isAdvancing: Boolean,
     onAdvance: (PipelineStage) -> Unit,
     onClick: () -> Unit,
+    onStepperClick: () -> Unit,
 ) {
     val stage = row.stage ?: return
     val nextStage = stage.next()
@@ -572,7 +620,17 @@ private fun UpNextHero(
                     UrgencyChip(daysLate = row.daysLate, daysUntilDeadline = row.daysUntilDeadline, today = today)
                 }
                 Spacer(Modifier.height(DesignTokens.space4))
-                HeroStageStepper(stage = stage)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            onClick = onStepperClick,
+                            onClickLabel = stringResource(Res.string.staff_change_stage_cd),
+                            role = Role.Button,
+                        ),
+                ) {
+                    HeroStageStepper(stage = stage)
+                }
                 if (nextStage != null) {
                     Spacer(Modifier.height(DesignTokens.space4))
                     StitchPadButton(
@@ -682,11 +740,7 @@ private fun HeroStageStepper(stage: PipelineStage) {
 
 @Composable
 private fun HeroStepSegment(done: Boolean, current: Boolean, modifier: Modifier = Modifier) {
-    val color = when {
-        done -> MaterialTheme.colorScheme.primary
-        current -> DesignTokens.saffron500
-        else -> MaterialTheme.colorScheme.outlineVariant
-    }
+    val color = stageIndicatorColor(done = done, current = current)
     val shape = RoundedCornerShape(DesignTokens.radiusFull)
     Box(
         modifier = modifier
@@ -701,15 +755,6 @@ private fun HeroStepSegment(done: Boolean, current: Boolean, modifier: Modifier 
             ),
     )
 }
-
-/** "Sewing, stage 3 of 5" — shared content description for the hero stepper and ticket stage dots. */
-@Composable
-private fun stageProgressDescription(stage: PipelineStage): String = stringResource(
-    Res.string.staff_stage_progress_cd,
-    stageLabel(stage),
-    stage.ordinal + 1,
-    PipelineStage.entries.size,
-)
 
 /**
  * A compact ticket card for the "Then" and "rest of the shop" sections:
@@ -804,26 +849,6 @@ private fun TicketAvatar(name: String) {
     }
 }
 
-/** `●●●○○` — done = primary, current = saffron, upcoming = neutral. */
-@Composable
-private fun StageDots(stage: PipelineStage) {
-    val progressDescription = stageProgressDescription(stage)
-    Row(
-        modifier = Modifier.clearAndSetSemantics { contentDescription = progressDescription },
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        PipelineStage.entries.forEach { s ->
-            val color = when {
-                s.ordinal < stage.ordinal -> MaterialTheme.colorScheme.primary
-                s == stage -> DesignTokens.saffron500
-                else -> MaterialTheme.colorScheme.outlineVariant
-            }
-            Box(Modifier.size(6.dp).clip(CircleShape).background(color))
-        }
-    }
-}
-
 /** "You" (filled indigo, viewer-assigned) / teammate name (quiet outline) / "Unassigned" (quiet outline). */
 @Composable
 private fun AssigneeChip(assignedMemberId: String?, assignedMemberName: String?, viewerMemberId: String?) {
@@ -903,15 +928,6 @@ private fun weekdayAbbrevRes(day: DayOfWeek) = when (day) {
     DayOfWeek.FRIDAY -> Res.string.weekday_abbrev_fri
     DayOfWeek.SATURDAY -> Res.string.weekday_abbrev_sat
     DayOfWeek.SUNDAY -> Res.string.weekday_abbrev_sun
-}
-
-@Composable
-private fun stageLabel(stage: PipelineStage): String = when (stage) {
-    PipelineStage.PENDING -> stringResource(Res.string.order_stage_pending)
-    PipelineStage.CUTTING -> stringResource(Res.string.order_stage_cutting)
-    PipelineStage.SEWING -> stringResource(Res.string.order_stage_sewing)
-    PipelineStage.FITTING -> stringResource(Res.string.order_stage_fitting)
-    PipelineStage.READY -> stringResource(Res.string.order_stage_ready)
 }
 
 /** Dashed top border — the ticket/hero "tear-line" footer divider. */

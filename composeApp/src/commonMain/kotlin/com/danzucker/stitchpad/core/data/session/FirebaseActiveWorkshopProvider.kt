@@ -6,6 +6,7 @@ import com.danzucker.stitchpad.core.domain.session.StaffRole
 import com.danzucker.stitchpad.core.domain.session.WorkshopClaims
 import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import com.danzucker.stitchpad.core.domain.session.WorkshopSessionResolver
+import com.danzucker.stitchpad.core.domain.session.isStaffClaim
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -48,7 +50,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class FirebaseActiveWorkshopProvider(
     authClaims: Flow<WorkshopClaims?>,
-    scope: CoroutineScope,
+    private val scope: CoroutineScope,
     storedWorkshopUid: Flow<String?> = flowOf(null),
     // Remote kill-switch (config/app.staffFeatureEnabled). Default true (fail-open):
     // when false, every user resolves to owner-of-self so the staff experience is
@@ -57,6 +59,10 @@ internal class FirebaseActiveWorkshopProvider(
     private val membershipStatusFlow: (workshopUid: String, authUid: String) -> Flow<MembershipStatus?> =
         { _, _ -> flowOf(null) },
     private val refreshToken: suspend () -> Unit = {},
+    // Fired when a revoked membership doc is observed (active session or pending
+    // window). Wired to clearing the redeem-time prefs so the stale workshopUid
+    // cannot re-enter the pending window after demotion.
+    private val onStaffRevoked: suspend () -> Unit = {},
 ) : ActiveWorkshopProvider {
 
     private val _flow = MutableStateFlow(WorkshopSession.signedOut())
@@ -75,6 +81,27 @@ internal class FirebaseActiveWorkshopProvider(
                 storedWorkshopUid.distinctUntilChanged(),
                 staffFeatureEnabled.distinctUntilChanged(),
             ) { claims, storedWs, staffEnabled -> Triple(claims, storedWs, staffEnabled) }
+                // A claim-backed active-staff session (resolvedFlow's path (1))
+                // never reads storedWs, so a storedWs-only change must not
+                // restart flatMapLatest while that path is active. Without this,
+                // onStaffRevoked() clearing the SAME prefs storedWorkshopUid
+                // observes (production wiring: onStaffRevoked = {
+                // membershipPrefs.clear() }) races activeStaffFlow's
+                // refreshToken(): flatMapLatest cancels the in-flight demotion
+                // mid-suspension, re-subscribes with the still-stale STAFF
+                // claim, and activeStaffFlow's onStart re-asserts the active
+                // session — discarding the demotion (regression covered by
+                // revoking_mid_session_demotes_without_racing_the_prefs_clear_flow_restart).
+                .distinctUntilChangedBy { (claims, storedWs, staffEnabled) ->
+                    // The SAME predicate resolvedFlow's path-1 decision uses
+                    // (WorkshopSessionResolver.staffFromClaim requires both the staff role
+                    // AND a non-null workshopUid) — a staff-role claim with no workshopUid
+                    // does NOT take path (1), so storedWs must still be part of its key. A
+                    // hand-mirrored copy here would drift from the resolver and silently
+                    // re-open the race above, hence the shared extension.
+                    val storedWsKey = if (claims?.isStaffClaim == true) null else storedWs
+                    Triple(claims, storedWsKey, staffEnabled)
+                }
                 .flatMapLatest { (claims, storedWs, staffEnabled) ->
                     sessionFlow(claims, storedWs, staffEnabled)
                 }
@@ -105,9 +132,10 @@ internal class FirebaseActiveWorkshopProvider(
     }
 
     private fun resolvedFlow(claims: WorkshopClaims, storedWs: String?): Flow<WorkshopSession> {
-        // (1) Server-authoritative staff claim → active staff; no doc read needed.
+        // (1) Server-authoritative staff claim → active staff, but keep watching
+        // the membership doc for the session's whole life — see [activeStaffFlow].
         val fromClaim = resolve(claims, membershipStatus = null)
-        if (fromClaim.role == StaffRole.STAFF) return flowOf(fromClaim)
+        if (fromClaim.role == StaffRole.STAFF) return activeStaffFlow(claims, fromClaim)
 
         // (2) No staff claim: a real owner, or a staff member in the pending
         // window whose claim has not been minted yet. Only the latter recorded a
@@ -119,6 +147,46 @@ internal class FirebaseActiveWorkshopProvider(
             pendingWindowFlow(claims, storedWs)
         }
     }
+
+    /**
+     * Watches the staff member's own membership doc for the whole life of a
+     * claim-backed active staff session. Revocation clears the claim server-side
+     * but cannot touch the already-minted token — the doc flip to `revoked` is
+     * the ONLY signal the client gets before the hourly token refresh, and the
+     * rules deny every owner-tree read the moment it flips. Without this watch
+     * each listener enters a permission-denied retry loop (UI flashing between
+     * stale cached data and the error fallback) until the token expires.
+     *
+     * On an observed revocation: demote to owner-of-self immediately (the
+     * resolver treats a REVOKED doc as overriding the claim), clear the
+     * redeem-time prefs via [onStaffRevoked], and force a token refresh so the
+     * stale claim is dropped. A null status (doc unread or missing — e.g. a cold
+     * cache miss) never demotes; only an explicit revoked flip does.
+     *
+     * The token refresh is LAUNCHED, not awaited: this `onEach` runs before `.map`
+     * emits, so suspending on a network round-trip here would hold the demotion back
+     * for the whole refresh — exactly the window in which every listener on the
+     * owner's tree is being denied. The prefs clear stays inline (it is local and
+     * must land before the refreshed, claimless token can re-enter the pending
+     * window).
+     */
+    private fun activeStaffFlow(claims: WorkshopClaims, fromClaim: WorkshopSession): Flow<WorkshopSession> =
+        membershipStatusFlow(fromClaim.workshopUid, claims.authUid)
+            // Listener resubscribes re-emit the same status; without dedup each
+            // re-emission would re-fire the refresh below.
+            .distinctUntilChanged()
+            .onEach { status ->
+                if (status == MembershipStatus.REVOKED) {
+                    // Prefs first: once the token refreshes claimless, a still-
+                    // stored workshopUid would re-enter the pending window.
+                    onStaffRevoked()
+                    scope.launch { refreshToken() }
+                }
+            }
+            .map { status -> resolve(claims, membershipStatus = status) }
+            // The claim alone is authoritative while the first snapshot is in
+            // flight — emit immediately so hydration never waits on Firestore.
+            .onStart { emit(fromClaim) }
 
     /**
      * Watches the staffer's membership doc during the pending window and, once
@@ -137,6 +205,11 @@ internal class FirebaseActiveWorkshopProvider(
                 // the doc to active, so a refresh triggered here reliably returns
                 // the claim (no denied-read window, no refresh loop).
                 if (status == MembershipStatus.ACTIVE) refreshToken()
+                // Revoked (or declined) while pending/claimless: clear the stored
+                // workshopUid so the dead pending window is not re-entered on
+                // every later claims emission (each re-entry flashes a transient
+                // provisional PENDING through the session flow).
+                if (status == MembershipStatus.REVOKED) onStaffRevoked()
             }
             .map { status -> resolve(claims, membershipStatus = status) }
             // Emit a provisional STAFF/PENDING (on the user's OWN tree) first, so
