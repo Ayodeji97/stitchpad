@@ -159,4 +159,19 @@ class FakeUserRepository : UserRepository {
         userFlow.value = userFlow.value?.copy(dailyPushEnabled = enabled)
         return Result.Success(Unit)
     }
+
+    /** Last value passed to [setAnnouncementsPushEnabled], or null if never called. */
+    var lastAnnouncementsPushEnabled: Boolean? = null
+
+    override suspend fun setAnnouncementsPushEnabled(
+        userId: String,
+        enabled: Boolean,
+    ): EmptyResult<DataError.Network> {
+        shouldReturnError?.let { return Result.Error(it) }
+        lastAnnouncementsPushEnabled = enabled
+        // Mirror what Firestore does: emit the updated user so snapshot-driven
+        // consumers (SettingsViewModel) see the new value without an override.
+        userFlow.value = userFlow.value?.copy(announcementsPushEnabled = enabled)
+        return Result.Success(Unit)
+    }
 }

@@ -116,6 +116,8 @@ class MainActivity : ComponentActivity() {
             DeepLinkTarget.ORDER -> parsed.orderId?.let { pendingDeepLink.setOrder(it) }
             DeepLinkTarget.TO_COLLECT -> pendingDeepLink.set(DeepLinkTarget.TO_COLLECT)
             DeepLinkTarget.INBOX -> pendingDeepLink.set(DeepLinkTarget.INBOX)
+            DeepLinkTarget.DASHBOARD -> pendingDeepLink.set(DeepLinkTarget.DASHBOARD)
+            DeepLinkTarget.FOUNDING_TAILORS -> pendingDeepLink.set(DeepLinkTarget.FOUNDING_TAILORS)
             DeepLinkTarget.UPGRADE, DeepLinkTarget.CLAIM_GIFT, DeepLinkTarget.JOIN_WORKSHOP, null -> Unit
         }
         // Consume the extras so a later recreate (e.g. rotation) doesn't re-fire the

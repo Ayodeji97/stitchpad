@@ -49,7 +49,17 @@ export function digestDetector(orders: OrderScanDoc[], now: number): DigestModel
 
     if (open && o.deadline != null) {
       const day = lagosDayIndex(o.deadline);
-      const item: DigestItem = { orderId: o.id, customerName: o.customerName, garmentSummary: summariseGarments(o.items), deadline: o.deadline };
+      const item: DigestItem = {
+        orderId: o.id,
+        customerName: o.customerName,
+        garmentSummary: summariseGarments(o.items),
+        deadline: o.deadline,
+        // PENDING means the work has not begun. A deadline tomorrow on an order
+        // nobody has picked up is the single most actionable thing in the digest,
+        // and it was previously indistinguishable from one already in progress.
+        notStarted: o.status === 'PENDING',
+        assigneeName: o.assignedMemberName ?? null,
+      };
       if (day < today) overdue.push(item);
       else if (day === today || day === today + 1) dueSoon.push(item);
     }

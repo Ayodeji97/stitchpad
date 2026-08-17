@@ -47,6 +47,7 @@ data class SettingsState(
     val receiptImageStyle: ReceiptImageStyle = ReceiptImageStyle.LIGHT,
     val dailyDigestEmailEnabled: Boolean = true,
     val dailyPushEnabled: Boolean = true,
+    val announcementsPushEnabled: Boolean = true,
     val pushReminderSupported: Boolean = true,
     val showSignOutDialog: Boolean = false,
     val isSigningOut: Boolean = false,

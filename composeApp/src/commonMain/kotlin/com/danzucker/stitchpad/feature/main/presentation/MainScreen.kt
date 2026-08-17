@@ -131,52 +131,7 @@ fun MainRoot(
     val pendingDeepLink: PendingDeepLinkHolder = koinInject()
     val deepLinkTarget by pendingDeepLink.target.collectAsStateWithLifecycle()
     LaunchedEffect(deepLinkTarget) {
-        when (deepLinkTarget) {
-            DeepLinkTarget.INBOX -> {
-                pendingDeepLink.clear()
-                innerNavController.navigate(NotificationsInboxRoute) { launchSingleTop = true }
-            }
-            // Renewal-reminder email "Renew" button (stitchpad://upgrade) lands here.
-            DeepLinkTarget.UPGRADE -> {
-                pendingDeepLink.clear()
-                // popUpTo<UpgradeRoute> forces a FRESH UpgradeViewModel so it consumes the
-                // deep link's plan pre-select on init. launchSingleTop alone would reuse an
-                // already-open Upgrade screen's VM and skip the pre-select (leaving it stale).
-                innerNavController.navigate(UpgradeRoute) {
-                    popUpTo(UpgradeRoute) { inclusive = true }
-                    launchSingleTop = true
-                }
-            }
-            // Gift-claim email link (https .../claim?code= or stitchpad://claim?code=).
-            DeepLinkTarget.CLAIM_GIFT -> {
-                pendingDeepLink.clear()
-                // popUpTo<RedeemGiftRoute> forces a FRESH RedeemGiftViewModel so it consumes
-                // the claim code on init and jumps straight to the Accept sheet.
-                innerNavController.navigate(RedeemGiftRoute) {
-                    popUpTo(RedeemGiftRoute) { inclusive = true }
-                    launchSingleTop = true
-                }
-            }
-            // Per-order push notification tap (target: order, Task 2).
-            DeepLinkTarget.ORDER -> {
-                val orderId = pendingDeepLink.consumeOrderId()
-                pendingDeepLink.clear()
-                if (orderId != null) {
-                    innerNavController.navigate(OrderDetailRoute(orderId = orderId)) { launchSingleTop = true }
-                }
-            }
-            // Daily summary push notification tap (target: to_collect, Task 5).
-            DeepLinkTarget.TO_COLLECT -> {
-                pendingDeepLink.clear()
-                innerNavController.navigate(ToCollectRoute) { launchSingleTop = true }
-            }
-            // A staff invite is owned entirely by the OUTER nav: the pre-Home gate,
-            // or (once Home is reached) PushDeepLinkRedirectEffect, which navigates
-            // to RedeemInviteRoute. Do NOT consume it here — clearing it would race
-            // that effect and turn the invite tap into a no-op.
-            DeepLinkTarget.JOIN_WORKSHOP -> Unit
-            null -> Unit
-        }
+        handleInnerDeepLink(deepLinkTarget, pendingDeepLink, innerNavController)
     }
 
     // Role-aware tabs: staff see Dashboard/Customers/Orders (no Reports).
@@ -798,5 +753,82 @@ private fun MainNavGraph(
                 onSignedOut = onSignedOut,
             )
         }
+    }
+}
+
+/**
+ * Routes a pending deep link onto the INNER nav controller.
+ *
+ * Extracted from [MainRoot] so the composable stays readable as the number of push
+ * targets grows — every branch here is plain navigation with no Compose state, so it
+ * does not need to live inside the composable.
+ */
+private fun handleInnerDeepLink(
+    target: DeepLinkTarget?,
+    pendingDeepLink: PendingDeepLinkHolder,
+    innerNavController: NavHostController,
+) {
+    when (target) {
+        DeepLinkTarget.INBOX -> {
+            pendingDeepLink.clear()
+            innerNavController.navigate(NotificationsInboxRoute) { launchSingleTop = true }
+        }
+        // Renewal-reminder email "Renew" button (stitchpad://upgrade) lands here.
+        DeepLinkTarget.UPGRADE -> {
+            pendingDeepLink.clear()
+            // popUpTo<UpgradeRoute> forces a FRESH UpgradeViewModel so it consumes the
+            // deep link's plan pre-select on init. launchSingleTop alone would reuse an
+            // already-open Upgrade screen's VM and skip the pre-select (leaving it stale).
+            innerNavController.navigate(UpgradeRoute) {
+                popUpTo(UpgradeRoute) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+        // Gift-claim email link (https .../claim?code= or stitchpad://claim?code=).
+        DeepLinkTarget.CLAIM_GIFT -> {
+            pendingDeepLink.clear()
+            // popUpTo<RedeemGiftRoute> forces a FRESH RedeemGiftViewModel so it consumes
+            // the claim code on init and jumps straight to the Accept sheet.
+            innerNavController.navigate(RedeemGiftRoute) {
+                popUpTo(RedeemGiftRoute) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+        // Per-order push notification tap (target: order, Task 2).
+        DeepLinkTarget.ORDER -> {
+            val orderId = pendingDeepLink.consumeOrderId()
+            pendingDeepLink.clear()
+            if (orderId != null) {
+                innerNavController.navigate(OrderDetailRoute(orderId = orderId)) { launchSingleTop = true }
+            }
+        }
+        // Daily summary push notification tap (target: to_collect, Task 5).
+        DeepLinkTarget.TO_COLLECT -> {
+            pendingDeepLink.clear()
+            innerNavController.navigate(ToCollectRoute) { launchSingleTop = true }
+        }
+        // A staff invite is owned entirely by the OUTER nav: the pre-Home gate,
+        // or (once Home is reached) PushDeepLinkRedirectEffect, which navigates
+        // to RedeemInviteRoute. Do NOT consume it here — clearing it would race
+        // that effect and turn the invite tap into a no-op.
+        DeepLinkTarget.JOIN_WORKSHOP -> Unit
+        // Engagement push (target: founding_tailors). FoundingTailorsRoute is
+        // registered on the inner NavHost, so this mirrors INBOX/TO_COLLECT.
+        DeepLinkTarget.FOUNDING_TAILORS -> {
+            pendingDeepLink.clear()
+            innerNavController.navigate(FoundingTailorsRoute) { launchSingleTop = true }
+        }
+        // Engagement push (target: dashboard). Must actually navigate: "opening the app
+        // already lands on the dashboard" only holds for a COLD start. A warm resume
+        // keeps the inner back stack, so a tailor sitting on Orders (or inside an order)
+        // would tap the nudge and see nothing happen.
+        DeepLinkTarget.DASHBOARD -> {
+            pendingDeepLink.clear()
+            innerNavController.navigate(DashboardRoute) {
+                popUpTo(DashboardRoute) { inclusive = false }
+                launchSingleTop = true
+            }
+        }
+        null -> Unit
     }
 }

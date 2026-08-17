@@ -3,6 +3,7 @@ import { digestDetector, isDigestEmpty } from './digestDetector';
 import { buildDigestEmail } from './digestEmailTemplate';
 import { lagosDateKey } from './lagosTime';
 import { pushSummary } from './pushSummary';
+import { staffDigests } from './staffDigest';
 import { DigestIO, DigestRunResult } from './types';
 
 /** Pure run loop. Production wraps this with productionDigestIO; tests inject fakes. */
@@ -10,13 +11,14 @@ export async function runDailyDigest(io: DigestIO, now: number): Promise<DigestR
   const recipients = await io.listRecipients();
   const todayKey = lagosDateKey(now);
   const result: DigestRunResult = {
-    considered: recipients.length, sent: 0, suppressedEmpty: 0,
+    considered: recipients.length, sent: 0, staffPushed: 0, suppressedEmpty: 0,
     skippedDisabled: 0, skippedAlreadySent: 0, skippedNotAllowed: 0, failed: 0,
   };
 
   for (const r of recipients) {
     try {
-      const model = digestDetector(await io.loadOrders(r.uid), now);
+      const orders = await io.loadOrders(r.uid);
+      const model = digestDetector(orders, now);
       await io.writeNotifications(r.uid, model);   // ALWAYS — in-app inbox is ungated
 
       // PUSH (Android slice 3) — gated independently of email. Its OWN try/catch so a
@@ -43,6 +45,40 @@ export async function runDailyDigest(io: DigestIO, now: number): Promise<DigestR
         functions.logger.error('daily digest: push failed (email unaffected)', {
           uid: r.uid,
           error: pushErr instanceof Error ? pushErr.message : String(pushErr),
+        });
+      }
+
+      // STAFF DIGESTS — the person actually sewing has never been told about their
+      // own deadlines. Reuses the orders already loaded above, so it costs no extra
+      // read of the workshop. Its own try/catch: a staff push must never cost the
+      // owner their digest, which is the more important message of the two.
+      // Honour the SAME rollout gate as the owner. This block runs before the owner's
+      // gate below, so without it an emergency STAGING flip would stop owner digests
+      // while staff pushes carried on — defeating the one-line rollback.
+      try {
+        const staffUids = io.isAllowed(r.uid, r.email) ? await io.listStaffUids(r.uid) : [];
+        for (const d of staffDigests(orders, staffUids, now)) {
+          if (!(await io.isStaffPushEnabled(d.staffUid))) continue;
+          if ((await io.getLastPushDate(d.staffUid)) === todayKey) continue;
+          const tokens = await io.loadPushTokens(d.staffUid);
+          if (tokens.length === 0) continue;
+          const { successCount, invalidTokens } = await io.sendPush(
+            tokens,
+            // NOT the owner's 'to_collect' target: firestore.rules denies staff the money
+            // surface, so that tap dead-ends on a blank screen — and it aims the money
+            // screen at people who must never see it.
+            { ...pushSummary(d.model), target: 'dashboard' },
+          );
+          if (invalidTokens.length > 0) await io.deletePushTokens(d.staffUid, invalidTokens);
+          if (successCount > 0) {
+            await io.setLastPushDate(d.staffUid, todayKey);
+            result.staffPushed++;
+          }
+        }
+      } catch (staffErr) {
+        functions.logger.error('daily digest: staff digests failed (owner unaffected)', {
+          uid: r.uid,
+          error: staffErr instanceof Error ? staffErr.message : String(staffErr),
         });
       }
 

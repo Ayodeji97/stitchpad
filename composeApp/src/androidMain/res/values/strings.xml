@@ -1,3 +1,14 @@
 <resources>
     <string name="app_name">StitchPad</string>
+
+    <!--
+      Notification channel names and descriptions. These live in Android resources
+      rather than compose.resources because NotificationChannel is created from
+      Application.onCreate, outside any composition — Res.string cannot be resolved
+      there. Users see these strings verbatim in Android Settings > Notifications.
+    -->
+    <string name="channel_daily_reminders_name">Daily reminders</string>
+    <string name="channel_daily_reminders_description">Your morning summary of deadlines and money owed</string>
+    <string name="channel_announcements_name">Tips &amp; announcements</string>
+    <string name="channel_announcements_description">Occasional tips on getting more out of StitchPad, and news about new features</string>
 </resources>

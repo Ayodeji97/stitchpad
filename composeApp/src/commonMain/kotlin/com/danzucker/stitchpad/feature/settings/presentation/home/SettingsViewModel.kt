@@ -217,6 +217,7 @@ class SettingsViewModel(
             SettingsAction.OnHelpTutorialsClick -> emit(SettingsEvent.NavigateToHelpTutorials)
             is SettingsAction.OnDailyDigestToggle -> setDailyDigest(action.enabled)
             is SettingsAction.OnDailyPushToggle -> setDailyPush(action.enabled)
+            is SettingsAction.OnAnnouncementsPushToggle -> setAnnouncementsPush(action.enabled)
             SettingsAction.OnCommunityClick -> {
                 val url = state.value.communityUrl ?: return
                 emit(SettingsEvent.OpenCommunityLink(url))
@@ -350,6 +351,7 @@ class SettingsViewModel(
             receiptImageStyle = ui.receiptImageStyle,
             dailyDigestEmailEnabled = firestoreUser?.dailyDigestEmailEnabled ?: true,
             dailyPushEnabled = firestoreUser?.dailyPushEnabled ?: true,
+            announcementsPushEnabled = firestoreUser?.announcementsPushEnabled ?: true,
             pushReminderSupported = true,
             showSignOutDialog = ui.showSignOutDialog,
             isSigningOut = ui.isSigningOut,
@@ -429,6 +431,20 @@ class SettingsViewModel(
             // the system dialog immediately so the setting has a real chance of
             // taking effect. viewModelScope uses the main dispatcher, so this is
             // safe to call here — it interacts with the Activity directly.
+            if (enabled && pushPermissionController.shouldRequest()) {
+                pushPermissionController.requestPermission()
+            }
+        }
+    }
+
+    private fun setAnnouncementsPush(enabled: Boolean) {
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            userRepository.setAnnouncementsPushEnabled(userId, enabled)
+            // Same reasoning as setDailyPush: on Android 13+ the OS must grant
+            // POST_NOTIFICATIONS before anything can arrive, so enabling this while
+            // the permission is still missing should surface the system dialog rather
+            // than silently doing nothing.
             if (enabled && pushPermissionController.shouldRequest()) {
                 pushPermissionController.requestPermission()
             }

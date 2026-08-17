@@ -8,13 +8,15 @@ const DAY = 86_400_000;
 function fakeIO(over: Partial<DigestIO> & {
   recipients: DigestRecipient[];
   ordersByUid: Record<string, OrderScanDoc[]>;
+  staffByOwner?: Record<string, string[]>;
+  staffPushDisabled?: string[];
   tokensByUid?: Record<string, string[]>;
   invalidTokens?: string[];
   pushSuccessCount?: number;
 }): {
   io: DigestIO;
   sent: { to: string; subject: string }[];
-  pushes: { tokens: string[]; body: string }[];
+  pushes: { tokens: string[]; body: string; target?: string }[];
   pushStamps: Record<string, string>;
   deletedTokens: { uid: string; tokens: string[] }[];
   stamps: Record<string, string>;
@@ -23,7 +25,7 @@ function fakeIO(over: Partial<DigestIO> & {
   const sent: { to: string; subject: string }[] = [];
   const stamps: Record<string, string> = {};
   const pushStamps: Record<string, string> = {};
-  const pushes: { tokens: string[]; body: string }[] = [];
+  const pushes: { tokens: string[]; body: string; target?: string }[] = [];
   const deletedTokens: { uid: string; tokens: string[] }[] = [];
   const notified: Record<string, number> = {};
   const io: DigestIO = {
@@ -36,7 +38,7 @@ function fakeIO(over: Partial<DigestIO> & {
     isAllowed: over.isAllowed ?? (() => true),
     loadPushTokens: async (uid) => over.tokensByUid?.[uid] ?? [],
     sendPush: async (tokens, payload) => {
-      pushes.push({ tokens, body: payload.body });
+      pushes.push({ tokens, body: payload.body, target: payload.target });
       const invalid = over.invalidTokens ?? [];
       const successCount = over.pushSuccessCount !== undefined
         ? over.pushSuccessCount
@@ -46,6 +48,8 @@ function fakeIO(over: Partial<DigestIO> & {
     deletePushTokens: async (uid, tokens) => { deletedTokens.push({ uid, tokens }); },
     getLastPushDate: async (uid) => pushStamps[uid] ?? null,
     setLastPushDate: async (uid, d) => { pushStamps[uid] = d; },
+    listStaffUids: async (ownerUid) => over.staffByOwner?.[ownerUid] ?? [],
+    isStaffPushEnabled: async (staffUid) => over.staffPushDisabled?.includes(staffUid) !== true,
   };
   return { io, sent, pushes, pushStamps, deletedTokens, stamps, notified };
 }
@@ -197,5 +201,107 @@ describe('runDailyDigest — push', () => {
     expect(f.sent).toHaveLength(1);        // email still went out
     expect(result.sent).toBe(1);
     expect(result.failed).toBe(0);         // push failure not counted as a recipient failure
+  });
+});
+
+describe('runDailyDigest — staff digests', () => {
+  const NOW = Date.parse('2026-06-03T06:00:00Z');
+  const DAY_MS = 86_400_000;
+
+  it('pushes a staff member a digest of their own assigned work', async () => {
+    const { io, pushes } = fakeIO({
+      recipients: [recip()],
+      ordersByUid: { u1: [order({ deadline: NOW - DAY_MS, assignedMemberId: 'gabby' })] },
+      staffByOwner: { u1: ['gabby'] },
+      tokensByUid: { u1: ['owner-tok'], gabby: ['gabby-tok'] },
+    });
+    const r = await runDailyDigest(io, NOW);
+    expect(r.staffPushed).toBe(1);
+    expect(pushes.some((p) => p.tokens.includes('gabby-tok'))).toBe(true);
+  });
+
+  it('does not push a staff member who has nothing assigned', async () => {
+    const { io, pushes } = fakeIO({
+      recipients: [recip()],
+      ordersByUid: { u1: [order({ deadline: NOW - DAY_MS, assignedMemberId: null })] },
+      staffByOwner: { u1: ['gabby'] },
+      tokensByUid: { u1: ['owner-tok'], gabby: ['gabby-tok'] },
+    });
+    const r = await runDailyDigest(io, NOW);
+    expect(r.staffPushed).toBe(0);
+    expect(pushes.some((p) => p.tokens.includes('gabby-tok'))).toBe(false);
+  });
+
+  it('honours a staff member own push opt-out', async () => {
+    const { io, pushes } = fakeIO({
+      recipients: [recip()],
+      ordersByUid: { u1: [order({ deadline: NOW - DAY_MS, assignedMemberId: 'gabby' })] },
+      staffByOwner: { u1: ['gabby'] },
+      staffPushDisabled: ['gabby'],
+      tokensByUid: { u1: ['owner-tok'], gabby: ['gabby-tok'] },
+    });
+    const r = await runDailyDigest(io, NOW);
+    expect(r.staffPushed).toBe(0);
+    expect(pushes.some((p) => p.tokens.includes('gabby-tok'))).toBe(false);
+  });
+
+  // The owner's digest is the more important of the two and must be insulated.
+  it('still sends the owner digest when the staff step throws', async () => {
+    const base = fakeIO({
+      recipients: [recip()],
+      ordersByUid: { u1: [order({ deadline: NOW - DAY_MS, assignedMemberId: 'gabby' })] },
+      staffByOwner: { u1: ['gabby'] },
+    });
+    const io = { ...base.io, listStaffUids: async () => { throw new Error('roster exploded'); } };
+    const r = await runDailyDigest(io, NOW);
+    expect(r.sent).toBe(1);
+    expect(r.staffPushed).toBe(0);
+    expect(r.failed).toBe(0);
+  });
+
+  it('does not stack on a staff member who already got a push today', async () => {
+    const { io } = fakeIO({
+      recipients: [recip()],
+      ordersByUid: { u1: [order({ deadline: NOW - DAY_MS, assignedMemberId: 'gabby' })] },
+      staffByOwner: { u1: ['gabby'] },
+      tokensByUid: { u1: ['owner-tok'], gabby: ['gabby-tok'] },
+    });
+    await runDailyDigest(io, NOW);
+    const second = await runDailyDigest(io, NOW);
+    expect(second.staffPushed).toBe(0);
+  });
+});
+
+describe('runDailyDigest — staff gating and routing (regressions)', () => {
+  const NOW = Date.parse('2026-06-03T06:00:00Z');
+  const DAY_MS = 86_400_000;
+
+  // The staff block runs BEFORE the owner's gate, so without an explicit check an
+  // emergency STAGING flip would stop owner digests while staff pushes carried on.
+  it('respects the rollout gate for staff, not just the owner', async () => {
+    const { io, pushes } = fakeIO({
+      recipients: [recip()],
+      ordersByUid: { u1: [order({ deadline: NOW - DAY_MS, assignedMemberId: 'gabby' })] },
+      staffByOwner: { u1: ['gabby'] },
+      tokensByUid: { u1: ['owner-tok'], gabby: ['gabby-tok'] },
+      isAllowed: () => false,
+    });
+    const r = await runDailyDigest(io, NOW);
+    expect(r.staffPushed).toBe(0);
+    expect(pushes.some((p) => p.tokens.includes('gabby-tok'))).toBe(false);
+  });
+
+  // firestore.rules denies staff the money surface, so 'to_collect' dead-ends on a
+  // blank screen — and aims the money screen at people who must never see it.
+  it('routes a staff push to the dashboard, never the money screen', async () => {
+    const { io, pushes } = fakeIO({
+      recipients: [recip()],
+      ordersByUid: { u1: [order({ deadline: NOW - DAY_MS, assignedMemberId: 'gabby' })] },
+      staffByOwner: { u1: ['gabby'] },
+      tokensByUid: { u1: ['owner-tok'], gabby: ['gabby-tok'] },
+    });
+    await runDailyDigest(io, NOW);
+    const staffPush = pushes.find((p) => p.tokens.includes('gabby-tok'));
+    expect(staffPush?.target).toBe('dashboard');
   });
 });

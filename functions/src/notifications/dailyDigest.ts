@@ -1,44 +1,36 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
-import type { DocumentData } from 'firebase-admin/firestore';
 import { runDailyDigest } from './runDailyDigest';
 import { isDigestAllowed, isDigestTester } from './rollout';
 import { sendResendEmail } from '../email/resendClient';
 import { buildDigestEmail } from './digestEmailTemplate';
 import { digestDetector, isDigestEmpty } from './digestDetector';
+import {
+  DAILY_REMINDERS_CHANNEL_ID,
+  DAILY_REMINDER_NOTIFICATION_TAG,
+  deletePushTokens,
+  loadPushTokens,
+  sendMulticast,
+} from './fcm';
 import { lagosDateKey } from './lagosTime';
 import { notificationDocsFromModel } from './notificationDocs';
+import { loadMoneyByOrderId, withMoney } from './orderMoney';
+import { loadWorkshopAudience } from './workshopAudience';
+import { mapOrderScanDoc } from './orderScan';
 import { pushSummary } from './pushSummary';
-import { DigestIO, DigestModel, DigestRecipient, OrderScanDoc } from './types';
+import { DigestIO, DigestModel, DigestRecipient } from './types';
 
 const REGION = 'europe-west1';
 const SCHEDULE = '0 7 * * *';
 const TIMEZONE = 'Africa/Lagos';
 
-function digestStateRef(uid: string) {
-  return admin.firestore().collection('users').doc(uid).collection('private').doc('digestState');
+/** Trimmed string, or '' for anything that is not a string. Type-safe, unlike `?.trim()`. */
+function text(v: unknown): string {
+  return typeof v === 'string' ? v.trim() : '';
 }
 
-function mapOrder(id: string, d: DocumentData): OrderScanDoc {
-  return {
-    id,
-    customerName: d.customerName ?? '',
-    status: d.status ?? 'PENDING',
-    deadline: typeof d.deadline === 'number' ? d.deadline : null,
-    archivedAt: typeof d.archivedAt === 'number' ? d.archivedAt : null,
-    totalPrice: typeof d.totalPrice === 'number' ? d.totalPrice : 0,
-    discount: typeof d.discount === 'number' ? d.discount : 0,
-    payments: Array.isArray(d.payments) ? d.payments.map((p: any) => ({ amount: Number(p?.amount) || 0 })) : [],
-    depositPaid: typeof d.depositPaid === 'number' ? d.depositPaid : 0,
-    items: Array.isArray(d.items) ? d.items.map((i: any) => ({
-      garmentType: i?.garmentType, customGarmentName: i?.customGarmentName, description: i?.description,
-    })) : [],
-    statusHistory: Array.isArray(d.statusHistory)
-      ? d.statusHistory.map((c: any) => ({ status: c?.status ?? '', changedAt: Number(c?.changedAt) || 0 }))
-      : [],
-    updatedAt: typeof d.updatedAt === 'number' ? d.updatedAt : undefined,
-    createdAt: typeof d.createdAt === 'number' ? d.createdAt : undefined,
-  };
+function digestStateRef(uid: string) {
+  return admin.firestore().collection('users').doc(uid).collection('private').doc('digestState');
 }
 
 async function writeNotificationsAdmin(db: admin.firestore.Firestore, uid: string, model: DigestModel): Promise<void> {
@@ -65,9 +57,16 @@ function productionDigestIO(apiKey: string): DigestIO {
   const db = admin.firestore();
   return {
     async listRecipients(): Promise<DigestRecipient[]> {
-      // Scale path: V1 does one users.get() + a serial admin.auth().getUser(uid)
-      // per user (N+1). Before going much beyond ~50 users, switch to
-      // admin.auth().listUsers() pagination + a uid→email map to drop the N+1.
+      // Scale path: one users.get() + a serial admin.auth().getUser(uid) per user
+      // (N+1), then serial per-user work (orders, money, FCM, Resend).
+      //
+      // Measured 2026-08-17 at 109 production users: ~0.5s per workshop with orders,
+      // so a full run sits comfortably inside the 540s timeout set on this function.
+      // The failure mode past roughly 400-700 users is nasty and silent: Firestore
+      // returns users in stable doc-id order, so the SAME tail is truncated every
+      // morning, forever, with no symptom beyond a missing "run complete" log line.
+      // Before then, switch to admin.auth().listUsers() pagination + a uid->email map
+      // and bounded concurrency. Watch the `considered` count in the run log.
       const usersSnap = await db.collection('users').get();
       const recipients: DigestRecipient[] = [];
       for (const doc of usersSnap.docs) {
@@ -80,7 +79,10 @@ function productionDigestIO(apiKey: string): DigestIO {
         } catch {
           continue; // doc with no matching/verified auth user — skip
         }
-        const name = (data.businessName?.trim() || data.displayName?.trim() || email.split('@')[0]);
+        // `?.` guards null/undefined but NOT type: a numeric or map businessName from a
+        // console edit would throw inside listRecipients, which runs OUTSIDE the
+        // per-recipient try/catch — one bad doc would silence the digest for everyone.
+        const name = (text(data.businessName) || text(data.displayName) || email.split('@')[0]);
         recipients.push({
           uid: doc.id,
           email,
@@ -97,8 +99,13 @@ function productionDigestIO(apiKey: string): DigestIO {
       return recipients;
     },
     async loadOrders(uid) {
-      const snap = await db.collection('users').doc(uid).collection('orders').get();
-      return snap.docs.map((d) => mapOrder(d.id, d.data()));
+      // Money lives in /private/money since Slice 8d-1 — reading only the base doc
+      // made every balance compute to zero. See orderMoney.ts.
+      const [snap, money] = await Promise.all([
+        db.collection('users').doc(uid).collection('orders').get(),
+        loadMoneyByOrderId(db, uid),
+      ]);
+      return withMoney(snap.docs.map((d) => mapOrderScanDoc(d.id, d.data())), money);
     },
     async getLastSentDate(uid) {
       const snap = await digestStateRef(uid).get();
@@ -114,57 +121,23 @@ function productionDigestIO(apiKey: string): DigestIO {
       return sendResendEmail(apiKey, p);
     },
     isAllowed: isDigestAllowed,
-    loadPushTokens: async (uid: string): Promise<string[]> => {
-      const snap = await db.collection('users').doc(uid).collection('notificationTokens').get();
-      return snap.docs.map((d) => d.id);
-    },
+    loadPushTokens: (uid: string) => loadPushTokens(db, uid),
 
-    sendPush: async (tokens, payload) => {
-      const FCM_MULTICAST_LIMIT = 500;
-      const invalidTokens: string[] = [];
-      let successCount = 0;
-      for (let i = 0; i < tokens.length; i += FCM_MULTICAST_LIMIT) {
-        const batch = tokens.slice(i, i + FCM_MULTICAST_LIMIT);
-        const res = await admin.messaging().sendEachForMulticast({
-          tokens: batch,
-          notification: { title: payload.title, body: payload.body },
-          android: { notification: { channelId: 'daily_reminders' } },
-          data: { target: 'to_collect' },
-        });
-        res.responses.forEach((r, j) => {
-          if (r.success) {
-            successCount++;
-          } else {
-            const code = r.error?.code;
-            // Log every failed send, not just the two token-invalid codes we prune on.
-            // Other failures (APNs auth/credential, propagation, internal) were silently
-            // swallowed, leaving "no push sent" undiagnosable. Token is truncated (not PII).
-            functions.logger.error('digest push: FCM send failed', {
-              code,
-              message: r.error?.message,
-              tokenPrefix: batch[j].slice(0, 24),
-            });
-            if (code === 'messaging/registration-token-not-registered' ||
-                code === 'messaging/invalid-registration-token') {
-              invalidTokens.push(batch[j]);
-            }
-          }
-        });
-      }
-      return { successCount, invalidTokens };
-    },
+    sendPush: (tokens, payload) => sendMulticast(
+      tokens,
+      {
+        title: payload.title,
+        body: payload.body,
+        data: { target: payload.target ?? 'to_collect' },
+        androidChannelId: DAILY_REMINDERS_CHANNEL_ID,
+        // A daily summary is meant to collapse to one notification. Without a tag it
+        // only did so in the foreground; backgrounded deliveries stacked.
+        androidTag: DAILY_REMINDER_NOTIFICATION_TAG,
+      },
+      'digest push',
+    ),
 
-    deletePushTokens: async (uid: string, tokens: string[]): Promise<void> => {
-      const col = db.collection('users').doc(uid).collection('notificationTokens');
-      const FIRESTORE_BATCH_LIMIT = 500;
-      for (let i = 0; i < tokens.length; i += FIRESTORE_BATCH_LIMIT) {
-        const batch = db.batch();
-        for (const t of tokens.slice(i, i + FIRESTORE_BATCH_LIMIT)) {
-          batch.delete(col.doc(t));
-        }
-        await batch.commit();
-      }
-    },
+    deletePushTokens: (uid: string, tokens: string[]) => deletePushTokens(db, uid, tokens),
 
     getLastPushDate: async (uid: string): Promise<string | null> => {
       const snap = await digestStateRef(uid).get();
@@ -174,12 +147,34 @@ function productionDigestIO(apiKey: string): DigestIO {
     setLastPushDate: async (uid: string, dateKey: string): Promise<void> => {
       await digestStateRef(uid).set({ lastPushDate: dateKey }, { merge: true });
     },
+
+    listStaffUids: async (ownerUid: string): Promise<string[]> => {
+      const { staffUids } = await loadWorkshopAudience(db, ownerUid);
+      return staffUids;
+    },
+
+    /**
+     * Staff opt-out. Resolved from the staff member's OWN user doc — they control
+     * their notifications, not the workshop owner. Same inheritance as the owner's
+     * push flag, so an existing opt-out is honoured without a migration.
+     */
+    isStaffPushEnabled: async (staffUid: string): Promise<boolean> => {
+      const snap = await db.collection('users').doc(staffUid).get();
+      const u = snap.data();
+      if (!u) return false;
+      if (u.dailyPushEnabled !== undefined) return u.dailyPushEnabled !== false;
+      return u.dailyDigestEmailEnabled !== false;
+    },
   };
 }
 
 export const dailyDigest = functions
   .region(REGION)
-  .runWith({ secrets: ['RESEND_API_KEY'] })
+  // Opening STAGING made this loop span every user, and it is serial: one
+  // admin.auth().getUser() AND one Resend HTTP call per recipient. The v1 default 60s
+  // would kill the run mid-loop, and since recipient order is stable the same tail
+  // would be starved every morning — surfacing only as a missing "run complete" log.
+  .runWith({ secrets: ['RESEND_API_KEY'], timeoutSeconds: 540, memory: '512MB' })
   .pubsub.schedule(SCHEDULE)
   .timeZone(TIMEZONE)
   .onRun(async () => {
@@ -218,8 +213,14 @@ export const debugSendMyDigest = functions
 
     const now = Date.now();
     const data = userDoc.data() || {};
-    const ordersSnap = await db.collection('users').doc(uid).collection('orders').get();
-    const model = digestDetector(ordersSnap.docs.map((d) => mapOrder(d.id, d.data())), now);
+    const [ordersSnap, money] = await Promise.all([
+      db.collection('users').doc(uid).collection('orders').get(),
+      loadMoneyByOrderId(db, uid),
+    ]);
+    const model = digestDetector(
+      withMoney(ordersSnap.docs.map((d) => mapOrderScanDoc(d.id, d.data())), money),
+      now,
+    );
 
     // Inbox always populated for QA (ungated, same as production runDailyDigest)
     await writeNotificationsAdmin(db, uid, model);

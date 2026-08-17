@@ -3,7 +3,20 @@ package com.danzucker.stitchpad.navigation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.concurrent.Volatile
 
-enum class DeepLinkTarget { INBOX, UPGRADE, CLAIM_GIFT, ORDER, TO_COLLECT, JOIN_WORKSHOP }
+enum class DeepLinkTarget {
+    INBOX,
+    UPGRADE,
+    CLAIM_GIFT,
+    ORDER,
+    TO_COLLECT,
+    JOIN_WORKSHOP,
+
+    /** Engagement push: land on the dashboard the app already opens to. */
+    DASHBOARD,
+
+    /** Engagement push: the Founding Tailors referral screen. */
+    FOUNDING_TAILORS,
+}
 
 /** Plan to pre-select on the Upgrade screen when arriving via a renewal deep link. */
 data class UpgradePreselect(val tier: String?, val cadence: String?)

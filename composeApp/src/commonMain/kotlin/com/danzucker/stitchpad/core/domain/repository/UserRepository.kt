@@ -104,4 +104,12 @@ interface UserRepository {
      * (offline outbox) — the snapshot listener reflects the change locally at once.
      */
     suspend fun setDailyPushEnabled(userId: String, enabled: Boolean): EmptyResult<DataError.Network>
+
+    /**
+     * Sets the tips & announcements push opt-out flag on `users/{userId}`. Separate
+     * from [setDailyPushEnabled] so muting tips never mutes deadline reminders.
+     * Fire-and-forget (offline outbox) — the snapshot listener reflects it locally
+     * at once.
+     */
+    suspend fun setAnnouncementsPushEnabled(userId: String, enabled: Boolean): EmptyResult<DataError.Network>
 }
