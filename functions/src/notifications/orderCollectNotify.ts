@@ -1,6 +1,7 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { balanceRemaining, summariseGarments } from './digestDetector';
+import { moneyFromDoc } from './orderMoney';
 import { isDigestAllowed } from './rollout';
 
 const REGION = 'europe-west1';
@@ -13,7 +14,14 @@ export interface CollectNotification {
   status: 'READY' | 'DELIVERED';
 }
 
-/** First entry into a collectible (READY/DELIVERED) state with a balance owing → notify. */
+/**
+ * First entry into a collectible (READY/DELIVERED) state with a balance owing → notify.
+ *
+ * `after` MUST already have its /private/money merged in. The base order doc carries no
+ * money since Slice 8d-1, so calling this with the raw snapshot makes balanceRemaining
+ * return 0 every time and the trigger silently never fires — which is exactly what was
+ * happening in production.
+ */
 export function collectibleTransition(before: unknown, after: any): CollectNotification | null {
   const beforeStatus = (before as { status?: string })?.status ?? '';
   if (COLLECTIBLE.has(beforeStatus)) return null;      // already collectible → not a first entry
@@ -51,7 +59,14 @@ export const onOrderCollectible = functions
   .onUpdate(async (change, context) => {
     const uid = context.params.uid as string;
     const orderId = context.params.orderId as string;
-    const n = collectibleTransition(change.before.data(), change.after.data());
+    // Money lives in /private/money; the base doc update that fired this trigger does
+    // not contain it. One extra document read, only on a status change.
+    const moneySnap = await admin.firestore()
+      .doc(`users/${uid}/orders/${orderId}/private/money`).get()
+      .catch(() => null);
+    const afterWithMoney = { ...change.after.data(), ...moneyFromDoc(moneySnap?.data()) };
+
+    const n = collectibleTransition(change.before.data(), afterWithMoney);
     if (!n) return;
     functions.logger.info('onOrderCollectible: qualifying transition', { uid, orderId, status: n.status, amount: n.amount });
 

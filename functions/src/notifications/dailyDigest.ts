@@ -14,6 +14,7 @@ import {
 } from './fcm';
 import { lagosDateKey } from './lagosTime';
 import { notificationDocsFromModel } from './notificationDocs';
+import { loadMoneyByOrderId, withMoney } from './orderMoney';
 import { mapOrderScanDoc } from './orderScan';
 import { pushSummary } from './pushSummary';
 import { DigestIO, DigestModel, DigestRecipient } from './types';
@@ -82,8 +83,13 @@ function productionDigestIO(apiKey: string): DigestIO {
       return recipients;
     },
     async loadOrders(uid) {
-      const snap = await db.collection('users').doc(uid).collection('orders').get();
-      return snap.docs.map((d) => mapOrderScanDoc(d.id, d.data()));
+      // Money lives in /private/money since Slice 8d-1 — reading only the base doc
+      // made every balance compute to zero. See orderMoney.ts.
+      const [snap, money] = await Promise.all([
+        db.collection('users').doc(uid).collection('orders').get(),
+        loadMoneyByOrderId(db, uid),
+      ]);
+      return withMoney(snap.docs.map((d) => mapOrderScanDoc(d.id, d.data())), money);
     },
     async getLastSentDate(uid) {
       const snap = await digestStateRef(uid).get();
@@ -173,8 +179,14 @@ export const debugSendMyDigest = functions
 
     const now = Date.now();
     const data = userDoc.data() || {};
-    const ordersSnap = await db.collection('users').doc(uid).collection('orders').get();
-    const model = digestDetector(ordersSnap.docs.map((d) => mapOrderScanDoc(d.id, d.data())), now);
+    const [ordersSnap, money] = await Promise.all([
+      db.collection('users').doc(uid).collection('orders').get(),
+      loadMoneyByOrderId(db, uid),
+    ]);
+    const model = digestDetector(
+      withMoney(ordersSnap.docs.map((d) => mapOrderScanDoc(d.id, d.data())), money),
+      now,
+    );
 
     // Inbox always populated for QA (ungated, same as production runDailyDigest)
     await writeNotificationsAdmin(db, uid, model);

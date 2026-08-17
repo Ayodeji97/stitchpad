@@ -37,6 +37,7 @@ import { isDigestTester, isEngagementAllowed } from './rollout';
 import { daysSinceNewestOrder, runEngagementPush } from './runEngagementPush';
 import { renderTemplate } from './campaignTemplate';
 import { segmentChain, Tier } from './segmentDetector';
+import { loadMoneyByOrderId, withMoney } from './orderMoney';
 import { mapOrderScanDoc } from './orderScan';
 
 const REGION = 'europe-west1';
@@ -295,8 +296,11 @@ export function productionEngagementIO(): EngagementIO {
     loadCounts: (uid) => loadCounts(db, uid),
 
     loadOrders: async (uid) => {
-      const snap = await db.collection('users').doc(uid).collection('orders').get();
-      return snap.docs.map((d) => mapOrderScanDoc(d.id, d.data()));
+      const [snap, money] = await Promise.all([
+        db.collection('users').doc(uid).collection('orders').get(),
+        loadMoneyByOrderId(db, uid),
+      ]);
+      return withMoney(snap.docs.map((d) => mapOrderScanDoc(d.id, d.data())), money);
     },
 
     loadPushTokens: (uid) => loadPushTokens(db, uid),
