@@ -41,6 +41,17 @@ function amounts(v: unknown): { amount: number }[] {
   return Array.isArray(v) ? v.map((p: DocumentData) => ({ amount: num(p?.amount) })) : [];
 }
 
+/**
+ * The completeness sentinel, mirroring `Order.withMoney` on the client
+ * (`OrderMapper.kt`): a mirror WITHOUT `ownerId` is a partial write — `recordPayment`
+ * and `updateCosts` deliberately leave it unstamped — and must be ignored entirely
+ * rather than treated as authoritative. Trusting one would zero out totalPrice and
+ * silence the very notification this module exists to restore.
+ */
+export function isStampedMoney(d: DocumentData | undefined): boolean {
+  return typeof d?.ownerId === 'string' && d.ownerId.trim().length > 0;
+}
+
 export function moneyFromDoc(d: DocumentData | undefined): OrderMoney {
   return {
     totalPrice: num(d?.totalPrice),
@@ -84,11 +95,17 @@ export async function loadMoneyByOrderId(
 }
 
 /**
- * Folds money onto scanned orders.
+ * Folds money onto scanned orders, matching `Order.withMoney` on the client exactly.
  *
- * The base doc's own money fields are used as a fallback for any order whose mirror is
- * missing — legacy docs written before the split still carry them, and reading a real
- * number beats reading zero.
+ * A STAMPED mirror is authoritative and REPLACES the base values outright — no
+ * truthiness fallback. That distinction matters: `m.totalPrice || o.totalPrice` would
+ * resurrect a stale base price the moment a tailor legitimately corrected a price to
+ * zero, or removed a discount, or deleted a payment, and the digest would then report
+ * money owed on an order that is settled.
+ *
+ * Orders with no entry in the map keep their base values untouched. That covers both
+ * legacy docs written before the split (which still carry real numbers) and unstamped
+ * partial mirrors, which loadMoneyByOrderId's `ownerId` filter already excludes.
  */
 export function withMoney(
   orders: OrderScanDoc[],
@@ -97,12 +114,6 @@ export function withMoney(
   return orders.map((o) => {
     const m = byOrderId.get(o.id);
     if (!m) return o;
-    return {
-      ...o,
-      totalPrice: m.totalPrice || o.totalPrice,
-      discount: m.discount || o.discount,
-      payments: m.payments.length > 0 ? m.payments : o.payments,
-      costs: m.costs.length > 0 ? m.costs : o.costs,
-    };
+    return { ...o, totalPrice: m.totalPrice, discount: m.discount, payments: m.payments, costs: m.costs };
   });
 }

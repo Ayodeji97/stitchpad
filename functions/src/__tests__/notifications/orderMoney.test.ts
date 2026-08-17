@@ -1,4 +1,4 @@
-import { moneyFromDoc, withMoney } from '../../notifications/orderMoney';
+import { isStampedMoney, moneyFromDoc, withMoney } from '../../notifications/orderMoney';
 import { OrderScanDoc } from '../../notifications/types';
 import { balanceRemaining } from '../../notifications/digestDetector';
 
@@ -77,12 +77,25 @@ describe('withMoney', () => {
     expect(balanceRemaining(result)).toBe(5000);
   });
 
-  it('keeps the base values when the mirror is present but empty', () => {
+  // A STAMPED mirror is authoritative and replaces outright. The previous truthiness
+  // fallback (`m.totalPrice || o.totalPrice`) resurrected stale base money the moment a
+  // tailor legitimately corrected a price to zero or removed a payment — and the digest
+  // would then chase money on a settled order.
+  it('lets an authoritative zero win instead of resurrecting stale base money', () => {
     const legacy = order({ totalPrice: 8000, payments: [{ amount: 3000 }] });
     const merged = withMoney([legacy], new Map([['o1', {
       totalPrice: 0, discount: 0, payments: [], costs: [],
     }]]))[0];
-    expect(balanceRemaining(merged)).toBe(5000);
+    expect(merged.totalPrice).toBe(0);
+    expect(balanceRemaining(merged)).toBe(0);
+  });
+
+  it('lets removed payments win rather than falling back to stale base payments', () => {
+    const legacy = order({ totalPrice: 8000, payments: [{ amount: 8000 }] });
+    const merged = withMoney([legacy], new Map([['o1', {
+      totalPrice: 8000, discount: 0, payments: [], costs: [],
+    }]]))[0];
+    expect(balanceRemaining(merged)).toBe(8000);
   });
 
   it('maps each order to its own money and ignores unrelated entries', () => {
@@ -95,5 +108,21 @@ describe('withMoney', () => {
     );
     expect(balanceRemaining(merged[0])).toBe(1000);
     expect(balanceRemaining(merged[1])).toBe(0);
+  });
+});
+
+describe('isStampedMoney — the completeness sentinel', () => {
+  // recordPayment and updateCosts deliberately leave ownerId off a partial mirror.
+  // Treating one as authoritative zeroes totalPrice and silences the very notification
+  // this module restores — and makes the digest and onOrderCollectible disagree.
+  it('is false for a partial mirror written by a payment-only update', () => {
+    expect(isStampedMoney({ payments: [{ amount: 3000 }] })).toBe(false);
+    expect(isStampedMoney({ ownerId: '', payments: [] })).toBe(false);
+    expect(isStampedMoney({ ownerId: '   ' })).toBe(false);
+    expect(isStampedMoney(undefined)).toBe(false);
+  });
+
+  it('is true only for a full, stamped mirror', () => {
+    expect(isStampedMoney({ ownerId: 'uid-1', orderId: 'o1', totalPrice: 15000 })).toBe(true);
   });
 });

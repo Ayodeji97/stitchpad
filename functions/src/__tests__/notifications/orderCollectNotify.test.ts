@@ -76,3 +76,18 @@ describe('collectibleTransition — legacy orders with no money mirror', () => {
     expect(collectibleTransition({ status: 'IN_PROGRESS' }, after)?.amount).toBe(10000);
   });
 });
+
+describe('collectibleTransition — unstamped partial mirrors must not suppress', () => {
+  // RELEASE BLOCKER regression: a legacy order with base totalPrice 8000 and a
+  // payments-only mirror (no ownerId, no totalPrice). Merging that mirror would zero
+  // the price, compute no balance, and silently send nothing — the exact notification
+  // the money fix set out to restore.
+  it('still fires from base money when the mirror is unstamped', () => {
+    const base = {
+      status: 'READY', customerName: 'Folake', items: [],
+      totalPrice: 8000, payments: [{ amount: 3000 }],
+    };
+    // The handler passes the base doc through unchanged for an unstamped mirror.
+    expect(collectibleTransition({ status: 'IN_PROGRESS' }, base)?.amount).toBe(5000);
+  });
+});

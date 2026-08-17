@@ -57,9 +57,16 @@ function productionDigestIO(apiKey: string): DigestIO {
   const db = admin.firestore();
   return {
     async listRecipients(): Promise<DigestRecipient[]> {
-      // Scale path: V1 does one users.get() + a serial admin.auth().getUser(uid)
-      // per user (N+1). Before going much beyond ~50 users, switch to
-      // admin.auth().listUsers() pagination + a uid→email map to drop the N+1.
+      // Scale path: one users.get() + a serial admin.auth().getUser(uid) per user
+      // (N+1), then serial per-user work (orders, money, FCM, Resend).
+      //
+      // Measured 2026-08-17 at 109 production users: ~0.5s per workshop with orders,
+      // so a full run sits comfortably inside the 540s timeout set on this function.
+      // The failure mode past roughly 400-700 users is nasty and silent: Firestore
+      // returns users in stable doc-id order, so the SAME tail is truncated every
+      // morning, forever, with no symptom beyond a missing "run complete" log line.
+      // Before then, switch to admin.auth().listUsers() pagination + a uid->email map
+      // and bounded concurrency. Watch the `considered` count in the run log.
       const usersSnap = await db.collection('users').get();
       const recipients: DigestRecipient[] = [];
       for (const doc of usersSnap.docs) {

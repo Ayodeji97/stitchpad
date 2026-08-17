@@ -3,12 +3,11 @@ import * as admin from 'firebase-admin';
 import { balanceRemaining, summariseGarments } from './digestDetector';
 import {
   DAILY_REMINDERS_CHANNEL_ID,
-  DAILY_REMINDER_NOTIFICATION_TAG,
   deletePushTokens,
   loadPushTokens,
   sendMulticast,
 } from './fcm';
-import { moneyFromDoc } from './orderMoney';
+import { isStampedMoney, moneyFromDoc } from './orderMoney';
 import { isDigestAllowed } from './rollout';
 
 const REGION = 'europe-west1';
@@ -85,11 +84,16 @@ export const onOrderCollectible = functions
     const moneySnap = await admin.firestore()
       .doc(`users/${uid}/orders/${orderId}/private/money`).get()
       .catch(() => null);
-    // Spread money ONLY when a mirror exists. moneyFromDoc(undefined) is all zeroes,
-    // and spreading that second would wipe the base doc's real values — silencing the
-    // trigger for every legacy order that predates the mirror.
-    const afterWithMoney = moneySnap?.exists
-      ? { ...change.after.data(), ...moneyFromDoc(moneySnap.data()) }
+    // Merge ONLY a STAMPED mirror — the same completeness sentinel the digest's
+    // collection-group query applies, and the same rule the client uses. Merely
+    // existing is not enough: an unstamped partial mirror (payments only, written by
+    // recordPayment on a legacy order) carries no totalPrice, so spreading it would
+    // zero the base doc's real price and silence this trigger for exactly the orders
+    // it is meant to catch. Without the sentinel the digest and this trigger would
+    // also disagree about the same order.
+    const money = moneySnap?.data();
+    const afterWithMoney = isStampedMoney(money)
+      ? { ...change.after.data(), ...moneyFromDoc(money) }
       : change.after.data();
 
     const n = collectibleTransition(change.before.data(), afterWithMoney);
@@ -157,7 +161,13 @@ export const onOrderCollectible = functions
           body,
           data: { target: 'order', orderId },
           androidChannelId: DAILY_REMINDERS_CHANNEL_ID,
-          androidTag: DAILY_REMINDER_NOTIFICATION_TAG,
+          // Per-ORDER tag. Sharing the digest's tag meant Android's background
+          // auto-display replaced one collectible order with the next — and the digest
+          // replaced both — so an owner could simply never learn order A was ready.
+          // The foreground path already separates these by notification id; this makes
+          // the background path agree. Same order re-notifying still replaces, which is
+          // what you want.
+          androidTag: `stitchpad_order_${orderId}`,
         },
         'order-collect push',
       );
