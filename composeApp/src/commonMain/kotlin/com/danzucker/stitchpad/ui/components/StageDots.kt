@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
@@ -35,7 +36,22 @@ fun stageProgressDescription(stage: PipelineStage): String = stringResource(
     PipelineStage.entries.size,
 )
 
-/** `●●●○○` — done = primary, current = saffron, upcoming = neutral. */
+/**
+ * The one stage-progress colour rule, shared by every surface that paints the
+ * pipeline: these dots, the staff dashboard's hero stepper segments, and the stage
+ * sheet's rows. Done = primary (indigo), current = saffron500 (the heritage
+ * accent's sanctioned non-text use), upcoming = neutral outlineVariant.
+ *
+ * [done] and [current] are mutually exclusive; [done] wins if both are passed.
+ */
+@Composable
+fun stageIndicatorColor(done: Boolean, current: Boolean): Color = when {
+    done -> MaterialTheme.colorScheme.primary
+    current -> DesignTokens.saffron500
+    else -> MaterialTheme.colorScheme.outlineVariant
+}
+
+/** `●●●○○` — see [stageIndicatorColor] for the colour rule. */
 @Composable
 fun StageDots(stage: PipelineStage, modifier: Modifier = Modifier) {
     val progressDescription = stageProgressDescription(stage)
@@ -45,11 +61,7 @@ fun StageDots(stage: PipelineStage, modifier: Modifier = Modifier) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         PipelineStage.entries.forEach { s ->
-            val color = when {
-                s.ordinal < stage.ordinal -> MaterialTheme.colorScheme.primary
-                s == stage -> DesignTokens.saffron500
-                else -> MaterialTheme.colorScheme.outlineVariant
-            }
+            val color = stageIndicatorColor(done = s.ordinal < stage.ordinal, current = s == stage)
             Box(Modifier.size(6.dp).clip(CircleShape).background(color))
         }
     }

@@ -786,6 +786,140 @@ class DashboardViewModelTest {
         assertNull(orderRepository.lastStatusUpdate)
     }
 
+    // Pre-merge review wave (2026-08-16): the undo snackbar fires as soon as the
+    // advance's writes commit, which in production usually beats the order listener's
+    // echo. In that window handleSetStage's re-entrancy + stale guards both see the
+    // PRE-advance world and used to swallow the undo entirely. The exact-undo
+    // signature (advancingOrders[orderId] == toStage) bypasses both.
+    @Test
+    fun undoIsHonouredWhileTheListenerEchoStillLags() = runTest {
+        signIn()
+        becomeActiveStaff()
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "order-1", status = OrderStatus.IN_PROGRESS, deadline = null)
+                .copy(subStatus = OrderSubStatus.FITTING, assignedMemberId = "staff-uid"),
+        )
+        val silent = NonEchoingOrderRepository(orderRepository)
+        val vm = createViewModel(orderRepository = silent)
+
+        vm.onAction(DashboardAction.OnAdvanceStage("order-1", PipelineStage.FITTING))
+
+        // No echo: the advance's in-flight entry is still recorded and the stage map
+        // still reports FITTING — exactly the state the undo tap lands in.
+        assertEquals(mapOf("order-1" to PipelineStage.FITTING), vm.state.value.advancingOrders)
+        assertEquals(listOf("order-1" to OrderStatus.READY), silent.statusWrites)
+
+        vm.onAction(
+            DashboardAction.OnSetStage("order-1", fromStage = PipelineStage.READY, toStage = PipelineStage.FITTING),
+        )
+
+        assertEquals(
+            listOf("order-1" to OrderStatus.READY, "order-1" to OrderStatus.IN_PROGRESS),
+            silent.statusWrites,
+        )
+        assertEquals(listOf("order-1" to OrderSubStatus.FITTING), silent.subStatusWrites)
+        // The entry is REPLACED with the undo's own fromStage so the pruning pass can
+        // still self-heal it once the echo finally arrives.
+        assertEquals(mapOf("order-1" to PipelineStage.READY), vm.state.value.advancingOrders)
+    }
+
+    @Test
+    fun duplicateForwardAdvanceIsStillBlockedWhileTheEchoLags() = runTest {
+        // The undo bypass must not weaken the re-entrancy guard: a duplicate FORWARD
+        // tap has toStage != the recorded fromStage, so it stays fully guarded.
+        signIn()
+        becomeActiveStaff()
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "order-1", status = OrderStatus.IN_PROGRESS, deadline = null)
+                .copy(subStatus = OrderSubStatus.FITTING, assignedMemberId = "staff-uid"),
+        )
+        val silent = NonEchoingOrderRepository(orderRepository)
+        val vm = createViewModel(orderRepository = silent)
+
+        vm.onAction(DashboardAction.OnAdvanceStage("order-1", PipelineStage.FITTING))
+        vm.onAction(DashboardAction.OnAdvanceStage("order-1", PipelineStage.FITTING))
+
+        assertEquals(listOf("order-1" to OrderStatus.READY), silent.statusWrites)
+    }
+
+    /**
+     * Records stage writes but never echoes them back through the orders flow —
+     * reproduces the listener lag the undo snackbar races.
+     */
+    private class NonEchoingOrderRepository(
+        delegate: OrderRepository,
+    ) : OrderRepository by delegate {
+        val statusWrites = mutableListOf<Pair<String, OrderStatus>>()
+        val subStatusWrites = mutableListOf<Pair<String, OrderSubStatus>>()
+
+        override suspend fun updateOrderStatus(
+            userId: String,
+            orderId: String,
+            newStatus: OrderStatus,
+        ): EmptyResult<DataError.Network> {
+            statusWrites += orderId to newStatus
+            return Result.Success(Unit)
+        }
+
+        override suspend fun updateSubStatus(
+            userId: String,
+            orderId: String,
+            subStatus: OrderSubStatus?,
+        ): EmptyResult<DataError.Network> {
+            subStatus?.let { subStatusWrites += orderId to it }
+            return Result.Success(Unit)
+        }
+    }
+
+    // Pre-merge review wave (2026-08-16): stranded-sheet cleanup moved out of the
+    // composable's LaunchedEffect and into updateStaffState's pruning pass.
+
+    @Test
+    fun stageSheetStaysOpenWhenItsOrderReachesReady() = runTest {
+        signIn()
+        becomeActiveStaff()
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "order-1", status = OrderStatus.IN_PROGRESS, deadline = null)
+                .copy(subStatus = OrderSubStatus.FITTING, assignedMemberId = "staff-uid"),
+        )
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnStageStepperClick("order-1"))
+
+        // A teammate moves it to READY. It leaves staffOpenQueue but is still a live,
+        // staff-visible order — Decision 2B lets staff move it back, so the sheet must
+        // NOT be force-closed under the user.
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "order-1", status = OrderStatus.READY, deadline = null)
+                .copy(assignedMemberId = "staff-uid"),
+        )
+        runCurrent()
+
+        assertTrue(vm.state.value.staffOpenQueue.none { it.orderId == "order-1" })
+        assertEquals("order-1", vm.state.value.stageSheetOrderId)
+    }
+
+    @Test
+    fun stageSheetIdClearsWhenItsOrderLeavesTheStaffSetEntirely() = runTest {
+        signIn()
+        becomeActiveStaff()
+        orderRepository.ordersList = listOf(
+            fakeOrder(id = "order-1", status = OrderStatus.IN_PROGRESS, deadline = null)
+                .copy(subStatus = OrderSubStatus.FITTING, assignedMemberId = "staff-uid"),
+            fakeOrder(id = "order-2", status = OrderStatus.IN_PROGRESS, deadline = null)
+                .copy(subStatus = OrderSubStatus.CUTTING, assignedMemberId = "staff-uid"),
+        )
+        val vm = createViewModel()
+        vm.onAction(DashboardAction.OnStageStepperClick("order-1"))
+
+        // The order vanishes from the staff set (delivered / moved out of this
+        // workshop). Nothing in the UI can clear the id — OnStageStepperClick is a
+        // toggle onto the same id, not a re-open — so the VM must prune it.
+        orderRepository.ordersList = orderRepository.ordersList.filter { it.id != "order-1" }
+        runCurrent()
+
+        assertNull(vm.state.value.stageSheetOrderId)
+    }
+
     // Task 1 (staff phase2 assignment): kill-switch / revocation must bite mid-session —
     // loadData's combine must not stay pinned to the workshop/role it started on.
     @Test

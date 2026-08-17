@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.feature.dashboard.domain.model.PipelineStage
+import com.danzucker.stitchpad.ui.components.stageIndicatorColor
 import com.danzucker.stitchpad.ui.components.stageLabelRes
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.JetBrainsMonoFamily
@@ -55,7 +56,8 @@ private val STAGE_ROW_DOT_SIZE = 10.dp
  * ViewModel's stale/re-entrancy guards then no-op the write (see
  * [com.danzucker.stitchpad.feature.dashboard.presentation.DashboardViewModel.handleSetStage]).
  *
- * Colour rule mirrors [StageDots] exactly: done = primary dot (+ a checkmark
+ * Colour rule comes from the shared
+ * [com.danzucker.stitchpad.ui.components.stageIndicatorColor]: done = primary dot (+ a checkmark
  * so "already past this stage" reads without relying on colour alone),
  * current = saffron dot with a `primaryContainer` highlight + border (the
  * heritage accent's one sanctioned non-text use on this screen), upcoming =
@@ -133,11 +135,7 @@ private fun StageSheetRow(
 ) {
     val isCurrent = stage == currentStage
     val isDone = stage.ordinal < currentStage.ordinal
-    val dotColor = when {
-        isDone -> MaterialTheme.colorScheme.primary
-        isCurrent -> DesignTokens.saffron500
-        else -> MaterialTheme.colorScheme.outlineVariant
-    }
+    val dotColor = stageIndicatorColor(done = isDone, current = isCurrent)
     Surface(
         shape = RoundedCornerShape(DesignTokens.radiusMd),
         color = if (isCurrent) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,

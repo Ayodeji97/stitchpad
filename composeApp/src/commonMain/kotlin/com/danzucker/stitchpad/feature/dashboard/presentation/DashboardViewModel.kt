@@ -365,6 +365,16 @@ class DashboardViewModel(
      *     no-op rather than moving from a state the caller wasn't actually
      *     looking at.
      *
+     * Guards 2 and 3 are both SKIPPED for the exact-undo signature
+     * (`advancingOrders[orderId] == toStage`). Undo is offered the instant the
+     * advance's writes commit, which is typically before the order listener echoes
+     * them back — so in that window the advance's own entry is still in
+     * `advancingOrders` and `staffStageByOrderId` still reports the pre-advance stage.
+     * Both guards would then silently swallow a legitimate undo. The signature is
+     * only reachable from that advance's own snackbar, so the server state is known;
+     * a duplicate forward tap never matches it (its toStage is the NEXT stage, not the
+     * recorded fromStage) and stays fully guarded.
+     *
      * No optimistic stage change: the in-flight flag only disables the CTA.
      * The visible stage updates when the order listener's next tick echoes it
      * (see `updateStaffState`'s pruning of stale `advancingOrders` entries),
@@ -390,9 +400,22 @@ class DashboardViewModel(
         _state.update { it.copy(stageSheetOrderId = null) }
         if (toStage == fromStage) return
         val current = _state.value
-        if (current.advancingOrders.containsKey(orderId)) return
-        val liveStage = current.staffStageByOrderId[orderId]
-        if (liveStage != fromStage) return
+        // Exact-undo signature: the recorded fromStage of the advance still in
+        // advancingOrders equals THIS request's toStage — i.e. "put it back where that
+        // advance took it from". Only the undo snackbar (emitted after both of that
+        // advance's writes committed) can produce it, so the server state is known and
+        // both guards below would be false negatives: the entry is still there because
+        // the listener echo hasn't arrived, and staffStageByOrderId still shows the
+        // pre-advance stage for the same reason. A duplicate ADVANCE tap can't fake
+        // this — its toStage is the stage ahead, never the recorded fromStage.
+        val isExactUndo = current.advancingOrders[orderId] == toStage
+        if (!isExactUndo) {
+            if (current.advancingOrders.containsKey(orderId)) return
+            val liveStage = current.staffStageByOrderId[orderId]
+            if (liveStage != fromStage) return
+        }
+        // Replaces any existing entry with this call's fromStage, so the pruning pass in
+        // updateStaffState still self-heals the flag for the undo write too.
         _state.update { it.copy(advancingOrders = it.advancingOrders + (orderId to fromStage)) }
         viewModelScope.launch {
             val userId = activeWorkshopProvider.workshopUidOrNull() ?: run {
@@ -799,6 +822,16 @@ class DashboardViewModel(
         val prunedAdvancing = _state.value.advancingOrders.filter { (orderId, fromStage) ->
             staffStageByOrderId[orderId] == fromStage
         }
+        // Same self-healing pass for the open stage sheet: an id that no longer names a
+        // staff-visible order (delivered, reassigned out of this workshop, listener
+        // dropped it) can never be cleared by the UI — OnStageStepperClick is a toggle
+        // onto the SAME id, not a re-open — so it would stay stranded forever. Keyed off
+        // the UNION map, not staffOpenQueue: an order merely ticking to READY while its
+        // sheet is open must NOT force-close it (Decision 2B lets staff move a READY
+        // order back), and BucketCalculator filters READY out of openQueue. Only a fully
+        // vanished order clears the sheet.
+        val prunedStageSheetOrderId = _state.value.stageSheetOrderId
+            ?.takeIf { staffStageByOrderId.containsKey(it) }
         val staffOpenQueue = buckets.openQueue.map { row -> row.moneyFree() }
         // Business logic lives here, not in the composable (CLAUDE.md) — the
         // hero/then/shop-queue split is computed once per tick and handed to the
@@ -826,6 +859,7 @@ class DashboardViewModel(
                 staffStageByOrderId = staffStageByOrderId,
                 focusQueue = focusQueue,
                 advancingOrders = prunedAdvancing,
+                stageSheetOrderId = prunedStageSheetOrderId,
                 // Only a genuine NEW listener error overwrites errorMessage. A Success
                 // tick must not silently wipe an action error (e.g. staff_advance_stage_error,
                 // set moments earlier by handleAdvanceStage) that the UI hasn't shown/

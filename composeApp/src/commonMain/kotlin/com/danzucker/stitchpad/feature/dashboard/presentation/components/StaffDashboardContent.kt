@@ -32,7 +32,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -62,6 +61,7 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.DashboardState
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.components.StageDots
 import com.danzucker.stitchpad.ui.components.StitchPadButton
+import com.danzucker.stitchpad.ui.components.stageIndicatorColor
 import com.danzucker.stitchpad.ui.components.stageLabel
 import com.danzucker.stitchpad.ui.components.stageProgressDescription
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -188,17 +188,6 @@ fun StaffDashboardContent(
     // dropping out of the queue entirely while the sheet is open — no crash, sheet
     // just stops rendering (state.stageSheetOrderId still closes normally on dismiss).
     val sheetRow = state.staffOpenQueue.firstOrNull { it.orderId == state.stageSheetOrderId }
-    // If the sheet's id is set but can't be resolved to a row/stage (e.g. the
-    // order left staffOpenQueue — reached READY — while the sheet was open), the
-    // block below simply stops rendering. Without this effect the id would stay
-    // stranded in state: OnStageStepperClick can't be re-dispatched for the same
-    // id (it's a toggle onto the SAME sheet, not a re-open), so nothing would ever
-    // clear it. Dispatch the dismissal explicitly instead.
-    LaunchedEffect(state.stageSheetOrderId, sheetRow?.stage) {
-        if (state.stageSheetOrderId != null && sheetRow?.stage == null) {
-            onAction(DashboardAction.OnDismissStageSheet)
-        }
-    }
     sheetRow?.stage?.let { current ->
         StageSheet(
             currentStage = current,
@@ -474,9 +463,9 @@ private fun StageLegendItem(stage: StageLegend, modifier: Modifier = Modifier) {
 /**
  * The "Up next" hero + "Then" queue + "rest of the shop" queue sections. When
  * [FocusQueue.hero] is null the viewer has no assigned open orders — renders
- * [StaffAllCaughtUp] in its place, but the shop queue (if any) still renders
- * below it (per the design spec: "the existing StaffAllCaughtUp shows above
- * the shop queue").
+ * [StaffAllCaughtUp] in its place (under the same "Up next" header + My-work link),
+ * but the shop queue (if any) still renders below it (per the design spec: "the
+ * existing StaffAllCaughtUp shows above the shop queue").
  */
 @Composable
 private fun StaffFocusQueueSection(
@@ -488,36 +477,42 @@ private fun StaffFocusQueueSection(
     onAction: (DashboardAction) -> Unit,
 ) {
     val hero = focusQueue.hero
-    if (hero != null) {
-        Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space3)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                FocusSectionHeader(stringResource(Res.string.staff_up_next_header))
-                if (mineCount > 0) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .clickable(onClick = { onAction(DashboardAction.OnViewMyWorkClick) }, role = Role.Button)
-                            .minimumInteractiveComponentSize(),
-                    ) {
-                        Text(
-                            text = stringResource(Res.string.staff_my_work_link, mineCount),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(14.dp),
-                        )
-                    }
+    // The header row is OUTSIDE the hero/empty branch on purpose. "My work · N" is the
+    // only route to the viewer's assigned-orders list, and the two counts don't move
+    // together: [mineCount] counts every order assigned to the viewer, while `hero` only
+    // covers the ACTIONABLE ones (computeFocusQueue drops READY). A staffer whose assigned
+    // orders have all reached READY therefore has mineCount > 0 with hero == null — and
+    // used to lose the link entirely at exactly the moment they'd want to review them.
+    Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space3)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            FocusSectionHeader(stringResource(Res.string.staff_up_next_header))
+            if (mineCount > 0) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clickable(onClick = { onAction(DashboardAction.OnViewMyWorkClick) }, role = Role.Button)
+                        .minimumInteractiveComponentSize(),
+                ) {
+                    Text(
+                        text = stringResource(Res.string.staff_my_work_link, mineCount),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(14.dp),
+                    )
                 }
             }
+        }
+        if (hero != null) {
             UpNextHero(
                 row = hero,
                 today = today,
@@ -527,23 +522,24 @@ private fun StaffFocusQueueSection(
                 onClick = { onAction(DashboardAction.OnOrderClick(hero.orderId)) },
                 onStepperClick = { onAction(DashboardAction.OnStageStepperClick(hero.orderId)) },
             )
+        } else {
+            StaffAllCaughtUp()
         }
-        if (focusQueue.thenQueue.isNotEmpty()) {
-            Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
-                FocusSectionHeader(stringResource(Res.string.staff_then_header))
-                focusQueue.thenQueue.forEach { row ->
-                    TicketRow(
-                        row = row,
-                        today = today,
-                        viewerMemberId = viewerMemberId,
-                        dimmed = false,
-                        onClick = { onAction(DashboardAction.OnOrderClick(row.orderId)) },
-                    )
-                }
+    }
+    // thenQueue is `viewerRows.drop(1)` — always empty when there is no hero.
+    if (focusQueue.thenQueue.isNotEmpty()) {
+        Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
+            FocusSectionHeader(stringResource(Res.string.staff_then_header))
+            focusQueue.thenQueue.forEach { row ->
+                TicketRow(
+                    row = row,
+                    today = today,
+                    viewerMemberId = viewerMemberId,
+                    dimmed = false,
+                    onClick = { onAction(DashboardAction.OnOrderClick(row.orderId)) },
+                )
             }
         }
-    } else {
-        StaffAllCaughtUp()
     }
     if (focusQueue.shopQueue.isNotEmpty()) {
         Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
@@ -744,11 +740,7 @@ private fun HeroStageStepper(stage: PipelineStage) {
 
 @Composable
 private fun HeroStepSegment(done: Boolean, current: Boolean, modifier: Modifier = Modifier) {
-    val color = when {
-        done -> MaterialTheme.colorScheme.primary
-        current -> DesignTokens.saffron500
-        else -> MaterialTheme.colorScheme.outlineVariant
-    }
+    val color = stageIndicatorColor(done = done, current = current)
     val shape = RoundedCornerShape(DesignTokens.radiusFull)
     Box(
         modifier = modifier
