@@ -44,13 +44,13 @@ const CAMPAIGNS = {
     target: 'dashboard',
   },
   no_order: {
-    title: 'Turn that into an order',
-    body: 'Log your first order and StitchPad tracks the deadline for you.',
+    title: 'What are you sewing now?',
+    body: 'Log it as an order and StitchPad tracks the deadline for you.',
     target: 'dashboard',
   },
   busy_no_team: {
-    title: "You're running a full shop",
-    body: 'Did you know you can invite your tailors and assign orders to them?',
+    title: 'Do you have staff?',
+    body: 'Add them to StitchPad and assign orders, so you can see who is on what.',
     target: 'dashboard',
   },
   quiet: {
@@ -59,8 +59,8 @@ const CAMPAIGNS = {
     target: 'to_collect',
   },
   no_referral: {
-    title: 'Founding Tailors',
-    body: 'Invite a tailor friend. Top 3 each month win a free StitchPad shirt.',
+    title: 'Know another tailor?',
+    body: 'Invite them. Top 3 each month win a free StitchPad shirt.',
     target: 'founding_tailors',
   },
 };

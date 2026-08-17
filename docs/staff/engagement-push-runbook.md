@@ -18,9 +18,9 @@ staff accounts.
 |---|---|---|---|
 | 1 | `no_customer` | 0 customers | Add your first customer |
 | 2 | `no_order` | has customers, 0 orders | Turn a customer into an order |
-| 3 | `busy_no_team` | >= 10 orders, 0 active staff | You can invite your tailors |
+| 3 | `busy_no_team` | >= 10 orders, 0 active staff | Add your staff and assign orders |
 | 4 | `quiet` | activated, but nothing due/overdue/owed today | Add this week's jobs |
-| 5 | `no_referral` | activated, never minted a referral link | Founding Tailors invite |
+| 5 | `no_referral` | activated, never minted a referral link | Invite a tailor, win a shirt |
 | 6 | `all` | everyone — always the last link in the chain | Announcements |
 
 `quiet` deliberately outranks `no_referral`: a message about the tailor's own work
@@ -93,8 +93,8 @@ doc is the easiest way to silently send nothing.
     {
       "id": "2026-08-first-order",
       "segment": "no_order",
-      "title": "Turn that into an order",
-      "body": "Log your first order and StitchPad tracks the deadline for you.",
+      "title": "What are you sewing now?",
+      "body": "Log it as an order and StitchPad tracks the deadline for you.",
       "target": "inbox",
       "priority": 0,
       "maxSendsPerUser": 3
@@ -102,8 +102,8 @@ doc is the easiest way to silently send nothing.
     {
       "id": "2026-08-team-discovery",
       "segment": "busy_no_team",
-      "title": "You're running a full shop",
-      "body": "Did you know you can invite your tailors and assign orders to them?",
+      "title": "Do you have staff?",
+      "body": "Add them to StitchPad and assign orders, so you can see who is on what.",
       "target": "inbox",
       "priority": 0,
       "maxSendsPerUser": 2
@@ -111,8 +111,8 @@ doc is the easiest way to silently send nothing.
     {
       "id": "2026-08-founding-tailors",
       "segment": "no_referral",
-      "title": "Founding Tailors",
-      "body": "Invite a tailor friend. Top 3 each month win a free StitchPad shirt.",
+      "title": "Know another tailor?",
+      "body": "Invite them. Top 3 each month win a free StitchPad shirt.",
       "target": "inbox",
       "priority": 0,
       "maxSendsPerUser": 2

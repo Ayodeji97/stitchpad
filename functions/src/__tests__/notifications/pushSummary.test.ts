@@ -11,8 +11,19 @@ const model = (over: Partial<DigestModel> = {}): DigestModel =>
   ({ overdue: [], dueSoon: [], outstanding: [], ...over });
 
 describe('pushSummary', () => {
-  it('uses a fixed title', () => {
-    expect(pushSummary(model({ overdue: [item('Folake', 'Asoebi')] })).title).toBe('StitchPad');
+  // The title used to be the literal "StitchPad", which both platforms already show as
+  // the app name — so it read "StitchPad · StitchPad · Folake's Asoebi is overdue".
+  // It now carries the counts, which is the line that earns the open.
+  it('puts the counts in the title, omitting empty buckets', () => {
+    expect(pushSummary(model({ overdue: [item('Folake', 'Asoebi')] })).title)
+      .toBe('1 overdue');
+    expect(pushSummary(model({
+      overdue: [item('Folake', 'Asoebi'), item('Bola', 'Agbada')],
+      dueSoon: [item('Aina', 'Buba')],
+      outstanding: [item('Ngozi', 'Shirt', { amount: 18000 })],
+    })).title).toBe('2 overdue · 1 due soon · 1 to collect');
+    expect(pushSummary(model({ outstanding: [item('Ngozi', 'Shirt', { amount: 18000 })] })).title)
+      .toBe('1 to collect');
   });
 
   it('leads with the single overdue item, no tail', () => {
@@ -20,13 +31,15 @@ describe('pushSummary', () => {
       .toBe('Folake\'s Asoebi is overdue');
   });
 
-  it('prioritises overdue over due-soon and outstanding for the lead, and counts the rest', () => {
+  // The body is the single most urgent item and nothing else — the totals live in the
+  // title now, so the old "+N more need attention" tail would only repeat them.
+  it('prioritises overdue over due-soon and outstanding for the lead', () => {
     const m = model({
       overdue: [item('Folake', 'Asoebi')],
       dueSoon: [item('Aina', 'Buba')],
       outstanding: [item('Ngozi', 'Shirt', { amount: 18000 })],
     });
-    expect(pushSummary(m).body).toBe('Folake\'s Asoebi is overdue + 2 more need attention');
+    expect(pushSummary(m).body).toBe('Folake\'s Asoebi is overdue');
   });
 
   it('falls back to due-soon when no overdue', () => {
@@ -46,6 +59,6 @@ describe('pushSummary', () => {
         item('Chidi', 'Kaftan', { amount: 5000, isOverdue: true }),
       ],
     });
-    expect(pushSummary(m).body).toBe('Chidi owes ₦5,000 + 1 more need attention');
+    expect(pushSummary(m).body).toBe('Chidi owes ₦5,000');
   });
 });
