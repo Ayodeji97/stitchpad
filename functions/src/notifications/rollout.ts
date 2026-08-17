@@ -1,10 +1,23 @@
 /**
- * Staged rollout gate. While STAGING is true the digest only sends to the
- * allowlisted test accounts — a single detector bug must not email every
- * tester a wrong digest. Flip STAGING to false (one line) to open to all users
- * once verified against real mornings. See the design spec "Rollout" section.
+ * Staged rollout gate for the DAILY DIGEST (email + push) and the
+ * order-collect push. Opened to all users on 2026-08-17 after the digest ran
+ * against real Lagos mornings for the allowlist below since the 2026-08-10
+ * smoke PASS.
+ *
+ * Typed as `boolean` rather than letting TS narrow to the literal `false`, so
+ * both branches stay reachable and flipping this back is a genuine one-liner.
+ *
+ * NOTE: this gates `sendEmail` too (see runDailyDigest.ts) — not just push.
  */
-const STAGING = true;
+const STAGING: boolean = false;
+
+/**
+ * Independent gate for the ENGAGEMENT PUSH (see engagementPush.ts). Deliberately
+ * separate from STAGING: the digest is proven and open to everyone, while the
+ * brand-new twice-weekly nudge stays on the allowlist until it has been watched
+ * through a couple of real Tuesdays. Two features, two blast radii, two flips.
+ */
+const ENGAGEMENT_STAGING: boolean = true;
 
 // Test-account emails (lower-cased). Daniel's Gmail +aliases deliver to his
 // inbox while being distinct Firebase Auth addresses — so digests are visible
@@ -57,5 +70,14 @@ export function isDigestTester(email: string): boolean {
 
 export function isDigestAllowed(_uid: string, email: string): boolean {
   if (!STAGING) return true;
+  return isDigestTester(email);
+}
+
+/**
+ * Engagement-push gate. Same allowlist, its own staging flag — so opening the
+ * digest to everyone does not also open the nudge.
+ */
+export function isEngagementAllowed(_uid: string, email: string): boolean {
+  if (!ENGAGEMENT_STAGING) return true;
   return isDigestTester(email);
 }
