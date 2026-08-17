@@ -55,3 +55,25 @@ fun iosOnPushToCollectTap() {
         KoinPlatform.getKoin().get<PendingDeepLinkHolder>().set(DeepLinkTarget.TO_COLLECT)
     }.onFailure { AppLogger.w { "iosOnPushToCollectTap failed: ${it.message}" } }
 }
+
+/**
+ * Called by Swift when the user taps an engagement push targeting the Founding Tailors
+ * referral screen (target: founding_tailors). MainScreen consumes it.
+ */
+fun iosOnPushFoundingTailorsTap() {
+    runCatching {
+        KoinPlatform.getKoin().get<PendingDeepLinkHolder>().set(DeepLinkTarget.FOUNDING_TAILORS)
+    }.onFailure { AppLogger.w { "iosOnPushFoundingTailorsTap failed: ${it.message}" } }
+}
+
+/**
+ * Called by Swift when the user taps an engagement push targeting the dashboard
+ * (target: dashboard). Opening the app already lands there, so MainScreen just consumes
+ * the target — but it still has to be SET, or the tap would fall through to `default`
+ * and the campaign would look untracked.
+ */
+fun iosOnPushDashboardTap() {
+    runCatching {
+        KoinPlatform.getKoin().get<PendingDeepLinkHolder>().set(DeepLinkTarget.DASHBOARD)
+    }.onFailure { AppLogger.w { "iosOnPushDashboardTap failed: ${it.message}" } }
+}

@@ -102,10 +102,10 @@ class UserMapperTest {
 
     @Test
     fun roundTripDtoToUserToDto() {
-        // dailyPushEnabled is nullable in the DTO; absent (null) maps to User's resolved Boolean,
-        // then toUserDto() writes it back as an explicit value — so round-trip produces explicit true
-        // (inherits dailyDigestEmailEnabled=true default) rather than null. We assert the resolved
-        // value is correct rather than strict DTO equality.
+        // dailyPushEnabled and announcementsPushEnabled are nullable in the DTO; absent (null)
+        // maps to User's resolved Boolean, then toUserDto() writes it back as an explicit value —
+        // so round-trip produces explicit true (both inherit dailyDigestEmailEnabled=true) rather
+        // than null. We assert the resolved values are correct rather than strict DTO equality.
         val original = UserDto(
             id = "uid-789",
             email = "test@test.com",
@@ -118,7 +118,7 @@ class UserMapperTest {
 
         val roundTripped = original.toUser().toUserDto()
 
-        assertEquals(original.copy(dailyPushEnabled = true), roundTripped)
+        assertEquals(original.copy(dailyPushEnabled = true, announcementsPushEnabled = true), roundTripped)
     }
 
     @Test
@@ -161,6 +161,31 @@ class UserMapperTest {
         assertFalse(UserDto(id = "u1", dailyDigestEmailEnabled = false).toUser().dailyPushEnabled)
         // explicit push wins over digest value
         assertTrue(UserDto(id = "u1", dailyPushEnabled = true, dailyDigestEmailEnabled = false).toUser().dailyPushEnabled)
+    }
+
+    @Test
+    fun announcementsPushEnabled_inheritsThroughBothOlderFlags() {
+        // Absent everywhere → default on.
+        assertTrue(UserDto(id = "u1").toUser().announcementsPushEnabled)
+        // An explicit announcements value always wins.
+        assertFalse(UserDto(id = "u1", announcementsPushEnabled = false).toUser().announcementsPushEnabled)
+        // No migration needed: a tailor who already opted out of daily push must not be
+        // silently opted into tips. Mirrors resolveAnnouncementsEnabled in engagementPush.ts.
+        assertFalse(UserDto(id = "u1", dailyPushEnabled = false).toUser().announcementsPushEnabled)
+        // Falls all the way through to the email digest preference.
+        assertFalse(UserDto(id = "u1", dailyDigestEmailEnabled = false).toUser().announcementsPushEnabled)
+        // Explicit announcements=true beats both older opt-outs.
+        assertTrue(
+            UserDto(
+                id = "u1",
+                announcementsPushEnabled = true,
+                dailyPushEnabled = false,
+                dailyDigestEmailEnabled = false,
+            ).toUser().announcementsPushEnabled,
+        )
+        // Muting tips must NOT mute the daily deadline reminder — the whole point of
+        // giving announcements their own field.
+        assertTrue(UserDto(id = "u1", announcementsPushEnabled = false).toUser().dailyPushEnabled)
     }
 
     @Test

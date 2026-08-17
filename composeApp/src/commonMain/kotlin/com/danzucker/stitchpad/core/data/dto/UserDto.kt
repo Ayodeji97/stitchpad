@@ -50,6 +50,13 @@ data class UserDto(
     val dailyDigestEmailEnabled: Boolean = true,
     @SerialName("dailyPushEnabled")
     val dailyPushEnabled: Boolean? = null,
+    /**
+     * Tips & announcements push (the engagement nudge). Nullable so an absent value
+     * can inherit the older preferences instead of needing a migration — see
+     * [com.danzucker.stitchpad.core.data.mapper.toUser].
+     */
+    @SerialName("announcementsPushEnabled")
+    val announcementsPushEnabled: Boolean? = null,
     @SerialName("referralCode")
     val referralCode: String? = null,
 )

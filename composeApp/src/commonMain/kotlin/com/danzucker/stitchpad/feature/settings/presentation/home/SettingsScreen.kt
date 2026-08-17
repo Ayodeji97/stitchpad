@@ -87,6 +87,7 @@ import stitchpad.composeapp.generated.resources.settings_receipt_image_dark
 import stitchpad.composeapp.generated.resources.settings_receipt_image_light
 import stitchpad.composeapp.generated.resources.settings_row_account_security
 import stitchpad.composeapp.generated.resources.settings_row_account_security_subtitle
+import stitchpad.composeapp.generated.resources.settings_row_announcements
 import stitchpad.composeapp.generated.resources.settings_row_appearance
 import stitchpad.composeapp.generated.resources.settings_row_change_password
 import stitchpad.composeapp.generated.resources.settings_row_community
@@ -376,6 +377,23 @@ private fun SettingsLandingLegacy(
                     )
                 },
             )
+            SettingsRowDivider()
+            // Separate from the daily reminder above on purpose: muting tips must not
+            // also mute deadline and money-owed alerts. Backed by its own Android
+            // channel (ANNOUNCEMENTS_CHANNEL_ID) and its own user-doc field.
+            SettingsRow(
+                icon = Icons.Outlined.Notifications,
+                label = stringResource(Res.string.settings_row_announcements),
+                onClick = {
+                    onAction(SettingsAction.OnAnnouncementsPushToggle(!state.announcementsPushEnabled))
+                },
+                trailing = {
+                    Switch(
+                        checked = state.announcementsPushEnabled,
+                        onCheckedChange = { onAction(SettingsAction.OnAnnouncementsPushToggle(it)) },
+                    )
+                },
+            )
         }
     }
 
@@ -646,6 +664,23 @@ private fun SettingsLandingHub(
                     Switch(
                         checked = state.dailyPushEnabled,
                         onCheckedChange = { onAction(SettingsAction.OnDailyPushToggle(it)) },
+                    )
+                },
+            )
+            SettingsRowDivider()
+            // Separate from the daily reminder above on purpose: muting tips must not
+            // also mute deadline and money-owed alerts. Backed by its own Android
+            // channel (ANNOUNCEMENTS_CHANNEL_ID) and its own user-doc field.
+            SettingsRow(
+                icon = Icons.Outlined.Notifications,
+                label = stringResource(Res.string.settings_row_announcements),
+                onClick = {
+                    onAction(SettingsAction.OnAnnouncementsPushToggle(!state.announcementsPushEnabled))
+                },
+                trailing = {
+                    Switch(
+                        checked = state.announcementsPushEnabled,
+                        onCheckedChange = { onAction(SettingsAction.OnAnnouncementsPushToggle(it)) },
                     )
                 },
             )

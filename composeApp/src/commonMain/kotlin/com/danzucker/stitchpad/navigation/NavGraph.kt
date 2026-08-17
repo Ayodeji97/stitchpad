@@ -185,6 +185,24 @@ private suspend fun resolvePostAuthDestination(
  * permissions. An UPGRADE email-link target is preserved across login (the account owner
  * asked to renew and must sign in to do so) and consumed once Home is reached.
  */
+/**
+ * Deep-link targets addressed to ONE specific tailor's account, dropped when the app is
+ * signed out. Routing them after a fresh sign-in could show whoever logs in next the
+ * previous user's inbox, order, or nudge — and a stale ORDER carries a prior user's
+ * orderId, which would fail under the new account's permissions.
+ *
+ * UPGRADE and CLAIM_GIFT are deliberately absent: those survive login because the user
+ * must sign in (or sign up) to act on them, which is exactly the gift flow for a brand-new
+ * tailor. JOIN_WORKSHOP has its own handling below.
+ */
+private val ACCOUNT_SCOPED_DEEP_LINKS = setOf(
+    DeepLinkTarget.INBOX,
+    DeepLinkTarget.ORDER,
+    DeepLinkTarget.TO_COLLECT,
+    DeepLinkTarget.DASHBOARD,
+    DeepLinkTarget.FOUNDING_TAILORS,
+)
+
 @Composable
 private fun PushDeepLinkRedirectEffect(navController: NavHostController) {
     val authRepository: AuthRepository = koinInject()
@@ -200,15 +218,7 @@ private fun PushDeepLinkRedirectEffect(navController: NavHostController) {
             // link is preserved across login: the user must sign in (or sign up) to
             // upgrade / claim, which is exactly the gift flow for a brand-new tailor.
             // Once Home is reached, MainRoot consumes it.
-            // Engagement-push targets (DASHBOARD / FOUNDING_TAILORS) drop for the same
-            // reason as INBOX: they are addressed to one specific tailor's account, so
-            // routing whoever signs in next would show them someone else's nudge.
-            if (pendingDeepLinkTarget == DeepLinkTarget.INBOX ||
-                pendingDeepLinkTarget == DeepLinkTarget.ORDER ||
-                pendingDeepLinkTarget == DeepLinkTarget.TO_COLLECT ||
-                pendingDeepLinkTarget == DeepLinkTarget.DASHBOARD ||
-                pendingDeepLinkTarget == DeepLinkTarget.FOUNDING_TAILORS
-            ) {
+            if (pendingDeepLinkTarget in ACCOUNT_SCOPED_DEEP_LINKS) {
                 pendingDeepLink.clear()
             }
             return@LaunchedEffect

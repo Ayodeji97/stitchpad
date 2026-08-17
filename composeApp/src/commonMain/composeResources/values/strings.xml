@@ -1473,6 +1473,7 @@
     <string name="settings_receipt_image_dark">Dark</string>
     <string name="settings_row_daily_digest">Daily summary email</string>
     <string name="settings_row_daily_push">Daily push reminder</string>
+    <string name="settings_row_announcements">Tips &amp; announcements</string>
     <string name="settings_theme_system">System default</string>
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>
