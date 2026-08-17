@@ -138,12 +138,12 @@ class OrderListViewModel(
             OrderListAction.OnDismissDeleteDialog -> {
                 _state.update { it.copy(showDeleteDialog = false, orderToDelete = null) }
             }
-            OrderListAction.OnToggleShowProfit -> {
-                // Slice 6c: profit is money — never expose it to active staff. The
-                // toggle control is hidden for them, but guard here too so the action
-                // is inert even if dispatched.
+            OrderListAction.OnToggleHideAmounts -> {
+                // Slice 6c: money is never exposed to active staff at all — the toggle
+                // control is hidden for them, but guard here too so the action is
+                // inert even if dispatched.
                 if (_state.value.isActiveStaff) return
-                _state.update { it.copy(showProfit = !it.showProfit) }
+                _state.update { it.copy(hideAmounts = !it.hideAmounts) }
             }
             OrderListAction.OnToggleMyWork -> toggleMyWork()
             OrderListAction.OnClearAssigneeFilter -> clearAssigneeFilter()

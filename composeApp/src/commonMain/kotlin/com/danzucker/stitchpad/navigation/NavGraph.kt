@@ -593,6 +593,7 @@ fun StitchPadNavHost(
                     }
                 },
                 onNavigateToDebugMenu = { navController.navigate(DebugMenuRoute) },
+                onNavigateToJoinWorkshop = { navController.navigate(RedeemInviteRoute()) },
             )
         }
         if (isDebugBuild) {

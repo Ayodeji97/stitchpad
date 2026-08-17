@@ -19,8 +19,7 @@ sealed interface TeamAction {
 
     // Roster (name-only members) — add/rename/archive.
     data object OnAddMemberClick : TeamAction
-    data class OnAddMemberNameChange(val name: String) : TeamAction
-    data object OnConfirmAddMember : TeamAction
+    data class OnConfirmAddMember(val name: String) : TeamAction
 
     /** Also dismisses the rename sheet — both are "close the roster form" actions. */
     data object OnDismissAddMember : TeamAction

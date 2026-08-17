@@ -35,7 +35,7 @@ import kotlin.test.assertTrue
  * Slice 6c — the Orders LIST must be money-free for an active staff member. The list
  * VM has no per-row contact actions, so this covers the two staff-relevant surfaces:
  * the [OrderListState.isActiveStaff] flag (the screen hides every price / payment /
- * profit affordance off it) and the profit-toggle guard.
+ * profit affordance off it) and the hide-amounts toggle.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class OrderListStaffTest {
@@ -98,22 +98,22 @@ class OrderListStaffTest {
     }
 
     @Test
-    fun onToggleShowProfit_forStaff_isNoOp() = runTest {
-        setStaffSession()
+    fun toggleHideAmountsFlips() = runTest {
         val vm = createViewModel()
 
-        vm.onAction(OrderListAction.OnToggleShowProfit)
+        vm.onAction(OrderListAction.OnToggleHideAmounts)
 
-        assertFalse(vm.state.value.showProfit)
+        assertTrue(vm.state.value.hideAmounts)
     }
 
     @Test
-    fun onToggleShowProfit_forOwner_stillToggles() = runTest {
+    fun staffCannotToggleAmounts() = runTest {
+        setStaffSession()
         val vm = createViewModel()
 
-        vm.onAction(OrderListAction.OnToggleShowProfit)
+        vm.onAction(OrderListAction.OnToggleHideAmounts)
 
-        assertTrue(vm.state.value.showProfit)
+        assertFalse(vm.state.value.hideAmounts)
     }
 
     @Test

@@ -66,6 +66,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -82,13 +84,18 @@ import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.feature.dashboard.domain.model.PipelineStage
+import com.danzucker.stitchpad.feature.dashboard.domain.model.stageOf
 import com.danzucker.stitchpad.feature.order.presentation.garmentSummaryRes
 import com.danzucker.stitchpad.feature.tutorials.domain.model.TutorialTopic
 import com.danzucker.stitchpad.feature.tutorials.presentation.hint.TutorialHintRoot
 import com.danzucker.stitchpad.ui.components.MemberAvatar
 import com.danzucker.stitchpad.ui.components.PendingSyncBadge
+import com.danzucker.stitchpad.ui.components.StageDots
 import com.danzucker.stitchpad.ui.components.StrikethroughPrice
 import com.danzucker.stitchpad.ui.components.fallbackMemberColorSeed
+import com.danzucker.stitchpad.ui.components.stageLabel
+import com.danzucker.stitchpad.ui.components.stageProgressDescription
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
@@ -118,13 +125,13 @@ import stitchpad.composeapp.generated.resources.order_filter_archived
 import stitchpad.composeapp.generated.resources.order_filter_assigned_to
 import stitchpad.composeapp.generated.resources.order_filter_my_work
 import stitchpad.composeapp.generated.resources.order_filter_unassigned
-import stitchpad.composeapp.generated.resources.order_hide_profit
+import stitchpad.composeapp.generated.resources.order_hide_amounts
 import stitchpad.composeapp.generated.resources.order_list_title
 import stitchpad.composeapp.generated.resources.order_priority_rush
 import stitchpad.composeapp.generated.resources.order_priority_urgent
 import stitchpad.composeapp.generated.resources.order_restore_cta
 import stitchpad.composeapp.generated.resources.order_restored_snackbar
-import stitchpad.composeapp.generated.resources.order_show_profit
+import stitchpad.composeapp.generated.resources.order_show_amounts
 import stitchpad.composeapp.generated.resources.order_status_delivered
 import stitchpad.composeapp.generated.resources.order_status_in_progress
 import stitchpad.composeapp.generated.resources.order_status_pending
@@ -206,11 +213,11 @@ fun OrderListScreen(
                     titleContentColor = MaterialTheme.colorScheme.onSurface
                 ),
                 actions = {
-                    // Profit is money — hidden entirely for active staff (Slice 6c).
+                    // Money is hidden entirely for active staff (Slice 6c).
                     if (!state.isActiveStaff) {
-                        ProfitToggleAction(
-                            showProfit = state.showProfit,
-                            onToggle = { onAction(OrderListAction.OnToggleShowProfit) },
+                        AmountsToggleAction(
+                            hideAmounts = state.hideAmounts,
+                            onToggle = { onAction(OrderListAction.OnToggleHideAmounts) },
                         )
                     }
                 },
@@ -317,7 +324,7 @@ fun OrderListScreen(
                                     SwipeableOrderItem(
                                         order = order,
                                         now = now,
-                                        showProfit = state.showProfit,
+                                        hideAmounts = state.hideAmounts,
                                         isActiveStaff = state.isActiveStaff,
                                         onClick = { onAction(OrderListAction.OnOrderClick(order)) },
                                         onDelete = { onAction(OrderListAction.OnDeleteOrderClick(order)) }
@@ -333,7 +340,7 @@ fun OrderListScreen(
                                 SwipeableOrderItem(
                                     order = order,
                                     now = now,
-                                    showProfit = state.showProfit,
+                                    hideAmounts = state.hideAmounts,
                                     isActiveStaff = state.isActiveStaff,
                                     onClick = { onAction(OrderListAction.OnOrderClick(order)) },
                                     onDelete = { onAction(OrderListAction.OnDeleteOrderClick(order)) }
@@ -690,16 +697,17 @@ private fun OrderEmptyState(
 }
 
 @Composable
-private fun ProfitToggleAction(showProfit: Boolean, onToggle: () -> Unit) {
+private fun AmountsToggleAction(hideAmounts: Boolean, onToggle: () -> Unit) {
     val label = stringResource(
-        if (showProfit) Res.string.order_hide_profit else Res.string.order_show_profit,
+        if (hideAmounts) Res.string.order_show_amounts else Res.string.order_hide_amounts,
     )
     TextButton(
         onClick = onToggle,
         contentPadding = PaddingValues(horizontal = DesignTokens.space3),
     ) {
         Icon(
-            imageVector = if (showProfit) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+            // Eye open = amounts visible.
+            imageVector = if (hideAmounts) Icons.Default.VisibilityOff else Icons.Default.Visibility,
             contentDescription = null,
             modifier = Modifier.size(18.dp),
         )
@@ -717,7 +725,7 @@ private fun ProfitToggleAction(showProfit: Boolean, onToggle: () -> Unit) {
 private fun SwipeableOrderItem(
     order: Order,
     now: Long,
-    showProfit: Boolean,
+    hideAmounts: Boolean,
     isActiveStaff: Boolean = false,
     onClick: () -> Unit,
     onDelete: () -> Unit
@@ -770,7 +778,7 @@ private fun SwipeableOrderItem(
             OrderListItem(
                 order = order,
                 now = now,
-                showProfit = showProfit,
+                hideAmounts = hideAmounts,
                 isActiveStaff = isActiveStaff,
                 onClick = onClick,
             )
@@ -782,7 +790,7 @@ private fun SwipeableOrderItem(
 private fun OrderListItem(
     order: Order,
     now: Long,
-    showProfit: Boolean,
+    hideAmounts: Boolean,
     isActiveStaff: Boolean = false,
     onClick: () -> Unit,
 ) {
@@ -829,6 +837,28 @@ private fun OrderListItem(
 
             DeadlineLine(deadline = order.deadline, now = now, status = order.status)
 
+            val stage = stageOf(order.status, order.subStatus)
+            if (stage != null && stage != PipelineStage.READY) {
+                // clearAndSetSemantics collapses this Row to ONE TalkBack node: without
+                // it, StageDots' own contentDescription AND the adjacent Text below would
+                // both announce, reading the stage progress twice.
+                val progressDescription = stageProgressDescription(stage)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
+                    modifier = Modifier
+                        .padding(top = DesignTokens.space1)
+                        .clearAndSetSemantics { contentDescription = progressDescription },
+                ) {
+                    StageDots(stage)
+                    Text(
+                        text = stageLabel(stage),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
             if (order.isPendingSync || order.assignedMemberName != null) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -849,17 +879,23 @@ private fun OrderListItem(
         // active staff (Slice 6c): they see garment / customer / status / date only.
         if (!isActiveStaff) {
             Column(horizontalAlignment = Alignment.End) {
-                StrikethroughPrice(
-                    grossPrice = order.totalPrice,
-                    netPrice = order.payableTotal,
-                    discount = order.discount,
-                    netStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                    netColor = MaterialTheme.colorScheme.onSurface,
-                    stacked = true,
+                if (!hideAmounts) {
+                    StrikethroughPrice(
+                        grossPrice = order.totalPrice,
+                        netPrice = order.payableTotal,
+                        discount = order.discount,
+                        netStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        netColor = MaterialTheme.colorScheme.onSurface,
+                        stacked = true,
+                    )
+                    Spacer(Modifier.height(2.dp))
+                }
+                PaymentStatusText(
+                    depositPaid = order.depositPaid,
+                    amountOwed = order.payableTotal,
+                    showAmounts = !hideAmounts,
                 )
-                Spacer(Modifier.height(2.dp))
-                PaymentStatusText(depositPaid = order.depositPaid, amountOwed = order.payableTotal)
-                if (showProfit && order.hasCosts) {
+                if (!hideAmounts && order.hasCosts) {
                     Spacer(Modifier.height(2.dp))
                     OrderRowProfit(profit = order.profit)
                 }

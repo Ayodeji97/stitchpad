@@ -172,7 +172,7 @@ class SettingsViewModel(
         initialValue = SettingsState(appVersionLabel = appVersionLabel),
     )
 
-    @Suppress("CyclomaticComplexMethod")
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun onAction(action: SettingsAction) {
         when (action) {
             SettingsAction.OnBackClick -> emit(SettingsEvent.NavigateBack)
@@ -188,6 +188,7 @@ class SettingsViewModel(
             SettingsAction.OnChangePasswordClick -> emit(SettingsEvent.NavigateToChangePassword)
             SettingsAction.OnReferralCodeClick -> emit(SettingsEvent.NavigateToReferralCode)
             SettingsAction.OnTeamClick -> emit(SettingsEvent.NavigateToTeam)
+            SettingsAction.OnJoinWorkshopClick -> emit(SettingsEvent.NavigateToJoinWorkshop)
             SettingsAction.OnSignOutRowClick -> uiState.update { it.copy(showSignOutDialog = true) }
             SettingsAction.OnSignOutDismiss -> uiState.update { it.copy(showSignOutDialog = false) }
             SettingsAction.OnSignOutConfirm -> signOut()

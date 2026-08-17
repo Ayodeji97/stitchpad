@@ -10,19 +10,28 @@ import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.payment_paid
 import stitchpad.composeapp.generated.resources.payment_partial
+import stitchpad.composeapp.generated.resources.payment_partial_masked
 import stitchpad.composeapp.generated.resources.payment_unpaid
 
 @Composable
 fun PaymentStatusText(
     depositPaid: Double,
     amountOwed: Double,
+    showAmounts: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val display = formatPaymentStatus(depositPaid, amountOwed)
     val (text, color) = when (display) {
+        // Paid/Unpaid carry no figures — the qualitative word stays visible even
+        // when amounts are hidden; that's operational info, not a naira.
         PaymentDisplay.Paid -> stringResource(Res.string.payment_paid) to DesignTokens.success500
         is PaymentDisplay.Partial -> {
-            stringResource(Res.string.payment_partial, display.formatAbbreviated()) to DesignTokens.warning500
+            val label = if (showAmounts) {
+                stringResource(Res.string.payment_partial, display.formatAbbreviated())
+            } else {
+                stringResource(Res.string.payment_partial_masked)
+            }
+            label to DesignTokens.warning500
         }
         PaymentDisplay.Unpaid -> stringResource(Res.string.payment_unpaid) to DesignTokens.error500
     }

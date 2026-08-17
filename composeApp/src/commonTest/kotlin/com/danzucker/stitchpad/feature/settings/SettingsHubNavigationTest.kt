@@ -92,6 +92,16 @@ class SettingsHubNavigationTest {
             cancelAndIgnoreRemainingEvents()
         }
     }
+
+    @Test
+    fun joinWorkshopClick_emitsNavigateToJoinWorkshop() = runTest {
+        val vm = buildSettingsVm()
+        vm.events.test {
+            vm.onAction(SettingsAction.OnJoinWorkshopClick)
+            assertEquals(SettingsEvent.NavigateToJoinWorkshop, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

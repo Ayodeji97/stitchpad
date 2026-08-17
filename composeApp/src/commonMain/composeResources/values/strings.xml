@@ -607,6 +607,7 @@
     <!-- Payment status -->
     <string name="payment_paid">Paid</string>
     <string name="payment_partial">%1$s paid</string>
+    <string name="payment_partial_masked">Part-paid</string>
     <string name="payment_unpaid">Unpaid</string>
 
     <!-- Order status labels -->
@@ -907,8 +908,8 @@
     <string name="dashboard_staff_tile_overdue">Overdue</string>
     <string name="dashboard_staff_tile_due_today">Due today</string>
     <string name="dashboard_staff_tile_in_progress">In progress</string>
-    <string name="dashboard_staff_tile_mine">Mine</string>
     <string name="dashboard_staff_tile_view">View</string>
+    <string name="staff_my_work_link">My work · %1$d</string>
     <string name="dashboard_staff_workshop_count">%1$d in workshop</string>
     <string name="dashboard_staff_pipeline">Pipeline</string>
     <string name="dashboard_staff_stage_ready">Ready</string>
@@ -936,6 +937,13 @@
     <string name="staff_advance_stage_error">Couldn&apos;t update the order. Try again.</string>
     <!-- Stepper / stage-dots content description, e.g. "Sewing, stage 3 of 5" -->
     <string name="staff_stage_progress_cd">%1$s, stage %2$d of %3$d</string>
+    <!-- Tappable-stepper stage sheet (Decision 2B: move any direction, not just forward) -->
+    <string name="staff_stage_sheet_title">Set stage</string>
+    <!-- contentDescription on the hero stepper's tap affordance -->
+    <string name="staff_change_stage_cd">Change stage</string>
+    <!-- Undo snackbar after a one-tap hero stage advance -->
+    <string name="staff_stage_moved_snackbar">Moved to %1$s</string>
+    <string name="staff_stage_undo">Undo</string>
     <!-- Order card assignee affordance (Today's Work rich row) — shown on both
          the staff and owner dashboards since they share the same row component. -->
     <string name="staff_card_assigned_you">Assigned to you</string>
@@ -1406,6 +1414,8 @@
     <string name="settings_row_invite">Invite a tailor</string>
     <string name="settings_row_team">Team</string>
     <string name="settings_row_team_subtitle">Invite staff and manage who can access your workshop</string>
+    <string name="settings_row_join_workshop">Join a workshop</string>
+    <string name="settings_row_join_workshop_subtitle">Enter an invite code from a workshop owner</string>
     <string name="settings_row_invite_subtitle">Grow your network</string>
     <string name="referral_code_settings_row">Have a referral code?</string>
     <string name="referral_code_settings_subtitle">Enter a code from whoever referred you</string>
@@ -1879,8 +1889,8 @@
     <string name="order_costs_add_cost">Add cost</string>
     <string name="order_costs_edit">Edit costs</string>
     <string name="order_costs_add_button">Add costs</string>
-    <string name="order_show_profit">Show profit</string>
-    <string name="order_hide_profit">Hide profit</string>
+    <string name="order_show_amounts">Show amounts</string>
+    <string name="order_hide_amounts">Hide amounts</string>
     <string name="order_costs_empty_body">Add what this order cost you to see your real profit.</string>
     <string name="order_costs_private_caption">Private — never shown on receipts</string>
     <string name="costs_editor_title">Record costs</string>

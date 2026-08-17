@@ -4,32 +4,46 @@ import androidx.compose.ui.text.AnnotatedString
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/**
- * The invite code is stored normalised ("K7QP3RM9") but rendered grouped
- * ("K7QP-3RM9"). Formatting the *value* handed to the text field leaves the
- * caret at a stale index, so typed characters land in the wrong position —
- * these tests pin the caret mapping that keeps the rendered hyphen invisible
- * to the caret.
- */
 class InviteCodeVisualTransformationTest {
 
     private fun transform(raw: String) = InviteCodeVisualTransformation.filter(AnnotatedString(raw))
 
     @Test
-    fun insertsHyphenAfterTheFourthCharacter() {
-        assertEquals("K7QP-3RM9", transform("K7QP3RM9").text.text)
+    fun underFourCharactersRendersUnchanged() {
+        assertEquals("SNN", transform("SNN").text.text)
     }
 
     @Test
-    fun leavesShortCodesUngrouped() {
-        assertEquals("K7QP", transform("K7QP").text.text)
-        assertEquals("", transform("").text.text)
+    fun exactlyFourCharactersRendersTrailingHyphen() {
+        assertEquals("SNNY-", transform("SNNY").text.text)
     }
+
+    @Test
+    fun fullCodeRendersGrouped() {
+        assertEquals("SNNY-1234", transform("SNNY1234").text.text)
+    }
+
+    @Test
+    fun caretAtBoundarySitsAfterTheHyphen() {
+        // Raw caret 4 (end of "SNNY") must display after the hyphen (transformed 5)
+        assertEquals(5, transform("SNNY").offsetMapping.originalToTransformed(4))
+        assertEquals(3, transform("SNNY").offsetMapping.originalToTransformed(3))
+    }
+
+    @Test
+    fun transformedOffsetsOnEitherSideOfHyphenCollapseToBoundary() {
+        val mapping = transform("SNNY1234").offsetMapping
+        assertEquals(4, mapping.transformedToOriginal(4))
+        assertEquals(4, mapping.transformedToOriginal(5))
+        assertEquals(8, mapping.transformedToOriginal(9))
+    }
+
+    // --- Restored from PR #349 (git history 8d3052d0) ---
 
     @Test
     fun caretBeforeTheHyphenIsUnshifted() {
         val mapping = transform("K7QP3RM9").offsetMapping
-        (0..GROUP_SIZE).forEach { offset ->
+        (0..3).forEach { offset ->
             assertEquals(offset, mapping.originalToTransformed(offset), "original->transformed $offset")
             assertEquals(offset, mapping.transformedToOriginal(offset), "transformed->original $offset")
         }
@@ -47,15 +61,6 @@ class InviteCodeVisualTransformationTest {
     }
 
     @Test
-    fun bothSidesOfTheHyphenCollapseToTheGroupBoundary() {
-        val mapping = transform("K7QP3RM9").offsetMapping
-        // Transformed 4 sits before the hyphen and 5 sits after it; neither is a
-        // real position in the stored code, so both resolve to original 4.
-        assertEquals(GROUP_SIZE, mapping.transformedToOriginal(GROUP_SIZE))
-        assertEquals(GROUP_SIZE, mapping.transformedToOriginal(GROUP_SIZE + 1))
-    }
-
-    @Test
     fun shortCodeMappingIsIdentity() {
         val mapping = transform("K7Q").offsetMapping
         (0..3).forEach { offset ->
@@ -69,9 +74,5 @@ class InviteCodeVisualTransformationTest {
         val transformed = transform("K7QP3RM9")
         val end = transformed.offsetMapping.originalToTransformed(INVITE_CODE_LENGTH)
         assertEquals(transformed.text.text.length, end)
-    }
-
-    private companion object {
-        const val GROUP_SIZE = 4
     }
 }
