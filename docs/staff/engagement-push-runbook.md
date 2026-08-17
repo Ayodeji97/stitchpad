@@ -39,6 +39,23 @@ announcement reach a tailor who is also in `no_customer`.
 workshop, so their own customer and order counts are always zero — without the
 exclusion every staff member would be nudged to "add your first customer" forever.
 
+## Why it is not quiet
+
+The first cut shipped Android `IMPORTANCE_LOW` + iOS `interruption-level: passive`, on
+the theory that a promo which buzzes a working tailor's phone gets the app muted. Tested
+on a real device that proved too quiet to work: passive suppresses the banner AND the
+sound on iOS, so the nudge only ever reached Notification Centre, and IMPORTANCE_LOW is
+similarly invisible on Android. A notification nobody notices cannot build a habit.
+
+Both platforms now send at normal priority. Fatigue is held down by the four things that
+actually matter, all of which survive the volume change: the channel is **separately
+mutable** from order reminders, sends are capped at **twice a week**, capped again
+**per campaign**, and there is a **dedicated opt-out**.
+
+The Android channel id is `announcements_v2` for a hard reason: Android locks a
+channel's importance at creation and no later code change can raise it, so a new id was
+the only way to move off LOW. Never edit an id in place — mint the next one.
+
 ## Brakes (all must pass before a tailor is sent anything)
 
 1. `enabled: true` in the config **and** today is in `daysOfWeek`.
@@ -154,13 +171,12 @@ stops on its own.
 
 ## Rollout order
 
-> **Gate `enabled: true` on app adoption.** The `announcements` channel only exists on
-> builds carrying this feature. A device still on an older build receives the nudge in
-> the background, finds no such channel, and the FCM SDK falls back to its own
-> auto-created "Miscellaneous" channel at DEFAULT importance — louder than the
-> IMPORTANCE_LOW intent, and on a channel whose name means nothing to the tailor. It
-> still displays and still deep-links, so nothing breaks; it is just noisier than
-> designed. Wait for meaningful adoption of the new build before flipping `enabled`.
+> **Gate `enabled: true` on app adoption.** The `announcements_v2` channel only exists
+> on builds carrying this feature. A device on an older build receives the nudge in the
+> background, finds no such channel, and the FCM SDK falls back to its own auto-created
+> "Miscellaneous" channel — so it still displays and still deep-links, but it sits on a
+> channel whose name means nothing to the tailor and which they cannot mute separately.
+> Wait for meaningful adoption of the new build before flipping `enabled`.
 
 1. Deploy functions (`cd functions && npm run deploy`).
 2. Create `config/engagementPush` with the JSON above (`enabled: false`).
@@ -239,9 +255,9 @@ adb install -r composeApp/build/outputs/apk/debug/composeApp-debug.apk
 # 2. Sign in as fola@gmail.com / fola123, then allow notifications.
 adb shell pm grant com.danzucker.stitchpad android.permission.POST_NOTIFICATIONS
 
-# 3. Both channels must exist, with the right importances (3 = DEFAULT, 2 = LOW).
-adb shell dumpsys notification --noredact | grep -oE "mId='(daily_reminders|announcements)'[^}]*mImportance=[0-9]+" | sort -u
-# expect: announcements ... mImportance=2   AND   daily_reminders ... mImportance=3
+# 3. Both channels must exist at IMPORTANCE_DEFAULT (3).
+adb shell dumpsys notification --noredact | grep -oE "mId='(daily_reminders|announcements_v2)'[^}]*mImportance=[0-9]+" | sort -u
+# expect: announcements_v2 ... mImportance=3   AND   daily_reminders ... mImportance=3
 
 # 4. Fire each deep link and check where the app lands.
 fire() { adb shell am start -n com.danzucker.stitchpad/com.danzucker.stitchpad.MainActivity -e target "$1" --activity-single-top --activity-clear-top; }
@@ -257,8 +273,22 @@ fire some_future_target # -> nothing happens, no crash (forward-compat)
 
 FCM has no emulator, so a genuine delivery needs real credentials.
 
-**Locally**, opt in explicitly — the app must be signed in so it has registered a real
-device token:
+**Against production, on your own phone** (the only way to see it on a physical
+device — a phone cannot reach the local emulators):
+
+```bash
+cd functions
+node scripts/sendTestEngagementPush.js you@example.com            # list devices only
+node scripts/sendTestEngagementPush.js you@example.com --send     # deliver
+node scripts/sendTestEngagementPush.js you@example.com --send --target inbox
+```
+
+Read-only against Firestore, one account, nothing sent without `--send`. The payload is
+byte-for-byte what the real job builds. `--quiet` re-adds the iOS passive level if you
+want to compare tiers.
+
+**Locally on an emulator**, opt in explicitly — the app must be signed in so it has
+registered a real device token:
 
 ```bash
 ENGAGEMENT_SMOKE_REAL_FCM=1 node scripts/engagementPushSmoke.js
@@ -271,9 +301,9 @@ delivers. Then:
 adb shell dumpsys notification --noredact | grep -A6 "pkg=com.danzucker.stitchpad"
 ```
 
-Expect `id=2002`, `channel=announcements`, `importance=2`, `sound=null`. In the shade it
-appears under the OS **"Silent"** group — that is IMPORTANCE_LOW working. Tap it and
-confirm it lands on the campaign's `target` screen.
+Expect `id=2002`, `channel=announcements_v2`, `importance=3`. It banners and makes a
+sound, like the daily reminder. Tap it and confirm it lands on the campaign's `target`
+screen.
 
 **Against production**, the supported path is the tester-gated callable
 `debugSendMyEngagementPush` (see Rollout order above), which bypasses the weekday,

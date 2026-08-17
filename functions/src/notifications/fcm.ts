@@ -16,8 +16,16 @@ import type { Firestore } from 'firebase-admin/firestore';
 
 /** Order deadlines and money owed — the channel users must never mute by accident. */
 export const DAILY_REMINDERS_CHANNEL_ID = 'daily_reminders';
-/** Tips, feature discovery, announcements. Separately mutable; IMPORTANCE_LOW on device. */
-export const ANNOUNCEMENTS_CHANNEL_ID = 'announcements';
+/**
+ * Tips, feature discovery, announcements. Separately mutable from order reminders.
+ *
+ * The `_v2` suffix is load-bearing. Android locks a channel's importance the first
+ * time the app creates it — a later code change cannot raise it, so anyone who had
+ * installed the original `announcements` channel would have been stuck at
+ * IMPORTANCE_LOW forever. A new id is the only way to ship a different importance.
+ * Never edit this in place again; mint another id instead.
+ */
+export const ANNOUNCEMENTS_CHANNEL_ID = 'announcements_v2';
 
 /**
  * Android notification tags. A tag makes a new push REPLACE the previous one with
@@ -51,12 +59,6 @@ export interface PushPayload {
   androidChannelId?: string;
   /** Android notification tag — successive pushes with the same tag replace, not stack. */
   androidTag?: string;
-  /**
-   * iOS analogue of Android's IMPORTANCE_LOW: delivered to the list without
-   * interrupting. There is no channel concept on iOS, so this is the only way to
-   * make a promo quieter than an overdue-order alert there.
-   */
-  passive?: boolean;
 }
 
 export interface PushResult {
@@ -94,9 +96,6 @@ export async function sendMulticast(
           ...(payload.androidTag ? { tag: payload.androidTag } : {}),
         },
       },
-      ...(payload.passive
-        ? { apns: { payload: { aps: { 'interruption-level': 'passive' } } } }
-        : {}),
       ...(payload.data ? { data: payload.data } : {}),
     });
 

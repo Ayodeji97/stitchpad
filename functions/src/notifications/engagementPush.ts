@@ -171,9 +171,12 @@ function pushPayloadFor(campaign: EngagementCampaign) {
     // backgrounded app is served by the FCM SDK, which replaces by tag or else
     // stacks a brand-new notification for every message.
     androidTag: ANNOUNCEMENT_NOTIFICATION_TAG,
-    // iOS has no channel concept, so this is the only way to make a tip land
-    // more quietly than an overdue-order alert there.
-    passive: true,
+    // Deliberately NOT apns interruption-level 'passive'. Passive suppresses the
+    // banner AND the sound on iOS, so the nudge only ever appears in Notification
+    // Centre — a message a working tailor will never notice, which defeats the point
+    // of an activation nudge. Fatigue is held down by the things that actually
+    // matter: a separate mutable channel, twice a week at most, per-campaign caps,
+    // and the opt-out toggle.
   };
 }
 

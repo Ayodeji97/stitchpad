@@ -101,13 +101,17 @@ const check = (label, cond, extra='') => {
         gabbyUid ? `(gabby token present: ${sentTokens.includes('tok-'+gabbyUid)})` : '(gabby uid not found)');
 
   const p = sends[0];
-  check('posts on the announcements channel',
-        p && p.android && p.android.notification.channelId === 'announcements',
+  check('posts on the announcements_v2 channel',
+        p && p.android && p.android.notification.channelId === 'announcements_v2',
         p ? JSON.stringify(p.android) : '');
   check('carries an android tag so background deliveries collapse',
         p && p.android.notification.tag === 'stitchpad_announcement');
-  check('sets APNs interruption-level passive for iOS',
-        p && p.apns && p.apns.payload.aps['interruption-level'] === 'passive');
+  // Inverted deliberately: passive suppressed the banner AND sound on iOS, so the
+  // nudge only reached Notification Centre and was effectively invisible.
+  check('does NOT set APNs passive — the nudge must be seen',
+        p && !(p.apns && p.apns.payload && p.apns.payload.aps
+               && p.apns.payload.aps['interruption-level'] === 'passive'),
+        p ? JSON.stringify(p.apns) : '');
   check('carries a deep-link target in data', p && typeof p.data.target === 'string',
         p ? JSON.stringify(p.data) : '');
   check('Fola got the no_referral campaign (she has customers+orders, no referral link)',
