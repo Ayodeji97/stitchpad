@@ -6,6 +6,12 @@ import { isDigestAllowed, isDigestTester } from './rollout';
 import { sendResendEmail } from '../email/resendClient';
 import { buildDigestEmail } from './digestEmailTemplate';
 import { digestDetector, isDigestEmpty } from './digestDetector';
+import {
+  DAILY_REMINDERS_CHANNEL_ID,
+  deletePushTokens,
+  loadPushTokens,
+  sendMulticast,
+} from './fcm';
 import { lagosDateKey } from './lagosTime';
 import { notificationDocsFromModel } from './notificationDocs';
 import { pushSummary } from './pushSummary';
@@ -114,57 +120,20 @@ function productionDigestIO(apiKey: string): DigestIO {
       return sendResendEmail(apiKey, p);
     },
     isAllowed: isDigestAllowed,
-    loadPushTokens: async (uid: string): Promise<string[]> => {
-      const snap = await db.collection('users').doc(uid).collection('notificationTokens').get();
-      return snap.docs.map((d) => d.id);
-    },
+    loadPushTokens: (uid: string) => loadPushTokens(db, uid),
 
-    sendPush: async (tokens, payload) => {
-      const FCM_MULTICAST_LIMIT = 500;
-      const invalidTokens: string[] = [];
-      let successCount = 0;
-      for (let i = 0; i < tokens.length; i += FCM_MULTICAST_LIMIT) {
-        const batch = tokens.slice(i, i + FCM_MULTICAST_LIMIT);
-        const res = await admin.messaging().sendEachForMulticast({
-          tokens: batch,
-          notification: { title: payload.title, body: payload.body },
-          android: { notification: { channelId: 'daily_reminders' } },
-          data: { target: 'to_collect' },
-        });
-        res.responses.forEach((r, j) => {
-          if (r.success) {
-            successCount++;
-          } else {
-            const code = r.error?.code;
-            // Log every failed send, not just the two token-invalid codes we prune on.
-            // Other failures (APNs auth/credential, propagation, internal) were silently
-            // swallowed, leaving "no push sent" undiagnosable. Token is truncated (not PII).
-            functions.logger.error('digest push: FCM send failed', {
-              code,
-              message: r.error?.message,
-              tokenPrefix: batch[j].slice(0, 24),
-            });
-            if (code === 'messaging/registration-token-not-registered' ||
-                code === 'messaging/invalid-registration-token') {
-              invalidTokens.push(batch[j]);
-            }
-          }
-        });
-      }
-      return { successCount, invalidTokens };
-    },
+    sendPush: (tokens, payload) => sendMulticast(
+      tokens,
+      {
+        title: payload.title,
+        body: payload.body,
+        data: { target: 'to_collect' },
+        androidChannelId: DAILY_REMINDERS_CHANNEL_ID,
+      },
+      'digest push',
+    ),
 
-    deletePushTokens: async (uid: string, tokens: string[]): Promise<void> => {
-      const col = db.collection('users').doc(uid).collection('notificationTokens');
-      const FIRESTORE_BATCH_LIMIT = 500;
-      for (let i = 0; i < tokens.length; i += FIRESTORE_BATCH_LIMIT) {
-        const batch = db.batch();
-        for (const t of tokens.slice(i, i + FIRESTORE_BATCH_LIMIT)) {
-          batch.delete(col.doc(t));
-        }
-        await batch.commit();
-      }
-    },
+    deletePushTokens: (uid: string, tokens: string[]) => deletePushTokens(db, uid, tokens),
 
     getLastPushDate: async (uid: string): Promise<string | null> => {
       const snap = await digestStateRef(uid).get();
