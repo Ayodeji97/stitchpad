@@ -201,9 +201,9 @@ release that touches notifications; Tier 3 only when you want to see a real push
 firebase emulators:start --config firebase.emulator.json
 
 # terminal 2 — from functions/
-export FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 \
-       FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 \
-       GCLOUD_PROJECT=stitchpad-30607
+# ONE LINE. A `\` continuation picks up trailing whitespace when pasted, which zsh
+# splits into separate commands ("export: not valid in this context").
+export FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 GCLOUD_PROJECT=stitchpad-30607
 npm run build                          # lib/ must be current — the driver loads from it
 node scripts/emulatorSetupStaff.js     # seeds Fola (owner) + Gabby (staff)
 node scripts/engagementPushSmoke.js    # 10 checks
@@ -240,13 +240,11 @@ adb install -r composeApp/build/outputs/apk/debug/composeApp-debug.apk
 adb shell pm grant com.danzucker.stitchpad android.permission.POST_NOTIFICATIONS
 
 # 3. Both channels must exist, with the right importances (3 = DEFAULT, 2 = LOW).
-adb shell dumpsys notification --noredact \
-  | grep -oE "mId='(daily_reminders|announcements)'[^}]*mImportance=[0-9]+" | sort -u
+adb shell dumpsys notification --noredact | grep -oE "mId='(daily_reminders|announcements)'[^}]*mImportance=[0-9]+" | sort -u
 # expect: announcements ... mImportance=2   AND   daily_reminders ... mImportance=3
 
 # 4. Fire each deep link and check where the app lands.
-fire() { adb shell am start -n com.danzucker.stitchpad/com.danzucker.stitchpad.MainActivity \
-         -e target "$1" --activity-single-top --activity-clear-top; }
+fire() { adb shell am start -n com.danzucker.stitchpad/com.danzucker.stitchpad.MainActivity -e target "$1" --activity-single-top --activity-clear-top; }
 fire founding_tailors   # -> Founding Tailors
 fire inbox              # -> Notifications
 fire to_collect         # -> Money to collect
