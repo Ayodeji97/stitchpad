@@ -54,7 +54,7 @@ function fakeIO(over: Partial<DigestIO> & {
   return { io, sent, pushes, pushStamps, deletedTokens, stamps, notified };
 }
 
-const recip = (p: Partial<DigestRecipient> = {}): DigestRecipient => ({ uid: 'u1', email: 'u1@x.com', name: 'Ada', digestEnabled: true, pushEnabled: true, ...p });
+const recip = (p: Partial<DigestRecipient> = {}): DigestRecipient => ({ uid: 'u1', email: 'u1@x.com', emailVerified: true, name: 'Ada', digestEnabled: true, pushEnabled: true, ...p });
 const order = (p: Partial<OrderScanDoc>): OrderScanDoc => ({ id: 'o', customerName: 'C', status: 'IN_PROGRESS', deadline: null, archivedAt: null, totalPrice: 0, payments: [], items: [], ...p });
 
 describe('runDailyDigest', () => {
@@ -130,7 +130,7 @@ describe('runDailyDigest — push', () => {
     items: [{ garmentType: 'Asoebi' }],
   };
   const recipient = (over: Partial<DigestRecipient> = {}): DigestRecipient =>
-    ({ uid: 'u1', email: 'a@b.com', name: 'Shop', digestEnabled: true, pushEnabled: true, ...over });
+    ({ uid: 'u1', email: 'a@b.com', emailVerified: true, name: 'Shop', digestEnabled: true, pushEnabled: true, ...over });
 
   it('sends one push for an enabled, allowed recipient with actionable orders + a token', async () => {
     const f = fakeIO({ recipients: [recipient()], ordersByUid: { u1: [overdueOrder] }, tokensByUid: { u1: ['tok1'] } });
@@ -218,6 +218,27 @@ describe('runDailyDigest — staff digests', () => {
     const r = await runDailyDigest(io, NOW);
     expect(r.staffPushed).toBe(1);
     expect(pushes.some((p) => p.tokens.includes('gabby-tok'))).toBe(true);
+  });
+
+  // Regression: listRecipients used to drop an owner whose email was unverified,
+  // which silenced every staff push in that workshop as collateral. Verification
+  // now gates the owner's EMAIL only.
+  it('still pushes staff when the OWNER email is unverified', async () => {
+    const { io, pushes, sent } = fakeIO({
+      recipients: [recip({ emailVerified: false })],
+      ordersByUid: { u1: [order({ deadline: NOW - DAY_MS, assignedMemberId: 'gabby' })] },
+      staffByOwner: { u1: ['gabby'] },
+      tokensByUid: { u1: ['owner-tok'], gabby: ['gabby-tok'] },
+    });
+    const r = await runDailyDigest(io, NOW);
+    expect(r.staffPushed).toBe(1);
+    expect(pushes.some((p) => p.tokens.includes('gabby-tok'))).toBe(true);
+    // The owner's own push still goes out too — it does not need a reachable address.
+    expect(pushes.some((p) => p.tokens.includes('owner-tok'))).toBe(true);
+    // ...but the email is suppressed, and counted as such.
+    expect(sent).toHaveLength(0);
+    expect(r.skippedUnverified).toBe(1);
+    expect(r.sent).toBe(0);
   });
 
   it('does not push a staff member who has nothing assigned', async () => {

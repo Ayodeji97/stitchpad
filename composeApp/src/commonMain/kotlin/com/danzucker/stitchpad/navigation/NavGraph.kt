@@ -16,6 +16,7 @@ import com.danzucker.stitchpad.core.debug.isDebugBuild
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
+import com.danzucker.stitchpad.core.domain.session.SelfInitiatedLeaveSignal
 import com.danzucker.stitchpad.core.domain.session.StaffRole
 import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
@@ -298,6 +299,7 @@ private fun StaffRoleChangeRedirectEffect(
     val activeWorkshopProvider: ActiveWorkshopProvider = koinInject()
     val authRepository: AuthRepository = koinInject()
     val userRepository: UserRepository = koinInject()
+    val selfInitiatedLeave: SelfInitiatedLeaveSignal = koinInject()
     val session by activeWorkshopProvider.flow.collectAsStateWithLifecycle()
     val authUid = session.authUid
     LaunchedEffect(authUid) {
@@ -306,6 +308,11 @@ private fun StaffRoleChangeRedirectEffect(
         activeWorkshopProvider.flow.collect { current ->
             val prior = previous
             previous = current
+            // "Leave this workshop" produces the same ACTIVE-staff -> owner-of-self
+            // transition as a revocation, but it owns its own navigation (sign-out ->
+            // Welcome). Redirecting here would pop HomeRoute and clear the
+            // SettingsViewModel while its sign-out is still running.
+            if (selfInitiatedLeave.isLeaving) return@collect
             if (prior != null && shouldRedirectHomeForStaffSessionChange(prior, current)) {
                 val destination = staffDemotionDestination(
                     needsWorkshopSetup = needsWorkshopSetupForDemotedStaff(

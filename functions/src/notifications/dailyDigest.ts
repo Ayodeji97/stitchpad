@@ -71,21 +71,30 @@ function productionDigestIO(apiKey: string): DigestIO {
       const recipients: DigestRecipient[] = [];
       for (const doc of usersSnap.docs) {
         const data = doc.data();
-        let email: string | undefined;
+        // Carry the verification state instead of dropping the recipient on it.
+        // An unverified address must only suppress the EMAIL (runDailyDigest gates
+        // on `emailVerified`); dropping the row here also silenced the in-app inbox,
+        // the owner's push, and — because staff digests hang off the owner's row —
+        // every STAFF push in that workshop.
+        let email = '';
+        let emailVerified = false;
         try {
           const authUser = await admin.auth().getUser(doc.id);
-          if (!authUser.email || !authUser.emailVerified) continue;
-          email = authUser.email;
+          email = authUser.email ?? '';
+          emailVerified = Boolean(authUser.email && authUser.emailVerified);
         } catch {
-          continue; // doc with no matching/verified auth user — skip
+          continue; // users doc with no matching auth user — a dead account, skip
         }
         // `?.` guards null/undefined but NOT type: a numeric or map businessName from a
         // console edit would throw inside listRecipients, which runs OUTSIDE the
         // per-recipient try/catch — one bad doc would silence the digest for everyone.
-        const name = (text(data.businessName) || text(data.displayName) || email.split('@')[0]);
+        // Final `|| 'Tailor'` covers an account with no email at all, which now
+        // reaches this line (it used to be skipped above).
+        const name = (text(data.businessName) || text(data.displayName) || email.split('@')[0] || 'Tailor');
         recipients.push({
           uid: doc.id,
           email,
+          emailVerified,
           name,
           digestEnabled: data.dailyDigestEmailEnabled !== false,
           // Push opt-out: honor an explicit dailyPushEnabled; otherwise inherit the email

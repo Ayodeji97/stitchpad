@@ -1,0 +1,103 @@
+# Android: sign in as a seeded account and land on the dashboard.
+#
+# CONTRACT: the app must start SIGNED OUT. Clear it first --
+#   adb -s <serial> shell pm clear com.danzucker.stitchpad
+#   adb -s <serial> shell settings put secure autofill_service null
+#
+# Parameterised so the SAME flow drives both seeded accounts:
+#   maestro --device <serial> test .maestro/android/sign-in.yaml \
+#     -e EMAIL=fola@gmail.com  -e PASSWORD=fola123    # owner
+#   maestro --device <serial> test .maestro/android/sign-in.yaml \
+#     -e EMAIL=gabby@gmail.com -e PASSWORD=gabby123   # staff (claim: role=staff)
+#
+# It deliberately does NOT auto-detect an already-signed-in app. The obvious guard
+# (`runFlow: when: notVisible: "Dashboard"`) races the splash screen: on a cold
+# start the condition is evaluated before the dashboard has drawn, reads "not
+# visible", and signs in on top of a live session. Both failure modes were hit by
+# hand. A test flow should start from a known state and say so, so the carousel
+# wait below fails FAST and legibly when the app is not signed out, instead of
+# wandering into the UI -- "Get Started" also matches the dashboard's
+# "Set your first revenue goal" card (.maestro/README.md gotcha 7).
+#
+# Why this is not `subflows/ensure-signed-in.yaml`: that flow is iOS-only in
+# practice. See the Android section of .maestro/README.md.
+appId: com.danzucker.stitchpad
+
+# stopApp before launchApp: `launchApp` alone RESUMES the app, restoring whatever
+# screen it was left on (Compose saves the back stack). A force-stop lands on the
+# start destination every time.
+---
+- stopApp
+- launchApp
+
+# DIFFERENCE 1 -- the onboarding carousel.
+# On iOS the flows never meet it: `simctl uninstall` leaves the Keychain behind,
+# so the app restores a session and boots past onboarding. `adb shell pm clear`
+# wipes everything, so Android always starts at slide 1.
+#
+# extendedWaitUntil, not a bare assert: on a cold first launch of a freshly-booted
+# AVD the carousel takes seconds to render, and an immediate check evaluates
+# against an empty screen. Seen on Pixel_9_Pro's first run.
+- extendedWaitUntil:
+    visible: "Next"
+    timeout: 30000
+- repeat:
+    times: 3
+    commands:
+      - runFlow:
+          when:
+            visible: "Next"
+          commands:
+            - tapOn: "Next"
+- tapOn: "Get Started"
+
+- runFlow:
+    when:
+      visible: "Sign in"
+    commands:
+      - tapOn:
+          text: "Sign in"
+          index: 0
+
+# DIFFERENCE 2 -- Google Password Manager, Android's answer to iOS "Save
+# Password?". It slides up over the form and swallows taps, so the field
+# placeholders below go missing and the flow fails with a misleading "element not
+# found". Turn autofill off outright before running
+# (`settings put secure autofill_service null`); this guard is belt-and-braces for
+# a hand-run, matching the iOS one. See .maestro/README.md gotcha 5.
+- runFlow:
+    when:
+      visible: ".*Use your saved password.*"
+    commands:
+      - tapOn: "No thanks"
+
+- assertVisible: "Welcome back!"
+
+# DIFFERENCE 3 -- selectors. On iOS the label and the field share one
+# accessibilityText, so the flows disambiguate with `text: "Email", index: 1`.
+# Android's Compose semantics expose the label and the PLACEHOLDER as separate
+# nodes with different text, so `index: 1` matches nothing at all. Address the
+# fields by placeholder here. Same fragility as .maestro/README.md gotcha 6 --
+# a copy change to either placeholder breaks this.
+- tapOn: "tailor@gmail.com"
+- inputText: ${EMAIL}
+# The keyboard covers the password field and Compose still reports it tappable
+# (gotcha 1). Dismiss via static copy -- `hideKeyboard` is unsupported on CMP.
+- tapOn: "Welcome back!"
+- tapOn: "Enter your password"
+- inputText: ${PASSWORD}
+- tapOn: "Welcome back!"
+- tapOn: "Sign In"
+
+# The app's own notification-permission sheet covers the bottom nav. Keyed on the
+# sheet TITLE, not its button, so it cannot be confused with a system dialog.
+- runFlow:
+    when:
+      visible: "Never miss a deadline"
+    commands:
+      - tapOn: "Not now"
+
+# Assert the DESTINATION, never a green tap log (gotcha 1). The bottom nav only
+# exists once auth resolved AND the workshop profile loaded, so this proves the
+# Firestore read path too -- both accounts land here, owner and staff.
+- assertVisible: "Dashboard"

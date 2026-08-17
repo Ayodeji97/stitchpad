@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.settings.presentation.home
 
+import com.danzucker.stitchpad.core.domain.session.SelfInitiatedLeaveSignal
 import app.cash.turbine.test
 import com.danzucker.stitchpad.feature.auth.domain.NoOpRemoteSyncGate
 import com.danzucker.stitchpad.core.analytics.FakeAnalytics
@@ -26,6 +27,7 @@ import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
 import com.danzucker.stitchpad.core.domain.session.StaffRole
 import com.danzucker.stitchpad.core.domain.session.WorkshopSession
+import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.staff.StaffError
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageDocSource
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageSnapshot
@@ -138,6 +140,62 @@ class SettingsViewModelStaffTest {
         // Loading flag starts false and returns to false after the failed attempt.
         assertFalse(vm.state.value.isLeavingWorkshop)
     }
+
+    /**
+     * Regression: cancelMembership revokes the membership server-side BEFORE it
+     * returns, so the session demotes to owner-of-self mid-sequence. The latch tells
+     * the global demotion redirect (NavGraph.StaffRoleChangeRedirectEffect) that this
+     * one is self-initiated — without it the redirect pops HomeRoute and cancels the
+     * sign-out half-way, leaving the staffer signed in on Workshop Setup.
+     */
+    @Test
+    fun confirmLeaveRaisesTheSelfInitiatedLatchWhileCancelling() = runTest {
+        val signal = SelfInitiatedLeaveSignal()
+        var latchDuringCancel: Boolean? = null
+        val inviteRepo = object : FakeInviteRedemptionRepository() {
+            override suspend fun cancelMembership(workshopUid: String): EmptyResult<StaffError> {
+                latchDuringCancel = signal.isLeaving
+                return super.cancelMembership(workshopUid)
+            }
+        }
+        val vm = buildVm(
+            session = activeStaffSession(),
+            inviteRepo = inviteRepo,
+            staffPrefs = FakeStaffMembershipPrefsStore(initial = "owner-9"),
+            leaveSignal = signal,
+        )
+
+        vm.events.test {
+            vm.onAction(SettingsAction.OnConfirmLeaveWorkshop)
+            assertEquals(SettingsEvent.NavigateToLoginAfterSignOut, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertEquals(true, latchDuringCancel)
+        // Released afterwards — a stuck latch would swallow a LATER real revocation.
+        assertFalse(signal.isLeaving)
+    }
+
+    @Test
+    fun confirmLeaveReleasesTheLatchWhenCancelFails() = runTest {
+        val signal = SelfInitiatedLeaveSignal()
+        val inviteRepo = FakeInviteRedemptionRepository().apply {
+            cancelResult = Result.Error(StaffError.NETWORK)
+        }
+        val vm = buildVm(
+            session = activeStaffSession(),
+            inviteRepo = inviteRepo,
+            leaveSignal = signal,
+        )
+
+        vm.events.test {
+            vm.onAction(SettingsAction.OnConfirmLeaveWorkshop)
+            assertIs<SettingsEvent.ShowSnackbar>(awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertFalse(signal.isLeaving)
+    }
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -166,6 +224,7 @@ private fun buildVm(
     authRepo: FakeAuthRepository = staffAuthRepo(),
     inviteRepo: FakeInviteRedemptionRepository = FakeInviteRedemptionRepository(),
     staffPrefs: FakeStaffMembershipPrefsStore = FakeStaffMembershipPrefsStore(),
+    leaveSignal: SelfInitiatedLeaveSignal = SelfInitiatedLeaveSignal(),
 ): SettingsViewModel {
     val userRepo = FakeUserRepository().apply {
         userFlow.value = User(
@@ -200,6 +259,7 @@ private fun buildVm(
         communityJoinTracker = FakeCommunityJoinTracker(),
         dismissal = CommunityBannerDismissal(FakeOnboardingPreferences()),
         activeWorkshopProvider = workshopProvider,
+        selfInitiatedLeave = leaveSignal,
         inviteRedemptionRepository = inviteRepo,
         analytics = FakeAnalytics(),
         storeReviewLauncher = FakeStoreReviewLauncher(),

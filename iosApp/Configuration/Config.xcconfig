@@ -3,5 +3,9 @@ TEAM_ID=
 PRODUCT_NAME=StitchPad
 PRODUCT_BUNDLE_IDENTIFIER=com.danzucker.stitchpad$(TEAM_ID)
 
-CURRENT_PROJECT_VERSION=610
-MARKETING_VERSION=1.2.0
+// CURRENT_PROJECT_VERSION is OVERRIDDEN by the fastlane ios lane, which passes
+// `git rev-list --count HEAD` via xcargs. The value here only matters if someone
+// archives straight from Xcode — keep it in step with the release commit so such
+// an archive is not rejected by App Store Connect as a duplicate build number.
+CURRENT_PROJECT_VERSION=618
+MARKETING_VERSION=1.3.0
