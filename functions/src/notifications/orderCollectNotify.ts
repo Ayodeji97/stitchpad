@@ -1,6 +1,13 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { balanceRemaining, summariseGarments } from './digestDetector';
+import {
+  DAILY_REMINDERS_CHANNEL_ID,
+  DAILY_REMINDER_NOTIFICATION_TAG,
+  deletePushTokens,
+  loadPushTokens,
+  sendMulticast,
+} from './fcm';
 import { moneyFromDoc } from './orderMoney';
 import { isDigestAllowed } from './rollout';
 
@@ -12,6 +19,16 @@ export interface CollectNotification {
   garmentSummary: string;
   amount: number;               // rounded naira
   status: 'READY' | 'DELIVERED';
+}
+
+/**
+ * The status half of the check, decidable from the base doc alone — no money needed.
+ * Split out so the handler can gate on it BEFORE paying for the money read.
+ */
+export function isCollectibleTransition(before: unknown, after: unknown): boolean {
+  const beforeStatus = (before as { status?: string })?.status ?? '';
+  const afterStatus = (after as { status?: string })?.status ?? '';
+  return !COLLECTIBLE.has(beforeStatus) && COLLECTIBLE.has(afterStatus);
 }
 
 /**
@@ -59,12 +76,21 @@ export const onOrderCollectible = functions
   .onUpdate(async (change, context) => {
     const uid = context.params.uid as string;
     const orderId = context.params.orderId as string;
-    // Money lives in /private/money; the base doc update that fired this trigger does
-    // not contain it. One extra document read, only on a status change.
+    // Cheap status gate FIRST — this is the highest-frequency trigger in the system
+    // and must not pay a Firestore read on every field change. Only the money is
+    // unknown at this point, so gate on the transition, then fetch.
+    if (!isCollectibleTransition(change.before.data(), change.after.data())) return;
+
+    // Money lives in /private/money; the base doc that fired this trigger has none.
     const moneySnap = await admin.firestore()
       .doc(`users/${uid}/orders/${orderId}/private/money`).get()
       .catch(() => null);
-    const afterWithMoney = { ...change.after.data(), ...moneyFromDoc(moneySnap?.data()) };
+    // Spread money ONLY when a mirror exists. moneyFromDoc(undefined) is all zeroes,
+    // and spreading that second would wipe the base doc's real values — silencing the
+    // trigger for every legacy order that predates the mirror.
+    const afterWithMoney = moneySnap?.exists
+      ? { ...change.after.data(), ...moneyFromDoc(moneySnap.data()) }
+      : change.after.data();
 
     const n = collectibleTransition(change.before.data(), afterWithMoney);
     if (!n) return;
@@ -113,32 +139,32 @@ export const onOrderCollectible = functions
         return;
       }
 
-      const tokensSnap = await db.collection('users').doc(uid).collection('notificationTokens').get();
-      const tokens = tokensSnap.docs.map((d) => d.id);
+      const tokens = await loadPushTokens(db, uid);
       if (tokens.length === 0) {
         functions.logger.info('onOrderCollectible: push skipped (no tokens)', { uid, orderId });
         return;
       }
 
+      // Routed through fcm.ts like the other two jobs. Inlining its own send meant this
+      // one — the MONEY notification — missed the aps.sound fix and stayed silent on
+      // iOS, skipped the android tag, hardcoded the channel id, and would have thrown
+      // above 500 tokens because sendEachForMulticast caps there.
       const { title, body } = collectPushCopy(n);
-      const res = await admin.messaging().sendEachForMulticast({
+      const { successCount, invalidTokens } = await sendMulticast(
         tokens,
-        notification: { title, body },
-        android: { notification: { channelId: 'daily_reminders' } },
-        data: { target: 'order', orderId },
-      });
+        {
+          title,
+          body,
+          data: { target: 'order', orderId },
+          androidChannelId: DAILY_REMINDERS_CHANNEL_ID,
+          androidTag: DAILY_REMINDER_NOTIFICATION_TAG,
+        },
+        'order-collect push',
+      );
       functions.logger.info('onOrderCollectible: push sent', {
-        uid, orderId, tokenCount: tokens.length,
-        successCount: res.successCount, failureCount: res.failureCount,
-        failureCodes: res.responses.filter((r) => !r.success).map((r) => r.error?.code),
+        uid, orderId, tokenCount: tokens.length, successCount,
       });
-      const invalid: string[] = [];
-      res.responses.forEach((r, i) => {
-        if (!r.success && (r.error?.code === 'messaging/registration-token-not-registered'
-          || r.error?.code === 'messaging/invalid-registration-token')) invalid.push(tokens[i]);
-      });
-      await Promise.all(invalid.map((t) =>
-        db.collection('users').doc(uid).collection('notificationTokens').doc(t).delete().catch(() => undefined)));
+      if (invalidTokens.length > 0) await deletePushTokens(db, uid, invalidTokens);
     } catch (err) {
       functions.logger.error('onOrderCollectible: push failed', { uid, orderId, error: err instanceof Error ? err.message : String(err) });
     }

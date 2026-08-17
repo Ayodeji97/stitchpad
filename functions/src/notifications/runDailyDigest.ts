@@ -52,14 +52,23 @@ export async function runDailyDigest(io: DigestIO, now: number): Promise<DigestR
       // own deadlines. Reuses the orders already loaded above, so it costs no extra
       // read of the workshop. Its own try/catch: a staff push must never cost the
       // owner their digest, which is the more important message of the two.
+      // Honour the SAME rollout gate as the owner. This block runs before the owner's
+      // gate below, so without it an emergency STAGING flip would stop owner digests
+      // while staff pushes carried on — defeating the one-line rollback.
       try {
-        const staffUids = await io.listStaffUids(r.uid);
+        const staffUids = io.isAllowed(r.uid, r.email) ? await io.listStaffUids(r.uid) : [];
         for (const d of staffDigests(orders, staffUids, now)) {
           if (!(await io.isStaffPushEnabled(d.staffUid))) continue;
           if ((await io.getLastPushDate(d.staffUid)) === todayKey) continue;
           const tokens = await io.loadPushTokens(d.staffUid);
           if (tokens.length === 0) continue;
-          const { successCount, invalidTokens } = await io.sendPush(tokens, pushSummary(d.model));
+          const { successCount, invalidTokens } = await io.sendPush(
+            tokens,
+            // NOT the owner's 'to_collect' target: firestore.rules denies staff the money
+            // surface, so that tap dead-ends on a blank screen — and it aims the money
+            // screen at people who must never see it.
+            { ...pushSummary(d.model), target: 'dashboard' },
+          );
           if (invalidTokens.length > 0) await io.deletePushTokens(d.staffUid, invalidTokens);
           if (successCount > 0) {
             await io.setLastPushDate(d.staffUid, todayKey);

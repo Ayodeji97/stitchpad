@@ -18,8 +18,15 @@ export const BUSY_ORDER_THRESHOLD = 10;
  */
 export const DORMANT_DAYS = 21;
 
-/** Days left in the First Month window that trigger the ending nudge. */
-export const WELCOME_ENDING_DAYS = 3;
+/**
+ * Days left in the First Month window that trigger the ending nudge.
+ *
+ * FOUR, not three, because the send cadence is Tue/Fri and the Fri->Tue gap is four
+ * days. A window expiring on a Tuesday shows 4 days left on Friday (skipped by a
+ * 3-day threshold) and is already over by Tuesday — so those users would never be
+ * warned at all. The threshold must be at least the longest gap between sends.
+ */
+export const WELCOME_ENDING_DAYS = 4;
 
 export type Segment =
   /** Signed up, never added a customer. The very first step. */

@@ -16,7 +16,7 @@ function fakeIO(over: Partial<DigestIO> & {
 }): {
   io: DigestIO;
   sent: { to: string; subject: string }[];
-  pushes: { tokens: string[]; body: string }[];
+  pushes: { tokens: string[]; body: string; target?: string }[];
   pushStamps: Record<string, string>;
   deletedTokens: { uid: string; tokens: string[] }[];
   stamps: Record<string, string>;
@@ -25,7 +25,7 @@ function fakeIO(over: Partial<DigestIO> & {
   const sent: { to: string; subject: string }[] = [];
   const stamps: Record<string, string> = {};
   const pushStamps: Record<string, string> = {};
-  const pushes: { tokens: string[]; body: string }[] = [];
+  const pushes: { tokens: string[]; body: string; target?: string }[] = [];
   const deletedTokens: { uid: string; tokens: string[] }[] = [];
   const notified: Record<string, number> = {};
   const io: DigestIO = {
@@ -38,7 +38,7 @@ function fakeIO(over: Partial<DigestIO> & {
     isAllowed: over.isAllowed ?? (() => true),
     loadPushTokens: async (uid) => over.tokensByUid?.[uid] ?? [],
     sendPush: async (tokens, payload) => {
-      pushes.push({ tokens, body: payload.body });
+      pushes.push({ tokens, body: payload.body, target: payload.target });
       const invalid = over.invalidTokens ?? [];
       const successCount = over.pushSuccessCount !== undefined
         ? over.pushSuccessCount
@@ -269,5 +269,39 @@ describe('runDailyDigest — staff digests', () => {
     await runDailyDigest(io, NOW);
     const second = await runDailyDigest(io, NOW);
     expect(second.staffPushed).toBe(0);
+  });
+});
+
+describe('runDailyDigest — staff gating and routing (regressions)', () => {
+  const NOW = Date.parse('2026-06-03T06:00:00Z');
+  const DAY_MS = 86_400_000;
+
+  // The staff block runs BEFORE the owner's gate, so without an explicit check an
+  // emergency STAGING flip would stop owner digests while staff pushes carried on.
+  it('respects the rollout gate for staff, not just the owner', async () => {
+    const { io, pushes } = fakeIO({
+      recipients: [recip()],
+      ordersByUid: { u1: [order({ deadline: NOW - DAY_MS, assignedMemberId: 'gabby' })] },
+      staffByOwner: { u1: ['gabby'] },
+      tokensByUid: { u1: ['owner-tok'], gabby: ['gabby-tok'] },
+      isAllowed: () => false,
+    });
+    const r = await runDailyDigest(io, NOW);
+    expect(r.staffPushed).toBe(0);
+    expect(pushes.some((p) => p.tokens.includes('gabby-tok'))).toBe(false);
+  });
+
+  // firestore.rules denies staff the money surface, so 'to_collect' dead-ends on a
+  // blank screen — and aims the money screen at people who must never see it.
+  it('routes a staff push to the dashboard, never the money screen', async () => {
+    const { io, pushes } = fakeIO({
+      recipients: [recip()],
+      ordersByUid: { u1: [order({ deadline: NOW - DAY_MS, assignedMemberId: 'gabby' })] },
+      staffByOwner: { u1: ['gabby'] },
+      tokensByUid: { u1: ['owner-tok'], gabby: ['gabby-tok'] },
+    });
+    await runDailyDigest(io, NOW);
+    const staffPush = pushes.find((p) => p.tokens.includes('gabby-tok'));
+    expect(staffPush?.target).toBe('dashboard');
   });
 });

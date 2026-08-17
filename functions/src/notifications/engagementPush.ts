@@ -56,6 +56,11 @@ function digestStateRef(db: Firestore, uid: string) {
 }
 
 /** Mirrors SubscriptionTier.fromWire on the client, legacy 'premium' included. */
+/** Trimmed string, or '' for anything that is not a string. */
+function text(v: unknown): string {
+  return typeof v === 'string' ? v.trim() : '';
+}
+
 function resolveTier(raw: unknown): Tier {
   switch (typeof raw === 'string' ? raw.toLowerCase() : '') {
     case 'pro':
@@ -118,7 +123,9 @@ function recipientFromDoc(
     tier,
     hasReferralLink: typeof u.referralCode === 'string' && u.referralCode.trim().length > 0,
     // Mirrors dailyDigest's name resolution so both jobs address a tailor identically.
-    businessName: (u.businessName?.trim() || u.displayName?.trim() || 'Tailor'),
+    // Type-safe: a non-string businessName would throw here, and listRecipients runs
+    // outside the per-recipient try/catch.
+    businessName: (text(u.businessName) || text(u.displayName) || 'Tailor'),
     points: pointsByUid.get(uid) ?? 0,
     welcomeDaysLeft: welcomeDaysLeftFor(u, tier, now),
   };
@@ -151,7 +158,8 @@ async function loadPointsByUid(db: Firestore): Promise<Map<string, number>> {
     if (Array.isArray(entries)) {
       for (const e of entries) {
         const uid = uidByMarketer.get(e?.marketerId);
-        if (uid && typeof e?.points === 'number') byUid.set(uid, e.points);
+        // Number.isFinite, not typeof: NaN is a number and would render literally.
+        if (uid && Number.isFinite(e?.points)) byUid.set(uid, e.points);
       }
     }
   } catch (err) {

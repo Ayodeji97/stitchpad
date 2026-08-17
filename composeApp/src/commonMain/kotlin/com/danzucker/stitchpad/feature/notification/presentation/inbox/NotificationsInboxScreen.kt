@@ -84,7 +84,7 @@ fun NotificationsInboxScreen(
                     }
                 },
                 actions = {
-                    if (state.unreadCount > 0) {
+                    if (state.totalUnreadCount > 0) {
                         TextButton(onClick = { onAction(NotificationsInboxAction.OnMarkAllReadClick) }) {
                             Text(
                                 text = stringResource(Res.string.notifications_mark_all_read),

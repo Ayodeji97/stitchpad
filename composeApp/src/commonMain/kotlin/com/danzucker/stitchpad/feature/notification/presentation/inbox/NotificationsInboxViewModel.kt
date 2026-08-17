@@ -80,7 +80,12 @@ class NotificationsInboxViewModel(
                         // Also clear any prior errorMessage so a recovered load
                         // (after retryWhen self-heals) clears the error state.
                         _state.update {
-                            it.copy(notifications = visible, isLoading = false, errorMessage = null)
+                            it.copy(
+                                notifications = visible,
+                                totalUnreadCount = allUnreadIds.size,
+                                isLoading = false,
+                                errorMessage = null,
+                            )
                         }
                     }
                     is Result.Error -> _state.update {

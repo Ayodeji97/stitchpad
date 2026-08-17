@@ -24,6 +24,11 @@ const REGION = 'europe-west1';
 const SCHEDULE = '0 7 * * *';
 const TIMEZONE = 'Africa/Lagos';
 
+/** Trimmed string, or '' for anything that is not a string. Type-safe, unlike `?.trim()`. */
+function text(v: unknown): string {
+  return typeof v === 'string' ? v.trim() : '';
+}
+
 function digestStateRef(uid: string) {
   return admin.firestore().collection('users').doc(uid).collection('private').doc('digestState');
 }
@@ -67,7 +72,10 @@ function productionDigestIO(apiKey: string): DigestIO {
         } catch {
           continue; // doc with no matching/verified auth user — skip
         }
-        const name = (data.businessName?.trim() || data.displayName?.trim() || email.split('@')[0]);
+        // `?.` guards null/undefined but NOT type: a numeric or map businessName from a
+        // console edit would throw inside listRecipients, which runs OUTSIDE the
+        // per-recipient try/catch — one bad doc would silence the digest for everyone.
+        const name = (text(data.businessName) || text(data.displayName) || email.split('@')[0]);
         recipients.push({
           uid: doc.id,
           email,
@@ -113,7 +121,7 @@ function productionDigestIO(apiKey: string): DigestIO {
       {
         title: payload.title,
         body: payload.body,
-        data: { target: 'to_collect' },
+        data: { target: payload.target ?? 'to_collect' },
         androidChannelId: DAILY_REMINDERS_CHANNEL_ID,
         // A daily summary is meant to collapse to one notification. Without a tag it
         // only did so in the foreground; backgrounded deliveries stacked.

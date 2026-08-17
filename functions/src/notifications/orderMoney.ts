@@ -102,7 +102,7 @@ export function withMoney(
       totalPrice: m.totalPrice || o.totalPrice,
       discount: m.discount || o.discount,
       payments: m.payments.length > 0 ? m.payments : o.payments,
-      costs: m.costs,
+      costs: m.costs.length > 0 ? m.costs : o.costs,
     };
   });
 }

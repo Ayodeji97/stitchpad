@@ -1,4 +1,4 @@
-import { collectibleTransition, collectPushCopy } from '../../notifications/orderCollectNotify';
+import { isCollectibleTransition, collectibleTransition, collectPushCopy } from '../../notifications/orderCollectNotify';
 
 function order(p: Partial<any> = {}): any {
   return { status: 'IN_PROGRESS', totalPrice: 0, discount: 0, payments: [], depositPaid: 0,
@@ -48,5 +48,31 @@ describe('collectibleTransition', () => {
     expect(copy.body).toContain('Agbada');
     expect(copy.body).toContain('ready');
     expect(copy.body).toContain('8,500');
+  });
+});
+
+describe('isCollectibleTransition — the cheap gate before any Firestore read', () => {
+  it('is true only on a first entry into a collectible state', () => {
+    expect(isCollectibleTransition({ status: 'IN_PROGRESS' }, { status: 'READY' })).toBe(true);
+    expect(isCollectibleTransition({ status: 'READY' }, { status: 'DELIVERED' })).toBe(false);
+    expect(isCollectibleTransition({ status: 'PENDING' }, { status: 'IN_PROGRESS' })).toBe(false);
+  });
+
+  // This trigger fires on EVERY order field change; it must not pay a money read
+  // just to discover the status did not move.
+  it('is false when the status did not change at all', () => {
+    expect(isCollectibleTransition({ status: 'IN_PROGRESS' }, { status: 'IN_PROGRESS' })).toBe(false);
+  });
+});
+
+describe('collectibleTransition — legacy orders with no money mirror', () => {
+  // REGRESSION: moneyFromDoc(undefined) is all zeroes. Spreading it over the base doc
+  // wiped real base money and silenced the trigger for every pre-mirror order.
+  it('still fires from base-doc money when no mirror exists', () => {
+    const after = {
+      status: 'READY', customerName: 'Folake', items: [],
+      totalPrice: 15000, payments: [{ amount: 5000 }],
+    };
+    expect(collectibleTransition({ status: 'IN_PROGRESS' }, after)?.amount).toBe(10000);
   });
 });
