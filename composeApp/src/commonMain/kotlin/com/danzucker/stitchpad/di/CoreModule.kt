@@ -9,6 +9,7 @@ import com.danzucker.stitchpad.core.data.sync.SyncStatusObserver
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
+import com.danzucker.stitchpad.core.domain.session.SelfInitiatedLeaveSignal
 import com.danzucker.stitchpad.core.domain.staff.StaffMembershipPrefsStore
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.offline.OfflineUploadOutbox
@@ -26,6 +27,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNot
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.retryWhen
+import org.koin.core.module.dsl.singleOf
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
@@ -73,6 +75,10 @@ val coreModule = module {
             scope = get<CoroutineScope>(qualifier = named("entitlementsAppScope")),
         )
     }
+    // Shared latch between the leave-workshop flow (SettingsViewModel) and the
+    // global demotion redirect (NavGraph). Must be a singleton — the two read and
+    // write it from different composition/VM lifetimes.
+    singleOf(::SelfInitiatedLeaveSignal)
     single<ActiveWorkshopProvider> {
         val authRepository = get<AuthRepository>()
         val firestore = get<FirebaseFirestore>()

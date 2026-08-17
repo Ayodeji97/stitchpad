@@ -45,6 +45,14 @@ export interface DigestModel {
 export interface DigestRecipient {
   uid: string;
   email: string;
+  /**
+   * Whether `email` is a verified Firebase Auth address. Gates the EMAIL digest
+   * ONLY — the in-app inbox, the owner's push, and the staff digests are all
+   * independent of it. Do not turn this back into a filter in `listRecipients`:
+   * staff digests are derived from the owner's recipient row, so dropping an
+   * unverified owner silences every staff push in their workshop.
+   */
+  emailVerified: boolean;
   name: string;          // businessName || displayName || email prefix
   digestEnabled: boolean; // false only when explicitly opted out
   pushEnabled: boolean;  // false only when explicitly opted out of push
@@ -79,6 +87,8 @@ export interface DigestRunResult {
   staffPushed: number;
   suppressedEmpty: number;
   skippedDisabled: number;
+  /** Owner's email address is unverified — email suppressed, push/inbox unaffected. */
+  skippedUnverified: number;
   skippedAlreadySent: number;
   skippedNotAllowed: number;
   failed: number;

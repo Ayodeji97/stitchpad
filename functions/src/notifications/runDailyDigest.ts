@@ -12,7 +12,8 @@ export async function runDailyDigest(io: DigestIO, now: number): Promise<DigestR
   const todayKey = lagosDateKey(now);
   const result: DigestRunResult = {
     considered: recipients.length, sent: 0, staffPushed: 0, suppressedEmpty: 0,
-    skippedDisabled: 0, skippedAlreadySent: 0, skippedNotAllowed: 0, failed: 0,
+    skippedDisabled: 0, skippedUnverified: 0, skippedAlreadySent: 0,
+    skippedNotAllowed: 0, failed: 0,
   };
 
   for (const r of recipients) {
@@ -83,6 +84,10 @@ export async function runDailyDigest(io: DigestIO, now: number): Promise<DigestR
       }
 
       if (!r.digestEnabled) { result.skippedDisabled++; continue; }
+      // EMAIL-ONLY gate. Everything above this line (inbox, owner push, staff
+      // digests) has already run for an unverified owner — deliberately, since
+      // none of it depends on the address being reachable.
+      if (!r.emailVerified) { result.skippedUnverified++; continue; }
       if (!io.isAllowed(r.uid, r.email)) { result.skippedNotAllowed++; continue; }
       if ((await io.getLastSentDate(r.uid)) === todayKey) { result.skippedAlreadySent++; continue; }
       if (isDigestEmpty(model)) { result.suppressedEmpty++; continue; }

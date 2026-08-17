@@ -1,0 +1,408 @@
+<title>StitchPad — Staff Dashboard: Top Cards & Pipeline</title>
+<style>
+  :root {
+    /* Adire Atelier — brand */
+    --paper:#FAF6EC; --surface:#FFFFFF; --surface-2:#F6F2E6;
+    --ink:#14110E; --ink-soft:#4A4640; --ink-faint:#7D7970;
+    --line:#E7E2D4; --line-soft:#EFEADD;
+    --indigo:#2C3E7C; --indigo-soft:#EAEEF8;
+    --sienna:#B85A30; --saffron:#E8A800;
+    /* semantic urgency — separate from the accent */
+    --crit:#C0392B; --crit-bg:#FBEBE8;
+    --warn:#B0722A; --warn-bg:#FBF0E1;
+    --info:#2C3E7C; --info-bg:#EAEEF8;
+    --good:#2D7D57; --good-bg:#E7F3EC;
+    --font-display:'Iowan Old Style',Georgia,'Times New Roman',serif;
+    --font-body:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    --font-mono:ui-monospace,'SF Mono',Menlo,'JetBrains Mono',monospace;
+    --r:16px; --r-sm:12px;
+    --shadow:0 1px 2px rgba(20,17,14,.05),0 8px 24px -12px rgba(20,17,14,.14);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --paper:#14110E; --surface:#211D18; --surface-2:#1A1712;
+      --ink:#EDE7DC; --ink-soft:#B7AE9F; --ink-faint:#8A8171;
+      --line:#332E26; --line-soft:#2A251E;
+      --indigo:#8EA4E0; --indigo-soft:#20243A;
+      --sienna:#D9885F; --saffron:#E8A800;
+      --crit:#E58079; --crit-bg:#2E1C1A;
+      --warn:#D9A05C; --warn-bg:#2A2015;
+      --info:#8EA4E0; --info-bg:#20243A;
+      --good:#6FBF97; --good-bg:#16241C;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px -14px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="light"]{
+    --paper:#FAF6EC; --surface:#FFFFFF; --surface-2:#F6F2E6;
+    --ink:#14110E; --ink-soft:#4A4640; --ink-faint:#7D7970;
+    --line:#E7E2D4; --line-soft:#EFEADD;
+    --indigo:#2C3E7C; --indigo-soft:#EAEEF8; --sienna:#B85A30;
+    --crit:#C0392B; --crit-bg:#FBEBE8; --warn:#B0722A; --warn-bg:#FBF0E1;
+    --info:#2C3E7C; --info-bg:#EAEEF8; --good:#2D7D57; --good-bg:#E7F3EC;
+    --shadow:0 1px 2px rgba(20,17,14,.05),0 8px 24px -12px rgba(20,17,14,.14);
+  }
+  :root[data-theme="dark"]{
+    --paper:#14110E; --surface:#211D18; --surface-2:#1A1712;
+    --ink:#EDE7DC; --ink-soft:#B7AE9F; --ink-faint:#8A8171;
+    --line:#332E26; --line-soft:#2A251E;
+    --indigo:#8EA4E0; --indigo-soft:#20243A; --sienna:#D9885F;
+    --crit:#E58079; --crit-bg:#2E1C1A; --warn:#D9A05C; --warn-bg:#2A2015;
+    --info:#8EA4E0; --info-bg:#20243A; --good:#6FBF97; --good-bg:#16241C;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px -14px rgba(0,0,0,.6);
+  }
+
+  *{box-sizing:border-box;}
+  body{background:var(--paper);color:var(--ink);font-family:var(--font-body);
+    line-height:1.55;-webkit-font-smoothing:antialiased;margin:0;}
+  .wrap{max-width:1180px;margin:0 auto;padding:clamp(24px,5vw,64px) clamp(18px,4vw,40px);}
+
+  .eyebrow{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--sienna);font-weight:700;margin:0 0 12px;}
+  h1{font-family:var(--font-display);font-weight:600;font-size:clamp(1.9rem,4.5vw,3rem);
+    line-height:1.08;letter-spacing:-.01em;text-wrap:balance;margin:0 0 16px;}
+  .lede{font-size:clamp(1.02rem,2.2vw,1.18rem);color:var(--ink-soft);max-width:62ch;margin:0 0 8px;}
+  h2{font-family:var(--font-display);font-weight:600;font-size:1.5rem;letter-spacing:-.01em;
+    margin:0 0 6px;}
+  h3{font-size:1.06rem;margin:0 0 4px;font-weight:700;letter-spacing:-.01em;}
+  p{margin:0 0 10px;}
+  a{color:var(--indigo);}
+
+  .goals{display:flex;flex-wrap:wrap;gap:10px;margin:26px 0 8px;}
+  .goal{display:flex;gap:8px;align-items:baseline;background:var(--surface);border:1px solid var(--line);
+    border-radius:999px;padding:8px 14px;font-size:.86rem;color:var(--ink-soft);box-shadow:var(--shadow);}
+  .goal b{color:var(--ink);font-weight:700;}
+
+  .divider{height:1px;background:var(--line);border:0;margin:44px 0;}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:clamp(20px,3vw,34px);
+    align-items:start;}
+  .opt{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+    padding:22px;box-shadow:var(--shadow);position:relative;}
+  .opt.reco{border-color:var(--indigo);box-shadow:0 0 0 1px var(--indigo),var(--shadow);}
+  .tag{display:inline-flex;align-items:center;gap:6px;font-size:.7rem;letter-spacing:.1em;
+    text-transform:uppercase;font-weight:700;padding:4px 9px;border-radius:999px;margin-bottom:12px;}
+  .tag.now{background:var(--surface-2);color:var(--ink-faint);border:1px solid var(--line);}
+  .tag.pick{background:var(--indigo);color:#fff;}
+  :root[data-theme="dark"] .tag.pick{color:#14110E;}
+  @media (prefers-color-scheme:dark){.tag.pick{color:#14110E;}}
+  .opt h3 .sub{display:block;font-weight:500;font-size:.9rem;color:var(--ink-faint);margin-top:2px;}
+  .why{font-size:.92rem;color:var(--ink-soft);margin:12px 0 0;}
+  .pc{display:grid;grid-template-columns:1fr;gap:6px;margin:14px 0 0;font-size:.86rem;}
+  .pc div{display:flex;gap:8px;}
+  .pc .k{flex:0 0 18px;font-weight:700;}
+  .pc .pro .k{color:var(--good);} .pc .con .k{color:var(--crit);}
+  .pc span.t{color:var(--ink-soft);}
+
+  /* ---------- phone frame ---------- */
+  .phone{width:100%;max-width:300px;margin:0 auto 4px;background:var(--ink);
+    border-radius:34px;padding:9px;box-shadow:var(--shadow);}
+  @media (prefers-color-scheme:dark){.phone{background:#000;}}
+  :root[data-theme="dark"] .phone{background:#000;}
+  :root[data-theme="light"] .phone{background:#14110E;}
+  .screen{background:var(--paper);border-radius:26px;overflow:hidden;
+    font-family:var(--font-body);color:var(--ink);}
+  .sbar{display:flex;justify-content:space-between;align-items:center;padding:9px 16px 2px;
+    font-size:.66rem;color:var(--ink-faint);}
+  .sbar .dots{letter-spacing:2px;}
+  .body{padding:12px 14px 14px;}
+  .greet{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;}
+  .greet .hi{font-family:var(--font-display);font-weight:600;font-size:1.18rem;line-height:1.1;}
+  .greet .pill{display:inline-block;margin-top:5px;font-size:.6rem;font-weight:700;letter-spacing:.06em;
+    color:var(--indigo);background:var(--indigo-soft);padding:2px 8px;border-radius:999px;}
+  .av{width:30px;height:30px;border-radius:50%;background:var(--indigo-soft);color:var(--indigo);
+    display:grid;place-items:center;font-weight:700;font-size:.8rem;flex:0 0 auto;}
+  .mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;}
+  .lbl{font-size:.62rem;letter-spacing:.04em;color:var(--ink-faint);text-transform:none;}
+  .section-h{display:flex;justify-content:space-between;align-items:center;margin:14px 2px 8px;}
+  .section-h .t{font-size:.72rem;font-weight:700;letter-spacing:.02em;color:var(--ink-soft);}
+  .section-h .link{font-size:.66rem;color:var(--indigo);font-weight:600;}
+
+  /* needs-attention teaser card (shared) */
+  .na{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);
+    padding:10px 12px;display:flex;align-items:center;gap:10px;border-left:3px solid var(--crit);}
+  .na .mono.badge{font-size:.62rem;color:var(--crit);background:var(--crit-bg);padding:2px 7px;border-radius:999px;}
+  .na .who{font-weight:700;font-size:.82rem;} .na .meta{font-size:.66rem;color:var(--ink-faint);}
+  .na .chev{margin-left:auto;color:var(--ink-faint);}
+
+  /* ===== BASELINE stat cards (flat, equal) ===== */
+  .st-flat{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  .st-flat .c{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);
+    padding:10px 8px;}
+  .st-flat .ic{width:20px;height:20px;border-radius:6px;background:var(--surface-2);margin-bottom:8px;
+    display:grid;place-items:center;font-size:.7rem;}
+  .st-flat .n{font-family:var(--font-mono);font-size:1.5rem;font-weight:700;line-height:1;}
+
+  .pipe-flat{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;}
+  .pipe-flat .c{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 6px;}
+  .pipe-flat .dot{width:7px;height:7px;border-radius:50%;margin-bottom:6px;}
+  .pipe-flat .n{font-family:var(--font-mono);font-size:1.05rem;font-weight:700;line-height:1;}
+
+  /* ===== OPTION A — urgency-weighted, tappable ===== */
+  .st-urg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  .st-urg .c{border-radius:var(--r-sm);padding:10px 9px 9px;position:relative;overflow:hidden;
+    border:1px solid var(--line);background:var(--surface);cursor:pointer;transition:transform .12s ease;}
+  .st-urg .c::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;}
+  .st-urg .c.crit{background:var(--crit-bg);border-color:transparent;}
+  .st-urg .c.crit::before{background:var(--crit);}
+  .st-urg .c.warn{background:var(--warn-bg);border-color:transparent;}
+  .st-urg .c.warn::before{background:var(--warn);}
+  .st-urg .c.info::before{background:var(--info);}
+  .st-urg .n{font-family:var(--font-mono);font-size:1.55rem;font-weight:700;line-height:1;}
+  .st-urg .c.crit .n{color:var(--crit);} .st-urg .c.warn .n{color:var(--warn);} .st-urg .c.info .n{color:var(--info);}
+  .st-urg .go{font-size:.6rem;font-weight:600;color:var(--ink-faint);margin-top:6px;display:flex;
+    justify-content:space-between;align-items:center;}
+  @media (hover:hover){.st-urg .c:hover{transform:translateY(-2px);}}
+  @media (prefers-reduced-motion:reduce){.st-urg .c{transition:none;}.st-urg .c:hover{transform:none;}}
+
+  .pipe-seg{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;}
+  .pipe-seg .top{display:flex;justify-content:space-between;font-size:.66rem;color:var(--ink-faint);margin-bottom:8px;}
+  .pipe-seg .bar{display:flex;height:8px;border-radius:6px;overflow:hidden;gap:2px;}
+  .pipe-seg .bar span{flex:1;border-radius:3px;}
+  .pipe-seg .keys{display:flex;justify-content:space-between;margin-top:8px;}
+  .pipe-seg .key{display:flex;align-items:center;gap:5px;font-size:.62rem;color:var(--ink-soft);}
+  .pipe-seg .key .d{width:7px;height:7px;border-radius:50%;}
+  .pipe-seg .key .mono{font-weight:700;}
+
+  /* ===== OPTION B — directive hero + strip ===== */
+  .hero{background:var(--crit-bg);border:1px solid transparent;border-left:4px solid var(--crit);
+    border-radius:var(--r-sm);padding:13px 14px;}
+  .hero .k{font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--crit);}
+  .hero .big{font-family:var(--font-display);font-weight:600;font-size:1.16rem;line-height:1.15;margin:4px 0 3px;}
+  .hero .cta{display:inline-flex;align-items:center;gap:6px;font-size:.72rem;font-weight:700;color:#fff;
+    background:var(--crit);padding:7px 12px;border-radius:999px;margin-top:8px;}
+  :root[data-theme="dark"] .hero .cta{color:#14110E;}
+  @media (prefers-color-scheme:dark){.hero .cta{color:#14110E;}}
+  .strip{display:flex;gap:8px;margin-top:10px;}
+  .strip .s{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;
+    display:flex;align-items:center;gap:8px;}
+  .strip .s .d{width:8px;height:8px;border-radius:50%;flex:0 0 auto;}
+  .strip .s .n{font-family:var(--font-mono);font-weight:700;font-size:1.05rem;}
+  .pipe-mini{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:.62rem;color:var(--ink-faint);
+    flex-wrap:wrap;}
+  .pipe-mini .chip{display:flex;align-items:center;gap:5px;background:var(--surface);border:1px solid var(--line);
+    border-radius:999px;padding:4px 9px;}
+  .pipe-mini .chip .d{width:6px;height:6px;border-radius:50%;}
+  .pipe-mini .chip .mono{font-weight:700;color:var(--ink);}
+
+  /* ===== OPTION C — unified segmented card + proportional bar ===== */
+  .st-seg{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);
+    overflow:hidden;}
+  .st-seg .c{flex:1;padding:11px 6px;text-align:center;position:relative;}
+  .st-seg .c + .c{border-left:1px solid var(--line);}
+  .st-seg .n{font-family:var(--font-mono);font-size:1.5rem;font-weight:700;line-height:1;}
+  .st-seg .c.crit .n{color:var(--crit);} .st-seg .c.warn .n{color:var(--warn);} .st-seg .c.info .n{color:var(--info);}
+  .st-seg .u{width:16px;height:3px;border-radius:3px;margin:6px auto 0;}
+  .st-seg .c.crit .u{background:var(--crit);} .st-seg .c.warn .u{background:var(--warn);} .st-seg .c.info .u{background:var(--info);}
+
+  .pipe-prop{margin-top:2px;}
+  .pipe-prop .cap{font-size:.66rem;color:var(--ink-faint);margin:0 2px 6px;display:flex;justify-content:space-between;}
+  .pipe-prop .bar{display:flex;height:26px;border-radius:8px;overflow:hidden;border:1px solid var(--line);}
+  .pipe-prop .bar span{display:grid;place-items:center;font-family:var(--font-mono);font-size:.64rem;
+    font-weight:700;color:#fff;}
+  :root[data-theme="dark"] .pipe-prop .bar span{color:#14110E;}
+  @media (prefers-color-scheme:dark){.pipe-prop .bar span{color:#14110E;}}
+  .pipe-prop .keys{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;}
+  .pipe-prop .key{display:flex;align-items:center;gap:5px;font-size:.62rem;color:var(--ink-soft);}
+  .pipe-prop .key .d{width:8px;height:8px;border-radius:2px;}
+
+  /* recommendation block */
+  .rec{background:var(--surface);border:1px solid var(--indigo);border-radius:var(--r);
+    padding:clamp(22px,3.5vw,34px);box-shadow:var(--shadow);}
+  .rec .grid2{display:grid;grid-template-columns:1fr;gap:22px;}
+  @media(min-width:760px){.rec .grid2{grid-template-columns:1.15fr .85fr;}}
+  .spec{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:10px;}
+  .spec li{display:flex;gap:12px;align-items:flex-start;font-size:.92rem;}
+  .spec .arw{flex:0 0 auto;width:auto;padding:2px 8px;border-radius:999px;font-size:.64rem;font-weight:700;
+    font-family:var(--font-mono);}
+  .spec .arw.c{background:var(--crit-bg);color:var(--crit);}
+  .spec .arw.w{background:var(--warn-bg);color:var(--warn);}
+  .spec .arw.i{background:var(--info-bg);color:var(--info);}
+  .note{background:var(--warn-bg);border:1px solid transparent;border-left:3px solid var(--warn);
+    border-radius:10px;padding:12px 14px;font-size:.88rem;color:var(--ink-soft);margin-top:20px;}
+  .note b{color:var(--ink);}
+  footer{color:var(--ink-faint);font-size:.82rem;margin-top:40px;border-top:1px solid var(--line);padding-top:18px;}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">StitchPad · Owner + Staff · Dashboard</p>
+  <h1>Staff dashboard — the stat cards &amp; pipeline, reconsidered</h1>
+  <p class="lede">The staff home is a <b>work queue</b>, not a report. It should answer one question on sight — <i>what needs me right now?</i> — stay money-free, and let a tap jump straight to the work. Below: the current design, three directions, and my recommendation.</p>
+
+  <div class="goals">
+    <span class="goal"><b>Urgency first</b> overdue should outweigh "in progress"</span>
+    <span class="goal"><b>Tappable</b> each metric opens its filtered order list</span>
+    <span class="goal"><b>Quieter pipeline</b> one glanceable unit, not four cards</span>
+    <span class="goal"><b>Money-free</b> counts only, never naira</span>
+  </div>
+
+  <hr class="divider">
+  <div class="grid">
+
+    <!-- BASELINE -->
+    <article class="opt">
+      <span class="tag now">Current</span>
+      <h3>Today<span class="sub">Three equal cards · four pipeline tiles</span></h3>
+      <div class="phone"><div class="screen">
+        <div class="sbar"><span>7:45</span><span class="dots">•••</span><span>▮▮ ▊</span></div>
+        <div class="body">
+          <div class="greet"><div><div class="hi">Hi, Gabby</div><span class="pill">STAFF</span></div><div class="av">G</div></div>
+          <div class="st-flat">
+            <div class="c"><div class="ic">⚠</div><div class="n">2</div><div class="lbl">Overdue</div></div>
+            <div class="c"><div class="ic">◷</div><div class="n">1</div><div class="lbl">Due today</div></div>
+            <div class="c"><div class="ic">🔧</div><div class="n">3</div><div class="lbl">In progress</div></div>
+          </div>
+          <div class="section-h"><span class="t">Needs attention</span><span class="link">All orders</span></div>
+          <div class="na"><div class="av">FA</div><div><div class="who">Folake Adebayo</div><div class="meta">Shirt · Pickup not ready</div></div><span class="mono badge">7d late</span></div>
+          <div class="section-h"><span class="t">Pipeline</span></div>
+          <div class="pipe-flat">
+            <div class="c"><div class="dot" style="background:var(--warn)"></div><div class="n">1</div><div class="lbl">Cutting</div></div>
+            <div class="c"><div class="dot" style="background:var(--indigo)"></div><div class="n">1</div><div class="lbl">Sewing</div></div>
+            <div class="c"><div class="dot" style="background:var(--sienna)"></div><div class="n">1</div><div class="lbl">Fitting</div></div>
+            <div class="c"><div class="dot" style="background:var(--good)"></div><div class="n">1</div><div class="lbl">Ready</div></div>
+          </div>
+        </div>
+      </div></div>
+      <p class="why"><b>Where it falls short.</b> All three cards carry equal weight, so a critical "2 overdue" looks the same as an informational "3 in progress." Nothing signals the cards are tappable, and four separate pipeline tiles add visual noise for four small numbers.</p>
+    </article>
+
+    <!-- OPTION A -->
+    <article class="opt reco">
+      <span class="tag pick">★ Recommended · Option A</span>
+      <h3>Urgency-weighted &amp; tappable<span class="sub">Same 3 cards, now colour-coded + a segmented pipeline</span></h3>
+      <div class="phone"><div class="screen">
+        <div class="sbar"><span>7:45</span><span class="dots">•••</span><span>▮▮ ▊</span></div>
+        <div class="body">
+          <div class="greet"><div><div class="hi">Hi, Gabby</div><span class="pill">STAFF</span></div><div class="av">G</div></div>
+          <div class="st-urg">
+            <div class="c crit"><div class="n mono">2</div><div class="lbl">Overdue</div><div class="go"><span>View</span><span>→</span></div></div>
+            <div class="c warn"><div class="n mono">1</div><div class="lbl">Due today</div><div class="go"><span>View</span><span>→</span></div></div>
+            <div class="c info"><div class="n mono">3</div><div class="lbl">In progress</div><div class="go"><span>View</span><span>→</span></div></div>
+          </div>
+          <div class="section-h"><span class="t">Needs attention</span><span class="link">All orders</span></div>
+          <div class="na"><div class="av">FA</div><div><div class="who">Folake Adebayo</div><div class="meta">Shirt · Pickup not ready</div></div><span class="mono badge">7d late</span></div>
+          <div class="section-h"><span class="t">Pipeline</span><span class="link">4 in workshop</span></div>
+          <div class="pipe-seg">
+            <div class="bar">
+              <span style="background:var(--warn)"></span><span style="background:var(--indigo)"></span>
+              <span style="background:var(--sienna)"></span><span style="background:var(--good)"></span>
+            </div>
+            <div class="keys">
+              <span class="key"><span class="d" style="background:var(--warn)"></span>Cutting <b class="mono">1</b></span>
+              <span class="key"><span class="d" style="background:var(--indigo)"></span>Sewing <b class="mono">1</b></span>
+              <span class="key"><span class="d" style="background:var(--sienna)"></span>Fitting <b class="mono">1</b></span>
+              <span class="key"><span class="d" style="background:var(--good)"></span>Ready <b class="mono">1</b></span>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <p class="why"><b>Why this one.</b> Smallest change, biggest payoff. It keeps the familiar three-card scan you already have, but a red-tinted "Overdue" now visibly outranks a calm indigo "In progress," and the "View →" affordance makes the tap obvious. The pipeline collapses into one glanceable bar + legend — same information, a quarter of the noise.</p>
+      <div class="pc">
+        <div class="pro"><span class="k">＋</span><span class="t">Familiar; low-risk; directly fixes hierarchy + clickability</span></div>
+        <div class="pro"><span class="k">＋</span><span class="t">Colour does the work at a glance, before you read a word</span></div>
+        <div class="con"><span class="k">－</span><span class="t">Still three tap targets to place; tinted cards need dark-mode contrast care (handled here)</span></div>
+      </div>
+    </article>
+
+    <!-- OPTION B -->
+    <article class="opt">
+      <span class="tag now">Option B</span>
+      <h3>Directive hero<span class="sub">Lead with the action, demote the rest</span></h3>
+      <div class="phone"><div class="screen">
+        <div class="sbar"><span>7:45</span><span class="dots">•••</span><span>▮▮ ▊</span></div>
+        <div class="body">
+          <div class="greet"><div><div class="hi">Hi, Gabby</div><span class="pill">STAFF</span></div><div class="av">G</div></div>
+          <div class="hero">
+            <div class="k">Needs you first</div>
+            <div class="big">2 orders overdue for pickup</div>
+            <div class="lbl" style="color:var(--ink-soft)">Folake &amp; Adaeze — get them finish-ready</div>
+            <span class="cta">See overdue →</span>
+          </div>
+          <div class="strip">
+            <div class="s"><span class="d" style="background:var(--warn)"></span><div><div class="n mono" style="color:var(--warn)">1</div><div class="lbl">Due today</div></div></div>
+            <div class="s"><span class="d" style="background:var(--indigo)"></span><div><div class="n mono" style="color:var(--info)">3</div><div class="lbl">In progress</div></div></div>
+          </div>
+          <div class="pipe-mini">
+            <span class="chip"><span class="d" style="background:var(--warn)"></span>Cutting <span class="mono">1</span></span>
+            <span class="chip"><span class="d" style="background:var(--indigo)"></span>Sewing <span class="mono">1</span></span>
+            <span class="chip"><span class="d" style="background:var(--sienna)"></span>Fitting <span class="mono">1</span></span>
+            <span class="chip"><span class="d" style="background:var(--good)"></span>Ready <span class="mono">1</span></span>
+          </div>
+        </div>
+      </div></div>
+      <p class="why"><b>The idea.</b> One workshop can only chase so many things at once, so the most urgent bucket becomes a headline with a verb, and everything else steps back. Reads almost like a manager telling you where to start.</p>
+      <div class="pc">
+        <div class="pro"><span class="k">＋</span><span class="t">Impossible to miss the priority; feels human and directive</span></div>
+        <div class="con"><span class="k">－</span><span class="t">Biggest departure; the "all caught up" empty state needs its own design</span></div>
+        <div class="con"><span class="k">－</span><span class="t">Sacrifices the at-a-glance 3-number scan some staff will want</span></div>
+      </div>
+    </article>
+
+    <!-- OPTION C -->
+    <article class="opt">
+      <span class="tag now">Option C</span>
+      <h3>One unified strip<span class="sub">Segmented stat card + proportional pipeline</span></h3>
+      <div class="phone"><div class="screen">
+        <div class="sbar"><span>7:45</span><span class="dots">•••</span><span>▮▮ ▊</span></div>
+        <div class="body">
+          <div class="greet"><div><div class="hi">Hi, Gabby</div><span class="pill">STAFF</span></div><div class="av">G</div></div>
+          <div class="st-seg">
+            <div class="c crit"><div class="n mono">2</div><div class="lbl">Overdue</div><div class="u"></div></div>
+            <div class="c warn"><div class="n mono">1</div><div class="lbl">Due today</div><div class="u"></div></div>
+            <div class="c info"><div class="n mono">3</div><div class="lbl">In progress</div><div class="u"></div></div>
+          </div>
+          <div class="section-h"><span class="t">Needs attention</span><span class="link">All orders</span></div>
+          <div class="na"><div class="av">FA</div><div><div class="who">Folake Adebayo</div><div class="meta">Shirt · Pickup not ready</div></div><span class="mono badge">7d late</span></div>
+          <div class="section-h"><span class="t">Pipeline</span><span class="link">4 in workshop</span></div>
+          <div class="pipe-prop">
+            <div class="bar">
+              <span style="background:var(--warn);flex:1">1</span><span style="background:var(--indigo);flex:1">1</span>
+              <span style="background:var(--sienna);flex:1">1</span><span style="background:var(--good);flex:1">1</span>
+            </div>
+            <div class="keys">
+              <span class="key"><span class="d" style="background:var(--warn)"></span>Cutting</span>
+              <span class="key"><span class="d" style="background:var(--indigo)"></span>Sewing</span>
+              <span class="key"><span class="d" style="background:var(--sienna)"></span>Fitting</span>
+              <span class="key"><span class="d" style="background:var(--good)"></span>Ready</span>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <p class="why"><b>The idea.</b> Maximum compression: the three stats become one divided card, and the pipeline is a single proportional bar that shows the <i>shape</i> of the workload (which stage is stacking up) as counts grow. Tidiest use of vertical space.</p>
+      <div class="pc">
+        <div class="pro"><span class="k">＋</span><span class="t">Very compact; the bar scales into a real distribution as work grows</span></div>
+        <div class="pro"><span class="k">＋</span><span class="t">One cohesive unit reads as calmer</span></div>
+        <div class="con"><span class="k">－</span><span class="t">Three segments in one card can feel cramped on small phones; each number gets less individual weight</span></div>
+      </div>
+    </article>
+
+  </div>
+
+  <hr class="divider">
+
+  <div class="rec">
+    <span class="tag pick">My recommendation</span>
+    <div class="grid2">
+      <div>
+        <h2>Ship Option A — with a borrowed touch from B</h2>
+        <p class="why" style="font-size:1rem">Option A is the right default: it fixes exactly what you flagged (flat hierarchy, no clickability) with the least disruption and stays true to the Adire Atelier system. The three cards keep their proven scannability, urgency colour gives them a real pecking order, and the segmented pipeline retires four noisy tiles for one calm bar.</p>
+        <p class="why" style="font-size:1rem">Borrow one thing from B: when a card's count is <b>0</b>, soften it to a plain neutral (no red), and when everything is clear, let the "All caught up" state carry a small directive line — so the screen still guides rather than just reporting zeros.</p>
+        <div class="note"><b>Clickability — the important nuance.</b> "Overdue: 2" is <i>two</i> orders, so a tap must open the <b>Orders list filtered to that status</b>, not a single order. Same behaviour whether the count is 1 or 20 — consistent and scalable.</div>
+      </div>
+      <div>
+        <h3>Tap behaviour</h3>
+        <ul class="spec">
+          <li><span class="arw c">2 →</span><span><b>Overdue</b> → Orders, filtered <i>Overdue</i>, newest-late first</span></li>
+          <li><span class="arw w">1 →</span><span><b>Due today</b> → Orders, filtered <i>Due today</i></span></li>
+          <li><span class="arw i">3 →</span><span><b>In progress</b> → Orders, filtered <i>In progress</i></span></li>
+        </ul>
+        <h3 style="margin-top:18px">Build order</h3>
+        <p class="why">1 · re-style the 3 cards (urgency tokens + "View →").<br>2 · swap 4 pipeline tiles → segmented bar.<br>3 · wire each card to the filtered Orders route.<br>4 · 0-count + all-caught-up states.</p>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <p>Mockups use a system-serif stack to stand in for the production faces — <b>Fraunces</b> (display), <b>Manrope</b> (body), <b>JetBrains Mono</b> (counts). Colours are the real Adire Atelier tokens; urgency (red / amber / indigo) is a semantic scale kept separate from the Saffron heritage accent. Renders in light &amp; dark.</p>
+    <p style="margin-top:8px"><b>One functional caveat:</b> tapping a card → filtered list → an order detail will still hit "order not found" for staff until <b>Slice 8d</b> strips money/contact from the base docs. The UI redesign and the 8d migration are independent — this page is about the former.</p>
+  </footer>
+</div>

@@ -1,4 +1,5 @@
 package com.danzucker.stitchpad.feature.settings
+import com.danzucker.stitchpad.core.domain.session.SelfInitiatedLeaveSignal
 import com.danzucker.stitchpad.feature.auth.domain.NoOpRemoteSyncGate
 import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
 import com.danzucker.stitchpad.core.data.staff.FakeInviteRedemptionRepository
@@ -105,6 +106,7 @@ class SettingsRedeemGiftTest {
             communityJoinTracker = FakeCommunityJoinTracker(),
             dismissal = CommunityBannerDismissal(prefs),
             activeWorkshopProvider = FakeActiveWorkshopProvider(),
+            selfInitiatedLeave = SelfInitiatedLeaveSignal(),
             inviteRedemptionRepository = FakeInviteRedemptionRepository(),
             analytics = FakeAnalytics(),
             storeReviewLauncher = FakeStoreReviewLauncher(),

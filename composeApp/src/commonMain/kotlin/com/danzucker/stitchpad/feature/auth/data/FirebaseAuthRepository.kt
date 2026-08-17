@@ -3,13 +3,13 @@ package com.danzucker.stitchpad.feature.auth.data
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.User
-import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.domain.session.WorkshopClaims
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.auth.domain.AppleCredential
 import com.danzucker.stitchpad.feature.auth.domain.AuthError
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.GoogleCredential
+import com.danzucker.stitchpad.feature.auth.domain.RemoteSyncGate
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.auth.domain.SsoError
 import com.danzucker.stitchpad.feature.auth.domain.SsoSignIn
@@ -23,10 +23,17 @@ import dev.gitlive.firebase.auth.FirebaseAuthWeakPasswordException
 import dev.gitlive.firebase.auth.FirebaseUser
 import dev.gitlive.firebase.auth.GoogleAuthProvider
 import dev.gitlive.firebase.auth.OAuthProvider
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.abs
 
 private const val TAG = "AuthRepo"
+
+// Matches SignOutUseCase.QUIESCE_TIMEOUT_MS — best-effort, so an offline
+// delete is never blocked on Firestore's network toggle.
+private const val QUIESCE_TIMEOUT_MS = 3_000L
 
 // Every method below catches a generic Exception to map Firebase failures into
 // Result.Error. Each first rethrows CancellationException so structured-concurrency
@@ -38,9 +45,9 @@ private const val TAG = "AuthRepo"
 class FirebaseAuthRepository(
     private val firebaseAuth: FirebaseAuth,
     private val ssoCredentialProvider: SsoCredentialProvider,
-    private val userRepository: UserRepository,
     private val verificationEmailSender: VerificationEmailSender,
     private val passwordResetEmailSender: PasswordResetEmailSender,
+    private val remoteSyncGate: RemoteSyncGate,
 ) : AuthRepository {
 
     override suspend fun signUpWithEmail(
@@ -167,30 +174,57 @@ class FirebaseAuthRepository(
         }
     }
 
+    /**
+     * Deletes the Firebase Auth user. The `users/{uid}` tree is removed server-side
+     * by the `onAuthUserDeleted` cascade — a client-side delete is not attempted,
+     * because auth is already gone by then and the owner-only rule would deny it.
+     *
+     * Closes Firestore's watch streams FIRST, for the same reason
+     * [com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase] does: a listener
+     * the server rejects (auth just died) while the delete-account navigation is
+     * cancelling its collector bypasses every downstream `catch` and crashes the app.
+     * Sign-out routes through SignOutUseCase and was already covered; account
+     * deletion is the other path that clears auth out from under live listeners.
+     *
+     * `disableNetwork()` is Firestore-only, so it does not impede [FirebaseUser.delete].
+     * On success the gate stays closed and reopens on the next sign-in; on failure the
+     * account is still live and the user stays in the app, so it reopens immediately.
+     */
     override suspend fun deleteAccount(): EmptyResult<AuthError> {
         val user = firebaseAuth.currentUser
             ?: return Result.Error(AuthError.USER_NOT_FOUND)
         val uid = user.uid
+        runCatching { withTimeoutOrNull(QUIESCE_TIMEOUT_MS) { remoteSyncGate.quiesce() } }
         return try {
             user.delete()
 
             runCatching { firebaseAuth.signOut() }
 
-            runCatching { userRepository.deleteUserDoc(uid) }
-                .onFailure {
-                    AppLogger.e(tag = TAG, throwable = it) {
-                        "post-delete Firestore cleanup failed uid=$uid"
-                    }
-                }
             Result.Success(Unit)
         } catch (e: FirebaseAuthRecentLoginRequiredException) {
+            resumeRemoteSync()
             AppLogger.e(tag = TAG, throwable = e) { "deleteAccount requires recent login uid=$uid" }
             Result.Error(AuthError.REQUIRES_RECENT_LOGIN)
         } catch (e: CancellationException) {
+            resumeRemoteSync()
             throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            resumeRemoteSync()
             AppLogger.e(tag = TAG, throwable = e) { "deleteAccount failed uid=$uid" }
             Result.Error(e.toAuthError())
+        }
+    }
+
+    /**
+     * Reopen the streams after a FAILED delete — the still-authenticated user stays
+     * in the app and needs live data. [NonCancellable] because one of the callers is
+     * the cancellation path itself: a cancelled caller must not strand the app offline
+     * for the rest of the process (the gate otherwise only reopens on the next sign-in).
+     */
+    private suspend fun resumeRemoteSync() {
+        withContext(NonCancellable) {
+            runCatching { remoteSyncGate.resume() }
+                .onFailure { AppLogger.w(tag = TAG) { "resume after failed delete: ${it.message}" } }
         }
     }
 

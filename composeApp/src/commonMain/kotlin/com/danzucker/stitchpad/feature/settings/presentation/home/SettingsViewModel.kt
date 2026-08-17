@@ -25,6 +25,7 @@ import com.danzucker.stitchpad.core.domain.preferences.ThemePreferencesStore
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.SelfInitiatedLeaveSignal
 import com.danzucker.stitchpad.core.domain.staff.repository.InviteRedemptionRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageDocSource
@@ -37,6 +38,7 @@ import com.danzucker.stitchpad.feature.auth.presentation.toUiText
 import com.danzucker.stitchpad.feature.notification.push.PushPermissionController
 import com.danzucker.stitchpad.feature.review.domain.StoreReviewLauncher
 import com.danzucker.stitchpad.feature.settings.domain.resolveSubscriptionStatus
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,6 +52,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.settings_invite_share_message
 import stitchpad.composeapp.generated.resources.settings_support_intro_message
@@ -93,6 +96,7 @@ class SettingsViewModel(
     private val communityJoinTracker: CommunityJoinTracker,
     private val dismissal: CommunityBannerDismissal,
     private val activeWorkshopProvider: ActiveWorkshopProvider,
+    private val selfInitiatedLeave: SelfInitiatedLeaveSignal,
     private val inviteRedemptionRepository: InviteRedemptionRepository,
     private val analytics: Analytics,
     private val storeReviewLauncher: StoreReviewLauncher,
@@ -490,26 +494,44 @@ class SettingsViewModel(
         if (workshopUid.isBlank()) return
         viewModelScope.launch {
             uiState.update { it.copy(isLeavingWorkshop = true, showLeaveWorkshopDialog = false) }
-            when (val result = inviteRedemptionRepository.cancelMembership(workshopUid)) {
-                is Result.Success -> {
-                    // signOutUseCase already clears the staff membership prefs. Guard the
-                    // nav on its Result (like signOut()): if sign-out fails we must NOT
-                    // route to Welcome while the session is still active — stay put and
-                    // surface the error so the user can retry. The membership is already
-                    // revoked server-side, so a retry via the normal Sign out row is safe.
-                    when (val signOut = signOutUseCase()) {
-                        is Result.Success -> emit(SettingsEvent.NavigateToLoginAfterSignOut)
-                        is Result.Error -> {
-                            AppLogger.e(tag = TAG) { "leaveWorkshop signOut failed error=${signOut.error}" }
-                            uiState.update { it.copy(isLeavingWorkshop = false) }
-                            emit(SettingsEvent.ShowSnackbar(signOut.error.toUiText()))
+            // Claim the demotion before it happens. cancelStaffMembership flips the
+            // membership doc to `revoked` before it returns, so the session demotes to
+            // owner-of-self while we are still mid-sequence. Without this latch the
+            // global StaffRoleChangeRedirectEffect treats that as an owner-initiated
+            // revocation and navigates, disposing this ViewModel mid-sign-out.
+            selfInitiatedLeave.begin()
+            try {
+                when (val result = inviteRedemptionRepository.cancelMembership(workshopUid)) {
+                    is Result.Success -> {
+                        // signOutUseCase already clears the staff membership prefs. Guard the
+                        // nav on its Result (like signOut()): if sign-out fails we must NOT
+                        // route to Welcome while the session is still active — stay put and
+                        // surface the error so the user can retry. The membership is already
+                        // revoked server-side, so a retry via the normal Sign out row is safe.
+                        //
+                        // NonCancellable: the membership is already gone server-side, so a
+                        // half-run sign-out would strand the user in a live session against a
+                        // workshop they have left — and could leave Firestore's network
+                        // disabled if it were cut between quiesce() and signOut().
+                        val signOut = withContext(NonCancellable) { signOutUseCase() }
+                        when (signOut) {
+                            is Result.Success -> emit(SettingsEvent.NavigateToLoginAfterSignOut)
+                            is Result.Error -> {
+                                AppLogger.e(tag = TAG) { "leaveWorkshop signOut failed error=${signOut.error}" }
+                                uiState.update { it.copy(isLeavingWorkshop = false) }
+                                emit(SettingsEvent.ShowSnackbar(signOut.error.toUiText()))
+                            }
                         }
                     }
+                    is Result.Error -> {
+                        uiState.update { it.copy(isLeavingWorkshop = false) }
+                        emit(SettingsEvent.ShowSnackbar(result.error.staffErrorToUiText()))
+                    }
                 }
-                is Result.Error -> {
-                    uiState.update { it.copy(isLeavingWorkshop = false) }
-                    emit(SettingsEvent.ShowSnackbar(result.error.staffErrorToUiText()))
-                }
+            } finally {
+                // Release on every exit, cancellation included — a stuck latch would
+                // swallow a LATER genuine revocation redirect for the rest of the process.
+                selfInitiatedLeave.end()
             }
         }
     }
