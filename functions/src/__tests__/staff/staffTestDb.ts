@@ -1,4 +1,5 @@
 import * as functions from 'firebase-functions/v1';
+import { buildLaunchGrantFields } from '../../freemium/launchGrant';
 
 // Minimal in-memory Firestore for the staff handler tests: doc get/set/create/
 // update/delete keyed by full path, and shallow collection.get() over the store.
@@ -84,6 +85,28 @@ export function makeClaimsRecorder() {
     claims.set(uid, c);
   };
   return { claims, setClaims };
+}
+
+// Launch-grant hooks for the staff handler tests, shared by the revoke and cancel
+// suites (they had identical copies). `writeGrant` mirrors production exactly — real
+// buildLaunchGrantFields through the fake db — so tests assert on real field content,
+// not a stub. `overrides` swaps in a disabled flag or a throwing write.
+export function makeLaunchGrantDeps(
+  db: import('firebase-admin').firestore.Firestore,
+  overrides: Partial<LaunchGrantHooks> = {},
+): LaunchGrantHooks {
+  return {
+    isGrantEnabled: async () => true,
+    writeGrant: async (uid: string, now: Date) => {
+      await db.doc(`users/${uid}`).set(buildLaunchGrantFields(now), { merge: true });
+    },
+    ...overrides,
+  };
+}
+
+export interface LaunchGrantHooks {
+  isGrantEnabled: () => Promise<boolean>;
+  writeGrant: (uid: string, now: Date) => Promise<void>;
 }
 
 export const authedCtx = (

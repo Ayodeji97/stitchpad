@@ -1,5 +1,8 @@
 package com.danzucker.stitchpad.core.domain.session
 
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.contract
+
 /**
  * Pure resolution of a [WorkshopSession] from the two sources of truth about
  * staff membership: the custom auth **claim** (server-authoritative, on the ID
@@ -15,6 +18,24 @@ object WorkshopSessionResolver {
 
     /** Value of the custom-claim `role` field that marks a staff token. */
     const val CLAIM_ROLE_STAFF = "staff"
+
+    /**
+     * Whether the token's claims describe a usable staff session: the staff role AND
+     * the owner uid it points at. Both are required — a role without a workshopUid
+     * addresses no tree, so it can never win the claim path.
+     *
+     * The single definition of "this token is a staff token", shared by [staffFromClaim]
+     * and by [com.danzucker.stitchpad.core.data.session.FirebaseActiveWorkshopProvider]'s
+     * dedup key (which must know whether the claim path is active to decide if a
+     * storedWorkshopUid change can be ignored). Two hand-mirrored copies would drift.
+     */
+    @OptIn(ExperimentalContracts::class)
+    fun isStaffClaim(claimRole: String?, claimWorkshopUid: String?): Boolean {
+        // The contract lets callers keep the non-null smart cast on claimWorkshopUid
+        // that the inlined `!= null` check used to give them.
+        contract { returns(true) implies (claimWorkshopUid != null) }
+        return claimRole == CLAIM_ROLE_STAFF && claimWorkshopUid != null
+    }
 
     /**
      * The membership doc never selects which tree is addressable — only the
@@ -63,8 +84,7 @@ object WorkshopSessionResolver {
         // stale claim would keep every listener on the owner's tree in a
         // permission-denied retry loop until the token refreshes. null (doc
         // unread or missing, e.g. a cold cache miss) does NOT demote.
-        if (claimRole == CLAIM_ROLE_STAFF &&
-            claimWorkshopUid != null &&
+        if (isStaffClaim(claimRole, claimWorkshopUid) &&
             membershipStatus != MembershipStatus.REVOKED
         ) {
             WorkshopSession(
@@ -93,3 +113,11 @@ object WorkshopSessionResolver {
         MembershipStatus.REVOKED, null -> null
     }
 }
+
+/**
+ * Whether these claims put the token on the server-authoritative staff path — the
+ * same predicate [WorkshopSessionResolver.resolve] applies, in [WorkshopClaims] form
+ * for the provider's flow plumbing.
+ */
+val WorkshopClaims.isStaffClaim: Boolean
+    get() = WorkshopSessionResolver.isStaffClaim(role, workshopUid)

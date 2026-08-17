@@ -80,6 +80,30 @@ export interface LaunchGrantFlagDeps {
 }
 
 /**
+ * The one production wiring of [LaunchGrantFlagDeps]: read the `config/app` kill-switch
+ * (strict `=== true`, so a missing doc/field disables the promo rather than enabling it)
+ * and merge-write [buildLaunchGrantFields].
+ *
+ * Every production caller — the onCreate trigger, revokeStaffMember and
+ * cancelStaffMembership — must use this factory. Hand-copied wirings drift: a flag
+ * renamed or a truthiness check loosened in one copy silently grants (or silently stops
+ * granting) Atelier on that path alone.
+ */
+export function productionLaunchGrantDeps(
+  db: admin.firestore.Firestore,
+): LaunchGrantFlagDeps {
+  return {
+    isGrantEnabled: async () => {
+      const snap = await db.doc('config/app').get();
+      return snap.get('launchFreeGrantEnabled') === true;
+    },
+    writeGrant: async (uid, now) => {
+      await db.doc(`users/${uid}`).set(buildLaunchGrantFields(now), { merge: true });
+    },
+  };
+}
+
+/**
  * Best-effort launch-free grant applied when a staff member is revoked or leaves
  * (cancels) their own membership. A staffer who never seeded their own
  * `users/{uid}` doc — e.g. they skipped Workshop Setup while still staff, since

@@ -5,6 +5,7 @@ import com.danzucker.stitchpad.core.domain.session.StaffRole
 import com.danzucker.stitchpad.core.domain.session.WorkshopClaims
 import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import com.danzucker.stitchpad.core.domain.session.workshopUidOrNull
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
@@ -142,7 +143,10 @@ class FirebaseActiveWorkshopProviderTest {
             membershipStatusFlow = { _, _ -> membershipSubscriptions++; membership },
             // A real forceRefreshIdToken() call suspends on network I/O; yield()
             // mirrors that suspension so the outer combine gets a chance to react
-            // to the prefs clear before this side effect completes.
+            // to the prefs clear before this side effect completes. The provider
+            // now LAUNCHES this instead of awaiting it (so the demotion emits
+            // immediately) — runCurrent() below drains that launch, so the
+            // "exactly one refresh" assertion still holds.
             refreshToken = { refreshes++; yield() },
             // Mirrors CoreModule's `onStaffRevoked = { membershipPrefs.clear() }`
             // — the SAME flow instance storedWorkshopUid observes, unlike the
@@ -173,6 +177,38 @@ class FirebaseActiveWorkshopProviderTest {
         assertEquals(1, refreshes, "demotion required more than one refreshToken() pass")
         assertEquals(1, revokedCallbacks, "onStaffRevoked fired more than once")
         assertEquals(1, membershipSubscriptions, "the membership doc listener was resubscribed")
+    }
+
+    @Test
+    fun revocation_demotes_before_a_slow_token_refresh_completes() = runTest {
+        // The demotion is what stops every owner-tree listener's permission-denied
+        // retry loop, so it must not queue behind forceRefreshIdToken()'s network
+        // round-trip. Here refreshToken() never returns until the test releases it;
+        // the demoted session must already be observable.
+        val claims = MutableStateFlow<WorkshopClaims?>(staff("staff-1", "owner-9"))
+        val membership = MutableStateFlow<MembershipStatus?>(MembershipStatus.ACTIVE)
+        val refreshGate = CompletableDeferred<Unit>()
+        var refreshesStarted = 0
+        val provider = FirebaseActiveWorkshopProvider(
+            authClaims = claims,
+            scope = backgroundScope,
+            membershipStatusFlow = { _, _ -> membership },
+            refreshToken = { refreshesStarted++; refreshGate.await() },
+        )
+        assertTrue(provider.awaitHydrated().isActiveStaff)
+
+        membership.value = MembershipStatus.REVOKED
+        runCurrent()
+
+        assertTrue(provider.current().isOwner, "demotion waited on refreshToken()")
+        assertEquals("staff-1", provider.current().workshopUid)
+        assertEquals(1, refreshesStarted, "the token refresh was not started")
+        assertFalse(refreshGate.isCompleted, "the test gate should still hold the refresh open")
+
+        // Releasing the refresh must not disturb the already-published demotion.
+        refreshGate.complete(Unit)
+        runCurrent()
+        assertTrue(provider.current().isOwner)
     }
 
     @Test

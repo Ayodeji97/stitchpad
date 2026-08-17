@@ -61,6 +61,25 @@ class StaffRoleChangeRedirectTest {
     }
 
     @Test
+    fun demotionWithNoRemoteProfileNeedsWorkshopSetup() {
+        // Confirmed absence — the profile-less staffer who must seed users/{uid}.
+        assertTrue(demotionNeedsWorkshopSetup(remoteHasProfile = false))
+    }
+
+    @Test
+    fun demotionWithRemoteProfileSkipsWorkshopSetup() {
+        assertFalse(demotionNeedsWorkshopSetup(remoteHasProfile = true))
+    }
+
+    @Test
+    fun demotionWithFailedProfileReadSkipsWorkshopSetup() {
+        // null = the read failed (offline / denied). The documented fail-safe sends
+        // them Home: a real former owner must never be dropped into Workshop Setup,
+        // where they could overwrite their own business details.
+        assertFalse(demotionNeedsWorkshopSetup(remoteHasProfile = null))
+    }
+
+    @Test
     fun demotionStillCurrentWhenAuthUidAndOwnerMatch() {
         // Demotion was acted on this session state
         val acted = active

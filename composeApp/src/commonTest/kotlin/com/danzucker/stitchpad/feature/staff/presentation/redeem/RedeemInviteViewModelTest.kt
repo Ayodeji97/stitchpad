@@ -112,6 +112,41 @@ class RedeemInviteViewModelTest {
     }
 
     @Test
+    fun a_second_join_tap_after_a_successful_redeem_does_not_redeem_again() = runTest {
+        // Double-tap window: isLoading is cleared BEFORE the navigation event fires
+        // (deliberately, so a Compose collector restart can't strand the spinner), so
+        // a second tap must be blocked by the one-way success latch instead — otherwise
+        // it files a second membership request against the same consumed invite.
+        val vm = buildViewModel()
+        vm.onAction(RedeemInviteAction.OnCodeChange("K7QP3RM9"))
+
+        vm.onAction(RedeemInviteAction.OnJoinClick)
+        advanceUntilIdle()
+        assertEquals(1, repo.redeemCallCount)
+
+        vm.onAction(RedeemInviteAction.OnJoinClick)
+        advanceUntilIdle()
+
+        assertEquals(1, repo.redeemCallCount)
+    }
+
+    @Test
+    fun a_failed_redeem_can_be_retried() = runTest {
+        // The latch must only close on SUCCESS — an expired-code typo has to stay
+        // retryable without leaving the screen.
+        repo.result = Result.Error(StaffError.INVITE_EXPIRED)
+        val vm = buildViewModel()
+        vm.onAction(RedeemInviteAction.OnCodeChange("K7QP3RM9"))
+
+        vm.onAction(RedeemInviteAction.OnJoinClick)
+        advanceUntilIdle()
+        vm.onAction(RedeemInviteAction.OnJoinClick)
+        advanceUntilIdle()
+
+        assertEquals(2, repo.redeemCallCount)
+    }
+
+    @Test
     fun an_invite_error_shows_an_inline_code_error() = runTest {
         repo.result = Result.Error(StaffError.INVITE_EXPIRED)
         val vm = buildViewModel()

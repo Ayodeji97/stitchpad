@@ -1,7 +1,13 @@
 import { approveStaffMemberHandler } from '../../staff/approveStaffMember';
 import { revokeStaffMemberHandler } from '../../staff/revokeStaffMember';
-import { buildLaunchGrantFields, LAUNCH_GRANT_SOURCE } from '../../freemium/launchGrant';
-import { makeStaffDb, makeClaimsRecorder, authedCtx } from './staffTestDb';
+import { LAUNCH_GRANT_SOURCE } from '../../freemium/launchGrant';
+import {
+  makeStaffDb,
+  makeClaimsRecorder,
+  makeLaunchGrantDeps,
+  LaunchGrantHooks,
+  authedCtx,
+} from './staffTestDb';
 
 const NOW = new Date('2026-07-28T10:00:00Z');
 const deps = (db: ReturnType<typeof makeStaffDb>['db'], claims = makeClaimsRecorder()) => ({
@@ -11,23 +17,14 @@ const deps = (db: ReturnType<typeof makeStaffDb>['db'], claims = makeClaimsRecor
   _claims: claims.claims,
 });
 
-// Revoke-only deps: adds the launch-grant hooks on top of the shared `deps()` shape.
-// `writeGrant` mirrors production exactly (real buildLaunchGrantFields through the fake
-// db) so tests assert on real field content, not a stub.
+// Revoke deps: the shared launch-grant hooks on top of the shared `deps()` shape.
 const revokeDeps = (
   db: ReturnType<typeof makeStaffDb>['db'],
-  overrides: Partial<{
-    isGrantEnabled: () => Promise<boolean>;
-    writeGrant: (uid: string, now: Date) => Promise<void>;
-  }> = {},
+  overrides: Partial<LaunchGrantHooks> = {},
   claims = makeClaimsRecorder(),
 ) => ({
   ...deps(db, claims),
-  isGrantEnabled: async () => true,
-  writeGrant: async (uid: string, now: Date) => {
-    await db.doc(`users/${uid}`).set(buildLaunchGrantFields(now), { merge: true });
-  },
-  ...overrides,
+  ...makeLaunchGrantDeps(db, overrides),
 });
 
 describe('approveStaffMemberHandler', () => {
@@ -231,6 +228,17 @@ describe('revokeStaffMemberHandler', () => {
       subscriptionStatus: 'active',
       grantSource: LAUNCH_GRANT_SOURCE,
     });
+  });
+
+  it('does NOT grant launch-free when the revoked membership was only pending', async () => {
+    // Owners decline pending requests through this same callable. A declined
+    // requester never held staff access, so the departure grant must not fire —
+    // otherwise redeem + decline farms Atelier just like pending-cancel would.
+    const { db, store } = makeStaffDb({ 'users/alice/memberships/chidi': { status: 'pending' } });
+    await revokeStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), revokeDeps(db));
+
+    expect(store.get('users/alice/memberships/chidi')).toMatchObject({ status: 'revoked' });
+    expect(store.has('users/chidi')).toBe(false);
   });
 
   it('grants launch-free to a revoked staffer whose doc exists as lapsed/free', async () => {

@@ -6,6 +6,7 @@ import com.danzucker.stitchpad.core.domain.session.StaffRole
 import com.danzucker.stitchpad.core.domain.session.WorkshopClaims
 import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import com.danzucker.stitchpad.core.domain.session.WorkshopSessionResolver
+import com.danzucker.stitchpad.core.domain.session.isStaffClaim
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -49,7 +50,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class FirebaseActiveWorkshopProvider(
     authClaims: Flow<WorkshopClaims?>,
-    scope: CoroutineScope,
+    private val scope: CoroutineScope,
     storedWorkshopUid: Flow<String?> = flowOf(null),
     // Remote kill-switch (config/app.staffFeatureEnabled). Default true (fail-open):
     // when false, every user resolves to owner-of-self so the staff experience is
@@ -92,7 +93,10 @@ internal class FirebaseActiveWorkshopProvider(
                 // session — discarding the demotion (regression covered by
                 // revoking_mid_session_demotes_without_racing_the_prefs_clear_flow_restart).
                 .distinctUntilChangedBy { (claims, storedWs, staffEnabled) ->
-                    val storedWsKey = if (claims?.role == WorkshopSessionResolver.CLAIM_ROLE_STAFF) null else storedWs
+                    // Same predicate the resolver uses to decide the claim path wins
+                    // (WorkshopClaims.isStaffClaim) — a hand-mirrored copy here could
+                    // drift from the resolver and silently re-open the race above.
+                    val storedWsKey = if (claims?.isStaffClaim == true) null else storedWs
                     Triple(claims, storedWsKey, staffEnabled)
                 }
                 .flatMapLatest { (claims, storedWs, staffEnabled) ->
@@ -155,6 +159,13 @@ internal class FirebaseActiveWorkshopProvider(
      * redeem-time prefs via [onStaffRevoked], and force a token refresh so the
      * stale claim is dropped. A null status (doc unread or missing — e.g. a cold
      * cache miss) never demotes; only an explicit revoked flip does.
+     *
+     * The token refresh is LAUNCHED, not awaited: this `onEach` runs before `.map`
+     * emits, so suspending on a network round-trip here would hold the demotion back
+     * for the whole refresh — exactly the window in which every listener on the
+     * owner's tree is being denied. The prefs clear stays inline (it is local and
+     * must land before the refreshed, claimless token can re-enter the pending
+     * window).
      */
     private fun activeStaffFlow(claims: WorkshopClaims, fromClaim: WorkshopSession): Flow<WorkshopSession> =
         membershipStatusFlow(fromClaim.workshopUid, claims.authUid)
@@ -166,7 +177,7 @@ internal class FirebaseActiveWorkshopProvider(
                     // Prefs first: once the token refreshes claimless, a still-
                     // stored workshopUid would re-enter the pending window.
                     onStaffRevoked()
-                    refreshToken()
+                    scope.launch { refreshToken() }
                 }
             }
             .map { status -> resolve(claims, membershipStatus = status) }

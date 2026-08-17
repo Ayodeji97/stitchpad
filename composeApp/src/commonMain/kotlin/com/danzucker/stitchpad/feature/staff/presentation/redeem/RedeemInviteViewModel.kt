@@ -56,7 +56,18 @@ class RedeemInviteViewModel(
         }
     }
 
+    // One-way latch, set once a redeem has succeeded and navigation has been sent.
+    // `isLoading` alone cannot guard the double tap: it is deliberately cleared
+    // BEFORE the navigation event (so a Compose collector restart can never strand
+    // the button in a spinner), leaving a window in which a second tap would redeem
+    // again — a second membership request against the same (now consumed) invite.
+    // Nothing resets this: this VM instance is done once it has joined.
+    private var hasJoined = false
+
     private fun onJoin() {
+        // Re-entrancy guard: the in-flight window (isLoading) plus the post-success
+        // window (hasJoined) together cover every double-tap path.
+        if (hasJoined || _state.value.isLoading) return
         val code = _state.value.code
         if (code.length != INVITE_CODE_LENGTH) {
             _state.update { it.copy(codeError = StaffError.INVITE_NOT_FOUND.toUiText()) }
@@ -66,6 +77,9 @@ class RedeemInviteViewModel(
         viewModelScope.launch {
             when (val result = inviteRedemptionRepository.redeem(code)) {
                 is Result.Success -> {
+                    // Latch BEFORE clearing isLoading so no ordering of the two
+                    // updates can leave a tappable, unguarded window.
+                    hasJoined = true
                     // Open the pending window: the provider watches this workshop's
                     // membership doc until the approval claim lands. The name rides
                     // along for the staff dashboard header once approved.

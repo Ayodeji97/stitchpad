@@ -1,6 +1,12 @@
 import { cancelStaffMembershipHandler } from '../../staff/cancelStaffMembership';
-import { buildLaunchGrantFields, LAUNCH_GRANT_SOURCE } from '../../freemium/launchGrant';
-import { makeStaffDb, makeClaimsRecorder, authedCtx } from './staffTestDb';
+import { LAUNCH_GRANT_SOURCE } from '../../freemium/launchGrant';
+import {
+  makeStaffDb,
+  makeClaimsRecorder,
+  makeLaunchGrantDeps,
+  LaunchGrantHooks,
+  authedCtx,
+} from './staffTestDb';
 
 const NOW = new Date('2026-07-29T10:00:00Z');
 const deps = (db: ReturnType<typeof makeStaffDb>['db'], claims = makeClaimsRecorder()) => ({
@@ -10,23 +16,14 @@ const deps = (db: ReturnType<typeof makeStaffDb>['db'], claims = makeClaimsRecor
   _claims: claims.claims,
 });
 
-// Cancel-only deps: adds the launch-grant hooks on top of the shared `deps()` shape.
-// `writeGrant` mirrors production exactly (real buildLaunchGrantFields through the fake
-// db) so tests assert on real field content, not a stub.
+// Cancel deps: the shared launch-grant hooks on top of the shared `deps()` shape.
 const cancelDeps = (
   db: ReturnType<typeof makeStaffDb>['db'],
-  overrides: Partial<{
-    isGrantEnabled: () => Promise<boolean>;
-    writeGrant: (uid: string, now: Date) => Promise<void>;
-  }> = {},
+  overrides: Partial<LaunchGrantHooks> = {},
   claims = makeClaimsRecorder(),
 ) => ({
   ...deps(db, claims),
-  isGrantEnabled: async () => true,
-  writeGrant: async (uid: string, now: Date) => {
-    await db.doc(`users/${uid}`).set(buildLaunchGrantFields(now), { merge: true });
-  },
-  ...overrides,
+  ...makeLaunchGrantDeps(db, overrides),
 });
 
 describe('cancelStaffMembershipHandler', () => {
@@ -111,6 +108,23 @@ describe('cancelStaffMembershipHandler', () => {
       subscriptionStatus: 'active',
       grantSource: LAUNCH_GRANT_SOURCE,
     });
+  });
+
+  it('does NOT grant launch-free when the cancelled membership was only pending', async () => {
+    // Abuse path: this callable takes any workshopUid and keys the doc off the
+    // caller's own uid, so redeem-then-cancel would otherwise be a self-serve
+    // Atelier upgrade, repeatable at will. A pending member never had access to
+    // lose, so there is nothing to compensate.
+    const { db, store } = makeStaffDb({ 'users/alice/memberships/chidi': { status: 'pending' } });
+    const res = await cancelStaffMembershipHandler(
+      { workshopUid: 'alice' },
+      authedCtx('chidi'),
+      cancelDeps(db),
+    );
+
+    expect(res).toEqual({ workshopUid: 'alice', status: 'revoked' });
+    expect(store.get('users/alice/memberships/chidi')).toMatchObject({ status: 'revoked' });
+    expect(store.has('users/chidi')).toBe(false);
   });
 
   it('grants launch-free to a departing staffer whose doc exists as lapsed/free', async () => {

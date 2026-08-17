@@ -18,7 +18,6 @@ import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
 import com.danzucker.stitchpad.core.domain.session.StaffRole
 import com.danzucker.stitchpad.core.domain.session.WorkshopSession
-import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.auth.presentation.forgotpassword.ForgotPasswordRoot
@@ -28,6 +27,7 @@ import com.danzucker.stitchpad.feature.auth.presentation.verifyemail.EmailVerifi
 import com.danzucker.stitchpad.feature.debug.presentation.DebugMenuRoot
 import com.danzucker.stitchpad.feature.main.presentation.MainRoot
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferences
+import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferencesStore
 import com.danzucker.stitchpad.feature.onboarding.domain.ResolveNeedsWorkshopSetup
 import com.danzucker.stitchpad.feature.onboarding.presentation.OnboardingRoot
 import com.danzucker.stitchpad.feature.onboarding.presentation.SplashRoot
@@ -75,34 +75,45 @@ private suspend fun needsWorkshopSetupForCurrentUser(
 /**
  * Demotion-only workshop-setup check. Deliberately bypasses [ResolveNeedsWorkshopSetup]'s
  * local per-user "completed" fast path and goes straight to the remote profile via
- * [UserRepository.hasWorkshopProfile]. That fast path is set by Workshop Setup's "Skip for
- * now" action WITHOUT creating the user's `users/{uid}` doc — a staffer who skipped setup
+ * [UserRepository.hasWorkshopProfileOrNull]. That fast path is set by Workshop Setup's "Skip
+ * for now" action WITHOUT creating the user's `users/{uid}` doc — a staffer who skipped setup
  * while still staff (staff never need a profile) then gets revoked would otherwise read as
  * "already done" here too and land on Home with no doc ever created. Because
  * `grantLaunchFreeOnSignup` only fires on that doc's CREATE, such a user would silently
  * default to FREE forever. Re-checking the remote profile for exactly this transition forces
  * a re-prompt so the doc gets seeded (and, as of the server-side revocation grant, the
- * launch Atelier entitlement lands even if the user never revisits Workshop Setup). On any
- * read error/exception this defaults to needsWorkshopSetup = false (send Home) — a flaky
- * network must never strand a real owner in setup.
+ * launch Atelier entitlement lands even if the user never revisits Workshop Setup).
+ *
+ * The `OrNull` variant is load-bearing: [UserRepository.hasWorkshopProfile] swallows read
+ * failures as `false`, which would send a real former owner into Workshop Setup on a flaky
+ * network — where they could overwrite their own business details. A null (couldn't tell)
+ * therefore routes Home, exactly like a confirmed profile ([demotionNeedsWorkshopSetup]).
+ *
+ * When the remote read CONFIRMS a profile we also heal the per-user cache flag, mirroring
+ * [ResolveNeedsWorkshopSetup] — this path bypasses that resolver, so without the heal the
+ * next launch pays for the same Firestore read again.
  */
-@Suppress("TooGenericExceptionCaught")
 private suspend fun needsWorkshopSetupForDemotedStaff(
     authRepository: AuthRepository,
     userRepository: UserRepository,
+    onboardingPreferences: OnboardingPreferencesStore,
 ): Boolean {
     val userId = authRepository.getCurrentUser()?.id ?: return false
-    return try {
-        !userRepository.hasWorkshopProfile(userId)
-    } catch (e: kotlinx.coroutines.CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        AppLogger.w(tag = "NavGraph", throwable = e) {
-            "needsWorkshopSetupForDemotedStaff read failed userId=$userId"
-        }
-        false
+    val remoteHasProfile = userRepository.hasWorkshopProfileOrNull(userId)
+    if (remoteHasProfile == true) {
+        onboardingPreferences.setConfirmedRemoteWorkshopProfile(userId)
     }
+    return demotionNeedsWorkshopSetup(remoteHasProfile)
 }
+
+/**
+ * The demotion routing decision, isolated from Firebase so all three cases are testable.
+ * Only a CONFIRMED absence of a remote profile (`false`) sends the demoted staffer to
+ * Workshop Setup. `true` (profile exists) and `null` (the read failed) both send them Home
+ * — the documented fail-safe: a flaky network must never strand a real owner in setup.
+ */
+internal fun demotionNeedsWorkshopSetup(remoteHasProfile: Boolean?): Boolean =
+    remoteHasProfile == false
 
 /**
  * The single post-authentication destination ladder, shared by the Splash, Login
@@ -264,7 +275,10 @@ private fun PushDeepLinkRedirectEffect(navController: NavHostController) {
  * watcher, and workshopUid-only changes are handled by the VMs directly.
  */
 @Composable
-private fun StaffRoleChangeRedirectEffect(navController: NavHostController) {
+private fun StaffRoleChangeRedirectEffect(
+    navController: NavHostController,
+    onboardingPreferences: OnboardingPreferencesStore,
+) {
     val activeWorkshopProvider: ActiveWorkshopProvider = koinInject()
     val authRepository: AuthRepository = koinInject()
     val userRepository: UserRepository = koinInject()
@@ -281,6 +295,7 @@ private fun StaffRoleChangeRedirectEffect(navController: NavHostController) {
                     needsWorkshopSetup = needsWorkshopSetupForDemotedStaff(
                         authRepository,
                         userRepository,
+                        onboardingPreferences,
                     ),
                 )
                 // Re-check the session before navigating: the resolve spans a network
@@ -367,7 +382,7 @@ fun StitchPadNavHost(
 
     PushDeepLinkRedirectEffect(navController)
     ScreenViewTrackingEffect(navController)
-    StaffRoleChangeRedirectEffect(navController)
+    StaffRoleChangeRedirectEffect(navController, onboardingPreferences)
 
     NavHost(
         navController = navController,

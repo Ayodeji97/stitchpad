@@ -187,8 +187,14 @@ class FirebaseUserRepository(
             }
     }
 
+    // Offline / not-yet-cached / malformed doc: fall back to showing setup, the
+    // pre-existing behavior for the reinstall router. Callers that need to tell a
+    // failed read apart from a genuinely absent profile use [hasWorkshopProfileOrNull].
+    override suspend fun hasWorkshopProfile(userId: String): Boolean =
+        hasWorkshopProfileOrNull(userId) ?: false
+
     @Suppress("INLINE_FROM_HIGHER_PLATFORM", "TooGenericExceptionCaught")
-    override suspend fun hasWorkshopProfile(userId: String): Boolean {
+    override suspend fun hasWorkshopProfileOrNull(userId: String): Boolean? {
         return try {
             val snapshot = firestore.collection(USERS).document(userId).get()
             if (!snapshot.exists) return false
@@ -197,9 +203,10 @@ class FirebaseUserRepository(
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
-            // Offline / not-yet-cached / malformed doc: fall back to showing setup.
+            // null = "couldn't tell", NOT "no profile". Swallowing this as false is what
+            // made the demotion router's fail-safe unreachable.
             AppLogger.w(tag = TAG, throwable = e) { "hasWorkshopProfile read failed userId=$userId" }
-            false
+            null
         }
     }
 
