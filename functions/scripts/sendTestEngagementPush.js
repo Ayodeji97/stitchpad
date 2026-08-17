@@ -176,7 +176,16 @@ admin.initializeApp({ projectId: PROJECT_ID });
     android: {
       notification: { channelId: ANNOUNCEMENTS_CHANNEL_ID, tag: ANNOUNCEMENT_NOTIFICATION_TAG },
     },
-    ...(quiet ? { apns: { payload: { aps: { 'interruption-level': 'passive' } } } } : {}),
+    apns: {
+      payload: {
+        aps: {
+          // APNs is silent without this — the top-level notification field only
+          // becomes aps.alert. Mirrors fcm.ts exactly.
+          sound: 'default',
+          ...(quiet ? { 'interruption-level': 'passive' } : {}),
+        },
+      },
+    },
     data: { target },
   };
 

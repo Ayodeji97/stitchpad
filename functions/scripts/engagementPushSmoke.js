@@ -112,6 +112,12 @@ const check = (label, cond, extra='') => {
         p && !(p.apns && p.apns.payload && p.apns.payload.aps
                && p.apns.payload.aps['interruption-level'] === 'passive'),
         p ? JSON.stringify(p.apns) : '');
+
+  // APNs plays nothing without aps.sound; the top-level notification field only
+  // becomes aps.alert. Every iOS push was silent until this was added.
+  check('sets APNs sound so iOS is audible',
+        p && p.apns && p.apns.payload.aps.sound === 'default',
+        p ? JSON.stringify(p.apns) : '');
   check('carries a deep-link target in data', p && typeof p.data.target === 'string',
         p ? JSON.stringify(p.data) : '');
   check('Fola got the no_referral campaign (she has customers+orders, no referral link)',

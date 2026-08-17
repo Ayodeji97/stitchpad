@@ -59,6 +59,13 @@ export interface PushPayload {
   androidChannelId?: string;
   /** Android notification tag — successive pushes with the same tag replace, not stack. */
   androidTag?: string;
+  /**
+   * Deliver without a sound. Default is OFF — everything we send is worth hearing.
+   *
+   * iOS ONLY. Android takes its sound from the channel's importance, which the user
+   * controls and which a message payload cannot override on API 26+.
+   */
+  silent?: boolean;
 }
 
 export interface PushResult {
@@ -96,6 +103,12 @@ export async function sendMulticast(
           ...(payload.androidTag ? { tag: payload.androidTag } : {}),
         },
       },
+      // APNs plays NOTHING unless aps.sound is set — the top-level `notification`
+      // field only becomes aps.alert. Without this every iOS push we have ever sent,
+      // digest included, arrived silently. Android needs no equivalent: its sound
+      // comes from the channel's importance, which a payload cannot override on
+      // API 26+ and which the user owns.
+      ...(payload.silent ? {} : { apns: { payload: { aps: { sound: 'default' } } } }),
       ...(payload.data ? { data: payload.data } : {}),
     });
 
