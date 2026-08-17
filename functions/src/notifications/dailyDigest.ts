@@ -1,6 +1,5 @@
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
-import type { DocumentData } from 'firebase-admin/firestore';
 import { runDailyDigest } from './runDailyDigest';
 import { isDigestAllowed, isDigestTester } from './rollout';
 import { sendResendEmail } from '../email/resendClient';
@@ -14,8 +13,9 @@ import {
 } from './fcm';
 import { lagosDateKey } from './lagosTime';
 import { notificationDocsFromModel } from './notificationDocs';
+import { mapOrderScanDoc } from './orderScan';
 import { pushSummary } from './pushSummary';
-import { DigestIO, DigestModel, DigestRecipient, OrderScanDoc } from './types';
+import { DigestIO, DigestModel, DigestRecipient } from './types';
 
 const REGION = 'europe-west1';
 const SCHEDULE = '0 7 * * *';
@@ -23,28 +23,6 @@ const TIMEZONE = 'Africa/Lagos';
 
 function digestStateRef(uid: string) {
   return admin.firestore().collection('users').doc(uid).collection('private').doc('digestState');
-}
-
-function mapOrder(id: string, d: DocumentData): OrderScanDoc {
-  return {
-    id,
-    customerName: d.customerName ?? '',
-    status: d.status ?? 'PENDING',
-    deadline: typeof d.deadline === 'number' ? d.deadline : null,
-    archivedAt: typeof d.archivedAt === 'number' ? d.archivedAt : null,
-    totalPrice: typeof d.totalPrice === 'number' ? d.totalPrice : 0,
-    discount: typeof d.discount === 'number' ? d.discount : 0,
-    payments: Array.isArray(d.payments) ? d.payments.map((p: any) => ({ amount: Number(p?.amount) || 0 })) : [],
-    depositPaid: typeof d.depositPaid === 'number' ? d.depositPaid : 0,
-    items: Array.isArray(d.items) ? d.items.map((i: any) => ({
-      garmentType: i?.garmentType, customGarmentName: i?.customGarmentName, description: i?.description,
-    })) : [],
-    statusHistory: Array.isArray(d.statusHistory)
-      ? d.statusHistory.map((c: any) => ({ status: c?.status ?? '', changedAt: Number(c?.changedAt) || 0 }))
-      : [],
-    updatedAt: typeof d.updatedAt === 'number' ? d.updatedAt : undefined,
-    createdAt: typeof d.createdAt === 'number' ? d.createdAt : undefined,
-  };
 }
 
 async function writeNotificationsAdmin(db: admin.firestore.Firestore, uid: string, model: DigestModel): Promise<void> {
@@ -104,7 +82,7 @@ function productionDigestIO(apiKey: string): DigestIO {
     },
     async loadOrders(uid) {
       const snap = await db.collection('users').doc(uid).collection('orders').get();
-      return snap.docs.map((d) => mapOrder(d.id, d.data()));
+      return snap.docs.map((d) => mapOrderScanDoc(d.id, d.data()));
     },
     async getLastSentDate(uid) {
       const snap = await digestStateRef(uid).get();
@@ -188,7 +166,7 @@ export const debugSendMyDigest = functions
     const now = Date.now();
     const data = userDoc.data() || {};
     const ordersSnap = await db.collection('users').doc(uid).collection('orders').get();
-    const model = digestDetector(ordersSnap.docs.map((d) => mapOrder(d.id, d.data())), now);
+    const model = digestDetector(ordersSnap.docs.map((d) => mapOrderScanDoc(d.id, d.data())), now);
 
     // Inbox always populated for QA (ungated, same as production runDailyDigest)
     await writeNotificationsAdmin(db, uid, model);

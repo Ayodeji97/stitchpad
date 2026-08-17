@@ -91,7 +91,7 @@ export async function runEngagementPush(io: EngagementIO, now: number): Promise<
         customerCount: counts.customerCount,
         orderCount: counts.orderCount,
         teamCount: counts.teamCount,
-        hasReferralLink: counts.hasReferralLink,
+        hasReferralLink: r.hasReferralLink,
         digestEmpty,
         tier: r.tier,
       });

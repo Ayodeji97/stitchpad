@@ -14,6 +14,12 @@ export interface EngagementRecipient {
   /** False only when explicitly opted out of tips/announcements. */
   announcementsEnabled: boolean;
   tier: Tier;
+  /**
+   * True once the tailor has minted a Founding Tailors link. Lives here rather
+   * than on EngagementCounts because it comes from the `referralCode` field on
+   * the same user doc that supplies `tier` and the opt-out — no extra read.
+   */
+  hasReferralLink: boolean;
 }
 
 /** Per-user engagement history, read from `users/{uid}/private/digestState`. */
@@ -32,12 +38,12 @@ export interface EngagementUserState {
   campaignCounts: Record<string, number>;
 }
 
-/** Counts backing the segment ladder. Gathered with cheap .count() aggregations. */
+/** Counts backing the segment ladder. */
 export interface EngagementCounts {
   customerCount: number;
   orderCount: number;
+  /** ACTIVE, NON-OWNER roster rows only — see loadCounts in engagementPush.ts. */
   teamCount: number;
-  hasReferralLink: boolean;
 }
 
 export interface EngagementIO {

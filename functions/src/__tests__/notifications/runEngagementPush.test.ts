@@ -35,6 +35,7 @@ const recip = (over: Partial<EngagementRecipient> = {}): EngagementRecipient => 
   email: 'u1@x.com',
   announcementsEnabled: true,
   tier: 'free',
+  hasReferralLink: false,
   ...over,
 });
 
@@ -51,7 +52,6 @@ const counts = (over: Partial<EngagementCounts> = {}): EngagementCounts => ({
   customerCount: 0,
   orderCount: 0,
   teamCount: 0,
-  hasReferralLink: false,
   ...over,
 });
 
@@ -139,10 +139,10 @@ describe('runEngagementPush — happy path', () => {
           rawCampaign({ id: 'team', segment: 'busy_no_team' }),
         ],
       }),
-      recipients: [recip({ uid: 'newbie' }), recip({ uid: 'busy' })],
+      recipients: [recip({ uid: 'newbie' }), recip({ uid: 'busy', hasReferralLink: true })],
       countsByUid: {
         newbie: counts(),
-        busy: counts({ customerCount: 30, orderCount: 40, teamCount: 0, hasReferralLink: true }),
+        busy: counts({ customerCount: 30, orderCount: 40, teamCount: 0 }),
       },
     });
     await runEngagementPush(s.io, TUESDAY);
@@ -314,9 +314,8 @@ describe('runEngagementPush — orders read is avoided when possible', () => {
     const s = fakeIO({
       config: rawConfig({ campaigns: [rawCampaign({ id: 'quiet-nudge', segment: 'quiet' })] }),
       // Fully activated, so the ladder falls through to quiet on an empty digest.
-      countsByUid: {
-        u1: counts({ customerCount: 4, orderCount: 4, teamCount: 1, hasReferralLink: true }),
-      },
+      recipients: [recip({ hasReferralLink: true })],
+      countsByUid: { u1: counts({ customerCount: 4, orderCount: 4, teamCount: 1 }) },
       ordersByUid: { u1: [] }, // empty digest
     });
     const r = await runEngagementPush(s.io, TUESDAY);
@@ -328,9 +327,8 @@ describe('runEngagementPush — orders read is avoided when possible', () => {
   it('does not treat a tailor with actionable orders as quiet', async () => {
     const s = fakeIO({
       config: rawConfig({ campaigns: [rawCampaign({ id: 'quiet-nudge', segment: 'quiet' })] }),
-      countsByUid: {
-        u1: counts({ customerCount: 4, orderCount: 4, teamCount: 1, hasReferralLink: true }),
-      },
+      recipients: [recip({ hasReferralLink: true })],
+      countsByUid: { u1: counts({ customerCount: 4, orderCount: 4, teamCount: 1 }) },
       ordersByUid: {
         u1: [{
           id: 'o1',
