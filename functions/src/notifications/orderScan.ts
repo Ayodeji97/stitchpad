@@ -40,6 +40,8 @@ export function mapOrderScanDoc(id: string, d: DocumentData): OrderScanDoc {
         changedAt: Number(c?.changedAt) || 0,
       }))
       : [],
+    assignedMemberId: typeof d.assignedMemberId === 'string' ? d.assignedMemberId : null,
+    assignedMemberName: typeof d.assignedMemberName === 'string' ? d.assignedMemberName : null,
     updatedAt: typeof d.updatedAt === 'number' ? d.updatedAt : undefined,
     createdAt: typeof d.createdAt === 'number' ? d.createdAt : undefined,
   };

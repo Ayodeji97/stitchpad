@@ -34,7 +34,11 @@ import {
 import { DAY_MS, lagosDateKey, lagosDayIndex } from './lagosTime';
 import { welcomeEndsAtMs } from '../freemium/reconcileSlots';
 import { isDigestTester, isEngagementAllowed } from './rollout';
-import { daysSinceNewestOrder, runEngagementPush } from './runEngagementPush';
+import {
+  countDeliveredWithoutCosts,
+  daysSinceNewestOrder,
+  runEngagementPush,
+} from './runEngagementPush';
 import { renderTemplate } from './campaignTemplate';
 import { segmentChain, Tier } from './segmentDetector';
 import { loadMoneyByOrderId, withMoney } from './orderMoney';
@@ -393,6 +397,7 @@ export const debugSendMyEngagementPush = functions
       digestEmpty,
       daysSinceLastOrder: daysSinceNewestOrder(orders, now),
       welcomeDaysLeft: recipient.welcomeDaysLeft,
+      deliveredWithoutCosts: countDeliveredWithoutCosts(orders),
       tier: recipient.tier,
     });
 

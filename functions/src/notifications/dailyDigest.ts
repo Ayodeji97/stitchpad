@@ -15,6 +15,7 @@ import {
 import { lagosDateKey } from './lagosTime';
 import { notificationDocsFromModel } from './notificationDocs';
 import { loadMoneyByOrderId, withMoney } from './orderMoney';
+import { loadWorkshopAudience } from './workshopAudience';
 import { mapOrderScanDoc } from './orderScan';
 import { pushSummary } from './pushSummary';
 import { DigestIO, DigestModel, DigestRecipient } from './types';
@@ -130,6 +131,24 @@ function productionDigestIO(apiKey: string): DigestIO {
 
     setLastPushDate: async (uid: string, dateKey: string): Promise<void> => {
       await digestStateRef(uid).set({ lastPushDate: dateKey }, { merge: true });
+    },
+
+    listStaffUids: async (ownerUid: string): Promise<string[]> => {
+      const { staffUids } = await loadWorkshopAudience(db, ownerUid);
+      return staffUids;
+    },
+
+    /**
+     * Staff opt-out. Resolved from the staff member's OWN user doc — they control
+     * their notifications, not the workshop owner. Same inheritance as the owner's
+     * push flag, so an existing opt-out is honoured without a migration.
+     */
+    isStaffPushEnabled: async (staffUid: string): Promise<boolean> => {
+      const snap = await db.collection('users').doc(staffUid).get();
+      const u = snap.data();
+      if (!u) return false;
+      if (u.dailyPushEnabled !== undefined) return u.dailyPushEnabled !== false;
+      return u.dailyDigestEmailEnabled !== false;
     },
   };
 }

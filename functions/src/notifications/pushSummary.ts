@@ -1,4 +1,4 @@
-import { DigestModel } from './types';
+import { DigestItem, DigestModel } from './types';
 
 export interface PushSummary {
   title: string;
@@ -8,6 +8,16 @@ export interface PushSummary {
 /** Thousands-separated naira figure, e.g. 18000 -> "18,000". */
 function formatNaira(amount: number): string {
   return Math.round(amount).toLocaleString('en-US');
+}
+
+/**
+ * " — not started yet" when nobody has begun the work.
+ *
+ * A deadline on an order still sitting in PENDING is the most actionable thing the
+ * digest can say, and it used to be indistinguishable from one already underway.
+ */
+function startedSuffix(item: DigestItem): string {
+  return item.notStarted ? ' — not started yet' : '';
 }
 
 /**
@@ -42,10 +52,10 @@ export function pushSummary(model: DigestModel): PushSummary {
   let lead: string;
   if (model.overdue.length > 0) {
     const o = model.overdue[0];
-    lead = `${o.customerName}'s ${o.garmentSummary} is overdue`;
+    lead = `${o.customerName}'s ${o.garmentSummary} is overdue${startedSuffix(o)}`;
   } else if (model.dueSoon.length > 0) {
     const d = model.dueSoon[0];
-    lead = `${d.customerName}'s ${d.garmentSummary} is due soon`;
+    lead = `${d.customerName}'s ${d.garmentSummary} is due soon${startedSuffix(d)}`;
   } else {
     // Within outstanding (no overdue/dueSoon items), an overdue-to-collect item
     // outranks a fresh one for the lead line, even if it isn't the biggest amount.

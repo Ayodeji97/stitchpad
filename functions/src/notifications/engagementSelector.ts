@@ -30,7 +30,7 @@ export function liveCampaigns(config: EngagementConfig, now: number): Engagement
 }
 
 /** Segments that can only be decided by reading a tailor's full order list. */
-const ORDER_DEPENDENT_SEGMENTS: readonly Segment[] = ['quiet', 'dormant'];
+const ORDER_DEPENDENT_SEGMENTS: readonly Segment[] = ['quiet', 'dormant', 'no_costs'];
 
 /**
  * Whether this run needs each tailor's full order list.

@@ -32,6 +32,8 @@ export type Segment =
   | 'welcome_ending'
   /** Was working, but has logged no new order in DORMANT_DAYS. The churn cohort. */
   | 'dormant'
+  /** Delivered work with no cost recorded — profit cannot be computed for it. */
+  | 'no_costs'
   /** Working, but nothing due/overdue/owed today — the digest sends them nothing. */
   | 'quiet'
   /** Activated tailor who has never pulled their referral link. */
@@ -45,6 +47,7 @@ export const SEGMENTS: readonly Segment[] = [
   'busy_no_team',
   'welcome_ending',
   'dormant',
+  'no_costs',
   'quiet',
   'no_referral',
   'all',
@@ -80,6 +83,11 @@ export interface UserSignals extends ActivationSignals {
    * apply — paid tier, window already over, or never granted.
    */
   welcomeDaysLeft: number | null;
+  /**
+   * Delivered orders carrying no cost entry, so their profit is unknowable. null when
+   * the orders read was skipped this run.
+   */
+  deliveredWithoutCosts: number | null;
   /**
    * Carried so copy can differ between an honest upgrade prompt (free) and pure
    * feature discovery (paid) for the same segment. Nothing here branches on tier —
@@ -154,6 +162,9 @@ export function segmentChain(s: UserSignals): Segment[] {
     // dormant campaigns are spent.
     if (s.daysSinceLastOrder !== null && s.daysSinceLastOrder >= DORMANT_DAYS) {
       chain.push('dormant');
+    }
+    if (s.deliveredWithoutCosts !== null && s.deliveredWithoutCosts > 0) {
+      chain.push('no_costs');
     }
     if (s.digestEmpty) chain.push('quiet');
     if (!s.hasReferralLink) chain.push('no_referral');

@@ -16,6 +16,9 @@ export interface OrderScanDoc {
   depositPaid?: number; // legacy deposit field; only meaningful when payments is empty
   items: { garmentType?: string; customGarmentName?: string; description?: string }[];
   statusHistory?: { status: string; changedAt: number }[];
+  /** Roster member id the order is assigned to; for STAFF members this is their auth uid. */
+  assignedMemberId?: string | null;
+  assignedMemberName?: string | null;
   updatedAt?: number;
   createdAt?: number;
 }
@@ -27,6 +30,10 @@ export interface DigestItem {
   deadline?: number; // present for dueSoon / overdue
   amount?: number;   // present for outstanding (naira)
   isOverdue?: boolean; // TO_COLLECT: money owed >= 7 days since Ready/Delivered
+  /** Still PENDING — nobody has begun the work. Only meaningful for dueSoon/overdue. */
+  notStarted?: boolean;
+  /** Roster name of whoever it is assigned to, when it is assigned at all. */
+  assigneeName?: string | null;
 }
 
 export interface DigestModel {
@@ -56,11 +63,17 @@ export interface DigestIO {
   deletePushTokens(uid: string, tokens: string[]): Promise<void>;
   getLastPushDate(uid: string): Promise<string | null>;
   setLastPushDate(uid: string, dateKey: string): Promise<void>;
+  /** Auth uids of ACTIVE staff in this workshop. Empty for a solo tailor. */
+  listStaffUids(ownerUid: string): Promise<string[]>;
+  /** True when this staff member has not opted out of push. */
+  isStaffPushEnabled(staffUid: string): Promise<boolean>;
 }
 
 export interface DigestRunResult {
   considered: number;
   sent: number;
+  /** Staff members who received a digest of their own assigned work. */
+  staffPushed: number;
   suppressedEmpty: number;
   skippedDisabled: number;
   skippedAlreadySent: number;

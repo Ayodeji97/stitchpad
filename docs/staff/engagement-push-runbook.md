@@ -21,9 +21,10 @@ staff accounts.
 | 3 | `busy_no_team` | >= 10 orders, 0 active staff | Add your staff and assign orders |
 | 4 | `welcome_ending` | free tier, First Month ends in <= 3 days | Upgrade before the cap drops |
 | 5 | `dormant` | no new order logged in 21+ days | Come back, add this week's jobs |
-| 6 | `quiet` | activated, but nothing due/overdue/owed today | Add this week's jobs |
-| 7 | `no_referral` | activated, never minted a referral link | Invite a tailor, win a shirt |
-| 8 | `all` | everyone — always the last link in the chain | Announcements |
+| 6 | `no_costs` | delivered orders with no cost recorded | Add costs to see your profit |
+| 7 | `quiet` | activated, but nothing due/overdue/owed today | Add this week's jobs |
+| 8 | `no_referral` | activated, never minted a referral link | Invite a tailor, win a shirt |
+| 9 | `all` | everyone — always the last link in the chain | Announcements |
 
 `quiet` deliberately outranks `no_referral`: a message about the tailor's own work
 beats a message about our growth. Rungs 4–7 apply only once 1–3 are cleared — asking
@@ -37,6 +38,11 @@ same tailor — and `quiet` stays behind it as a fallback once the dormant copy 
 `dormant` measures the newest order's `createdAt`, not `updatedAt`: editing an old
 order is not starting new work, and `updatedAt` is also bumped by our own server
 writes, which would mask the very state being detected.
+
+`no_costs` counts DELIVERED orders whose `/private/money` carries no cost entry — their
+profit is simply unknowable. Only delivered orders count: work still in progress may
+legitimately have costs still to come. It ranks below dormancy and the expiring window
+because getting paid beats bookkeeping.
 
 `busy_no_team` counts **active, non-owner** roster rows only — every workshop has
 an auto-created owner row, and archived members are never deleted.

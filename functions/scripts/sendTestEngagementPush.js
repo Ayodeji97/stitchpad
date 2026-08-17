@@ -73,6 +73,11 @@ const CAMPAIGNS = {
     body: 'Add the jobs you are working on and StitchPad tracks the deadlines again.',
     target: 'dashboard',
   },
+  no_costs: {
+    title: 'How much did you make?',
+    body: 'Add what {{orderCount}} finished jobs cost you and StitchPad works out your profit.',
+    target: 'dashboard',
+  },
 };
 
 /**

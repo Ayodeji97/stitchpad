@@ -11,6 +11,7 @@ import { digestDetector, isDigestEmpty } from './digestDetector';
 import { parseEngagementConfig } from './engagementConfig';
 import { isEngagementDay, needsOrders, selectCampaign } from './engagementSelector';
 import { EngagementIO, EngagementRunResult } from './engagementTypes';
+import { OrderScanDoc } from './types';
 import { renderTemplate } from './campaignTemplate';
 import { DAY_MS, lagosDateKey, lagosDayIndex, lagosWeekday } from './lagosTime';
 import { needsDigestForSegments, segmentChain } from './segmentDetector';
@@ -29,6 +30,21 @@ export function daysSinceNewestOrder(orders: { createdAt?: number }[], now: numb
   }, null);
   if (newest === null) return null;
   return Math.max(0, Math.floor((now - newest) / DAY_MS));
+}
+
+/**
+ * Delivered orders with no cost recorded.
+ *
+ * Costs live in /private/money and are joined on by loadOrders. An empty costs array on
+ * a finished order means the tailor cannot see what they actually made on it — the
+ * profit figure is simply absent, which is invisible until someone goes looking.
+ *
+ * Only DELIVERED counts: an order still in progress may legitimately have costs still
+ * to come, and nagging about it would be wrong.
+ */
+export function countDeliveredWithoutCosts(orders: OrderScanDoc[]): number {
+  return orders.filter((o) =>
+    o.status === 'DELIVERED' && o.archivedAt == null && (o.costs?.length ?? 0) === 0).length;
 }
 
 function emptyResult(): EngagementRunResult {
@@ -115,10 +131,12 @@ export async function runEngagementPush(io: EngagementIO, now: number): Promise<
       // orders of the activated minority.
       let digestEmpty = false;
       let daysSinceLastOrder: number | null = null;
+      let deliveredWithoutCosts: number | null = null;
       if (wantOrders && needsDigestForSegments(counts)) {
         const orders = await io.loadOrders(r.uid);
         digestEmpty = isDigestEmpty(digestDetector(orders, now));
         daysSinceLastOrder = daysSinceNewestOrder(orders, now);
+        deliveredWithoutCosts = countDeliveredWithoutCosts(orders);
       }
 
       const segments = segmentChain({
@@ -129,6 +147,7 @@ export async function runEngagementPush(io: EngagementIO, now: number): Promise<
         digestEmpty,
         daysSinceLastOrder,
         welcomeDaysLeft: r.welcomeDaysLeft,
+        deliveredWithoutCosts,
         tier: r.tier,
       });
 

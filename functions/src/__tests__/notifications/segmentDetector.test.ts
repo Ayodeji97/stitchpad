@@ -17,6 +17,7 @@ const activated = (over: Partial<UserSignals> = {}): UserSignals => ({
   digestEmpty: false,
   daysSinceLastOrder: 0,
   welcomeDaysLeft: null,
+  deliveredWithoutCosts: 0,
   tier: 'pro',
   ...over,
 });
@@ -62,6 +63,7 @@ describe('segmentChain — most specific segment', () => {
         digestEmpty: true,
         daysSinceLastOrder: null,
         welcomeDaysLeft: 1,
+        deliveredWithoutCosts: null,
         tier: 'free',
       };
       expect(firstSegment(brandNew)).toBe('no_customer');
@@ -244,5 +246,29 @@ describe('dormant', () => {
   it('never applies before the activation rungs are cleared', () => {
     expect(segmentChain(activated({ orderCount: 0, daysSinceLastOrder: 99 })))
       .toEqual(['no_order', 'all']);
+  });
+});
+
+describe('no_costs', () => {
+  it('fires when delivered work has no cost recorded', () => {
+    expect(segmentChain(activated({ deliveredWithoutCosts: 3 }))).toContain('no_costs');
+  });
+
+  it('does not fire when every delivered order has costs', () => {
+    expect(segmentChain(activated({ deliveredWithoutCosts: 0 }))).not.toContain('no_costs');
+  });
+
+  it('does not fire when the orders read was skipped', () => {
+    expect(segmentChain(activated({ deliveredWithoutCosts: null }))).not.toContain('no_costs');
+  });
+
+  // Getting paid outranks bookkeeping: dormancy and an expiring window are both more
+  // urgent than a missing cost figure.
+  it('ranks below welcome_ending and dormant', () => {
+    const chain = segmentChain(activated({
+      welcomeDaysLeft: 2, daysSinceLastOrder: 40, deliveredWithoutCosts: 5,
+    }));
+    expect(chain.indexOf('welcome_ending')).toBeLessThan(chain.indexOf('no_costs'));
+    expect(chain.indexOf('dormant')).toBeLessThan(chain.indexOf('no_costs'));
   });
 });
