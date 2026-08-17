@@ -15,3 +15,13 @@ export function lagosDayIndex(epochMillis: number): number {
 export function lagosDateKey(epochMillis: number): string {
   return new Date(epochMillis + LAGOS_OFFSET_MS).toISOString().slice(0, 10);
 }
+
+/**
+ * Lagos day of week: 0=Sunday … 6=Saturday, matching cron's numbering.
+ *
+ * Epoch day 0 (1970-01-01) was a Thursday, hence the +4 shift. The second
+ * modulo guards pre-epoch inputs, where `%` in JS yields a negative result.
+ */
+export function lagosWeekday(epochMillis: number): number {
+  return (((lagosDayIndex(epochMillis) + 4) % 7) + 7) % 7;
+}
