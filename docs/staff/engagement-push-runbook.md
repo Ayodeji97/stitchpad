@@ -21,7 +21,7 @@ staff accounts.
 | 3 | `busy_no_team` | >= 10 orders, 0 active staff | Add your staff and assign orders |
 | 4 | `welcome_ending` | free tier, First Month ends in <= 3 days | Upgrade before the cap drops |
 | 5 | `dormant` | no new order logged in 21+ days | Come back, add this week's jobs |
-| 6 | `no_costs` | delivered orders with no cost recorded | Add costs to see your profit |
+| 6 | `no_costs` | delivered orders with no cost recorded | Add one job's cost, see your profit |
 | 7 | `quiet` | activated, but nothing due/overdue/owed today | Add this week's jobs |
 | 8 | `no_referral` | activated, never minted a referral link | Invite a tailor, win a shirt |
 | 9 | `all` | everyone — always the last link in the chain | Announcements |
@@ -43,6 +43,11 @@ writes, which would mask the very state being detected.
 profit is simply unknowable. Only delivered orders count: work still in progress may
 legitimately have costs still to come. It ranks below dormancy and the expiring window
 because getting paid beats bookkeeping.
+
+Its copy is deliberately **singular and unquantified**. "Add what 23 finished jobs cost
+you" reads as a backlog rather than a task, and the count was wrong anyway —
+`{{orderCount}}` is every order, not the ones actually missing costs. A nudge has to
+feel like one small thing the tailor can do right now.
 
 `busy_no_team` counts **active, non-owner** roster rows only — every workshop has
 an auto-created owner row, and archived members are never deleted.
@@ -142,6 +147,33 @@ doc is the easiest way to silently send nothing.
       "target": "inbox",
       "priority": 0,
       "maxSendsPerUser": 3
+    },
+    {
+      "id": "2026-08-welcome-ending",
+      "segment": "welcome_ending",
+      "title": "{{businessName}}, your First Month is ending",
+      "body": "Upgrade to keep every customer on your list.",
+      "target": "inbox",
+      "priority": 0,
+      "maxSendsPerUser": 2
+    },
+    {
+      "id": "2026-08-come-back",
+      "segment": "dormant",
+      "title": "It's been a while",
+      "body": "Add the jobs you are working on and StitchPad tracks the deadlines again.",
+      "target": "inbox",
+      "priority": 0,
+      "maxSendsPerUser": 3
+    },
+    {
+      "id": "2026-08-add-costs",
+      "segment": "no_costs",
+      "title": "How much did you make?",
+      "body": "Add what your last job cost you and StitchPad works out the profit.",
+      "target": "inbox",
+      "priority": 0,
+      "maxSendsPerUser": 2
     }
   ]
 }

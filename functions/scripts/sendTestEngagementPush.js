@@ -74,8 +74,11 @@ const CAMPAIGNS = {
     target: 'dashboard',
   },
   no_costs: {
+    // Deliberately singular and unquantified. "Add what 23 finished jobs cost you"
+    // reads as a backlog, not a task — and {{orderCount}} counted ALL orders, not the
+    // ones actually missing costs, so it was overwhelming AND wrong.
     title: 'How much did you make?',
-    body: 'Add what {{orderCount}} finished jobs cost you and StitchPad works out your profit.',
+    body: 'Add what your last job cost you and StitchPad works out the profit.',
     target: 'dashboard',
   },
 };
