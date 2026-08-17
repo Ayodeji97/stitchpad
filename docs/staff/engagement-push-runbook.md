@@ -189,6 +189,31 @@ any config mistake. Check the logs in this order — each step logs its reason:
   is run-level (the config parsed to nothing); `skippedNoCampaign` is per-tailor (no
   live campaign matched any segment in their chain).
 
+## Local smoke test
+
+`functions/scripts/engagementPushSmoke.js` runs the REAL `runEngagementPush` +
+`productionEngagementIO` against the local emulators, stubbing only the FCM transport
+(which cannot be emulated) so the exact outgoing payload can be asserted:
+
+```
+firebase emulators:start --config firebase.emulator.json      # terminal 1
+cd functions && npm run build                                  # lib/ must be current
+node scripts/emulatorSetupStaff.js                             # seeds Fola + Gabby
+node scripts/engagementPushSmoke.js                            # 10 checks
+```
+
+Ends in `ALL CHECKS PASSED`. It covers: the owner is nudged, an ACTIVE STAFF account is
+excluded, the announcements channel + android tag + APNs passive flag are set, the
+deep-link target is carried, state is stamped, and a second run the same day sends
+nothing.
+
+Two traps it encodes, both of which cost real debugging time:
+- The seeded `users/*` docs have **no `email` field**; uids resolve through Auth, the
+  same fallback `productionEngagementIO` uses for legacy docs.
+- `esModuleInterop` compiles `import * as admin` to `__importStar`, giving each module
+  its **own copy** of the namespace — so stubbing `admin.messaging` in the driver never
+  reaches `fcm.ts`. Patch the Messaging **singleton instance** instead.
+
 ## Related
 
 - Daily digest (07:00): `functions/src/notifications/dailyDigest.ts`. Its own gate
