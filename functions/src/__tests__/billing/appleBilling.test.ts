@@ -95,6 +95,59 @@ describe('verifyAppleTransactionHandler', () => {
     )).rejects.toMatchObject({ message: 'invalid_plan' });
   });
 
+  // Sandbox purchases are FREE, and every TestFlight build transacts against sandbox.
+  // The verifier falls back to sandbox after production verification fails, so before
+  // this guard a tester could mint a paid tier on their real production account.
+  it('refuses a sandbox-signed transaction and grants nothing', async () => {
+    const { db, store } = fakeDb();
+    const verifier = fakeVerifier({
+      verifyTransaction: jest.fn(async () => txnFor('uid-1', { environment: 'Sandbox' })),
+    });
+    await expect(verifyAppleTransactionHandler(
+      { signedTransactionJws: 'jws' },
+      authCtx('uid-1'),
+      { db: db as never, verifier, now: () => new Date('2026-06-01T10:01:00Z') },
+    )).rejects.toMatchObject({ message: 'sandbox_transaction_not_allowed' });
+    expect(store.get('users/uid-1')).toBeUndefined();
+  });
+
+  it('allows a sandbox transaction when APPLE_ALLOW_SANDBOX is set', async () => {
+    const previous = process.env.APPLE_ALLOW_SANDBOX;
+    process.env.APPLE_ALLOW_SANDBOX = 'true';
+    try {
+      const { db, store } = fakeDb();
+      const verifier = fakeVerifier({
+        verifyTransaction: jest.fn(async () => txnFor('uid-1', { environment: 'Sandbox' })),
+      });
+      const result = await verifyAppleTransactionHandler(
+        { signedTransactionJws: 'jws' },
+        authCtx('uid-1'),
+        { db: db as never, verifier, now: () => new Date('2026-06-01T10:01:00Z') },
+      );
+      expect(result.tier).toBe('pro');
+      expect(store.get('users/uid-1')).toMatchObject({ subscriptionTier: 'pro' });
+    } finally {
+      if (previous === undefined) delete process.env.APPLE_ALLOW_SANDBOX;
+      else process.env.APPLE_ALLOW_SANDBOX = previous;
+    }
+  });
+
+  // A transaction with no environment is treated as production: the field is optional
+  // so that pre-existing fakes and any verifier that omits it keep working.
+  it('still grants when the transaction carries no environment', async () => {
+    const { db, store } = fakeDb();
+    const verifier = fakeVerifier({
+      verifyTransaction: jest.fn(async () => txnFor('uid-1', { environment: undefined })),
+    });
+    const result = await verifyAppleTransactionHandler(
+      { signedTransactionJws: 'jws' },
+      authCtx('uid-1'),
+      { db: db as never, verifier, now: () => new Date('2026-06-01T10:01:00Z') },
+    );
+    expect(result.tier).toBe('pro');
+    expect(store.get('users/uid-1')).toMatchObject({ subscriptionTier: 'pro' });
+  });
+
   it('rejects when appAccountToken does not match the caller (account-hop)', async () => {
     const { db } = fakeDb();
     // Transaction carries a different user's account token.

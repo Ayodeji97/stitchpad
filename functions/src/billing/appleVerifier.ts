@@ -5,7 +5,7 @@ import {
   AppStoreServerAPIClient,
   Environment,
 } from '@apple/app-store-server-library';
-import { AppleNotification, AppleTransaction, AppleVerifier } from './appleBilling';
+import { AppleEnvironment, AppleNotification, AppleTransaction, AppleVerifier } from './appleBilling';
 
 // Real, library-backed Apple verifier + App Store Server API client. Kept apart
 // from appleBilling.ts so the handlers stay unit-testable with a fake verifier
@@ -66,21 +66,36 @@ function verifierFor(environment: Environment): SignedDataVerifier {
   );
 }
 
+// Anything that is not Apple's PRODUCTION environment (Sandbox, Xcode, LocalTesting)
+// is treated as sandbox, so a new Apple environment can never default to production.
+function toAppleEnvironment(environment: Environment): AppleEnvironment {
+  return environment === Environment.PRODUCTION ? 'Production' : 'Sandbox';
+}
+
 // Sandbox and production deliver to the same endpoint. Verify against production
 // first, then fall back to sandbox — Apple's recommended ordering.
-async function tryBothEnvironments<T>(run: (v: SignedDataVerifier) => Promise<T>): Promise<T> {
+//
+// Which environment actually verified MUST be carried out of here. It used to be
+// discarded, which meant a free StoreKit sandbox purchase (every TestFlight build
+// transacts against sandbox) verified successfully and was indistinguishable from a
+// real one — see the sandbox guards in appleBilling.ts.
+async function tryBothEnvironments<T>(
+  run: (v: SignedDataVerifier) => Promise<T>,
+): Promise<{ value: T; environment: AppleEnvironment }> {
   try {
-    return await run(verifierFor(Environment.PRODUCTION));
+    const value = await run(verifierFor(Environment.PRODUCTION));
+    return { value, environment: 'Production' };
   } catch (productionError) {
     try {
-      return await run(verifierFor(Environment.SANDBOX));
+      const value = await run(verifierFor(Environment.SANDBOX));
+      return { value, environment: 'Sandbox' };
     } catch {
       throw productionError;
     }
   }
 }
 
-function mapTransaction(p: RawTransaction): AppleTransaction {
+function mapTransaction(p: RawTransaction, environment: AppleEnvironment): AppleTransaction {
   return {
     transactionId: p.transactionId ?? '',
     originalTransactionId: p.originalTransactionId ?? '',
@@ -89,26 +104,39 @@ function mapTransaction(p: RawTransaction): AppleTransaction {
     appAccountToken: p.appAccountToken,
     revocationDate: p.revocationDate,
     signedDate: p.signedDate,
+    environment,
   };
 }
 
 export function createAppleVerifier(): AppleVerifier {
   return {
     async verifyTransaction(signedTransactionJws: string): Promise<AppleTransaction> {
-      const decoded = await tryBothEnvironments((v) => v.verifyAndDecodeTransaction(signedTransactionJws));
-      return mapTransaction(decoded as RawTransaction);
+      const { value: decoded, environment } = await tryBothEnvironments(
+        (v) => v.verifyAndDecodeTransaction(signedTransactionJws),
+      );
+      return mapTransaction(decoded as RawTransaction, environment);
     },
 
     async verifyNotification(signedPayload: string): Promise<AppleNotification> {
-      const payload = await tryBothEnvironments((v) => v.verifyAndDecodeNotification(signedPayload));
+      const { value: payload, environment: outerEnvironment } = await tryBothEnvironments(
+        (v) => v.verifyAndDecodeNotification(signedPayload),
+      );
       const data = payload.data;
-      const environment = (data?.environment as Environment) ?? Environment.PRODUCTION;
-      const verifier = verifierFor(environment);
+      // Prefer the environment Apple states inside the payload; fall back to whichever
+      // verifier accepted the signature. Never default to Production on absence.
+      const environment = (data?.environment as Environment) ?? undefined;
+      const appleEnvironment: AppleEnvironment = environment
+        ? toAppleEnvironment(environment)
+        : outerEnvironment;
+      const verifier = verifierFor(environment ?? (appleEnvironment === 'Production'
+        ? Environment.PRODUCTION
+        : Environment.SANDBOX));
 
       let transaction: AppleTransaction | undefined;
       if (data?.signedTransactionInfo) {
         transaction = mapTransaction(
           (await verifier.verifyAndDecodeTransaction(data.signedTransactionInfo)) as RawTransaction,
+          appleEnvironment,
         );
       }
 
