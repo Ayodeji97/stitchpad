@@ -4,6 +4,7 @@
 # Load fastlane/.env (gitignored) into ENV. Optional — vars can also come
 # from the shell environment (e.g. when invoked from CI in Phase 2).
 require "dotenv"
+require "fileutils"
 require "shellwords"
 Dotenv.load(File.join(__dir__, ".env")) if File.exist?(File.join(__dir__, ".env"))
 
@@ -17,8 +18,36 @@ end
 
 def release_notes
   notes = ENV["RELEASE_NOTES"]
-  return notes if notes && !notes.empty?
-  `git log -1 --pretty=%s`.strip
+  notes = `git log -1 --pretty=%s`.strip if notes.nil? || notes.empty?
+  notes
+end
+
+# Play rejects a changelog over 500 chars for a language, and supply surfaces that
+# as an opaque 400 late in the upload. Truncate on a word boundary instead.
+PLAY_CHANGELOG_LIMIT = 500
+
+def play_changelog_text
+  notes = release_notes
+  return notes if notes.length <= PLAY_CHANGELOG_LIMIT
+  truncated = notes[0, PLAY_CHANGELOG_LIMIT - 1]
+  cut = truncated.rindex(/\s/) || truncated.length
+  UI.important "RELEASE_NOTES is #{notes.length} chars; Play caps a changelog at " \
+               "#{PLAY_CHANGELOG_LIMIT}. Truncating."
+  truncated[0, cut].rstrip + "\u2026"
+end
+
+# supply reads changelogs from <metadata_path>/android/<lang>/changelogs/<versionCode>.txt.
+# Without this the lane uploaded NO release notes at all (skip_upload_changelogs was
+# false, but there was nothing on disk for supply to find), so every Play draft came up
+# with the empty <en-US> placeholder and had to be filled in by hand. Generated, not
+# committed - the content comes from RELEASE_NOTES or the last commit subject.
+def write_play_changelog(version_code, metadata_path)
+  dir = File.join(metadata_path, "android", "en-US", "changelogs")
+  FileUtils.mkdir_p(dir)
+  path = File.join(dir, "#{version_code}.txt")
+  File.write(path, play_changelog_text)
+  UI.message "Wrote Play changelog for versionCode #{version_code} -> #{path}"
+  path
 end
 
 # --- Shared preflight ---
@@ -97,12 +126,16 @@ platform :android do
     aab = File.expand_path("../composeApp/build/outputs/bundle/release/composeApp-release.aab", __dir__)
     UI.user_error!("AAB not found at #{aab}") unless File.exist?(aab)
 
+    metadata_path = File.expand_path("metadata", __dir__)
+    write_play_changelog(current, metadata_path)
+
     upload_to_play_store(
       package_name: package_name,
       track: play_track,
       aab: aab,
       json_key: json_key,
       release_status: "draft", # promote manually in Play Console after sanity check
+      metadata_path: metadata_path,
       skip_upload_metadata: true,
       skip_upload_changelogs: false,
       skip_upload_images: true,

@@ -62,6 +62,13 @@ export function appleAppAccountToken(uid: string): string {
 // A decoded, signature-verified Apple transaction (the fields we use). The real
 // verifier maps Apple's JWSTransactionDecodedPayload onto this; tests inject a
 // fake so they need no Apple certificates.
+/**
+ * Which App Store environment signed an artifact. Anything Apple reports that is not
+ * PRODUCTION is normalised to 'Sandbox' by the verifier, so this can never silently
+ * widen. Sandbox purchases are FREE — see [isDisallowedSandbox].
+ */
+export type AppleEnvironment = 'Production' | 'Sandbox';
+
 export interface AppleTransaction {
   transactionId: string;
   originalTransactionId: string;
@@ -70,6 +77,26 @@ export interface AppleTransaction {
   appAccountToken?: string;
   revocationDate?: number; // epoch ms; set on refund/revoke
   signedDate?: number; // epoch ms
+  environment?: AppleEnvironment; // which App Store environment signed this
+}
+
+/**
+ * Sandbox purchases cost nothing, and every TestFlight build transacts against
+ * StoreKit's sandbox. The verifier falls back to sandbox when production verification
+ * fails, so a sandbox-signed transaction verifies perfectly well — it is only
+ * distinguishable by [AppleTransaction.environment]. Without this guard any TestFlight
+ * or sandbox tester could mint `pro`/`atelier` on their real production account, and
+ * the nightly reconcile (which also retries sandbox) would keep renewing it.
+ *
+ * Set APPLE_ALLOW_SANDBOX=true only in a non-production project / emulator, where
+ * granting from sandbox is the whole point.
+ */
+export function sandboxGrantsAllowed(): boolean {
+  return process.env.APPLE_ALLOW_SANDBOX === 'true';
+}
+
+export function isDisallowedSandbox(txn: AppleTransaction): boolean {
+  return txn.environment === 'Sandbox' && !sandboxGrantsAllowed();
 }
 
 // A decoded, signature-verified App Store Server Notification V2 (the fields we
@@ -241,6 +268,16 @@ export async function verifyAppleTransactionHandler(
     throw new functions.https.HttpsError('invalid-argument', 'apple_verification_failed');
   }
 
+  // A sandbox-signed transaction must never buy real entitlement here.
+  if (isDisallowedSandbox(txn)) {
+    functions.logger.warn('apple sandbox transaction refused', {
+      uid,
+      productId: txn.productId,
+      originalTransactionId: txn.originalTransactionId,
+    });
+    throw new functions.https.HttpsError('failed-precondition', 'sandbox_transaction_not_allowed');
+  }
+
   const plan = planForProduct(txn.productId);
   if (!plan) {
     throw new functions.https.HttpsError('invalid-argument', 'invalid_plan');
@@ -330,6 +367,15 @@ export async function appStoreServerNotificationsHandler(
     return;
   }
 
+  // Sandbox notifications arrive at the same endpoint as production ones.
+  if (isDisallowedSandbox(txn)) {
+    functions.logger.info('apple sandbox notification ignored', {
+      type: notification.notificationType,
+      originalTransactionId: txn.originalTransactionId,
+    });
+    return;
+  }
+
   const desired = desiredStateForNotification(notification, txn, deps.now().getTime());
   if (!desired) {
     functions.logger.info('apple notification type ignored', {
@@ -388,8 +434,17 @@ export async function reconcileAppleSubscriptionsHandler(deps: ReconcileDeps): P
       const plan = planForProduct(txn.productId);
       const revoked = typeof txn.revocationDate === 'number';
       const expired = !revoked && typeof txn.expiresDate === 'number' && txn.expiresDate <= deps.now().getTime();
+      // Downgrade rather than skip: this actively HEALS any entitlement minted from a
+      // sandbox transaction before the guards above existed.
+      const sandbox = isDisallowedSandbox(txn);
+      if (sandbox) {
+        functions.logger.warn('apple reconcile: sandbox transaction, downgrading to free', {
+          uid,
+          originalTransactionId,
+        });
+      }
 
-      const desired: DesiredState = (revoked || expired || !plan)
+      const desired: DesiredState = (revoked || expired || sandbox || !plan)
         ? {
           tier: 'free',
           status: 'expired',
