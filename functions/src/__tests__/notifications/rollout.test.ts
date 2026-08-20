@@ -24,17 +24,22 @@ describe('isEngagementAllowed', () => {
     expect(isEngagementAllowed('uid', DIGEST_ALLOWLIST[0].toUpperCase())).toBe(true);
   });
 
-  // The whole point of the second flag: the engagement push stays gated while the
-  // digest is open. If this ever returns true for a stranger, ENGAGEMENT_STAGING
-  // has been flipped — which should be a conscious, reviewed decision.
-  it('blocks non-allowlisted recipients while engagement staging is on', () => {
-    expect(isEngagementAllowed('uid', 'stranger@example.com')).toBe(false);
+  // ENGAGEMENT_STAGING was flipped to false on 2026-08-20, alongside
+  // `config/engagementPush.enabled = true`. Both switches were required: with only
+  // one of them moved the nudge reaches nobody outside DIGEST_ALLOWLIST, which is
+  // how the feature shipped in 1.3.0 and then sent zero messages for three days.
+  // Asserting the OPEN state on purpose, same as the digest test above: re-gating
+  // this must fail a test rather than happen quietly.
+  it('allows non-allowlisted recipients now that engagement staging is over', () => {
+    expect(isEngagementAllowed('uid', 'stranger@example.com')).toBe(true);
   });
 
+  // Kept even though both gates now read the same way: they are independent flags,
+  // and either one can be closed alone as a rollback lever.
   it('is independent of the digest gate', () => {
     const stranger = 'stranger@example.com';
     expect(isDigestAllowed('uid', stranger)).toBe(true);
-    expect(isEngagementAllowed('uid', stranger)).toBe(false);
+    expect(isEngagementAllowed('uid', stranger)).toBe(true);
   });
 });
 

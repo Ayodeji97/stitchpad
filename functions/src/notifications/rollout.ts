@@ -13,11 +13,18 @@ const STAGING: boolean = false;
 
 /**
  * Independent gate for the ENGAGEMENT PUSH (see engagementPush.ts). Deliberately
- * separate from STAGING: the digest is proven and open to everyone, while the
- * brand-new twice-weekly nudge stays on the allowlist until it has been watched
- * through a couple of real Tuesdays. Two features, two blast radii, two flips.
+ * separate from STAGING: two features, two blast radii, two flips.
+ *
+ * Opened to all users 2026-08-20 alongside `config/engagementPush.enabled = true`.
+ * Both switches had to move: `enabled` alone only reaches DIGEST_ALLOWLIST, so the
+ * feature had shipped in 1.3.0 on 2026-08-17 and never sent a single message to
+ * anyone. Rollback is either switch — prefer the Firestore flag, it needs no deploy.
+ *
+ * Per-user brakes still apply (runEngagementPush.ts): one campaign per user per run,
+ * `minDaysBetween: 3`, per-campaign `maxSendsPerUser`, and a skip when the digest
+ * already pushed that user the same day.
  */
-const ENGAGEMENT_STAGING: boolean = true;
+const ENGAGEMENT_STAGING: boolean = false;
 
 // Test-account emails (lower-cased). Daniel's Gmail +aliases deliver to his
 // inbox while being distinct Firebase Auth addresses — so digests are visible
