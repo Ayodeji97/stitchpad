@@ -1,10 +1,42 @@
 import * as functions from 'firebase-functions/v1';
 import { digestDetector, isDigestEmpty } from './digestDetector';
 import { buildDigestEmail } from './digestEmailTemplate';
+import { buildNudgeEmail, NudgeKind } from './nudgeEmailTemplate';
+import { ResendError } from '../email/resendClient';
 import { lagosDateKey } from './lagosTime';
 import { pushSummary } from './pushSummary';
 import { staffDigests } from './staffDigest';
 import { DigestIO, DigestRunResult } from './types';
+
+/**
+ * Neutral "open the app" link. Already shipped and verified on both platforms:
+ * link.getstitchpad.com serves /.well-known/assetlinks.json and
+ * apple-app-site-association listing /r, and `/r` is in the Android intent-filter
+ * plus the iOS associated domains.
+ *
+ * Bare `/r` carries no referral code, so DeepLinkParser.parseReferral returns null
+ * and the app simply opens where it normally would — no bogus attribution recorded.
+ *
+ * If the app is NOT installed the hosted /r page detects the platform and sends the
+ * visitor to the right store. That is why this must not be a hardcoded store URL:
+ * an iPhone user was being sent to Google Play whenever we had no FCM token to read
+ * their platform from (33 of 152 accounts on 2026-08-20).
+ *
+ * On a build below the 618 force-update floor the app opens onto its own update
+ * screen, which uses `config/app.updateUrlAndroid` / `updateUrlIos` — so the store
+ * hand-off stays platform-correct there too.
+ */
+const OPEN_APP_URL = 'https://link.getstitchpad.com/r';
+
+function ctaUrl(): string {
+  return OPEN_APP_URL;
+}
+
+/** RFC 8058 one-click unsubscribe. Gmail/Yahoo require this at bulk volume. */
+function unsubscribeHeaders(url: string): Record<string, string> | undefined {
+  if (!url) return undefined;
+  return { 'List-Unsubscribe': `<${url}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' };
+}
 
 /** Pure run loop. Production wraps this with productionDigestIO; tests inject fakes. */
 export async function runDailyDigest(io: DigestIO, now: number): Promise<DigestRunResult> {
@@ -12,6 +44,7 @@ export async function runDailyDigest(io: DigestIO, now: number): Promise<DigestR
   const todayKey = lagosDateKey(now);
   const result: DigestRunResult = {
     considered: recipients.length, sent: 0, staffPushed: 0, suppressedEmpty: 0,
+    nudged: 0, skippedOptedOut: 0, skippedBounced: 0,
     skippedDisabled: 0, skippedUnverified: 0, skippedAlreadySent: 0,
     skippedNotAllowed: 0, failed: 0,
   };
@@ -84,21 +117,55 @@ export async function runDailyDigest(io: DigestIO, now: number): Promise<DigestR
       }
 
       if (!r.digestEnabled) { result.skippedDisabled++; continue; }
+      // Explicit one-click unsubscribe outranks every other email rule.
+      if (r.emailOptOut) { result.skippedOptedOut++; continue; }
+      // Resend already rejected this address permanently; retrying it every morning
+      // is what turns a young sending domain into a blocked one.
+      if (r.hardBounce) { result.skippedBounced++; continue; }
       // EMAIL-ONLY gate. Everything above this line (inbox, owner push, staff
       // digests) has already run for an unverified owner — deliberately, since
       // none of it depends on the address being reachable.
       if (!r.emailVerified) { result.skippedUnverified++; continue; }
       if (!io.isAllowed(r.uid, r.email)) { result.skippedNotAllowed++; continue; }
       if ((await io.getLastSentDate(r.uid)) === todayKey) { result.skippedAlreadySent++; continue; }
-      if (isDigestEmpty(model)) { result.suppressedEmpty++; continue; }
 
-      const { subject, html, text } = buildDigestEmail(model, r.name);
+      // A quiet morning used to `continue` here and send nothing at all, which on the
+      // first production morning silenced 81 of 109 owners. The daily touchpoint now
+      // always has something to say — but WHAT it says has to match how far in the
+      // tailor actually is: "did a job come in today?" is nonsense to someone who has
+      // never added a customer.
+      const empty = isDigestEmpty(model);
+      let kind: NudgeKind | null = null;
+      if (empty) {
+        if (orders.length > 0) kind = 'quiet';
+        else kind = (await io.hasCustomers(r.uid)) ? 'first_order' : 'setup';
+      }
+      const opts = { ctaUrl: ctaUrl(), unsubscribeUrl: r.unsubscribeUrl };
+      const { subject, html, text } = kind
+        ? buildNudgeEmail(kind, r.name, opts)
+        : buildDigestEmail(model, r.name, opts);
+
       // Stamp AFTER a successful send (at-least-once): if setLastSentDate throws
       // after the email went out, the next run may re-send — preferred over
       // stamping first and losing the email on a transient Resend failure.
-      await io.sendEmail({ to: r.email, subject, html, text });
+      try {
+        await io.sendEmail({
+          to: r.email, subject, html, text, headers: unsubscribeHeaders(r.unsubscribeUrl),
+        });
+      } catch (sendErr) {
+        // A permanent 4xx means the address itself is bad — suppress it for good.
+        // 5xx / network errors are transient and must stay retryable tomorrow.
+        if (sendErr instanceof ResendError && sendErr.status !== undefined
+            && sendErr.status >= 400 && sendErr.status < 500) {
+          await io.markHardBounce(r.uid);
+          functions.logger.warn('daily digest: address hard-bounced, suppressed', {
+            uid: r.uid, status: sendErr.status,
+          });
+        }
+        throw sendErr;
+      }
       await io.setLastSentDate(r.uid, todayKey);
-      result.sent++;
+      if (kind) result.nudged++; else result.sent++;
     } catch (err) {
       result.failed++;
       functions.logger.error('daily digest: recipient failed', {

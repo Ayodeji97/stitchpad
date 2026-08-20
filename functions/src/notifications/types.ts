@@ -56,6 +56,19 @@ export interface DigestRecipient {
   name: string;          // businessName || displayName || email prefix
   digestEnabled: boolean; // false only when explicitly opted out
   pushEnabled: boolean;  // false only when explicitly opted out of push
+  /**
+   * One-click unsubscribe from `emailPrefs/{uid}`. Kept in a TOP-LEVEL collection,
+   * not on `users/{uid}`, because 41 of 154 accounts have no users doc at all —
+   * they never finished workshop setup. Storing the flag on the users doc would
+   * leave exactly those people with no way to opt out.
+   */
+  emailOptOut: boolean;
+  /** Resend returned a permanent 4xx for this address — never send to it again. */
+  hardBounce: boolean;
+  /** Store to link to. Derived from the newest notificationTokens row; null = unknown. */
+  platform: 'ios' | 'android' | null;
+  /** HMAC-signed one-click unsubscribe URL for this recipient. */
+  unsubscribeUrl: string;
 }
 
 export interface DigestIO {
@@ -64,8 +77,13 @@ export interface DigestIO {
   getLastSentDate(uid: string): Promise<string | null>;
   setLastSentDate(uid: string, dateKey: string): Promise<void>;
   writeNotifications(uid: string, model: DigestModel): Promise<void>;
-  sendEmail(p: { to: string; subject: string; html: string; text: string }): Promise<void>;
+  sendEmail(p: { to: string; subject: string; html: string; text: string; headers?: Record<string, string> }): Promise<void>;
   isAllowed(uid: string, email: string): boolean;
+  /** True when the tailor has at least one customer. Only called when nothing is due,
+   *  so it costs a `limit(1)` read for quiet users and nothing for busy ones. */
+  hasCustomers(uid: string): Promise<boolean>;
+  /** Record a permanent Resend rejection so tomorrow's run skips this address. */
+  markHardBounce(uid: string): Promise<void>;
   loadPushTokens(uid: string): Promise<string[]>;
   sendPush(
     tokens: string[],
@@ -85,7 +103,14 @@ export interface DigestRunResult {
   sent: number;
   /** Staff members who received a digest of their own assigned work. */
   staffPushed: number;
+  /** Kept for continuity in the run logs. Now only counts sends we chose NOT to make. */
   suppressedEmpty: number;
+  /** Emails sent on a day with no work due — the habit nudge. */
+  nudged: number;
+  /** Recipient used the one-click unsubscribe link. */
+  skippedOptedOut: number;
+  /** Address previously hard-bounced. */
+  skippedBounced: number;
   skippedDisabled: number;
   /** Owner's email address is unverified — email suppressed, push/inbox unaffected. */
   skippedUnverified: number;

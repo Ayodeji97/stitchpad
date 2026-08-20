@@ -58,6 +58,7 @@ export { processPasswordResetEmail } from './auth/processPasswordResetEmail';
 export { dailyDigest, debugSendMyDigest } from './notifications/dailyDigest';
 export { engagementPush, debugSendMyEngagementPush } from './notifications/engagementPush';
 export { pruneTokenOwnership } from './notifications/pruneTokenOwnership';
+export { emailUnsubscribe } from './notifications/emailUnsubscribe';
 export { onOrderCollectible } from './notifications/orderCollectNotify';
 export {
   initializeSubscriptionCheckout,

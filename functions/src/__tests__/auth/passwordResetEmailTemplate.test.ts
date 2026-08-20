@@ -18,7 +18,7 @@ describe('buildPasswordResetEmail', () => {
 
   it('embeds the brand logo, headline, and indigo CTA', () => {
     const { html } = buildPasswordResetEmail({ resetLink: 'https://x/y' });
-    expect(html).toContain('stitchpad-email-logo.png');
+    expect(html).toContain('stitchpad-app-icon.png');
     expect(html).toContain('alt="StitchPad"');
     expect(html).toContain('Reset your password');
     expect(html).toContain('#1E2B5C'); // indigo CTA fill

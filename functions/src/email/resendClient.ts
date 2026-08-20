@@ -17,7 +17,7 @@ export class ResendError extends Error {
 /** POSTs one email through Resend. Throws [ResendError] on a non-ok response (caller logs/handles). */
 export async function sendResendEmail(
   apiKey: string,
-  params: { to: string; subject: string; html: string; text?: string },
+  params: { to: string; subject: string; html: string; text?: string; headers?: Record<string, string> },
 ): Promise<void> {
   const response = await fetch(RESEND_ENDPOINT, {
     method: 'POST',
@@ -28,6 +28,7 @@ export async function sendResendEmail(
       reply_to: REPLY_TO,
       subject: params.subject,
       html: params.html,
+      ...(params.headers ? { headers: params.headers } : {}),
       ...(params.text ? { text: params.text } : {}),
     }),
   });

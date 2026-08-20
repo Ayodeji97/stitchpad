@@ -667,5 +667,19 @@ service cloud.firestore {
     match /account_deletion_feedback/{docId} {
       allow create: if request.auth != null;
     }
+
+    // ── /emailPrefs/{uid} — daily-email opt-out and bounce suppression ─────
+    // Written ONLY by the Admin SDK: `emailUnsubscribe` sets `optOut` when a
+    // tailor uses the one-click link, and `runDailyDigest` sets `hardBounce`
+    // when Resend permanently rejects an address.
+    //
+    // Deliberately NOT under /users/{uid}: 41 of 154 accounts have no users doc
+    // at all (they never finished workshop setup), and those people still need a
+    // working unsubscribe. Fully closed to clients — the unsubscribe link is
+    // HMAC-signed and served by the function, so no client ever needs access,
+    // and a readable doc would leak who has unsubscribed.
+    match /emailPrefs/{uid} {
+      allow read, write: if false;
+    }
   }
 }
