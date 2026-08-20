@@ -29,7 +29,7 @@ const FONT_STACK =
 const SERIF_STACK = 'Georgia,\'Times New Roman\',serif';
 const MONO_STACK = '\'SFMono-Regular\',Consolas,\'Liberation Mono\',Menlo,monospace';
 const LOGO_URL =
-  'https://firebasestorage.googleapis.com/v0/b/stitchpad-30607.firebasestorage.app/o/stitchpad-email-logo.png?alt=media&token=d05c88f4-d9c4-4085-a0a8-a136e0c9d8b3'; // gitleaks:allow
+  'https://firebasestorage.googleapis.com/v0/b/stitchpad-30607.firebasestorage.app/o/stitchpad-app-icon.png?alt=media&token=dd7952b1-63a7-4d84-b376-a9b5a8d7184e'; // gitleaks:allow
 
 const TIER_LABEL: Record<BillingTier, string> = { pro: 'Tailor Pro', atelier: 'Tailor Atelier' };
 
@@ -67,8 +67,8 @@ function shell(innerHtml: string): string {
                 <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 30px;">
                   <tr>
                     <td style="vertical-align:middle;padding-right:10px;">
-                      <img src="${escapeHtml(LOGO_URL)}" width="34" height="34" alt="StitchPad"
-                        style="display:block;border:0;outline:none;text-decoration:none;width:34px;height:34px;" />
+                      <img src="${escapeHtml(LOGO_URL)}" width="36" height="36" alt="StitchPad"
+                        style="display:block;border:0;outline:none;text-decoration:none;width:36px;height:36px;border-radius:8px;" />
                     </td>
                     <td style="vertical-align:middle;">
                       <span style="font-size:18px;font-weight:800;color:${INDIGO};letter-spacing:-0.2px;">StitchPad</span>

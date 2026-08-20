@@ -1,6 +1,8 @@
 import { buildDigestEmail } from '../../notifications/digestEmailTemplate';
 import { DigestModel } from '../../notifications/types';
 
+const OPTS = { ctaUrl: 'https://store.test/app', unsubscribeUrl: 'https://unsub.test/e?u=u1&t=abc' };
+
 function model(p: Partial<DigestModel> = {}): DigestModel {
   return { dueSoon: [], overdue: [], outstanding: [], ...p };
 }
@@ -15,14 +17,14 @@ describe('buildDigestEmail', () => {
         { orderId: 'o5', customerName: 'c5', garmentSummary: 'x', amount: 200 },
         { orderId: 'o6', customerName: 'c6', garmentSummary: 'x', amount: 300 },
       ],
-    }), 'Ada Couture');
+    }), 'Ada Couture', OPTS);
     expect(subject).toBe('StitchPad: 1 overdue, 2 due soon, 3 to collect');
   });
 
   it('greets by tailor name and renders only non-empty sections', () => {
     const { html, text } = buildDigestEmail(model({
       overdue: [{ orderId: 'o1', customerName: 'Bola', garmentSummary: 'Agbada', deadline: 0 }],
-    }), 'Ada Couture');
+    }), 'Ada Couture', OPTS);
     expect(html).toContain('Ada Couture');
     expect(html).toContain('Bola');
     expect(html).not.toContain('Due soon'); // empty section omitted
@@ -32,7 +34,7 @@ describe('buildDigestEmail', () => {
   it('shows a +N more line when a bucket is capped', () => {
     const { html, text } = buildDigestEmail(model({
       overdue: Array.from({ length: 8 }, (_, i) => ({ orderId: `o${i}`, customerName: `c${i}`, garmentSummary: 'x', deadline: 0 })),
-    }), 'Ada');
+    }), 'Ada', OPTS);
     expect(html).toContain('+3 more');
     expect(text).toContain('+3 more');
   });
@@ -40,7 +42,7 @@ describe('buildDigestEmail', () => {
   it('escapes HTML in customer/garment names (no raw script tags in output)', () => {
     const { html } = buildDigestEmail(model({
       overdue: [{ orderId: 'o1', customerName: '<script>alert(1)</script>', garmentSummary: 'Agbada', deadline: 0 }],
-    }), 'Ada');
+    }), 'Ada', OPTS);
     expect(html).not.toContain('<script>');
     expect(html).toContain('&lt;script&gt;');
   });
@@ -48,14 +50,14 @@ describe('buildDigestEmail', () => {
   it('formats outstanding amounts as naira with thousands separators', () => {
     const { html } = buildDigestEmail(model({
       outstanding: [{ orderId: 'o1', customerName: 'Ada', garmentSummary: 'Buba', amount: 15000 }],
-    }), 'Ada');
+    }), 'Ada', OPTS);
     expect(html).toContain('₦15,000');
   });
 
   it('footer points opt-out to the real toggle location (Settings → Preferences)', () => {
     const { html, text } = buildDigestEmail(model({
       overdue: [{ orderId: 'o1', customerName: 'Bola', garmentSummary: 'Agbada', deadline: 0 }],
-    }), 'Ada');
+    }), 'Ada', OPTS);
     for (const body of [html, text]) {
       expect(body).toContain('Settings → Preferences → Daily summary email');
       expect(body).not.toContain('Settings → Notifications'); // the toggle is NOT in a Notifications section

@@ -1,6 +1,7 @@
 import { runDailyDigest } from '../../notifications/runDailyDigest';
 import { DigestIO, DigestRecipient, OrderScanDoc } from '../../notifications/types';
 import { lagosDateKey } from '../../notifications/lagosTime';
+import { ResendError } from '../../email/resendClient';
 
 const NOW = Date.parse('2026-06-03T06:00:00Z');
 const DAY = 86_400_000;
@@ -11,18 +12,22 @@ function fakeIO(over: Partial<DigestIO> & {
   staffByOwner?: Record<string, string[]>;
   staffPushDisabled?: string[];
   tokensByUid?: Record<string, string[]>;
+  customersByUid?: Record<string, boolean>;
+  emailError?: Error;
   invalidTokens?: string[];
   pushSuccessCount?: number;
 }): {
   io: DigestIO;
-  sent: { to: string; subject: string }[];
+  sent: { to: string; subject: string; html: string; headers?: Record<string, string> }[];
+  bounced: string[];
   pushes: { tokens: string[]; body: string; target?: string }[];
   pushStamps: Record<string, string>;
   deletedTokens: { uid: string; tokens: string[] }[];
   stamps: Record<string, string>;
   notified: Record<string, number>;
 } {
-  const sent: { to: string; subject: string }[] = [];
+  const sent: { to: string; subject: string; html: string; headers?: Record<string, string> }[] = [];
+  const bounced: string[] = [];
   const stamps: Record<string, string> = {};
   const pushStamps: Record<string, string> = {};
   const pushes: { tokens: string[]; body: string; target?: string }[] = [];
@@ -34,8 +39,13 @@ function fakeIO(over: Partial<DigestIO> & {
     getLastSentDate: async (uid) => stamps[uid] ?? null,
     setLastSentDate: async (uid, d) => { stamps[uid] = d; },
     writeNotifications: async (uid) => { notified[uid] = (notified[uid] || 0) + 1; },
-    sendEmail: async (p) => { sent.push({ to: p.to, subject: p.subject }); },
+    sendEmail: async (p) => {
+      if (over.emailError) throw over.emailError;
+      sent.push({ to: p.to, subject: p.subject, html: p.html, headers: p.headers });
+    },
     isAllowed: over.isAllowed ?? (() => true),
+    hasCustomers: async (uid) => over.customersByUid?.[uid] ?? false,
+    markHardBounce: async (uid) => { bounced.push(uid); },
     loadPushTokens: async (uid) => over.tokensByUid?.[uid] ?? [],
     sendPush: async (tokens, payload) => {
       pushes.push({ tokens, body: payload.body, target: payload.target });
@@ -51,10 +61,10 @@ function fakeIO(over: Partial<DigestIO> & {
     listStaffUids: async (ownerUid) => over.staffByOwner?.[ownerUid] ?? [],
     isStaffPushEnabled: async (staffUid) => over.staffPushDisabled?.includes(staffUid) !== true,
   };
-  return { io, sent, pushes, pushStamps, deletedTokens, stamps, notified };
+  return { io, sent, bounced, pushes, pushStamps, deletedTokens, stamps, notified };
 }
 
-const recip = (p: Partial<DigestRecipient> = {}): DigestRecipient => ({ uid: 'u1', email: 'u1@x.com', emailVerified: true, name: 'Ada', digestEnabled: true, pushEnabled: true, ...p });
+const recip = (p: Partial<DigestRecipient> = {}): DigestRecipient => ({ uid: 'u1', email: 'u1@x.com', emailVerified: true, name: 'Ada', digestEnabled: true, pushEnabled: true, emailOptOut: false, hardBounce: false, platform: null, unsubscribeUrl: 'https://unsub.test/e?u=u1&t=abc', ...p });
 const order = (p: Partial<OrderScanDoc>): OrderScanDoc => ({ id: 'o', customerName: 'C', status: 'IN_PROGRESS', deadline: null, archivedAt: null, totalPrice: 0, payments: [], items: [], ...p });
 
 describe('runDailyDigest', () => {
@@ -66,11 +76,15 @@ describe('runDailyDigest', () => {
     expect(stamps.u1).toBe('2026-06-03');
   });
 
-  it('suppresses when there is nothing actionable', async () => {
+  // Until 2026-08-20 a quiet morning sent nothing at all, which silenced 81 of 109
+  // owners on the first production run. Silence is now the bug, not the feature.
+  it('sends a nudge instead of falling silent when nothing is actionable', async () => {
     const { io, sent } = fakeIO({ recipients: [recip()], ordersByUid: { u1: [] } });
     const r = await runDailyDigest(io, NOW);
-    expect(sent).toHaveLength(0);
-    expect(r.suppressedEmpty).toBe(1);
+    expect(sent).toHaveLength(1);
+    expect(r.nudged).toBe(1);
+    expect(r.sent).toBe(0);
+    expect(r.suppressedEmpty).toBe(0);
   });
 
   it('skips opted-out tailors', async () => {
@@ -115,11 +129,126 @@ describe('runDailyDigest', () => {
     expect(notified.u1).toBe(1);
   });
 
-  it('writes notifications even when the digest is empty (no email)', async () => {
-    const { io, sent, notified } = fakeIO({ recipients: [recip()], ordersByUid: { u1: [] } });
+  it('writes notifications even when the digest is empty', async () => {
+    const { io, notified } = fakeIO({ recipients: [recip()], ordersByUid: { u1: [] } });
     await runDailyDigest(io, NOW);
-    expect(sent).toHaveLength(0);
     expect(notified.u1).toBe(1);
+  });
+
+  describe('daily nudge on a quiet morning', () => {
+    it('asks a working tailor to record today\'s job', async () => {
+      const { io, sent } = fakeIO({
+        recipients: [recip()],
+        // Has orders, but none due/overdue/owing → digest model is empty.
+        ordersByUid: { u1: [order({ status: 'DELIVERED' })] },
+      });
+      const r = await runDailyDigest(io, NOW);
+      expect(sent[0].subject).toBe('Did any job come in today?');
+      expect(r.nudged).toBe(1);
+    });
+
+    it('asks for a first job when there are customers but no orders', async () => {
+      const { io, sent } = fakeIO({
+        recipients: [recip()], ordersByUid: { u1: [] }, customersByUid: { u1: true },
+      });
+      await runDailyDigest(io, NOW);
+      expect(sent[0].subject).toBe('One step from your first job');
+    });
+
+    it('asks for a first customer when the workshop is empty', async () => {
+      const { io, sent } = fakeIO({
+        recipients: [recip()], ordersByUid: { u1: [] }, customersByUid: { u1: false },
+      });
+      await runDailyDigest(io, NOW);
+      expect(sent[0].subject).toBe('Add your first customer');
+    });
+
+    // Regression: the CTA was briefly a hardcoded store URL chosen from the user's
+    // FCM token platform. 33 of 152 accounts have no token, so those defaulted to
+    // Google Play — sending iPhone owners to an Android store. The App Link opens
+    // the app on both platforms and the hosted /r page handles the not-installed
+    // case per platform, so no store URL belongs in an email at all.
+    it('uses the platform-neutral App Link, never a store URL', async () => {
+      const { io, sent } = fakeIO({ recipients: [recip({ platform: 'ios' })], ordersByUid: { u1: [] } });
+      await runDailyDigest(io, NOW);
+      expect(sent[0].html).toContain('https://link.getstitchpad.com/r');
+      expect(sent[0].html).not.toContain('play.google.com');
+      expect(sent[0].html).not.toContain('apps.apple.com');
+    });
+
+    it('sends the same App Link regardless of platform', async () => {
+      const ios = fakeIO({ recipients: [recip({ platform: 'ios' })], ordersByUid: { u1: [] } });
+      const android = fakeIO({ recipients: [recip({ platform: 'android' })], ordersByUid: { u1: [] } });
+      const unknown = fakeIO({ recipients: [recip({ platform: null })], ordersByUid: { u1: [] } });
+      await runDailyDigest(ios.io, NOW);
+      await runDailyDigest(android.io, NOW);
+      await runDailyDigest(unknown.io, NOW);
+      for (const f of [ios, android, unknown]) {
+        expect(f.sent[0].html).toContain('https://link.getstitchpad.com/r');
+        expect(f.sent[0].html).not.toContain('play.google.com');
+      }
+    });
+
+    it('attaches RFC 8058 one-click unsubscribe headers', async () => {
+      const { io, sent } = fakeIO({ recipients: [recip()], ordersByUid: { u1: [] } });
+      await runDailyDigest(io, NOW);
+      expect(sent[0].headers).toEqual({
+        'List-Unsubscribe': '<https://unsub.test/e?u=u1&t=abc>',
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      });
+    });
+  });
+
+  describe('email suppression', () => {
+    it('never emails someone who used the unsubscribe link', async () => {
+      const { io, sent } = fakeIO({
+        recipients: [recip({ emailOptOut: true })],
+        ordersByUid: { u1: [order({ deadline: NOW - DAY })] },
+      });
+      const r = await runDailyDigest(io, NOW);
+      expect(sent).toHaveLength(0);
+      expect(r.skippedOptedOut).toBe(1);
+    });
+
+    it('never re-sends to an address that already hard-bounced', async () => {
+      const { io, sent } = fakeIO({
+        recipients: [recip({ hardBounce: true })],
+        ordersByUid: { u1: [order({ deadline: NOW - DAY })] },
+      });
+      const r = await runDailyDigest(io, NOW);
+      expect(sent).toHaveLength(0);
+      expect(r.skippedBounced).toBe(1);
+    });
+
+    it('suppresses an address permanently on a 4xx from Resend', async () => {
+      const { io, bounced } = fakeIO({
+        recipients: [recip()], ordersByUid: { u1: [] },
+        emailError: new ResendError('bad address', 422),
+      });
+      const r = await runDailyDigest(io, NOW);
+      expect(bounced).toEqual(['u1']);
+      expect(r.failed).toBe(1);
+    });
+
+    // A transient outage must stay retryable — suppressing on 5xx would silently
+    // delete recipients from the list every time Resend has a bad minute.
+    it('does NOT suppress on a transient 5xx', async () => {
+      const { io, bounced } = fakeIO({
+        recipients: [recip()], ordersByUid: { u1: [] },
+        emailError: new ResendError('upstream down', 503),
+      });
+      await runDailyDigest(io, NOW);
+      expect(bounced).toEqual([]);
+    });
+
+    it('still stamps the inbox and push for an opted-out recipient', async () => {
+      const { io, notified } = fakeIO({
+        recipients: [recip({ emailOptOut: true })],
+        ordersByUid: { u1: [order({ deadline: NOW - DAY })] },
+      });
+      await runDailyDigest(io, NOW);
+      expect(notified.u1).toBe(1);
+    });
   });
 });
 
@@ -130,7 +259,7 @@ describe('runDailyDigest — push', () => {
     items: [{ garmentType: 'Asoebi' }],
   };
   const recipient = (over: Partial<DigestRecipient> = {}): DigestRecipient =>
-    ({ uid: 'u1', email: 'a@b.com', emailVerified: true, name: 'Shop', digestEnabled: true, pushEnabled: true, ...over });
+    ({ uid: 'u1', email: 'a@b.com', emailVerified: true, name: 'Shop', digestEnabled: true, pushEnabled: true, emailOptOut: false, hardBounce: false, platform: null, unsubscribeUrl: 'https://unsub.test/e?u=u1&t=abc', ...over });
 
   it('sends one push for an enabled, allowed recipient with actionable orders + a token', async () => {
     const f = fakeIO({ recipients: [recipient()], ordersByUid: { u1: [overdueOrder] }, tokensByUid: { u1: ['tok1'] } });

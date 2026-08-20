@@ -4,6 +4,8 @@ import { runDailyDigest } from './runDailyDigest';
 import { isDigestAllowed, isDigestTester } from './rollout';
 import { sendResendEmail } from '../email/resendClient';
 import { buildDigestEmail } from './digestEmailTemplate';
+import { buildUnsubscribeUrl } from './emailUnsubscribe';
+import { buildNudgeEmail } from './nudgeEmailTemplate';
 import { digestDetector, isDigestEmpty } from './digestDetector';
 import {
   DAILY_REMINDERS_CHANNEL_ID,
@@ -23,6 +25,8 @@ import { DigestIO, DigestModel, DigestRecipient } from './types';
 const REGION = 'europe-west1';
 const SCHEDULE = '0 7 * * *';
 const TIMEZONE = 'Africa/Lagos';
+/** Deployed URL of the `emailUnsubscribe` HTTPS function (same project + region). */
+const UNSUBSCRIBE_BASE = 'https://europe-west1-stitchpad-30607.cloudfunctions.net/emailUnsubscribe';
 
 /** Trimmed string, or '' for anything that is not a string. Type-safe, unlike `?.trim()`. */
 function text(v: unknown): string {
@@ -57,55 +61,83 @@ function productionDigestIO(apiKey: string): DigestIO {
   const db = admin.firestore();
   return {
     async listRecipients(): Promise<DigestRecipient[]> {
-      // Scale path: one users.get() + a serial admin.auth().getUser(uid) per user
-      // (N+1), then serial per-user work (orders, money, FCM, Resend).
+      // Enumerates FIREBASE AUTH, not the `users` collection. The old users-collection
+      // walk silently excluded every account that never finished workshop setup — 41 of
+      // 154 on 2026-08-20 — which is precisely the group that most needs a nudge. The
+      // users docs, opt-out flags and token platforms are each fetched in ONE query and
+      // joined in memory, so this is cheaper than the per-user getUser() it replaces.
       //
-      // Measured 2026-08-17 at 109 production users: ~0.5s per workshop with orders,
-      // so a full run sits comfortably inside the 540s timeout set on this function.
-      // The failure mode past roughly 400-700 users is nasty and silent: Firestore
-      // returns users in stable doc-id order, so the SAME tail is truncated every
-      // morning, forever, with no symptom beyond a missing "run complete" log line.
-      // Before then, switch to admin.auth().listUsers() pagination + a uid->email map
-      // and bounded concurrency. Watch the `considered` count in the run log.
-      const usersSnap = await db.collection('users').get();
-      const recipients: DigestRecipient[] = [];
-      for (const doc of usersSnap.docs) {
-        const data = doc.data();
-        // Carry the verification state instead of dropping the recipient on it.
-        // An unverified address must only suppress the EMAIL (runDailyDigest gates
-        // on `emailVerified`); dropping the row here also silenced the in-app inbox,
-        // the owner's push, and — because staff digests hang off the owner's row —
-        // every STAFF push in that workshop.
-        let email = '';
-        let emailVerified = false;
-        try {
-          const authUser = await admin.auth().getUser(doc.id);
-          email = authUser.email ?? '';
-          emailVerified = Boolean(authUser.email && authUser.emailVerified);
-        } catch {
-          continue; // users doc with no matching auth user — a dead account, skip
-        }
-        // `?.` guards null/undefined but NOT type: a numeric or map businessName from a
-        // console edit would throw inside listRecipients, which runs OUTSIDE the
-        // per-recipient try/catch — one bad doc would silence the digest for everyone.
-        // Final `|| 'Tailor'` covers an account with no email at all, which now
-        // reaches this line (it used to be skipped above).
-        const name = (text(data.businessName) || text(data.displayName) || email.split('@')[0] || 'Tailor');
-        recipients.push({
-          uid: doc.id,
-          email,
-          emailVerified,
-          name,
-          digestEnabled: data.dailyDigestEmailEnabled !== false,
-          // Push opt-out: honor an explicit dailyPushEnabled; otherwise inherit the email
-          // digest preference so users who opted out of the daily summary aren't silently
-          // opted into push. New users (both absent) default ON.
-          pushEnabled: data.dailyPushEnabled !== undefined
-            ? data.dailyPushEnabled !== false
-            : data.dailyDigestEmailEnabled !== false,
-        });
+      // Still serial per recipient downstream (orders, money, FCM, Resend): ~0.5s each,
+      // inside the 540s timeout at this size. Past roughly 700 accounts, add bounded
+      // concurrency — recipient order is stable, so a timeout starves the same tail
+      // every morning with no symptom beyond a missing "run complete" log line.
+      const secret = process.env.EMAIL_UNSUB_SECRET ?? '';
+      const [usersSnap, prefsSnap, tokensSnap] = await Promise.all([
+        db.collection('users').get(),
+        db.collection('emailPrefs').get(),
+        db.collectionGroup('notificationTokens').get(),
+      ]);
+      const userDocs = new Map(usersSnap.docs.map((d) => [d.id, d.data()]));
+      const prefs = new Map(prefsSnap.docs.map((d) => [d.id, d.data()]));
+
+      // Newest token per uid decides which store the CTA points at.
+      const platforms = new Map<string, { platform: string; updatedAt: number }>();
+      for (const t of tokensSnap.docs) {
+        const owner = t.ref.parent.parent?.id;
+        const platform = text(t.data().platform).toLowerCase();
+        if (!owner || (platform !== 'ios' && platform !== 'android')) continue;
+        const updatedAt = Number(t.data().updatedAt ?? 0);
+        const prev = platforms.get(owner);
+        if (!prev || updatedAt > prev.updatedAt) platforms.set(owner, { platform, updatedAt });
       }
+
+      const recipients: DigestRecipient[] = [];
+      let pageToken: string | undefined;
+      do {
+        const page = await admin.auth().listUsers(1000, pageToken);
+        for (const authUser of page.users) {
+          if (authUser.disabled) continue;
+          const uid = authUser.uid;
+          const email = authUser.email ?? '';
+          const data = userDocs.get(uid) ?? {};
+          const pref = prefs.get(uid) ?? {};
+          const plat = platforms.get(uid)?.platform;
+          // `?.` guards null/undefined but NOT type: a numeric or map businessName from a
+          // console edit would throw inside listRecipients, which runs OUTSIDE the
+          // per-recipient try/catch — one bad doc would silence the digest for everyone.
+          const name = (text(data.businessName) || text(data.displayName)
+            || text(authUser.displayName) || email.split('@')[0] || 'Tailor');
+          recipients.push({
+            uid,
+            email,
+            emailVerified: Boolean(authUser.email && authUser.emailVerified),
+            name,
+            digestEnabled: data.dailyDigestEmailEnabled !== false,
+            // Push opt-out: honor an explicit dailyPushEnabled; otherwise inherit the email
+            // digest preference so users who opted out of the daily summary aren't silently
+            // opted into push. New users (both absent) default ON.
+            pushEnabled: data.dailyPushEnabled !== undefined
+              ? data.dailyPushEnabled !== false
+              : data.dailyDigestEmailEnabled !== false,
+            emailOptOut: pref.optOut === true,
+            hardBounce: pref.hardBounce === true,
+            platform: plat === 'ios' || plat === 'android' ? plat : null,
+            unsubscribeUrl: secret ? buildUnsubscribeUrl(uid, secret, UNSUBSCRIBE_BASE) : '',
+          });
+        }
+        pageToken = page.pageToken;
+      } while (pageToken);
       return recipients;
+    },
+    async hasCustomers(uid) {
+      const snap = await db.collection('users').doc(uid).collection('customers').limit(1).get();
+      return !snap.empty;
+    },
+    async markHardBounce(uid) {
+      await db.collection('emailPrefs').doc(uid).set(
+        { hardBounce: true, hardBounceAt: admin.firestore.FieldValue.serverTimestamp() },
+        { merge: true },
+      );
     },
     async loadOrders(uid) {
       // Money lives in /private/money since Slice 8d-1 — reading only the base doc
@@ -183,7 +215,7 @@ export const dailyDigest = functions
   // admin.auth().getUser() AND one Resend HTTP call per recipient. The v1 default 60s
   // would kill the run mid-loop, and since recipient order is stable the same tail
   // would be starved every morning — surfacing only as a missing "run complete" log.
-  .runWith({ secrets: ['RESEND_API_KEY'], timeoutSeconds: 540, memory: '512MB' })
+  .runWith({ secrets: ['RESEND_API_KEY', 'EMAIL_UNSUB_SECRET'], timeoutSeconds: 540, memory: '512MB' })
   .pubsub.schedule(SCHEDULE)
   .timeZone(TIMEZONE)
   .onRun(async () => {
@@ -202,7 +234,7 @@ export const dailyDigest = functions
  */
 export const debugSendMyDigest = functions
   .region(REGION)
-  .runWith({ secrets: ['RESEND_API_KEY'] })
+  .runWith({ secrets: ['RESEND_API_KEY', 'EMAIL_UNSUB_SECRET'] })
   .https.onCall(async (_data, context) => {
     const uid = context.auth?.uid;
     if (!uid) throw new functions.https.HttpsError('unauthenticated', 'Sign in required.');
@@ -234,7 +266,9 @@ export const debugSendMyDigest = functions
     // Inbox always populated for QA (ungated, same as production runDailyDigest)
     await writeNotificationsAdmin(db, uid, model);
 
-    if (isDigestEmpty(model)) return { sent: false, reason: 'empty' };
+    // NOTE: no early return on an empty model any more — an empty morning is exactly
+    // when the nudge email fires in production, so a tester must be able to preview it.
+    // Push stays gated on non-empty: there is nothing urgent to interrupt someone for.
 
     // Push — gated on its own resolved pushEnabled flag (bypass stamp/allowlist for debug)
     const io = productionDigestIO(apiKey);
@@ -242,7 +276,7 @@ export const debugSendMyDigest = functions
       ? data.dailyPushEnabled !== false
       : data.dailyDigestEmailEnabled !== false;
     let pushSent = false;
-    if (pushEnabled) {
+    if (pushEnabled && !isDigestEmpty(model)) {
       const pushTokens = await io.loadPushTokens(uid);
       if (pushTokens.length > 0) {
         const { successCount, invalidTokens } = await io.sendPush(pushTokens, pushSummary(model));
@@ -256,8 +290,25 @@ export const debugSendMyDigest = functions
     let emailSent = false;
     if (emailEnabled) {
       const name = (data.businessName?.trim() || data.displayName?.trim() || authUser.email.split('@')[0]);
-      const { subject, html, text } = buildDigestEmail(model, name);
-      await sendResendEmail(apiKey, { to: authUser.email, subject, html, text });
+      // Mirror the real run's variant choice so a tester previewing on a quiet day
+      // sees the nudge users actually receive, not a blank digest.
+      const secret = process.env.EMAIL_UNSUB_SECRET ?? '';
+      const opts = {
+        // Same platform-neutral App Link the real run uses — see ctaUrl() in
+        // runDailyDigest.ts for why this must not be a hardcoded store URL.
+        ctaUrl: 'https://link.getstitchpad.com/r',
+        unsubscribeUrl: secret ? buildUnsubscribeUrl(uid, secret, UNSUBSCRIBE_BASE) : '',
+      };
+      let payload;
+      if (isDigestEmpty(model)) {
+        const custSnap = await db.collection('users').doc(uid).collection('customers').limit(1).get();
+        const kind = ordersSnap.size > 0 ? 'quiet' : (custSnap.empty ? 'setup' : 'first_order');
+        payload = buildNudgeEmail(kind, name, opts);
+      } else {
+        payload = buildDigestEmail(model, name, opts);
+      }
+      const { subject, html, text: body } = payload;
+      await sendResendEmail(apiKey, { to: authUser.email, subject, html, text: body });
       await digestStateRef(uid).set({ lastSentDate: lagosDateKey(now) }, { merge: true });
       emailSent = true;
     }
