@@ -247,7 +247,8 @@
     <string name="customer_form_name_label">Full name</string>
     <string name="customer_form_name_placeholder">e.g. Amina Bello</string>
     <string name="customer_form_phone_label">Phone number</string>
-    <string name="customer_form_phone_placeholder">+234 801 234 5678</string>
+    <!-- %1$s = dial code (no plus), %2$s = the country's local example mobile number -->
+    <string name="customer_form_phone_placeholder">+%1$s %2$s</string>
     <string name="customer_form_email_label">Email (optional)</string>
     <string name="customer_form_email_placeholder">e.g. amina@gmail.com</string>
     <string name="customer_form_address_label">Address (optional)</string>

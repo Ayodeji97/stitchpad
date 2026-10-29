@@ -11,6 +11,7 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.CurrentCountryProvider
 import com.danzucker.stitchpad.core.domain.session.workshopUidOrNull
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
@@ -35,6 +36,7 @@ import kotlin.uuid.Uuid
 
 class CustomerFormViewModel(
     savedStateHandle: SavedStateHandle,
+    private val currentCountryProvider: CurrentCountryProvider,
     private val customerRepository: CustomerRepository,
     private val activeWorkshopProvider: ActiveWorkshopProvider,
     private val emailValidator: PatternValidator,
@@ -55,6 +57,7 @@ class CustomerFormViewModel(
         .onStart {
             if (!hasLoadedInitialData) {
                 hasLoadedInitialData = true
+                observeCountry()
                 if (customerId != null) loadCustomer(customerId)
             }
         }
@@ -63,6 +66,13 @@ class CustomerFormViewModel(
             started = SharingStarted.WhileSubscribed(5_000L),
             initialValue = CustomerFormState(isEditMode = customerId != null)
         )
+
+    /** Keeps the phone placeholder on the tailor's own country's example number. */
+    private fun observeCountry() {
+        viewModelScope.launch {
+            currentCountryProvider.country.collect { country -> _state.update { it.copy(country = country) } }
+        }
+    }
 
     @Suppress("CyclomaticComplexMethod")
     fun onAction(action: CustomerFormAction) {
