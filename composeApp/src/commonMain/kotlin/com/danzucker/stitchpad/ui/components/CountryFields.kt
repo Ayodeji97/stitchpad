@@ -1,3 +1,5 @@
+@file:Suppress("MatchingDeclarationName") // file holds CountryChip + TimeZoneRow and their shared colours
+
 package com.danzucker.stitchpad.ui.components
 
 import androidx.compose.foundation.background

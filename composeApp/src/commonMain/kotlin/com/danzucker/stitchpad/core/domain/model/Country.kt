@@ -113,6 +113,8 @@ enum class Country(
         "223",
         null,
         8,
+        // Deliberately omits libphonenumber's ML four-digit-prefix 2xxx mobiles,
+        // 2(?:0(?:01|79)|17\d)\d{4}: they overlap ML's landline-style 2xxx numbers.
         Regex("^(?:5[0-3]|[679]\\d|8[2-59])\\d{6}$"),
         Currency.XOF,
         listOf("Africa/Bamako"),
@@ -197,6 +199,8 @@ enum class Country(
         "243",
         "0",
         9,
+        // Deliberately omits libphonenumber's CD 88\d{5} mobile range: 7-digit numbers that
+        // don't fit the 9-digit nationalLength used here.
         Regex("^(?:8[0-79]|9[016-9])\\d{7}$"),
         Currency.CDF,
         listOf("Africa/Kinshasa", "Africa/Lubumbashi"),
