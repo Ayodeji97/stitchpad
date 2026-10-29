@@ -28,6 +28,7 @@ class FakeUserRepository : UserRepository {
     val deletedLogoPaths: MutableList<String> = mutableListOf()
 
     var lastCountry: Country? = null
+    var createUserProfileCallCount = 0
     var lastTimeZone: String? = null
     var lastLocale: String? = null
 
@@ -48,11 +49,12 @@ class FakeUserRepository : UserRepository {
         bankAccountName: String?,
         bankAccountNumber: String?,
         whatsappConfirmed: Boolean,
-        country: Country,
-        timeZone: String,
+        country: Country?,
+        timeZone: String?,
         locale: String?,
     ): EmptyResult<DataError.Network> {
         shouldReturnError?.let { return Result.Error(it) }
+        createUserProfileCallCount++
         lastCountry = country
         lastTimeZone = timeZone
         lastLocale = locale
@@ -106,6 +108,12 @@ class FakeUserRepository : UserRepository {
     val userFlowsByUid = mutableMapOf<String, Flow<User?>>()
 
     override fun observeUser(userId: String): Flow<User?> = userFlowsByUid[userId] ?: userFlow
+
+    /** Override for [getUser]; null returns Success([userFlow]'s current value). */
+    var getUserOverride: (suspend (String) -> Result<User?, DataError.Network>)? = null
+
+    override suspend fun getUser(userId: String): Result<User?, DataError.Network> =
+        getUserOverride?.invoke(userId) ?: Result.Success(userFlow.value)
 
     /** Value returned by [hasWorkshopProfile]. */
     var hasWorkshopProfileResult = false

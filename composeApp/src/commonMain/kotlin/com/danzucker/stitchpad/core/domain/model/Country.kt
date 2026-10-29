@@ -6,8 +6,11 @@ enum class AndroidBilling { PAYSTACK, PLAY }
  * Wave-1 markets. [mobilePattern] matches the national number only (no dial code, no trunk
  * prefix), checked against libphonenumber's PhoneNumberMetadata.xml mobile patterns.
  * [trunkPrefix] is the national trunk prefix dropped when dialling internationally; it is null
- * where the leading 0 (CI, BJ, GA, CG) is part of the number itself.
+ * where the leading 0 (CI, BJ, GA, CG) is part of the number itself. [exampleNational] reuses the
+ * CountryTest mobile samples (NG keeps its existing placeholder), spaced as usually written locally.
  */
+// One flat row per market keeps the registry auditable at a glance; a builder would hide it.
+@Suppress("LongParameterList")
 enum class Country(
     val iso: String,
     val dialCode: String,
@@ -18,6 +21,8 @@ enum class Country(
     val timeZones: List<String>,
     val defaultLanguage: String,
     val androidBilling: AndroidBilling,
+    /** A formatted local mobile example (no dial code), shown as the phone-field placeholder. */
+    val exampleNational: String,
 ) {
     NG(
         "NG",
@@ -29,6 +34,7 @@ enum class Country(
         listOf("Africa/Lagos"),
         "en",
         AndroidBilling.PAYSTACK,
+        "801 234 5678",
     ),
     GH(
         "GH",
@@ -40,6 +46,7 @@ enum class Country(
         listOf("Africa/Accra"),
         "en",
         AndroidBilling.PLAY,
+        "24 412 3456",
     ),
     KE(
         "KE",
@@ -51,6 +58,7 @@ enum class Country(
         listOf("Africa/Nairobi"),
         "en",
         AndroidBilling.PLAY,
+        "712 345 678",
     ),
     CI(
         "CI",
@@ -62,6 +70,7 @@ enum class Country(
         listOf("Africa/Abidjan"),
         "fr",
         AndroidBilling.PLAY,
+        "07 01 23 45 67",
     ),
     SN(
         "SN",
@@ -73,6 +82,7 @@ enum class Country(
         listOf("Africa/Dakar"),
         "fr",
         AndroidBilling.PLAY,
+        "77 123 45 67",
     ),
     BJ(
         "BJ",
@@ -84,6 +94,7 @@ enum class Country(
         listOf("Africa/Porto-Novo"),
         "fr",
         AndroidBilling.PLAY,
+        "01 90 12 34 56",
     ),
     TG(
         "TG",
@@ -95,6 +106,7 @@ enum class Country(
         listOf("Africa/Lome"),
         "fr",
         AndroidBilling.PLAY,
+        "90 12 34 56",
     ),
     ML(
         "ML",
@@ -106,6 +118,7 @@ enum class Country(
         listOf("Africa/Bamako"),
         "fr",
         AndroidBilling.PLAY,
+        "76 12 34 56",
     ),
     BF(
         "BF",
@@ -117,6 +130,7 @@ enum class Country(
         listOf("Africa/Ouagadougou"),
         "fr",
         AndroidBilling.PLAY,
+        "70 12 34 56",
     ),
     NE(
         "NE",
@@ -128,6 +142,7 @@ enum class Country(
         listOf("Africa/Niamey"),
         "fr",
         AndroidBilling.PLAY,
+        "93 12 34 56",
     ),
     CM(
         "CM",
@@ -139,6 +154,7 @@ enum class Country(
         listOf("Africa/Douala"),
         "fr",
         AndroidBilling.PLAY,
+        "6 71 23 45 67",
     ),
     GA(
         "GA",
@@ -150,6 +166,7 @@ enum class Country(
         listOf("Africa/Libreville"),
         "fr",
         AndroidBilling.PLAY,
+        "06 12 34 56",
     ),
     CG(
         "CG",
@@ -161,6 +178,7 @@ enum class Country(
         listOf("Africa/Brazzaville"),
         "fr",
         AndroidBilling.PLAY,
+        "06 123 4567",
     ),
     GN(
         "GN",
@@ -172,6 +190,7 @@ enum class Country(
         listOf("Africa/Conakry"),
         "fr",
         AndroidBilling.PLAY,
+        "621 23 45 67",
     ),
     CD(
         "CD",
@@ -183,6 +202,7 @@ enum class Country(
         listOf("Africa/Kinshasa", "Africa/Lubumbashi"),
         "fr",
         AndroidBilling.PLAY,
+        "812 345 678",
     ),
     ;
 

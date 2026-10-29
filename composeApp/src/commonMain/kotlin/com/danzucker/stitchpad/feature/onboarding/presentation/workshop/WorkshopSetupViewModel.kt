@@ -31,7 +31,6 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -87,16 +86,29 @@ class WorkshopSetupViewModel(
     // Locale already stored on an existing user doc; kept instead of the device language.
     private var existingLocale: String? = null
 
+    // Outcome of the one-shot existing-doc read; FAILED until the read proves otherwise.
+    private var existingProfileRead = ExistingProfileRead.FAILED
+
     // Workshop Setup can re-run on an existing user doc (skip-then-complete, reinstall, demoted
-    // staff), and createUserProfile always merge-writes country/currency/timeZone. Pre-fill from
-    // that doc so re-entering setup never relabels a non-NG tailor; the device region only
-    // applies when there is no doc yet.
+    // staff). Pre-fill from that doc so re-entering setup never relabels a non-NG tailor; the
+    // device region only applies once the read CONFIRMS there is no doc. A failed or timed-out
+    // read leaves the stored country untouched (see onContinue). Bounded so Continue's wait on
+    // this job can never hang setup.
     private val existingProfileJob: Job = viewModelScope.launch {
         val userId = authRepository.getCurrentUser()?.id ?: return@launch
-        val existing = userRepository.observeUser(userId).first() ?: return@launch
+        val result = withTimeoutOrNull(EXISTING_PROFILE_WAIT_MS) { userRepository.getUser(userId) }
+        if (result !is Result.Success) return@launch
+        val existing = result.data
+        if (existing == null) {
+            existingProfileRead = ExistingProfileRead.ABSENT
+            return@launch
+        }
+        existingProfileRead = ExistingProfileRead.PRESENT
         existingLocale = existing.locale
         if (countryChosenByUser) return@launch
-        _state.update { it.copy(country = existing.country, timeZone = existing.timeZone) }
+        val zone = existing.timeZone.takeIf { it in existing.country.timeZones }
+            ?: existing.country.defaultTimeZone
+        _state.update { it.copy(country = existing.country, timeZone = zone) }
         revalidateEnteredNumber()
     }
 
@@ -422,20 +434,26 @@ class WorkshopSetupViewModel(
 
     @Suppress("LongMethod", "CyclomaticComplexMethod")
     private fun onContinue() {
-        if (!validateBusinessName() || !validateWhatsAppNumber() || !validateBankFields()) return
         // Guard against re-entry from rapid taps. The Screen's button predicate
         // also disables visually on isLoading/isAwaitingLogo, but a slow
         // recomposition window could let multiple taps queue actions; this is
-        // the canonical re-entry guard at the VM layer.
-        if (_state.value.isLoading || _state.value.isAwaitingLogo) return
+        // the canonical re-entry guard at the VM layer. continueJob covers the
+        // existing-doc wait below, before either flag is set.
+        if (continueJob?.isActive == true || _state.value.isLoading || _state.value.isAwaitingLogo) return
 
         continueJob = viewModelScope.launch {
             try {
                 // A Continue tapped before the existing-doc read lands must not save the device
-                // region over a stored country. Bounded so a hung read can't block setup.
+                // region over a stored country. The read job is itself time-bounded. Show the
+                // spinner meanwhile so the button reads as busy.
                 if (existingProfileJob.isActive) {
-                    withTimeoutOrNull(EXISTING_PROFILE_WAIT_MS) { existingProfileJob.join() }
+                    _state.update { it.copy(isLoading = true) }
+                    existingProfileJob.join()
+                    _state.update { it.copy(isLoading = false) }
                 }
+                // Validate after the wait: the pre-fill can change the country the number is
+                // checked against.
+                if (!validateBusinessName() || !validateWhatsAppNumber() || !validateBankFields()) return@launch
                 // If a logo upload is still in flight, await it so we can persist the URL.
                 // Skip cancels this job via continueJob.cancelAndJoin() — pending.join()
                 // is the cancellation suspension point, so cancellation here unwinds via
@@ -459,6 +477,9 @@ class WorkshopSetupViewModel(
                     return@launch
                 }
                 val country = s.country
+                // Write the market only when we know what is stored (or the user chose one).
+                // After a failed read the stored country/currency/zone/locale stay as they are.
+                val writeMarket = countryChosenByUser || existingProfileRead != ExistingProfileRead.FAILED
                 val whatsappE164 = s.whatsappNumber.trim().takeIf { it.isNotBlank() }
                     ?.let { "+" + normalisePhone(applyImpliedCountryCode(it, country), country) }
 
@@ -475,9 +496,10 @@ class WorkshopSetupViewModel(
                     bankAccountName = bankAccountNameSave,
                     bankAccountNumber = bankAccountNumberSave,
                     whatsappConfirmed = s.whatsappConfirm.confirmed && whatsappE164 != null,
-                    country = country,
-                    timeZone = s.timeZone,
-                    locale = existingLocale ?: deviceLanguage().takeIf { it.isNotBlank() },
+                    country = country.takeIf { writeMarket },
+                    timeZone = s.timeZone.takeIf { writeMarket },
+                    locale = (existingLocale ?: deviceLanguage().takeIf { it.isNotBlank() })
+                        .takeIf { writeMarket },
                 )
                 if (profileResult is Result.Error) {
                     _events.send(WorkshopSetupEvent.ShowError(UiText.StringResourceText(Res.string.error_unknown)))
@@ -518,6 +540,8 @@ class WorkshopSetupViewModel(
             }
         }
     }
+
+    private enum class ExistingProfileRead { ABSENT, PRESENT, FAILED }
 
     private companion object {
         const val MAX_WHATSAPP_DIGITS = 13

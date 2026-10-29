@@ -62,8 +62,8 @@ class FirebaseUserRepository(
         bankAccountName: String?,
         bankAccountNumber: String?,
         whatsappConfirmed: Boolean,
-        country: Country,
-        timeZone: String,
+        country: Country?,
+        timeZone: String?,
         locale: String?,
     ): EmptyResult<DataError.Network> {
         val document = firestore.collection(USERS).document(userId)
@@ -77,9 +77,12 @@ class FirebaseUserRepository(
         bankAccountName?.let { data["bankAccountName"] = it }
         bankAccountNumber?.let { data["bankAccountNumber"] = it }
         // Currency is always derived from the country so the pair can never mismatch.
-        data["country"] = country.iso
-        data["currency"] = country.currency.code
-        data["timeZone"] = timeZone
+        // Null = leave the stored market untouched.
+        country?.let {
+            data["country"] = it.iso
+            data["currency"] = it.currency.code
+        }
+        timeZone?.let { data["timeZone"] = it }
         locale?.let { data["locale"] = it }
         data["updatedAt"] = FieldValue.serverTimestamp
         // Profile fields are fire-and-forget so Workshop Setup returns instantly
@@ -202,6 +205,20 @@ class FirebaseUserRepository(
                     "observeUser failed userId=$userId; retrying (attempt ${attempt + 1})"
                 }
             }
+    }
+
+    @Suppress("INLINE_FROM_HIGHER_PLATFORM", "TooGenericExceptionCaught")
+    override suspend fun getUser(userId: String): Result<User?, DataError.Network> {
+        return try {
+            val snapshot = firestore.collection(USERS).document(userId).get()
+            if (!snapshot.exists) return Result.Success(null)
+            Result.Success(snapshot.data(UserDto.serializer()).copy(id = userId).toUser())
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            AppLogger.w(tag = TAG, throwable = e) { "getUser read failed userId=$userId" }
+            Result.Error(DataError.Network.UNKNOWN)
+        }
     }
 
     // Offline / not-yet-cached / malformed doc: fall back to showing setup, the

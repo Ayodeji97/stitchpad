@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.core.domain.model
 
+import com.danzucker.stitchpad.core.sharing.isValidMobile
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -139,6 +140,15 @@ class CountryTest {
         assertEquals(Country.entries.toSet(), landlineSamples.keys)
         landlineSamples.forEach { (country, sample) ->
             assertFalse(country.mobilePattern.matches(sample), "${country.iso} $sample")
+        }
+    }
+
+    @Test
+    fun `example national number is a valid mobile for its country`() {
+        Country.entries.forEach {
+            val digits = it.exampleNational.filter { c -> c.isDigit() }
+            assertEquals(it.nationalLength, digits.length, "${it.iso} ${it.exampleNational} length")
+            assertTrue(isValidMobile(digits, it), "${it.iso} ${it.exampleNational}")
         }
     }
 }

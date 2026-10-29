@@ -4,19 +4,23 @@ import app.cash.turbine.test
 import com.danzucker.stitchpad.core.analytics.FakeAnalytics
 import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
 import com.danzucker.stitchpad.core.domain.error.DataError
+import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.domain.model.defaultTimeZone
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -504,7 +508,7 @@ class WorkshopSetupViewModelTest {
     fun `existing user doc arriving late does not override a manual pick`() {
         fakeAuth.currentUser = signedInUser()
         val late = MutableSharedFlow<User?>(extraBufferCapacity = 1)
-        fakeUserRepository.userFlowsByUid["u1"] = late
+        fakeUserRepository.getUserOverride = { Result.Success(late.first()) }
         viewModel = createViewModel(region = { "NG" })
 
         viewModel.onAction(WorkshopSetupAction.OnCountrySelected(Country.KE))
@@ -519,5 +523,108 @@ class WorkshopSetupViewModelTest {
         fakeUserRepository.userFlow.value = null
         viewModel = createViewModel(region = { "KE" })
         assertEquals(Country.KE, viewModel.state.value.country)
+    }
+
+    @Test
+    fun `existing user with a zone outside their country gets the country default`() {
+        val existing = signedInUser(country = Country.GH, timeZone = "Africa/Lubumbashi")
+        fakeAuth.currentUser = existing
+        fakeUserRepository.userFlow.value = existing
+        viewModel = createViewModel(region = { "NG" })
+
+        assertEquals(Country.GH, viewModel.state.value.country)
+        assertEquals("Africa/Accra", viewModel.state.value.timeZone)
+    }
+
+    @Test
+    fun `rapid continue taps while the doc read is pending write the profile once`() = runTest {
+        fakeAuth.currentUser = signedInUser()
+        val gate = CompletableDeferred<Result<User?, DataError.Network>>()
+        fakeUserRepository.getUserOverride = { gate.await() }
+        viewModel = createViewModel(region = { "NG" })
+        viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ama Stitches"))
+
+        viewModel.onAction(WorkshopSetupAction.OnContinueClick)
+        assertTrue(viewModel.state.value.isLoading, "button shows busy during the doc wait")
+        viewModel.onAction(WorkshopSetupAction.OnContinueClick)
+        viewModel.onAction(WorkshopSetupAction.OnContinueClick)
+
+        viewModel.events.test {
+            gate.complete(Result.Success(null))
+            assertIs<WorkshopSetupEvent.NavigateToHome>(awaitItem())
+            expectNoEvents()
+        }
+        assertEquals(1, fakeUserRepository.createUserProfileCallCount)
+    }
+
+    @Test
+    fun `doc arriving during the continue wait is what gets saved`() = runTest {
+        fakeAuth.currentUser = signedInUser()
+        val late = MutableSharedFlow<User?>(extraBufferCapacity = 1)
+        fakeUserRepository.getUserOverride = { Result.Success(late.first()) }
+        viewModel = createViewModel(region = { "NG" })
+        viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ama Stitches"))
+        // A Ghanaian number: invalid under the device region, valid once the GH doc lands.
+        viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("024 412 3456"))
+
+        viewModel.onAction(WorkshopSetupAction.OnContinueClick)
+        assertNull(fakeUserRepository.lastUserId, "nothing written before the read lands")
+        assertTrue(late.tryEmit(signedInUser(country = Country.GH)))
+
+        assertIs<WorkshopSetupEvent.NavigateToHome>(viewModel.events.first())
+        assertEquals(Country.GH, fakeUserRepository.lastCountry)
+        assertEquals("Africa/Accra", fakeUserRepository.lastTimeZone)
+        assertEquals("+233244123456", fakeUserRepository.lastWhatsAppNumber)
+    }
+
+    @Test
+    fun `failed doc read leaves the stored market untouched on continue`() = runTest {
+        fakeAuth.currentUser = signedInUser(country = Country.GH)
+        fakeUserRepository.getUserOverride = { Result.Error(DataError.Network.UNKNOWN) }
+        viewModel = createViewModel(region = { "NG" }, language = { "fr" })
+
+        viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ama Stitches"))
+        viewModel.onAction(WorkshopSetupAction.OnContinueClick)
+
+        assertIs<WorkshopSetupEvent.NavigateToHome>(viewModel.events.first())
+        assertEquals("u1", fakeUserRepository.lastUserId)
+        assertNull(fakeUserRepository.lastCountry, "country (and so currency) not rewritten")
+        assertNull(fakeUserRepository.lastTimeZone)
+        assertNull(fakeUserRepository.lastLocale)
+    }
+
+    @Test
+    fun `failed doc read still saves a country the user picked`() = runTest {
+        fakeAuth.currentUser = signedInUser()
+        fakeUserRepository.getUserOverride = { Result.Error(DataError.Network.UNKNOWN) }
+        viewModel = createViewModel(region = { "NG" })
+
+        viewModel.onAction(WorkshopSetupAction.OnCountrySelected(Country.KE))
+        viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Wanjiru Designs"))
+        viewModel.onAction(WorkshopSetupAction.OnContinueClick)
+
+        assertIs<WorkshopSetupEvent.NavigateToHome>(viewModel.events.first())
+        assertEquals(Country.KE, fakeUserRepository.lastCountry)
+        assertEquals("Africa/Nairobi", fakeUserRepository.lastTimeZone)
+    }
+
+    @Test
+    fun `timed-out doc read lets continue finish without writing the market`() = runTest {
+        fakeAuth.currentUser = signedInUser(country = Country.GH)
+        fakeUserRepository.getUserOverride = { awaitCancellation() }
+        viewModel = createViewModel(region = { "NG" })
+        viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ama Stitches"))
+
+        viewModel.events.test {
+            viewModel.onAction(WorkshopSetupAction.OnContinueClick)
+            advanceTimeBy(2_000)
+            assertNull(fakeUserRepository.lastUserId, "still waiting on the read")
+            advanceTimeBy(1_500)
+            assertIs<WorkshopSetupEvent.NavigateToHome>(awaitItem())
+        }
+        assertEquals("u1", fakeUserRepository.lastUserId)
+        assertNull(fakeUserRepository.lastCountry)
+        assertNull(fakeUserRepository.lastTimeZone)
+        assertEquals(Country.NG, viewModel.state.value.country, "device region shown, but not saved")
     }
 }

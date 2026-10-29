@@ -119,7 +119,6 @@ import stitchpad.composeapp.generated.resources.workshop_title
 import stitchpad.composeapp.generated.resources.workshop_whatsapp_helper
 import stitchpad.composeapp.generated.resources.workshop_whatsapp_label
 import stitchpad.composeapp.generated.resources.workshop_whatsapp_optional
-import stitchpad.composeapp.generated.resources.workshop_whatsapp_placeholder
 
 @Composable
 fun WorkshopSetupRoot(
@@ -299,7 +298,8 @@ fun WorkshopSetupScreen(
                             leadingIcon = Icons.Outlined.Phone,
                             keyboardType = KeyboardType.Phone,
                             imeAction = ImeAction.Done,
-                            placeholder = stringResource(Res.string.workshop_whatsapp_placeholder),
+                            // A local example for the selected country (numbers only, not translated).
+                            placeholder = state.country.exampleNational,
                             errorText = state.whatsappError?.let {
                                 stringResource(it, countryDisplayName(state.country))
                             },
