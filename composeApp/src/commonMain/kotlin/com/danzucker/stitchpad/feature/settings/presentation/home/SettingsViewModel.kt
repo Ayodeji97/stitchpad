@@ -25,6 +25,7 @@ import com.danzucker.stitchpad.core.domain.preferences.ThemePreferencesStore
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.CurrentCountryProvider
 import com.danzucker.stitchpad.core.domain.session.SelfInitiatedLeaveSignal
 import com.danzucker.stitchpad.core.domain.staff.repository.InviteRedemptionRepository
 import com.danzucker.stitchpad.core.logging.AppLogger
@@ -100,6 +101,7 @@ class SettingsViewModel(
     private val inviteRedemptionRepository: InviteRedemptionRepository,
     private val analytics: Analytics,
     private val storeReviewLauncher: StoreReviewLauncher,
+    private val currentCountryProvider: CurrentCountryProvider,
 ) : ViewModel() {
 
     private val uiState = MutableStateFlow(LocalUiState())
@@ -202,13 +204,20 @@ class SettingsViewModel(
             SettingsAction.OnInviteClick -> {
                 // Empty phone → WhatsApp opens its universal share picker so the
                 // user can pick any chat, instead of a direct conversation.
-                emit(SettingsEvent.OpenWhatsApp("", Res.string.settings_invite_share_message))
+                emit(
+                    SettingsEvent.OpenWhatsApp(
+                        "",
+                        Res.string.settings_invite_share_message,
+                        currentCountryProvider.currentCountry(),
+                    )
+                )
             }
             SettingsAction.OnContactClick -> {
                 emit(
                     SettingsEvent.OpenWhatsApp(
                         SUPPORT_WHATSAPP_NUMBER,
                         Res.string.settings_support_intro_message,
+                        currentCountryProvider.currentCountry(),
                     )
                 )
             }

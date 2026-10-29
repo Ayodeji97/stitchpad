@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.settings.presentation.home
 
+import com.danzucker.stitchpad.core.domain.session.FakeCurrentCountryProvider
 import com.danzucker.stitchpad.core.domain.session.SelfInitiatedLeaveSignal
 import app.cash.turbine.test
 import com.danzucker.stitchpad.feature.auth.domain.NoOpRemoteSyncGate
@@ -263,6 +264,7 @@ private fun buildVm(
         inviteRedemptionRepository = inviteRepo,
         analytics = FakeAnalytics(),
         storeReviewLauncher = FakeStoreReviewLauncher(),
+        currentCountryProvider = FakeCurrentCountryProvider(),
     )
 }
 

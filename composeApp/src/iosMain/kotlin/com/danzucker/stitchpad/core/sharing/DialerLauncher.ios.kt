@@ -1,6 +1,6 @@
 package com.danzucker.stitchpad.core.sharing
 
-import com.danzucker.stitchpad.core.domain.model.Country
+import com.danzucker.stitchpad.core.domain.session.CurrentCountryProvider
 import com.danzucker.stitchpad.core.logging.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -11,9 +11,9 @@ import kotlin.coroutines.resume
 
 private const val TAG = "DialerLauncher"
 
-actual class DialerLauncher {
+actual class DialerLauncher(private val countryProvider: CurrentCountryProvider) {
     actual suspend fun launch(phone: String): Boolean {
-        val normalised = normalisePhone(phone, Country.DEFAULT)
+        val normalised = normalisePhone(phone, countryProvider.currentCountry())
         if (normalised.isBlank()) return false
         return withContext(Dispatchers.Main) {
             try {
