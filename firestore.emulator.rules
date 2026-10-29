@@ -93,11 +93,32 @@ service cloud.firestore {
     // Shape guard for the market fields on the user doc. Each is optional (legacy
     // docs have none) but, when present, must be a string of a sane size. Value-level
     // validity (a real ISO code) is the mapper's job; this only bounds client input.
+    function countryOk(d) {
+      return !('country' in d) || (d.country is string && d.country.size() == 2);
+    }
+    function currencyOk(d) {
+      return !('currency' in d) || (d.currency is string && d.currency.size() == 3);
+    }
+    function timeZoneOk(d) {
+      return !('timeZone' in d) || (d.timeZone is string && d.timeZone.size() >= 1 && d.timeZone.size() <= 64);
+    }
+    function localeOk(d) {
+      return !('locale' in d) || (d.locale is string && d.locale.size() >= 2 && d.locale.size() <= 16);
+    }
+    // CREATE: every market key present on the new doc must pass.
     function countryFieldsOk(d) {
-      return (!('country' in d) || (d.country is string && d.country.size() == 2))
-        && (!('currency' in d) || (d.currency is string && d.currency.size() == 3))
-        && (!('timeZone' in d) || (d.timeZone is string && d.timeZone.size() >= 1 && d.timeZone.size() <= 64))
-        && (!('locale' in d) || (d.locale is string && d.locale.size() >= 2 && d.locale.size() <= 16));
+      return countryOk(d) && currencyOk(d) && timeZoneOk(d) && localeOk(d);
+    }
+    // UPDATE: only the market keys this write touches are checked. A stored value that
+    // predates the guard (e.g. hand-edited in the Console) must not lock the tailor out
+    // of every unrelated profile, toggle or logo write; writing a bad value is still denied.
+    function countryFieldsUpdateOk() {
+      let d = request.resource.data;
+      let changed = d.diff(resource.data).affectedKeys();
+      return (!changed.hasAny(['country']) || countryOk(d))
+        && (!changed.hasAny(['currency']) || currencyOk(d))
+        && (!changed.hasAny(['timeZone']) || timeZoneOk(d))
+        && (!changed.hasAny(['locale']) || localeOk(d));
     }
 
     // ── /users/{uid} ───────────────────────────────────────────────────────
@@ -262,7 +283,7 @@ service cloud.firestore {
         && fieldUnchanged('welcomeBonusAppliedAt')
         && fieldUnchanged('bonusCoins')
         && fieldUnchanged('customerCount')
-        && countryFieldsOk(request.resource.data);
+        && countryFieldsUpdateOk();
 
       // ── Custom measurement fields ────────────────────────────────────────
       // PTSP-12 — Per-tailor custom field definitions. Soft-archive only;
