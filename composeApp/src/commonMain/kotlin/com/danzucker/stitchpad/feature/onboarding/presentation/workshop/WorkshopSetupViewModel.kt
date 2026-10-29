@@ -305,6 +305,7 @@ class WorkshopSetupViewModel(
                 }
                 LogoUploadState.Empty -> Unit
             }
+            persistMarketOnSkip()
             // Per-user so skipping on one account never suppresses setup for another on
             // this device. The user is signed in during setup, so id is present.
             authRepository.getCurrentUser()?.id?.let {
@@ -314,6 +315,37 @@ class WorkshopSetupViewModel(
             _events.send(WorkshopSetupEvent.NavigateToHome)
         }
     }
+
+    /**
+     * Skip still keeps the market, so a tailor who picked Ghana is not silently relabelled NG.
+     * Written only when it is safe: the user chose the country/zone, or the existing-doc read
+     * CONFIRMED there is no doc (so the device-region default overwrites nothing). A present doc
+     * the user didn't change already holds its market, and after a failed read the stored market
+     * is left untouched. Every profile field is null (and whatsappConfirmed null) so the merge
+     * write never clears a stored business name, number or confirmation. A market-only doc does
+     * not count as a workshop profile: [UserRepository.hasWorkshopProfileOrNull] keys off
+     * businessName, so routing is unchanged. Best effort: a rejected write never blocks Skip.
+     */
+    private suspend fun persistMarketOnSkip() {
+        // Bounded by EXISTING_PROFILE_WAIT_MS, so Skip can never hang on it.
+        if (!countryChosenByUser && existingProfileJob.isActive) existingProfileJob.join()
+        val writeMarket = countryChosenByUser || existingProfileRead == ExistingProfileRead.ABSENT
+        if (!writeMarket) return
+        val userId = authRepository.getCurrentUser()?.id ?: return
+        val s = _state.value
+        userRepository.createUserProfile(
+            userId = userId,
+            businessName = null,
+            whatsappNumber = null,
+            whatsappConfirmed = null,
+            country = s.country,
+            timeZone = s.timeZone,
+            locale = marketLocale(),
+        )
+    }
+
+    /** The stored locale when the doc has one, else the device language. */
+    private fun marketLocale(): String? = existingLocale ?: deviceLanguage().takeIf { it.isNotBlank() }
 
     private fun validateBusinessName(): Boolean {
         val name = _state.value.businessName.trim()
@@ -498,8 +530,7 @@ class WorkshopSetupViewModel(
                     whatsappConfirmed = s.whatsappConfirm.confirmed && whatsappE164 != null,
                     country = country.takeIf { writeMarket },
                     timeZone = s.timeZone.takeIf { writeMarket },
-                    locale = (existingLocale ?: deviceLanguage().takeIf { it.isNotBlank() })
-                        .takeIf { writeMarket },
+                    locale = marketLocale().takeIf { writeMarket },
                 )
                 if (profileResult is Result.Error) {
                     _events.send(WorkshopSetupEvent.ShowError(UiText.StringResourceText(Res.string.error_unknown)))

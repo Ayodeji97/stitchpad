@@ -48,7 +48,7 @@ class FakeUserRepository : UserRepository {
         bankName: String?,
         bankAccountName: String?,
         bankAccountNumber: String?,
-        whatsappConfirmed: Boolean,
+        whatsappConfirmed: Boolean?,
         country: Country?,
         timeZone: String?,
         locale: String?,

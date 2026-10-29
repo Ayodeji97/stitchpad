@@ -21,7 +21,8 @@ interface UserRepository {
         bankName: String? = null,
         bankAccountName: String? = null,
         bankAccountNumber: String? = null,
-        whatsappConfirmed: Boolean = false,
+        // Null leaves the stored confirmation as it is (the market-only write on Skip).
+        whatsappConfirmed: Boolean? = false,
         // Null leaves the stored value as it is (used when the existing doc could not be read).
         // A non-null country also writes its currency.
         country: Country?,

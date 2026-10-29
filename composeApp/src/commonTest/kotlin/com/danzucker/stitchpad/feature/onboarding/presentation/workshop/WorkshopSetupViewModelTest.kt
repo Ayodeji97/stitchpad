@@ -627,4 +627,79 @@ class WorkshopSetupViewModelTest {
         assertNull(fakeUserRepository.lastTimeZone)
         assertEquals(Country.NG, viewModel.state.value.country, "device region shown, but not saved")
     }
+
+    @Test
+    fun `skip after picking ghana persists the market only`() = runTest {
+        fakeAuth.currentUser = signedInUser()
+        fakeUserRepository.userFlow.value = null
+        viewModel = createViewModel(region = { "NG" }, language = { "en" })
+
+        viewModel.onAction(WorkshopSetupAction.OnCountrySelected(Country.GH))
+        viewModel.onAction(WorkshopSetupAction.OnSkipClick)
+
+        assertIs<WorkshopSetupEvent.NavigateToHome>(viewModel.events.first())
+        assertEquals(Country.GH, fakeUserRepository.lastCountry)
+        assertEquals("Africa/Accra", fakeUserRepository.lastTimeZone)
+        assertEquals("en", fakeUserRepository.lastLocale)
+        // Nothing else is written, so the merge never clears stored profile values.
+        assertNull(fakeUserRepository.lastBusinessName)
+        assertNull(fakeUserRepository.lastWhatsAppNumber)
+        assertNull(fakeUserRepository.lastWhatsappConfirmed)
+        assertNull(fakeUserRepository.lastBankName)
+    }
+
+    @Test
+    fun `skip after a confirmed-absent read persists the device region`() = runTest {
+        fakeAuth.currentUser = signedInUser()
+        fakeUserRepository.userFlow.value = null
+        viewModel = createViewModel(region = { "KE" })
+
+        viewModel.onAction(WorkshopSetupAction.OnSkipClick)
+
+        assertIs<WorkshopSetupEvent.NavigateToHome>(viewModel.events.first())
+        assertEquals(Country.KE, fakeUserRepository.lastCountry)
+        assertEquals("Africa/Nairobi", fakeUserRepository.lastTimeZone)
+    }
+
+    @Test
+    fun `skip after a failed doc read writes no market`() = runTest {
+        fakeAuth.currentUser = signedInUser(country = Country.GH)
+        fakeUserRepository.getUserOverride = { Result.Error(DataError.Network.UNKNOWN) }
+        viewModel = createViewModel(region = { "NG" })
+
+        viewModel.onAction(WorkshopSetupAction.OnSkipClick)
+
+        assertIs<WorkshopSetupEvent.NavigateToHome>(viewModel.events.first())
+        assertEquals(0, fakeUserRepository.createUserProfileCallCount)
+        assertNull(fakeUserRepository.lastCountry)
+    }
+
+    @Test
+    fun `skip on an existing doc the user did not change writes no market`() = runTest {
+        val existing = signedInUser(country = Country.GH)
+        fakeAuth.currentUser = existing
+        fakeUserRepository.userFlow.value = existing
+        viewModel = createViewModel(region = { "NG" })
+
+        viewModel.onAction(WorkshopSetupAction.OnSkipClick)
+
+        assertIs<WorkshopSetupEvent.NavigateToHome>(viewModel.events.first())
+        assertEquals(0, fakeUserRepository.createUserProfileCallCount)
+    }
+
+    @Test
+    fun `skip while the doc read is pending waits for it before deciding`() = runTest {
+        fakeAuth.currentUser = signedInUser()
+        val gate = CompletableDeferred<Result<User?, DataError.Network>>()
+        fakeUserRepository.getUserOverride = { gate.await() }
+        viewModel = createViewModel(region = { "GH" })
+
+        viewModel.events.test {
+            viewModel.onAction(WorkshopSetupAction.OnSkipClick)
+            expectNoEvents()
+            gate.complete(Result.Error(DataError.Network.UNKNOWN))
+            assertIs<WorkshopSetupEvent.NavigateToHome>(awaitItem())
+        }
+        assertEquals(0, fakeUserRepository.createUserProfileCallCount, "failed read: no market write")
+    }
 }

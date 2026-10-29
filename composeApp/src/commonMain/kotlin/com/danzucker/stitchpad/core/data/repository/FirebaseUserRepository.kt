@@ -61,7 +61,7 @@ class FirebaseUserRepository(
         bankName: String?,
         bankAccountName: String?,
         bankAccountNumber: String?,
-        whatsappConfirmed: Boolean,
+        whatsappConfirmed: Boolean?,
         country: Country?,
         timeZone: String?,
         locale: String?,
@@ -70,9 +70,9 @@ class FirebaseUserRepository(
         val data = mutableMapOf<String, Any>()
         businessName?.let { data["businessName"] = it }
         whatsappNumber?.let { data["whatsapp"] = it }
-        // Boolean (not null-guarded): always reflects the current confirm state.
-        // The form layer sends false when there is no number or it was edited.
-        data["whatsappConfirmed"] = whatsappConfirmed
+        // Reflects the current confirm state: the form layer sends false when there is no
+        // number or it was edited. Null (Skip's market-only write) leaves it untouched.
+        whatsappConfirmed?.let { data["whatsappConfirmed"] = it }
         bankName?.let { data["bankName"] = it }
         bankAccountName?.let { data["bankAccountName"] = it }
         bankAccountNumber?.let { data["bankAccountNumber"] = it }
