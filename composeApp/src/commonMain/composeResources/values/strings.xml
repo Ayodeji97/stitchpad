@@ -1353,7 +1353,7 @@
     <string name="brand_name">STITCHPAD</string>
 
     <!-- WhatsApp / Workshop Phase 2 -->
-    <string name="error_whatsapp_invalid_for_country">Enter a valid %1$s WhatsApp number</string>
+    <string name="error_whatsapp_invalid_for_country">Enter a valid WhatsApp number for %1$s (%2$d digits after +%3$s)</string>
 
     <!-- Country picker (africa expansion) -->
     <string name="country_picker_title">Choose your country</string>

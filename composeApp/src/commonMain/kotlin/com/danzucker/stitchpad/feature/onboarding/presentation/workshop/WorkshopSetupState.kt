@@ -17,7 +17,10 @@ data class WorkshopSetupState(
     val isCountryPickerOpen: Boolean = false,
     val isLoading: Boolean = false,
     val businessNameError: StringResource? = null,
-    /** Takes the [country]'s localized name as its `%1$s` argument. */
+    /**
+     * Formatted with the [country]'s localized name (`%1$s`), its [Country.nationalLength] (`%2$d`)
+     * and its [Country.dialCode] (`%3$s`).
+     */
     val whatsappError: StringResource? = null,
     val logo: LogoUploadState = LogoUploadState.Empty,
     /** True between Continue tap and in-flight upload completion. UI shows "Finishing logo upload…". */

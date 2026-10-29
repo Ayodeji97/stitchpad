@@ -51,7 +51,10 @@ data class EditProfileState(
     // Validation
     val businessNameError: StringResource? = null,
     val phoneError: StringResource? = null,
-    /** Takes the [country]'s localized name as its `%1$s` argument. */
+    /**
+     * Formatted with the [country]'s localized name (`%1$s`), its [Country.nationalLength] (`%2$d`)
+     * and its [Country.dialCode] (`%3$s`).
+     */
     val whatsappError: StringResource? = null,
     val bankNameError: StringResource? = null,
     val bankAccountNameError: StringResource? = null,

@@ -280,7 +280,14 @@ fun EditProfileScreen(
                     onBlur = { onAction(EditProfileAction.OnWhatsappBlur) },
                     label = stringResource(Res.string.edit_profile_label_whatsapp),
                     helper = stringResource(Res.string.edit_profile_helper_whatsapp),
-                    error = state.whatsappError?.let { stringResource(it, countryDisplayName(state.country)) },
+                    error = state.whatsappError?.let {
+                        stringResource(
+                            it,
+                            countryDisplayName(state.country),
+                            state.country.nationalLength,
+                            state.country.dialCode,
+                        )
+                    },
                     keyboardType = KeyboardType.Phone,
                     imeAction = ImeAction.Next,
                     placeholder = state.country.exampleNational,

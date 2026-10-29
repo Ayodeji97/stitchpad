@@ -295,7 +295,12 @@ fun WorkshopSetupScreen(
                             // A local example for the selected country (numbers only, not translated).
                             placeholder = state.country.exampleNational,
                             errorText = state.whatsappError?.let {
-                                stringResource(it, countryDisplayName(state.country))
+                                stringResource(
+                                    it,
+                                    countryDisplayName(state.country),
+                                    state.country.nationalLength,
+                                    state.country.dialCode,
+                                )
                             },
                             onFocusLost = { onAction(WorkshopSetupAction.OnWhatsAppNumberBlur) },
                             modifier = Modifier.weight(1f),
