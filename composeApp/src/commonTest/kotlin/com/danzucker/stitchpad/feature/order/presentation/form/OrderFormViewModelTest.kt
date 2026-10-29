@@ -66,6 +66,7 @@ class OrderFormViewModelTest {
     private lateinit var measurementRepository: FakeMeasurementRepository
     private lateinit var activeWorkshopProvider: FakeActiveWorkshopProvider
     private lateinit var customGarmentTypeRepository: FakeCustomGarmentTypeRepository
+    private var countryProvider = FakeCurrentCountryProvider()
 
     private val testCustomer = Customer(
         id = "cust-1",
@@ -92,8 +93,6 @@ class OrderFormViewModelTest {
     fun tearDown() {
         Dispatchers.resetMain()
     }
-
-    private var countryProvider = FakeCurrentCountryProvider()
 
     private fun TestScope.createViewModel(
         orderId: String? = null,

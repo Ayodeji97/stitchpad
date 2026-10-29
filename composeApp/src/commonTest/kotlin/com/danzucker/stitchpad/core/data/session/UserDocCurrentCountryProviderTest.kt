@@ -118,4 +118,22 @@ class UserDocCurrentCountryProviderTest {
         runCurrent()
         assertEquals(Country.KE, provider.currentCountry())
     }
+
+    @Test
+    fun sign_out_then_sign_in_with_null_first_emission_does_not_leak_previous_country() = runTest {
+        val uid = MutableStateFlow<String?>("u1")
+        val repo = FakeUserRepository()
+        repo.userFlowsByUid["u1"] = MutableStateFlow<User?>(user(Country.GH))
+        repo.userFlowsByUid["u2"] = MutableStateFlow<User?>(null)
+        val provider = UserDocCurrentCountryProvider(uid, repo, backgroundScope)
+        runCurrent()
+        assertEquals(Country.GH, provider.currentCountry())
+
+        uid.value = null
+        runCurrent()
+        uid.value = "u2"
+        runCurrent()
+
+        assertEquals(Country.NG, provider.currentCountry())
+    }
 }

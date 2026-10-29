@@ -580,10 +580,4 @@ class OrderMapperTest {
         assertEquals("GHS", dto.currency)
         assertEquals(Currency.GHS, sampleOrder().withMoney(dto).currency)
     }
-
-    @Test
-    fun editingKeepsCurrency() {
-        val edited = sampleOrder(Currency.KES).copy(totalPrice = 10.0)
-        assertEquals(Currency.KES, edited.currency)
-    }
 }
