@@ -12,8 +12,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
@@ -43,15 +43,29 @@ internal class UserDocCurrentCountryProvider(
                     if (uid == null) {
                         flowOf(Country.DEFAULT)
                     } else {
-                        // observeUser already retries internally; keep the last known value on
-                        // a terminal failure rather than crashing the app-lifetime collector.
-                        userRepository.observeUser(uid)
-                            .map { it?.country ?: Country.DEFAULT }
-                            .catch { }
+                        countryOf(userRepository, uid)
                     }
                 }
                 .collect { _country.value = it }
         }
+    }
+
+    /**
+     * Starts at [Country.DEFAULT] so a direct account switch never shows the previous user's
+     * country. A `null` emission (observeUser emits null when its listener fails, as well as for
+     * a missing doc) keeps the last country seen for this uid; before any doc has been seen it
+     * stays [Country.DEFAULT]. A terminal upstream failure is swallowed so the app-lifetime
+     * collector survives, leaving the last emitted value in place.
+     */
+    private fun countryOf(userRepository: UserRepository, uid: String): Flow<Country> = flow {
+        var last = Country.DEFAULT
+        emit(last)
+        userRepository.observeUser(uid)
+            .catch { }
+            .collect { user ->
+                if (user != null) last = user.country
+                emit(last)
+            }
     }
 
     override fun currentCountry(): Country = _country.value

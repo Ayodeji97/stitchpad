@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.core.data.session
 import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
 import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.domain.model.User
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -83,5 +84,38 @@ class UserDocCurrentCountryProviderTest {
         repo.userFlow.value = user() // mapper default when the doc has no country
         runCurrent()
         assertEquals(Country.NG, provider.currentCountry())
+    }
+
+    @Test
+    fun null_emission_after_a_doc_keeps_last_known_country() = runTest {
+        val repo = FakeUserRepository().apply { userFlow.value = user(Country.GH) }
+        val provider = UserDocCurrentCountryProvider(MutableStateFlow("u1"), repo, backgroundScope)
+        runCurrent()
+        assertEquals(Country.GH, provider.currentCountry())
+
+        repo.userFlow.value = null // listener error fallback
+        runCurrent()
+
+        assertEquals(Country.GH, provider.currentCountry())
+    }
+
+    @Test
+    fun direct_account_switch_resets_to_default_until_new_doc_emits() = runTest {
+        val uid = MutableStateFlow<String?>("u1")
+        val repo = FakeUserRepository()
+        repo.userFlowsByUid["u1"] = MutableStateFlow<User?>(user(Country.GH))
+        val u2Doc = MutableSharedFlow<User?>()
+        repo.userFlowsByUid["u2"] = u2Doc
+        val provider = UserDocCurrentCountryProvider(uid, repo, backgroundScope)
+        runCurrent()
+        assertEquals(Country.GH, provider.currentCountry())
+
+        uid.value = "u2"
+        runCurrent()
+        assertEquals(Country.NG, provider.currentCountry())
+
+        u2Doc.emit(user(Country.KE))
+        runCurrent()
+        assertEquals(Country.KE, provider.currentCountry())
     }
 }

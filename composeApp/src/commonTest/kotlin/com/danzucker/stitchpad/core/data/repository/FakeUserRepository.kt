@@ -102,7 +102,10 @@ class FakeUserRepository : UserRepository {
         return Result.Success(Unit)
     }
 
-    override fun observeUser(userId: String): Flow<User?> = userFlow
+    /** Per-uid override for [observeUser]; falls back to [userFlow]. */
+    val userFlowsByUid = mutableMapOf<String, Flow<User?>>()
+
+    override fun observeUser(userId: String): Flow<User?> = userFlowsByUid[userId] ?: userFlow
 
     /** Value returned by [hasWorkshopProfile]. */
     var hasWorkshopProfileResult = false
