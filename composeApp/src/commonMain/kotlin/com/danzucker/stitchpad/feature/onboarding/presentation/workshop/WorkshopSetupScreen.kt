@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -45,9 +44,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -67,13 +63,13 @@ import com.danzucker.stitchpad.feature.auth.presentation.components.AuthCard
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthHero
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthTextField
 import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
+import com.danzucker.stitchpad.ui.components.CountryChip
 import com.danzucker.stitchpad.ui.components.CountryPickerSheet
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.components.StitchPadButton
+import com.danzucker.stitchpad.ui.components.TimeZoneRow
 import com.danzucker.stitchpad.ui.components.WhatsAppConfirmRow
 import com.danzucker.stitchpad.ui.components.countryDisplayName
-import com.danzucker.stitchpad.ui.components.flagEmoji
-import com.danzucker.stitchpad.ui.components.timeZoneDisplayName
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -96,8 +92,6 @@ import stitchpad.composeapp.generated.resources.bank_details_bank_placeholder
 import stitchpad.composeapp.generated.resources.bank_details_optional
 import stitchpad.composeapp.generated.resources.bank_details_section_subtitle
 import stitchpad.composeapp.generated.resources.bank_details_section_title
-import stitchpad.composeapp.generated.resources.country_picker_chip_content_description
-import stitchpad.composeapp.generated.resources.country_time_zone_title
 import stitchpad.composeapp.generated.resources.whatsapp_confirm_message
 import stitchpad.composeapp.generated.resources.workshop_business_name_helper
 import stitchpad.composeapp.generated.resources.workshop_business_name_label
@@ -709,94 +703,6 @@ private fun WorkshopSetupScreenDrCongoPreview() {
             onAction = {},
             onLaunchPicker = {},
         )
-    }
-}
-
-/** Tappable flag + dial code, styled like the dark input fields beside it. */
-@Composable
-private fun CountryChip(
-    country: Country,
-    onClick: () -> Unit,
-) {
-    val description = stringResource(
-        Res.string.country_picker_chip_content_description,
-        countryDisplayName(country),
-        country.dialCode,
-    )
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(DesignTokens.radiusMd))
-            .background(DesignTokens.darkSurface2)
-            .border(1.5.dp, DesignTokens.darkBorder, RoundedCornerShape(DesignTokens.radiusMd))
-            .clickable(role = Role.Button, onClick = onClick)
-            .semantics(mergeDescendants = true) { contentDescription = description }
-            .padding(horizontal = DesignTokens.space3, vertical = 13.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Text(text = country.flagEmoji, fontSize = 18.sp)
-        Text(
-            text = "+${country.dialCode}",
-            style = TextStyle(
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = DesignTokens.neutral100,
-            ),
-        )
-        Icon(
-            imageVector = Icons.Outlined.ExpandMore,
-            contentDescription = null,
-            tint = DesignTokens.darkTextSecondary,
-            modifier = Modifier.size(DesignTokens.iconInline),
-        )
-    }
-}
-
-/** Zone choice for countries spanning more than one time zone. */
-@Composable
-private fun TimeZoneRow(
-    timeZones: List<String>,
-    selected: String,
-    onSelect: (String) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            text = stringResource(Res.string.country_time_zone_title),
-            style = TextStyle(
-                fontSize = DesignTokens.labelMd,
-                fontWeight = FontWeight.SemiBold,
-                color = DesignTokens.neutral100,
-            ),
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
-            timeZones.forEach { zone ->
-                val isSelected = zone == selected
-                val accent = LocalStitchPadColors.current.brandAccent
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(DesignTokens.radiusMd))
-                        .background(if (isSelected) accent.copy(alpha = 0.18f) else DesignTokens.darkSurface2)
-                        .border(
-                            1.5.dp,
-                            if (isSelected) accent else DesignTokens.darkBorder,
-                            RoundedCornerShape(DesignTokens.radiusMd),
-                        )
-                        .selectable(selected = isSelected, role = Role.RadioButton) { onSelect(zone) }
-                        .padding(horizontal = DesignTokens.space3, vertical = DesignTokens.space3),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = timeZoneDisplayName(zone),
-                        style = TextStyle(
-                            fontSize = DesignTokens.bodySm,
-                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                            color = if (isSelected) DesignTokens.neutral100 else DesignTokens.darkTextSecondary,
-                        ),
-                    )
-                }
-            }
-        }
     }
 }
 

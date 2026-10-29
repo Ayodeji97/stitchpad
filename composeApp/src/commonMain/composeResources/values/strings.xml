@@ -1353,7 +1353,6 @@
     <string name="brand_name">STITCHPAD</string>
 
     <!-- WhatsApp / Workshop Phase 2 -->
-    <string name="error_whatsapp_invalid">Enter a valid Nigerian WhatsApp number (10 digits)</string>
     <string name="error_whatsapp_invalid_for_country">Enter a valid %1$s WhatsApp number</string>
 
     <!-- Country picker (africa expansion) -->
@@ -1648,7 +1647,6 @@
     <string name="edit_profile_helper_phone">Voice line — only set this if it&apos;s different from your WhatsApp</string>
     <string name="edit_profile_label_whatsapp">WhatsApp number</string>
     <string name="edit_profile_helper_whatsapp">Used for customer reminders and receipts</string>
-    <string name="edit_profile_phone_prefix">🇳🇬 +234</string>
     <string name="edit_profile_label_email">Email</string>
     <string name="edit_profile_helper_email_readonly">Email changes require security verification — manage from Settings → Account → Email.</string>
     <string name="edit_profile_save">Save changes</string>
@@ -1660,8 +1658,7 @@
     <!-- Validation errors specific to Settings forms -->
     <string name="error_business_name_required">Business name is required</string>
     <string name="error_phone_required">Phone number is required</string>
-    <string name="error_phone_format">Phone number must be 10 digits after +234</string>
-    <string name="error_whatsapp_format">WhatsApp number must be 10 digits after +234</string>
+    <string name="error_phone_format">Enter a valid phone number (7 to 15 digits)</string>
 
     <!-- Change Email / Change Password -->
     <string name="change_email_title">Change email</string>

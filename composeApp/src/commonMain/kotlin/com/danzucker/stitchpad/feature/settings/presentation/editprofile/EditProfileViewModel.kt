@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.domain.model.User
+import com.danzucker.stitchpad.core.domain.model.defaultTimeZone
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.domain.validation.BankDetailsValidator
 import com.danzucker.stitchpad.core.logging.AppLogger
@@ -45,7 +46,7 @@ import stitchpad.composeapp.generated.resources.error_bank_name_required
 import stitchpad.composeapp.generated.resources.error_business_name_required
 import stitchpad.composeapp.generated.resources.error_phone_format
 import stitchpad.composeapp.generated.resources.error_unknown
-import stitchpad.composeapp.generated.resources.error_whatsapp_format
+import stitchpad.composeapp.generated.resources.error_whatsapp_invalid_for_country
 import stitchpad.composeapp.generated.resources.whatsapp_confirm_error_mismatch
 
 private const val TAG = "EditProfileVM"
@@ -155,6 +156,10 @@ class EditProfileViewModel(
             EditProfileAction.OnBankNameBlur -> validateBankFields()
             EditProfileAction.OnBankAccountNameBlur -> validateBankFields()
             EditProfileAction.OnBankAccountNumberBlur -> validateBankFields()
+            EditProfileAction.OnCountryChipClick -> _state.update { it.copy(isCountryPickerOpen = true) }
+            EditProfileAction.OnDismissCountryPicker -> _state.update { it.copy(isCountryPickerOpen = false) }
+            is EditProfileAction.OnCountrySelected -> onCountrySelected(action.country)
+            is EditProfileAction.OnTimeZoneSelected -> onTimeZoneSelected(action.timeZone)
             EditProfileAction.OnConfirmWhatsAppClick -> onConfirmWhatsAppClick()
             is EditProfileAction.OnConfirmCodeChange -> onConfirmCodeChange(action.value)
             EditProfileAction.OnDismissConfirm -> _state.update {
@@ -170,6 +175,7 @@ class EditProfileViewModel(
         }
     }
 
+    @Suppress("LongMethod")
     private fun loadCurrentProfile() {
         viewModelScope.launch {
             val authUser = authRepository.getCurrentUser()
@@ -207,6 +213,9 @@ class EditProfileViewModel(
             val bankName = firestoreUser?.bankName.orEmpty()
             val bankAccountName = firestoreUser?.bankAccountName.orEmpty()
             val bankAccountNumber = firestoreUser?.bankAccountNumber.orEmpty()
+            val country = firestoreUser?.country ?: Country.DEFAULT
+            val timeZone = firestoreUser?.timeZone?.takeIf { it in country.timeZones }
+                ?: country.defaultTimeZone
 
             _state.update {
                 it.copy(
@@ -220,6 +229,8 @@ class EditProfileViewModel(
                     bankName = bankName,
                     bankAccountName = bankAccountName,
                     bankAccountNumber = bankAccountNumber,
+                    country = country,
+                    timeZone = timeZone,
                     originalBusinessName = business,
                     originalDisplayName = displayName,
                     originalPhoneNumber = phone,
@@ -228,6 +239,8 @@ class EditProfileViewModel(
                     originalBankName = bankName,
                     originalBankAccountName = bankAccountName,
                     originalBankAccountNumber = bankAccountNumber,
+                    originalCountry = country,
+                    originalTimeZone = timeZone,
                     logo = logoState,
                     originalLogoUrl = logoUrl,
                     originalLogoStoragePath = logoPath,
@@ -291,13 +304,14 @@ class EditProfileViewModel(
 
     private fun onConfirmWhatsAppClick() {
         val raw = _state.value.whatsappNumber.trim()
-        val withCountry = applyImpliedCountryCode(raw, Country.DEFAULT)
-        if (!isValidMobile(withCountry, Country.DEFAULT)) {
-            _state.update { it.copy(whatsappError = Res.string.error_whatsapp_format) }
+        val country = _state.value.country
+        val withCountry = applyImpliedCountryCode(raw, country)
+        if (!isValidMobile(withCountry, country)) {
+            _state.update { it.copy(whatsappError = Res.string.error_whatsapp_invalid_for_country) }
             return
         }
         val code = confirmCodeGenerator()
-        val phoneE164 = "+" + normalisePhone(withCountry, Country.DEFAULT)
+        val phoneE164 = "+" + normalisePhone(withCountry, country)
         _state.update {
             it.copy(
                 whatsappConfirm = it.whatsappConfirm.copy(
@@ -377,6 +391,37 @@ class EditProfileViewModel(
         return r.isValid
     }
 
+    private fun onCountrySelected(country: Country) {
+        val changed = country != _state.value.country
+        _state.update {
+            it.copy(
+                country = country,
+                timeZone = if (changed) country.defaultTimeZone else it.timeZone,
+                isCountryPickerOpen = false,
+            )
+        }
+        if (!changed) return
+        // A new country means a different E.164 number, so the old confirmation no longer holds.
+        _state.update {
+            it.copy(
+                whatsappError = null,
+                whatsappConfirm = it.whatsappConfirm.copy(
+                    confirmed = false,
+                    promptVisible = false,
+                    code = null,
+                    input = "",
+                    error = null,
+                ),
+            )
+        }
+        validateWhatsapp()
+    }
+
+    private fun onTimeZoneSelected(timeZone: String) {
+        if (timeZone !in _state.value.country.timeZones) return
+        _state.update { it.copy(timeZone = timeZone) }
+    }
+
     /** WhatsApp is optional — blank is allowed; validate only when filled. */
     private fun validateWhatsapp(): Boolean {
         val raw = _state.value.whatsappNumber.trim()
@@ -384,12 +429,13 @@ class EditProfileViewModel(
             _state.update { it.copy(whatsappError = null) }
             return true
         }
-        val withCountry = applyImpliedCountryCode(raw, Country.DEFAULT)
-        return if (isValidMobile(withCountry, Country.DEFAULT)) {
+        val country = _state.value.country
+        val withCountry = applyImpliedCountryCode(raw, country)
+        return if (isValidMobile(withCountry, country)) {
             _state.update { it.copy(whatsappError = null) }
             true
         } else {
-            _state.update { it.copy(whatsappError = Res.string.error_whatsapp_format) }
+            _state.update { it.copy(whatsappError = Res.string.error_whatsapp_invalid_for_country) }
             false
         }
     }
@@ -424,7 +470,11 @@ class EditProfileViewModel(
             // subscriber number like "8031234567". The confirmation flag only rides along
             // with a real number — a blank/cleared field can never persist confirmed=true.
             val whatsappE164 = current.whatsappNumber.trim().takeIf { it.isNotBlank() }
-                ?.let { "+" + normalisePhone(applyImpliedCountryCode(it, Country.DEFAULT), Country.DEFAULT) }
+                ?.let { "+" + normalisePhone(applyImpliedCountryCode(it, current.country), current.country) }
+            // Market fields are written only when the tailor changed them, so an ordinary profile
+            // save never rewrites country/currency/zone. A country change always carries its zone.
+            val countryChanged = current.country != current.originalCountry
+            val zoneChanged = current.timeZone != current.originalTimeZone
             val result = userRepository.updateProfile(
                 userId = authUser.id,
                 businessName = current.businessName.trim(),
@@ -436,6 +486,8 @@ class EditProfileViewModel(
                 bankAccountName = bankAccountNameSave,
                 bankAccountNumber = bankAccountNumberSave,
                 whatsappConfirmed = current.whatsappConfirm.confirmed && whatsappE164 != null,
+                country = current.country.takeIf { countryChanged },
+                timeZone = current.timeZone.takeIf { countryChanged || zoneChanged },
             )
             when (result) {
                 is Result.Success -> {

@@ -58,13 +58,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.SubcomposeAsyncImage
 import com.danzucker.stitchpad.core.debug.isDebugBuild
+import com.danzucker.stitchpad.core.domain.model.Country
+import com.danzucker.stitchpad.core.domain.model.defaultTimeZone
 import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
 import com.danzucker.stitchpad.feature.settings.presentation.components.AvatarGradients
 import com.danzucker.stitchpad.feature.settings.presentation.components.avatarBrush
 import com.danzucker.stitchpad.ui.components.BrandLogo
+import com.danzucker.stitchpad.ui.components.CountryChip
+import com.danzucker.stitchpad.ui.components.CountryFieldColors
+import com.danzucker.stitchpad.ui.components.CountryPickerSheet
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.components.StitchPadButton
+import com.danzucker.stitchpad.ui.components.TimeZoneRow
 import com.danzucker.stitchpad.ui.components.WhatsAppConfirmRow
+import com.danzucker.stitchpad.ui.components.countryDisplayName
 import com.danzucker.stitchpad.ui.components.rememberSanitizedTextFieldValue
 import com.danzucker.stitchpad.ui.text.platformTextStyleNoFontPadding
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -103,6 +110,9 @@ import stitchpad.composeapp.generated.resources.edit_profile_logo_remove_confirm
 import stitchpad.composeapp.generated.resources.edit_profile_logo_title
 import stitchpad.composeapp.generated.resources.edit_profile_save
 import stitchpad.composeapp.generated.resources.edit_profile_title
+
+/** Matches the outlined text field beside the chip so the two read as one row. */
+private val COUNTRY_CHIP_HEIGHT = 56.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -158,6 +168,14 @@ fun EditProfileScreen(
             }
         },
     ) { padding ->
+        if (state.isCountryPickerOpen) {
+            CountryPickerSheet(
+                selected = state.country,
+                onSelect = { onAction(EditProfileAction.OnCountrySelected(it)) },
+                onDismiss = { onAction(EditProfileAction.OnDismissCountryPicker) },
+            )
+        }
+
         if (state.showRemoveLogoDialog) {
             AlertDialog(
                 onDismissRequest = { onAction(EditProfileAction.OnLogoRemoveDismiss) },
@@ -243,16 +261,41 @@ fun EditProfileScreen(
             )
             Spacer(Modifier.height(DesignTokens.space3))
 
-            ProfileTextField(
-                value = state.whatsappNumber,
-                onValueChange = { onAction(EditProfileAction.OnWhatsappChange(it)) },
-                onBlur = { onAction(EditProfileAction.OnWhatsappBlur) },
-                label = stringResource(Res.string.edit_profile_label_whatsapp),
-                helper = stringResource(Res.string.edit_profile_helper_whatsapp),
-                error = state.whatsappError?.let { stringResource(it) },
-                keyboardType = KeyboardType.Phone,
-                imeAction = ImeAction.Next,
+            val countryFieldColors = CountryFieldColors(
+                container = MaterialTheme.colorScheme.surface,
+                border = MaterialTheme.colorScheme.outline,
+                primaryText = MaterialTheme.colorScheme.onSurface,
+                secondaryText = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
+                CountryChip(
+                    country = state.country,
+                    onClick = { onAction(EditProfileAction.OnCountryChipClick) },
+                    modifier = Modifier.height(COUNTRY_CHIP_HEIGHT),
+                    colors = countryFieldColors,
+                )
+                ProfileTextField(
+                    value = state.whatsappNumber,
+                    onValueChange = { onAction(EditProfileAction.OnWhatsappChange(it)) },
+                    onBlur = { onAction(EditProfileAction.OnWhatsappBlur) },
+                    label = stringResource(Res.string.edit_profile_label_whatsapp),
+                    helper = stringResource(Res.string.edit_profile_helper_whatsapp),
+                    error = state.whatsappError?.let { stringResource(it, countryDisplayName(state.country)) },
+                    keyboardType = KeyboardType.Phone,
+                    imeAction = ImeAction.Next,
+                    placeholder = state.country.exampleNational,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            if (state.country.timeZones.size > 1) {
+                Spacer(Modifier.height(DesignTokens.space3))
+                TimeZoneRow(
+                    timeZones = state.country.timeZones,
+                    selected = state.timeZone,
+                    onSelect = { onAction(EditProfileAction.OnTimeZoneSelected(it)) },
+                    colors = countryFieldColors,
+                )
+            }
 
             WhatsAppConfirmRow(
                 state = state.whatsappConfirm,
@@ -355,6 +398,8 @@ private fun ProfileTextField(
     error: String?,
     keyboardType: KeyboardType = KeyboardType.Text,
     imeAction: ImeAction = ImeAction.Next,
+    placeholder: String? = null,
+    modifier: Modifier = Modifier.fillMaxWidth(),
 ) {
     // onBlur is currently unused; validation runs on Save. Kept on the API so the
     // ViewModel's blur actions stay reachable when we wire focus tracking later.
@@ -372,6 +417,7 @@ private fun ProfileTextField(
         value = input.value,
         onValueChange = input.onValueChange,
         label = { Text(label) },
+        placeholder = placeholder?.let { { Text(it) } },
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
         keyboardActions = KeyboardActions(
             onNext = { focusManager.moveFocus(FocusDirection.Down) },
@@ -398,7 +444,7 @@ private fun ProfileTextField(
             focusedContainerColor = MaterialTheme.colorScheme.surface,
             unfocusedContainerColor = MaterialTheme.colorScheme.surface,
         ),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
     )
 }
 
@@ -626,6 +672,29 @@ private fun EditProfileScreenPreview() {
                 originalWhatsappNumber = "+2348139994477",
                 avatarColorIndex = 0,
                 originalAvatarColorIndex = 0,
+            ),
+            onAction = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun EditProfileScreenGhanaPreview() {
+    StitchPadTheme {
+        EditProfileScreen(
+            state = EditProfileState(
+                isLoading = false,
+                email = "ama@stitchpad.app",
+                businessName = "Ama Couture",
+                originalBusinessName = "Ama Couture",
+                whatsappNumber = "+233241234567",
+                originalWhatsappNumber = "+233241234567",
+                country = Country.GH,
+                timeZone = Country.GH.defaultTimeZone,
+                originalCountry = Country.GH,
+                originalTimeZone = Country.GH.defaultTimeZone,
             ),
             onAction = {},
         )
