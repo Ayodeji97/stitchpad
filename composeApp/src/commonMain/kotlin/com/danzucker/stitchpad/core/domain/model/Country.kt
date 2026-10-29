@@ -1,0 +1,197 @@
+package com.danzucker.stitchpad.core.domain.model
+
+enum class AndroidBilling { PAYSTACK, PLAY }
+
+/**
+ * Wave-1 markets. [mobilePattern] matches the national number only (no dial code, no trunk
+ * prefix), checked against libphonenumber's PhoneNumberMetadata.xml mobile patterns.
+ * [trunkPrefix] is the national trunk prefix dropped when dialling internationally; it is null
+ * where the leading 0 (CI, BJ, GA, CG) is part of the number itself.
+ */
+enum class Country(
+    val iso: String,
+    val dialCode: String,
+    val trunkPrefix: String?,
+    val nationalLength: Int,
+    val mobilePattern: Regex,
+    val currency: Currency,
+    val timeZones: List<String>,
+    val defaultLanguage: String,
+    val androidBilling: AndroidBilling,
+) {
+    NG(
+        "NG",
+        "234",
+        "0",
+        10,
+        Regex("^(?:7[0-2]|[89][01])\\d{8}$"),
+        Currency.NGN,
+        listOf("Africa/Lagos"),
+        "en",
+        AndroidBilling.PAYSTACK,
+    ),
+    GH(
+        "GH",
+        "233",
+        "0",
+        9,
+        Regex("^[25]\\d{8}$"),
+        Currency.GHS,
+        listOf("Africa/Accra"),
+        "en",
+        AndroidBilling.PLAY,
+    ),
+    KE(
+        "KE",
+        "254",
+        "0",
+        9,
+        Regex("^(?:7\\d|1[0-4])\\d{7}$"),
+        Currency.KES,
+        listOf("Africa/Nairobi"),
+        "en",
+        AndroidBilling.PLAY,
+    ),
+    CI(
+        "CI",
+        "225",
+        null,
+        10,
+        Regex("^0[157]\\d{8}$"),
+        Currency.XOF,
+        listOf("Africa/Abidjan"),
+        "fr",
+        AndroidBilling.PLAY,
+    ),
+    SN(
+        "SN",
+        "221",
+        null,
+        9,
+        Regex("^7[0-25-9]\\d{7}$"),
+        Currency.XOF,
+        listOf("Africa/Dakar"),
+        "fr",
+        AndroidBilling.PLAY,
+    ),
+    BJ(
+        "BJ",
+        "229",
+        null,
+        10,
+        Regex("^01(?:2[5-9]|[4-69]\\d)\\d{6}$"),
+        Currency.XOF,
+        listOf("Africa/Porto-Novo"),
+        "fr",
+        AndroidBilling.PLAY,
+    ),
+    TG(
+        "TG",
+        "228",
+        null,
+        8,
+        Regex("^(?:7[0-389]|9[0-36-9])\\d{6}$"),
+        Currency.XOF,
+        listOf("Africa/Lome"),
+        "fr",
+        AndroidBilling.PLAY,
+    ),
+    ML(
+        "ML",
+        "223",
+        null,
+        8,
+        Regex("^(?:5[0-3]|[679]\\d|8[2-59])\\d{6}$"),
+        Currency.XOF,
+        listOf("Africa/Bamako"),
+        "fr",
+        AndroidBilling.PLAY,
+    ),
+    BF(
+        "BF",
+        "226",
+        null,
+        8,
+        Regex("^(?:0[1-7]|4[4-6]|5[0-8]|[67]\\d)\\d{6}$"),
+        Currency.XOF,
+        listOf("Africa/Ouagadougou"),
+        "fr",
+        AndroidBilling.PLAY,
+    ),
+    NE(
+        "NE",
+        "227",
+        null,
+        8,
+        Regex("^(?:23|7[0467]|[89]\\d)\\d{6}$"),
+        Currency.XOF,
+        listOf("Africa/Niamey"),
+        "fr",
+        AndroidBilling.PLAY,
+    ),
+    CM(
+        "CM",
+        "237",
+        null,
+        9,
+        Regex("^(?:24[23]|6(?:[25-9]\\d|4[0-2]))\\d{6}$"),
+        Currency.XAF,
+        listOf("Africa/Douala"),
+        "fr",
+        AndroidBilling.PLAY,
+    ),
+    GA(
+        "GA",
+        "241",
+        null,
+        8,
+        Regex("^(?:0[2-7]|6\\d|7[467])\\d{6}$"),
+        Currency.XAF,
+        listOf("Africa/Libreville"),
+        "fr",
+        AndroidBilling.PLAY,
+    ),
+    CG(
+        "CG",
+        "242",
+        null,
+        9,
+        Regex("^(?:026(?:1[0-5]|6[6-9])\\d{4}|0(?:[14-6]\\d\\d|2(?:40|5[5-8]|6[07-9]))\\d{5})$"),
+        Currency.XAF,
+        listOf("Africa/Brazzaville"),
+        "fr",
+        AndroidBilling.PLAY,
+    ),
+    GN(
+        "GN",
+        "224",
+        null,
+        9,
+        Regex("^6[0-356]\\d{7}$"),
+        Currency.GNF,
+        listOf("Africa/Conakry"),
+        "fr",
+        AndroidBilling.PLAY,
+    ),
+    CD(
+        "CD",
+        "243",
+        "0",
+        9,
+        Regex("^(?:8[0-79]|9[016-9])\\d{7}$"),
+        Currency.CDF,
+        listOf("Africa/Kinshasa", "Africa/Lubumbashi"),
+        "fr",
+        AndroidBilling.PLAY,
+    ),
+    ;
+
+    companion object {
+        val DEFAULT = NG
+
+        fun fromIso(iso: String?): Country? =
+            entries.firstOrNull { it.iso.equals(iso, ignoreCase = true) }
+    }
+}
+
+val Country.defaultTimeZone: String get() = timeZones.first()
