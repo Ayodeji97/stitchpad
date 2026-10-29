@@ -8,6 +8,8 @@ import com.danzucker.stitchpad.core.data.repository.FakeMeasurementRepository
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
 import com.danzucker.stitchpad.core.data.repository.FakeStyleRepository
 import com.danzucker.stitchpad.core.domain.model.CostCategory
+import com.danzucker.stitchpad.core.domain.model.Country
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomGarmentType
 import com.danzucker.stitchpad.core.domain.model.GarmentType
@@ -26,6 +28,7 @@ import com.danzucker.stitchpad.core.domain.model.StyleFolder
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.FakeCurrentCountryProvider
 import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import com.danzucker.stitchpad.core.media.FakeImageCompressor
 import com.danzucker.stitchpad.core.media.ImageCompressor
@@ -75,6 +78,7 @@ class OrderFormViewModelTest {
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         orderRepository = FakeOrderRepository()
+        countryProvider = FakeCurrentCountryProvider(Country.GH)
         customerRepository = FakeCustomerRepository()
         styleRepository = FakeStyleRepository()
         measurementRepository = FakeMeasurementRepository()
@@ -88,6 +92,8 @@ class OrderFormViewModelTest {
     fun tearDown() {
         Dispatchers.resetMain()
     }
+
+    private var countryProvider = FakeCurrentCountryProvider()
 
     private fun TestScope.createViewModel(
         orderId: String? = null,
@@ -113,6 +119,7 @@ class OrderFormViewModelTest {
                 scope = CoroutineScope(UnconfinedTestDispatcher()),
             ),
             reviewArmer = NoopReviewArmer(),
+            currentCountryProvider = countryProvider,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -302,6 +309,31 @@ class OrderFormViewModelTest {
         assertNotNull(updated)
         assertEquals("Rush this one", updated.notes)
         assertEquals(costs, updated.costs)
+    }
+
+    @Test
+    fun save_inCreateMode_stampsCurrencyFromCurrentCountry() = runTest {
+        val vm = createViewModel()
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        vm.onAction(
+            OrderFormAction.OnItemGarmentTypeChange(vm.state.value.items.first().id, GarmentType.AGBADA),
+        )
+        vm.onAction(OrderFormAction.OnItemPriceChange(vm.state.value.items.first().id, "5000"))
+        vm.onAction(OrderFormAction.OnSave)
+
+        assertEquals(Currency.GHS, orderRepository.lastCreatedOrder?.currency)
+    }
+
+    @Test
+    fun save_inEditMode_keepsLoadedCurrencyRegardlessOfCurrentCountry() = runTest {
+        val seeded = seedOrder()
+        orderRepository.ordersList = listOf(seeded.copy(currency = Currency.KES))
+        val vm = createViewModel(orderId = "order-1") // provider says GH
+
+        vm.onAction(OrderFormAction.OnNotesChange("Rush"))
+        vm.onAction(OrderFormAction.OnSave)
+
+        assertEquals(Currency.KES, orderRepository.lastUpdatedOrder?.currency)
     }
 
     @Test

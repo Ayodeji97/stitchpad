@@ -16,6 +16,7 @@ import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.StatusChange
 import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.FakeCurrentCountryProvider
 import com.danzucker.stitchpad.core.media.FakeImageCompressor
 import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
@@ -93,6 +94,7 @@ class OrderFormViewModelAnalyticsTest {
                 scope = CoroutineScope(UnconfinedTestDispatcher()),
             ),
             reviewArmer = NoopReviewArmer(),
+            currentCountryProvider = FakeCurrentCountryProvider(),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm

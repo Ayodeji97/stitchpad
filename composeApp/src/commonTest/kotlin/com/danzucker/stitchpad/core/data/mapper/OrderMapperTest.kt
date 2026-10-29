@@ -3,8 +3,10 @@ package com.danzucker.stitchpad.core.data.mapper
 import com.danzucker.stitchpad.core.data.dto.OrderCostDto
 import com.danzucker.stitchpad.core.data.dto.OrderDto
 import com.danzucker.stitchpad.core.data.dto.OrderItemDto
+import com.danzucker.stitchpad.core.data.dto.OrderMoneyDto
 import com.danzucker.stitchpad.core.data.dto.PaymentDto
 import com.danzucker.stitchpad.core.domain.model.CostCategory
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.FabricImageRef
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
@@ -547,5 +549,41 @@ class OrderMapperTest {
             costs = listOf(OrderCostDto(category = "MYSTERY", amount = 10.0)),
         )
         assertEquals(CostCategory.OTHER, dto.toOrder(userId = "u1").costs.single().category)
+    }
+
+    private fun sampleOrder(currency: Currency = Currency.NGN) = Order(
+        id = "o1",
+        userId = "u1",
+        customerId = "c1",
+        customerName = "Ada",
+        items = emptyList(),
+        status = OrderStatus.PENDING,
+        priority = OrderPriority.NORMAL,
+        statusHistory = emptyList(),
+        totalPrice = 5_000.0,
+        deadline = null,
+        notes = null,
+        currency = currency,
+        createdAt = 0L,
+        updatedAt = 0L,
+    )
+
+    @Test
+    fun moneyDocWithoutCurrency_readsAsNaira() {
+        val money = OrderMoneyDto(ownerId = "u1", orderId = "o1", totalPrice = 5_000.0)
+        assertEquals(Currency.NGN, sampleOrder(Currency.GHS).withMoney(money).currency)
+    }
+
+    @Test
+    fun ghsRoundTrip() {
+        val dto = sampleOrder(Currency.GHS).toOrderMoneyDto("u1")
+        assertEquals("GHS", dto.currency)
+        assertEquals(Currency.GHS, sampleOrder().withMoney(dto).currency)
+    }
+
+    @Test
+    fun editingKeepsCurrency() {
+        val edited = sampleOrder(Currency.KES).copy(totalPrice = 10.0)
+        assertEquals(Currency.KES, edited.currency)
     }
 }
