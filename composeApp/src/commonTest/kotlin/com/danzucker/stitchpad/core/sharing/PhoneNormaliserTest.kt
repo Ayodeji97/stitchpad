@@ -28,9 +28,9 @@ class PhoneNormaliserTest {
 
     @Test
     fun `normalisePhone leaves bare 10-digit input alone`() {
-        // Customer flows reuse normalisePhone via buildWhatsAppUrl, where a
-        // bare 10-digit input might be a non-Nigerian customer (e.g. US 2125550123).
-        // The country-code prefix must NOT be auto-applied here.
+        // Customer flows reuse normalisePhone via buildWhatsAppUrl, where a bare 10-digit
+        // input might be a non-Nigerian customer (e.g. US 2125550123). normalisePhone must
+        // never guess a country for it; only applyImpliedCountryCode (chip fields) prefixes.
         assertEquals("2125550123", normalisePhone("2125550123", Country.NG))
         assertFalse(isValidMobile("2125550123", Country.NG))
     }
@@ -234,5 +234,25 @@ class PhoneNormaliserTest {
     fun `whatsapp url uses country`() {
         assertEquals("https://wa.me/254712345678?text=hi", buildWhatsAppUrl("0712 345678", "hi", Country.KE))
         assertEquals("https://wa.me/?text=hi", buildWhatsAppUrl("", "hi", Country.KE))
+    }
+
+    @Test
+    fun `plus zero trunk number still resolves`() {
+        assertEquals("2348031234567", normalisePhone("+0803 123 4567", Country.NG))
+        assertTrue(isValidMobile("+08031234567", Country.NG))
+    }
+
+    @Test
+    fun `stray plus before national number is accepted in chip field`() {
+        assertTrue(isValidMobile("+803 123 4567", Country.NG))
+    }
+
+    @Test
+    fun `double zero prefix is explicit only for registry dial codes`() {
+        assertEquals("2348031234567", normalisePhone("002348031234567", Country.NG))
+        // Local NG number is a trunk number, never "00" + dial code.
+        assertEquals("2348031234567", normalisePhone("08031234567", Country.NG))
+        // 44 is not a registry country: digits stay untouched.
+        assertEquals("00442079460958", normalisePhone("0044 20 7946 0958", Country.NG))
     }
 }

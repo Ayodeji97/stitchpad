@@ -10,7 +10,8 @@ private fun String.digitsOnly(): String = filter { it.isDigit() }
 private fun hasExplicitCountryCode(raw: String): Boolean {
     val trimmed = raw.trim()
     val afterPrefix = trimmed.digitsOnly().drop(INTERNATIONAL_DIAL_PREFIX.length)
-    return trimmed.startsWith("+") ||
+    // No ITU country code starts with 0, so "+0803…" is a mistyped trunk number, not explicit.
+    return (trimmed.startsWith("+") && !trimmed.drop(1).trimStart { !it.isDigit() }.startsWith("0")) ||
         (trimmed.startsWith(INTERNATIONAL_DIAL_PREFIX) && Country.entries.any { afterPrefix.startsWith(it.dialCode) })
 }
 
@@ -53,11 +54,13 @@ fun normalisePhone(raw: String, country: Country): String {
  * a bare number could belong to another country and would be silently rewritten.
  */
 fun applyImpliedCountryCode(raw: String, country: Country): String {
-    if (hasExplicitCountryCode(raw)) return raw
     val digits = raw.digitsOnly()
-    val isFullNumber = digits.startsWith(country.dialCode) &&
-        digits.length == country.dialCode.length + country.nationalLength
-    return if (digits.length == country.nationalLength && !isFullNumber) {
+    // "+803 123 4567" in a chip field: the user typed the national number after a stray "+".
+    val strayPlus = raw.trim().startsWith("+") &&
+        digits.length == country.nationalLength &&
+        Country.entries.none { digits.startsWith(it.dialCode) }
+    if (hasExplicitCountryCode(raw) && !strayPlus) return raw
+    return if (digits.length == country.nationalLength) {
         country.dialCode + digits
     } else {
         raw
