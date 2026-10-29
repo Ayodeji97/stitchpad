@@ -40,6 +40,20 @@ describe('phoneCandidates', () => {
     expect(c).toEqual(expect.arrayContaining(['+15551234567', '15551234567']));
     expect(c.some((x) => x.startsWith('234') || x.startsWith('+234'))).toBe(false);
   });
+
+  it('matches a Ghanaian E.164 sender by its +233 form (new-country users are stored as E.164)', () => {
+    expect(phoneCandidates('233244123456')).toContain('+233244123456');
+  });
+
+  it('matches a Gabonese E.164 sender by its +241 form', () => {
+    expect(phoneCandidates('24106123456')).toContain('+24106123456');
+  });
+
+  it('keeps foreign senders exact-match only, with no Nigerian variants', () => {
+    const c = phoneCandidates('233244123456');
+    expect(c).toEqual(['+233244123456', '233244123456']);
+    expect(c.some((x) => x.startsWith('234') || x.startsWith('+234') || x.startsWith('0'))).toBe(false);
+  });
 });
 
 describe('resolveUniqueUid', () => {
