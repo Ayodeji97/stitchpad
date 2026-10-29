@@ -1,6 +1,8 @@
 package com.danzucker.stitchpad.core.data.session
 
 import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
+import com.danzucker.stitchpad.core.domain.error.DataError
+import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.domain.model.User
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -145,12 +147,13 @@ class UserDocCurrentCountryProviderTest {
         val u1Doc = MutableSharedFlow<User?>()
         repo.userFlowsByUid["u1"] = u1Doc
         repo.userFlowsByUid["u2"] = MutableSharedFlow<User?>()
+        repo.getUserOverride = { Result.Error(DataError.Network.UNKNOWN) }
         val provider = UserDocCurrentCountryProvider(uid, repo, backgroundScope)
         runCurrent()
         assertNull(provider.loadedCountry.value, "no doc yet")
         assertEquals(Country.NG, provider.currentCountry(), "shown as the default meanwhile")
 
-        u1Doc.emit(null) // a failed listener or missing doc is still "not loaded"
+        u1Doc.emit(null) // null whose one-shot read fails is still "not loaded"
         runCurrent()
         assertNull(provider.loadedCountry.value)
 
@@ -165,5 +168,64 @@ class UserDocCurrentCountryProviderTest {
         uid.value = null
         runCurrent()
         assertNull(provider.loadedCountry.value, "signed out is unloaded")
+    }
+
+    @Test
+    fun confirmed_absent_doc_loads_as_nigeria() = runTest {
+        // About 41 Nigerian accounts have no users/{uid} doc; they must not leave the
+        // provider unloaded (order create would wait out its 3s timeout every time).
+        val repo = FakeUserRepository()
+        repo.userFlowsByUid["u1"] = MutableStateFlow<User?>(null)
+        repo.getUserOverride = { Result.Success(null) }
+        val provider = UserDocCurrentCountryProvider(MutableStateFlow("u1"), repo, backgroundScope)
+        runCurrent()
+
+        assertEquals(Country.NG, provider.loadedCountry.value)
+        assertEquals(Country.NG, provider.currentCountry())
+    }
+
+    @Test
+    fun failed_read_with_null_listener_stays_unloaded_until_a_doc_arrives() = runTest {
+        val repo = FakeUserRepository()
+        val doc = MutableSharedFlow<User?>()
+        repo.userFlowsByUid["u1"] = doc
+        repo.getUserOverride = { Result.Error(DataError.Network.UNKNOWN) }
+        val provider = UserDocCurrentCountryProvider(MutableStateFlow("u1"), repo, backgroundScope)
+        runCurrent()
+
+        doc.emit(null) // listener failure fallback
+        runCurrent()
+        assertNull(provider.loadedCountry.value, "a failed read is not a confirmed absence")
+        assertEquals(Country.NG, provider.currentCountry())
+
+        doc.emit(user(Country.GH))
+        runCurrent()
+        assertEquals(Country.GH, provider.loadedCountry.value)
+    }
+
+    @Test
+    fun null_listener_with_a_doc_on_the_one_shot_read_uses_its_country() = runTest {
+        val repo = FakeUserRepository()
+        repo.userFlowsByUid["u1"] = MutableStateFlow<User?>(null)
+        repo.getUserOverride = { Result.Success(user(Country.KE)) }
+        val provider = UserDocCurrentCountryProvider(MutableStateFlow("u1"), repo, backgroundScope)
+        runCurrent()
+
+        assertEquals(Country.KE, provider.loadedCountry.value)
+    }
+
+    @Test
+    fun null_emission_after_a_doc_does_not_reread_or_unload() = runTest {
+        val repo = FakeUserRepository().apply { userFlow.value = user(Country.GH) }
+        var reads = 0
+        repo.getUserOverride = { reads++; Result.Success(null) }
+        val provider = UserDocCurrentCountryProvider(MutableStateFlow("u1"), repo, backgroundScope)
+        runCurrent()
+
+        repo.userFlow.value = null // listener error fallback
+        runCurrent()
+
+        assertEquals(Country.GH, provider.loadedCountry.value)
+        assertEquals(0, reads)
     }
 }

@@ -2,16 +2,19 @@ package com.danzucker.stitchpad.feature.order.presentation.form
 
 import androidx.lifecycle.SavedStateHandle
 import com.danzucker.stitchpad.core.analytics.FakeAnalytics
-import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeCustomGarmentTypeRepository
+import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeMeasurementRepository
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
 import com.danzucker.stitchpad.core.data.repository.FakeStyleRepository
+import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
+import com.danzucker.stitchpad.core.data.session.UserDocCurrentCountryProvider
+import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.CostCategory
 import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.domain.model.Currency
-import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomGarmentType
+import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.ImageSyncState
 import com.danzucker.stitchpad.core.domain.model.Order
@@ -27,6 +30,7 @@ import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.domain.model.StyleFolder
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
+import com.danzucker.stitchpad.core.domain.session.CurrentCountryProvider
 import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.FakeCurrentCountryProvider
 import com.danzucker.stitchpad.core.domain.session.WorkshopSession
@@ -40,6 +44,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
@@ -98,6 +103,7 @@ class OrderFormViewModelTest {
     private fun TestScope.createViewModel(
         orderId: String? = null,
         imageCompressor: ImageCompressor = FakeImageCompressor(),
+        currentCountryProvider: CurrentCountryProvider = countryProvider,
     ): OrderFormViewModel {
         val savedStateHandle = SavedStateHandle().apply {
             if (orderId != null) set("orderId", orderId)
@@ -119,7 +125,7 @@ class OrderFormViewModelTest {
                 scope = CoroutineScope(UnconfinedTestDispatcher()),
             ),
             reviewArmer = NoopReviewArmer(),
-            currentCountryProvider = countryProvider,
+            currentCountryProvider = currentCountryProvider,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -356,6 +362,25 @@ class OrderFormViewModelTest {
         advanceTimeBy(2_900)
         assertNull(orderRepository.lastCreatedOrder, "still waiting for the country")
         advanceTimeBy(200)
+
+        assertEquals(Currency.NGN, orderRepository.lastCreatedOrder?.currency)
+    }
+
+    @Test
+    fun save_inCreateMode_accountWithNoUserDoc_savesNairaWithoutWaiting() = runTest {
+        // Real provider: the listener emits null for the missing doc and the one-shot
+        // read confirms absence, so the country loads as NG instead of timing out.
+        val userRepository = FakeUserRepository().apply { getUserOverride = { Result.Success(null) } }
+        val provider = UserDocCurrentCountryProvider(MutableStateFlow("user-1"), userRepository, backgroundScope)
+        runCurrent()
+        val vm = createViewModel(currentCountryProvider = provider)
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        vm.onAction(
+            OrderFormAction.OnItemGarmentTypeChange(vm.state.value.items.first().id, GarmentType.AGBADA),
+        )
+        vm.onAction(OrderFormAction.OnItemPriceChange(vm.state.value.items.first().id, "5000"))
+        vm.onAction(OrderFormAction.OnSave)
+        advanceTimeBy(100)
 
         assertEquals(Currency.NGN, orderRepository.lastCreatedOrder?.currency)
     }

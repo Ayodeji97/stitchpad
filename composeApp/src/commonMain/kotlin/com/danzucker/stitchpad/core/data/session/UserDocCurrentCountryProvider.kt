@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.core.data.session
 
+import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.domain.session.CurrentCountryProvider
@@ -58,10 +59,13 @@ internal class UserDocCurrentCountryProvider(
 
     /**
      * Starts unloaded (null, shown as [Country.DEFAULT]) so a direct account switch never shows
-     * the previous user's country. A `null` emission (observeUser emits null when its listener
-     * fails, as well as for a missing doc) keeps the last country seen for this uid; before any
-     * doc has been seen it stays unloaded. A terminal upstream failure is swallowed so the
-     * app-lifetime collector survives, leaving the last emitted value in place.
+     * the previous user's country. observeUser emits `null` both for a missing doc and when its
+     * listener fails, so a `null` seen before any doc is resolved with the one-shot
+     * [UserRepository.getUser]: a confirmed-absent doc (`Success(null)`) loads as
+     * [Country.DEFAULT] (accounts with no user doc are Nigerian, and must not make order create
+     * wait out its country timeout), while a failed read stays unloaded. A `null` after a country
+     * is known keeps it. A terminal upstream failure is swallowed so the app-lifetime collector
+     * survives, leaving the last emitted value in place.
      */
     private fun countryOf(userRepository: UserRepository, uid: String): Flow<Country?> = flow {
         var last: Country? = null
@@ -69,10 +73,20 @@ internal class UserDocCurrentCountryProvider(
         userRepository.observeUser(uid)
             .catch { }
             .collect { user ->
-                if (user != null) last = user.country
+                when {
+                    user != null -> last = user.country
+                    last == null -> last = countryFromOneShotRead(userRepository, uid)
+                }
                 emit(last)
             }
     }
+
+    /** [Country.DEFAULT] when the doc is confirmed absent, the doc's country if it now exists, else null. */
+    private suspend fun countryFromOneShotRead(userRepository: UserRepository, uid: String): Country? =
+        when (val read = userRepository.getUser(uid)) {
+            is Result.Success -> read.data?.country ?: Country.DEFAULT
+            is Result.Error -> null
+        }
 
     override fun currentCountry(): Country = _country.value
 }
