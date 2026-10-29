@@ -27,11 +27,11 @@ class FakeUserRepository : UserRepository {
     /** Paths passed to [deleteUserLogo], in call order. */
     val deletedLogoPaths: MutableList<String> = mutableListOf()
 
-    /** Last (url, path) pair passed to [updateBrandLogo], or null if never called. */
     var lastCountry: Country? = null
     var lastTimeZone: String? = null
     var lastLocale: String? = null
 
+    /** Last (url, path) pair passed to [updateBrandLogo], or null if never called. */
     var lastBrandLogoUpdate: Pair<String?, String?>? = null
 
     /**

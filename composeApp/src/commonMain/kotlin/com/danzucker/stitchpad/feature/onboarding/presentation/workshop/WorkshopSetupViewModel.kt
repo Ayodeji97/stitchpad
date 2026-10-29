@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.onboarding.presentation.workshop
 
+import androidx.compose.ui.text.intl.Locale
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.analytics.domain.Analytics
@@ -15,6 +16,7 @@ import com.danzucker.stitchpad.core.presentation.celebration.Milestone
 import com.danzucker.stitchpad.core.sharing.WHATSAPP_CONFIRM_CODE_LENGTH
 import com.danzucker.stitchpad.core.sharing.applyImpliedCountryCode
 import com.danzucker.stitchpad.core.sharing.defaultWhatsAppConfirmCode
+import com.danzucker.stitchpad.core.sharing.deviceRegionIso
 import com.danzucker.stitchpad.core.sharing.isValidMobile
 import com.danzucker.stitchpad.core.sharing.normalisePhone
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
@@ -29,9 +31,11 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.error_bank_account_name_required
 import stitchpad.composeapp.generated.resources.error_bank_account_number_invalid
@@ -39,11 +43,13 @@ import stitchpad.composeapp.generated.resources.error_bank_name_required
 import stitchpad.composeapp.generated.resources.error_business_name_too_short
 import stitchpad.composeapp.generated.resources.error_session_expired
 import stitchpad.composeapp.generated.resources.error_unknown
-import stitchpad.composeapp.generated.resources.error_whatsapp_invalid
+import stitchpad.composeapp.generated.resources.error_whatsapp_invalid_for_country
 import stitchpad.composeapp.generated.resources.whatsapp_confirm_error_mismatch
 import stitchpad.composeapp.generated.resources.workshop_logo_upload_failed
 import stitchpad.composeapp.generated.resources.workshop_logo_uploaded
 
+// Each collaborator is injected so JVM tests can fake it (logo codec, confirm code, device locale).
+@Suppress("LongParameterList")
 class WorkshopSetupViewModel(
     private val userRepository: UserRepository,
     private val authRepository: AuthRepository,
@@ -55,9 +61,12 @@ class WorkshopSetupViewModel(
     private val confirmCodeGenerator: () -> String = ::defaultWhatsAppConfirmCode,
     private val analytics: Analytics,
     private val celebrations: CelebrationController,
+    // Lambdas (not values) so JVM tests can fake the device locale.
+    private val deviceRegion: () -> String? = ::deviceRegionIso,
+    private val deviceLanguage: () -> String = { Locale.current.language },
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(WorkshopSetupState())
+    private val _state = MutableStateFlow(initialState(deviceRegion()))
     val state = _state.asStateFlow()
 
     private val _events = Channel<WorkshopSetupEvent>()
@@ -71,6 +80,25 @@ class WorkshopSetupViewModel(
     // cancel() but before its next suspension point checks the flag. The local
     // generation snapshot blocks stale-job writes from clobbering the newer pick.
     private var logoUploadGeneration = 0
+
+    // Set once the user taps a country or zone, so a late existing-doc read never overrides it.
+    private var countryChosenByUser = false
+
+    // Locale already stored on an existing user doc; kept instead of the device language.
+    private var existingLocale: String? = null
+
+    // Workshop Setup can re-run on an existing user doc (skip-then-complete, reinstall, demoted
+    // staff), and createUserProfile always merge-writes country/currency/timeZone. Pre-fill from
+    // that doc so re-entering setup never relabels a non-NG tailor; the device region only
+    // applies when there is no doc yet.
+    private val existingProfileJob: Job = viewModelScope.launch {
+        val userId = authRepository.getCurrentUser()?.id ?: return@launch
+        val existing = userRepository.observeUser(userId).first() ?: return@launch
+        existingLocale = existing.locale
+        if (countryChosenByUser) return@launch
+        _state.update { it.copy(country = existing.country, timeZone = existing.timeZone) }
+        revalidateEnteredNumber()
+    }
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
     fun onAction(action: WorkshopSetupAction) {
@@ -95,6 +123,10 @@ class WorkshopSetupViewModel(
                 if (_state.value.businessName.isNotBlank()) validateBusinessName()
             WorkshopSetupAction.OnWhatsAppNumberBlur ->
                 if (_state.value.whatsappNumber.isNotBlank()) validateWhatsAppNumber()
+            WorkshopSetupAction.OnCountryChipClick -> _state.update { it.copy(isCountryPickerOpen = true) }
+            WorkshopSetupAction.OnDismissCountryPicker -> _state.update { it.copy(isCountryPickerOpen = false) }
+            is WorkshopSetupAction.OnCountrySelected -> onCountrySelected(action.country)
+            is WorkshopSetupAction.OnTimeZoneSelected -> onTimeZoneSelected(action.timeZone)
             WorkshopSetupAction.OnContinueClick -> onContinue()
             WorkshopSetupAction.OnSkipClick -> onSkip()
             WorkshopSetupAction.OnJoinWorkshopClick ->
@@ -280,27 +312,66 @@ class WorkshopSetupViewModel(
         return true
     }
 
+    private fun onCountrySelected(country: Country) {
+        countryChosenByUser = true
+        val changed = country != _state.value.country
+        _state.update {
+            it.copy(
+                country = country,
+                timeZone = if (changed) country.defaultTimeZone else it.timeZone,
+                isCountryPickerOpen = false,
+            )
+        }
+        if (!changed) return
+        // A new country means a different E.164 number, so the old confirmation no longer holds.
+        _state.update {
+            it.copy(
+                whatsappConfirm = it.whatsappConfirm.copy(
+                    confirmed = false,
+                    promptVisible = false,
+                    code = null,
+                    input = "",
+                    error = null,
+                ),
+            )
+        }
+        revalidateEnteredNumber()
+    }
+
+    private fun onTimeZoneSelected(timeZone: String) {
+        if (timeZone !in _state.value.country.timeZones) return
+        countryChosenByUser = true
+        _state.update { it.copy(timeZone = timeZone) }
+    }
+
+    /** Re-checks an already-entered number against the current country, clearing a stale error. */
+    private fun revalidateEnteredNumber() {
+        _state.update { it.copy(whatsappError = null) }
+        if (_state.value.whatsappNumber.isNotBlank()) validateWhatsAppNumber()
+    }
+
     private fun validateWhatsAppNumber(): Boolean {
         val raw = _state.value.whatsappNumber.trim()
         if (raw.isBlank()) return true
-        val withCountry = applyImpliedCountryCode(raw, Country.DEFAULT)
-        return if (isValidMobile(withCountry, Country.DEFAULT)) {
+        val country = _state.value.country
+        return if (isValidMobile(applyImpliedCountryCode(raw, country), country)) {
             true
         } else {
-            _state.update { it.copy(whatsappError = Res.string.error_whatsapp_invalid) }
+            _state.update { it.copy(whatsappError = Res.string.error_whatsapp_invalid_for_country) }
             false
         }
     }
 
     private fun onConfirmWhatsAppClick() {
         val raw = _state.value.whatsappNumber.trim()
-        val withCountry = applyImpliedCountryCode(raw, Country.DEFAULT)
-        if (!isValidMobile(withCountry, Country.DEFAULT)) {
-            _state.update { it.copy(whatsappError = Res.string.error_whatsapp_invalid) }
+        val country = _state.value.country
+        val withCountry = applyImpliedCountryCode(raw, country)
+        if (!isValidMobile(withCountry, country)) {
+            _state.update { it.copy(whatsappError = Res.string.error_whatsapp_invalid_for_country) }
             return
         }
         val code = confirmCodeGenerator()
-        val phoneE164 = "+" + normalisePhone(withCountry, Country.DEFAULT)
+        val phoneE164 = "+" + normalisePhone(withCountry, country)
         _state.update {
             it.copy(
                 whatsappConfirm = it.whatsappConfirm.copy(
@@ -360,6 +431,11 @@ class WorkshopSetupViewModel(
 
         continueJob = viewModelScope.launch {
             try {
+                // A Continue tapped before the existing-doc read lands must not save the device
+                // region over a stored country. Bounded so a hung read can't block setup.
+                if (existingProfileJob.isActive) {
+                    withTimeoutOrNull(EXISTING_PROFILE_WAIT_MS) { existingProfileJob.join() }
+                }
                 // If a logo upload is still in flight, await it so we can persist the URL.
                 // Skip cancels this job via continueJob.cancelAndJoin() — pending.join()
                 // is the cancellation suspension point, so cancellation here unwinds via
@@ -382,8 +458,9 @@ class WorkshopSetupViewModel(
                     _events.send(WorkshopSetupEvent.NavigateToLogin)
                     return@launch
                 }
+                val country = s.country
                 val whatsappE164 = s.whatsappNumber.trim().takeIf { it.isNotBlank() }
-                    ?.let { "+" + normalisePhone(applyImpliedCountryCode(it, Country.DEFAULT), Country.DEFAULT) }
+                    ?.let { "+" + normalisePhone(applyImpliedCountryCode(it, country), country) }
 
                 // Group save: any field set → trust validation and pass the trio.
                 // Otherwise pass nulls so the user doc doesn't gain blank bank fields.
@@ -398,10 +475,9 @@ class WorkshopSetupViewModel(
                     bankAccountName = bankAccountNameSave,
                     bankAccountNumber = bankAccountNumberSave,
                     whatsappConfirmed = s.whatsappConfirm.confirmed && whatsappE164 != null,
-                    // Task 6 adds the country picker; until then every new profile is Nigerian.
-                    country = Country.DEFAULT,
-                    timeZone = Country.DEFAULT.defaultTimeZone,
-                    locale = null,
+                    country = country,
+                    timeZone = s.timeZone,
+                    locale = existingLocale ?: deviceLanguage().takeIf { it.isNotBlank() },
                 )
                 if (profileResult is Result.Error) {
                     _events.send(WorkshopSetupEvent.ShowError(UiText.StringResourceText(Res.string.error_unknown)))
@@ -446,6 +522,13 @@ class WorkshopSetupViewModel(
     private companion object {
         const val MAX_WHATSAPP_DIGITS = 13
         const val MIN_BUSINESS_NAME_LEN = 2
+        const val EXISTING_PROFILE_WAIT_MS = 3_000L
+
+        /** Device region when it is a supported market, otherwise Nigeria (blank and unknown codes included). */
+        fun initialState(regionIso: String?): WorkshopSetupState {
+            val country = Country.fromIso(regionIso?.trim()) ?: Country.DEFAULT
+            return WorkshopSetupState(country = country, timeZone = country.defaultTimeZone)
+        }
 
         fun capWhatsAppDigits(raw: String): String = buildString {
             var digits = 0

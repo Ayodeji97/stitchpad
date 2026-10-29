@@ -1354,6 +1354,29 @@
 
     <!-- WhatsApp / Workshop Phase 2 -->
     <string name="error_whatsapp_invalid">Enter a valid Nigerian WhatsApp number (10 digits)</string>
+    <string name="error_whatsapp_invalid_for_country">Enter a valid %1$s WhatsApp number</string>
+
+    <!-- Country picker (africa expansion) -->
+    <string name="country_picker_title">Choose your country</string>
+    <string name="country_picker_chip_content_description">Country: %1$s, dial code +%2$s. Tap to change.</string>
+    <string name="country_time_zone_title">Time zone</string>
+    <string name="time_zone_kinshasa">Kinshasa (UTC+1)</string>
+    <string name="time_zone_lubumbashi">Lubumbashi (UTC+2)</string>
+    <string name="country_name_ng">Nigeria</string>
+    <string name="country_name_gh">Ghana</string>
+    <string name="country_name_ke">Kenya</string>
+    <string name="country_name_ci">Côte d&apos;Ivoire</string>
+    <string name="country_name_sn">Senegal</string>
+    <string name="country_name_bj">Benin</string>
+    <string name="country_name_tg">Togo</string>
+    <string name="country_name_ml">Mali</string>
+    <string name="country_name_bf">Burkina Faso</string>
+    <string name="country_name_ne">Niger</string>
+    <string name="country_name_cm">Cameroon</string>
+    <string name="country_name_ga">Gabon</string>
+    <string name="country_name_cg">Congo</string>
+    <string name="country_name_gn">Guinea</string>
+    <string name="country_name_cd">DR Congo</string>
     <string name="workshop_whatsapp_label">WhatsApp number</string>
     <string name="workshop_whatsapp_optional">Optional</string>
     <string name="workshop_whatsapp_placeholder">801 234 5678</string>

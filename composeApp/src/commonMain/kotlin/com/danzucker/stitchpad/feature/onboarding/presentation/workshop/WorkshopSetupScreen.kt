@@ -9,12 +9,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -45,6 +45,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -56,15 +59,21 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.SubcomposeAsyncImage
 import com.danzucker.stitchpad.core.debug.isDebugBuild
+import com.danzucker.stitchpad.core.domain.model.Country
+import com.danzucker.stitchpad.core.domain.model.defaultTimeZone
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthCard
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthHero
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthTextField
 import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
+import com.danzucker.stitchpad.ui.components.CountryPickerSheet
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.components.WhatsAppConfirmRow
+import com.danzucker.stitchpad.ui.components.countryDisplayName
+import com.danzucker.stitchpad.ui.components.flagEmoji
+import com.danzucker.stitchpad.ui.components.timeZoneDisplayName
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -87,6 +96,8 @@ import stitchpad.composeapp.generated.resources.bank_details_bank_placeholder
 import stitchpad.composeapp.generated.resources.bank_details_optional
 import stitchpad.composeapp.generated.resources.bank_details_section_subtitle
 import stitchpad.composeapp.generated.resources.bank_details_section_title
+import stitchpad.composeapp.generated.resources.country_picker_chip_content_description
+import stitchpad.composeapp.generated.resources.country_time_zone_title
 import stitchpad.composeapp.generated.resources.whatsapp_confirm_message
 import stitchpad.composeapp.generated.resources.workshop_business_name_helper
 import stitchpad.composeapp.generated.resources.workshop_business_name_label
@@ -274,39 +285,12 @@ fun WorkshopSetupScreen(
                         }
                     }
 
-                    // 4b. Country picker (+234 fixed) + number input row
+                    // 4b. Country chip (opens the picker) + number input row
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        // +234 country block — non-interactive in V1 (Nigeria-only)
-                        Row(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFF2A2825))
-                                .border(1.5.dp, Color(0xFF3A3731), RoundedCornerShape(10.dp))
-                                .padding(horizontal = 12.dp, vertical = 13.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            // Nigerian flag — 3-band rectangle (green-white-green)
-                            Box(
-                                modifier = Modifier
-                                    .size(width = 24.dp, height = 18.dp)
-                                    .clip(RoundedCornerShape(3.dp)),
-                            ) {
-                                Row(modifier = Modifier.fillMaxSize()) {
-                                    Box(Modifier.weight(1f).fillMaxHeight().background(Color(0xFF008751)))
-                                    Box(Modifier.weight(1f).fillMaxHeight().background(Color.White))
-                                    Box(Modifier.weight(1f).fillMaxHeight().background(Color(0xFF008751)))
-                                }
-                            }
-                            Text(
-                                text = "+234",
-                                style = TextStyle(
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFFF5F2ED),
-                                ),
-                            )
-                        }
+                        CountryChip(
+                            country = state.country,
+                            onClick = { onAction(WorkshopSetupAction.OnCountryChipClick) },
+                        )
                         // Number input — AuthTextField with empty label (skips label render)
                         AuthTextField(
                             label = "",
@@ -316,9 +300,20 @@ fun WorkshopSetupScreen(
                             keyboardType = KeyboardType.Phone,
                             imeAction = ImeAction.Done,
                             placeholder = stringResource(Res.string.workshop_whatsapp_placeholder),
-                            errorText = state.whatsappError?.let { stringResource(it) },
+                            errorText = state.whatsappError?.let {
+                                stringResource(it, countryDisplayName(state.country))
+                            },
                             onFocusLost = { onAction(WorkshopSetupAction.OnWhatsAppNumberBlur) },
                             modifier = Modifier.weight(1f),
+                        )
+                    }
+
+                    // 4b'. Zone row, only for multi-zone countries (DR Congo)
+                    if (state.country.timeZones.size > 1) {
+                        TimeZoneRow(
+                            timeZones = state.country.timeZones,
+                            selected = state.timeZone,
+                            onSelect = { onAction(WorkshopSetupAction.OnTimeZoneSelected(it)) },
                         )
                     }
 
@@ -442,6 +437,13 @@ fun WorkshopSetupScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
             }
+        }
+        if (state.isCountryPickerOpen) {
+            CountryPickerSheet(
+                selected = state.country,
+                onSelect = { onAction(WorkshopSetupAction.OnCountrySelected(it)) },
+                onDismiss = { onAction(WorkshopSetupAction.OnDismissCountryPicker) },
+            )
         }
         SnackbarHost(
             hostState = snackbarHostState,
@@ -670,6 +672,131 @@ private fun WorkshopSetupScreenFilledPreview() {
             onAction = {},
             onLaunchPicker = {},
         )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun WorkshopSetupScreenGhanaPreview() {
+    StitchPadTheme {
+        WorkshopSetupScreen(
+            state = WorkshopSetupState(
+                businessName = "Ama Stitches",
+                whatsappNumber = "024 412 3456",
+                country = Country.GH,
+                timeZone = Country.GH.defaultTimeZone,
+            ),
+            snackbarHostState = remember { SnackbarHostState() },
+            onAction = {},
+            onLaunchPicker = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun WorkshopSetupScreenDrCongoPreview() {
+    StitchPadTheme {
+        WorkshopSetupScreen(
+            state = WorkshopSetupState(
+                businessName = "Maison Kabila",
+                country = Country.CD,
+                timeZone = "Africa/Lubumbashi",
+            ),
+            snackbarHostState = remember { SnackbarHostState() },
+            onAction = {},
+            onLaunchPicker = {},
+        )
+    }
+}
+
+/** Tappable flag + dial code, styled like the dark input fields beside it. */
+@Composable
+private fun CountryChip(
+    country: Country,
+    onClick: () -> Unit,
+) {
+    val description = stringResource(
+        Res.string.country_picker_chip_content_description,
+        countryDisplayName(country),
+        country.dialCode,
+    )
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(DesignTokens.radiusMd))
+            .background(DesignTokens.darkSurface2)
+            .border(1.5.dp, DesignTokens.darkBorder, RoundedCornerShape(DesignTokens.radiusMd))
+            .clickable(role = Role.Button, onClick = onClick)
+            .semantics(mergeDescendants = true) { contentDescription = description }
+            .padding(horizontal = DesignTokens.space3, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(text = country.flagEmoji, fontSize = 18.sp)
+        Text(
+            text = "+${country.dialCode}",
+            style = TextStyle(
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = DesignTokens.neutral100,
+            ),
+        )
+        Icon(
+            imageVector = Icons.Outlined.ExpandMore,
+            contentDescription = null,
+            tint = DesignTokens.darkTextSecondary,
+            modifier = Modifier.size(DesignTokens.iconInline),
+        )
+    }
+}
+
+/** Zone choice for countries spanning more than one time zone. */
+@Composable
+private fun TimeZoneRow(
+    timeZones: List<String>,
+    selected: String,
+    onSelect: (String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = stringResource(Res.string.country_time_zone_title),
+            style = TextStyle(
+                fontSize = DesignTokens.labelMd,
+                fontWeight = FontWeight.SemiBold,
+                color = DesignTokens.neutral100,
+            ),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
+            timeZones.forEach { zone ->
+                val isSelected = zone == selected
+                val accent = LocalStitchPadColors.current.brandAccent
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(DesignTokens.radiusMd))
+                        .background(if (isSelected) accent.copy(alpha = 0.18f) else DesignTokens.darkSurface2)
+                        .border(
+                            1.5.dp,
+                            if (isSelected) accent else DesignTokens.darkBorder,
+                            RoundedCornerShape(DesignTokens.radiusMd),
+                        )
+                        .selectable(selected = isSelected, role = Role.RadioButton) { onSelect(zone) }
+                        .padding(horizontal = DesignTokens.space3, vertical = DesignTokens.space3),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = timeZoneDisplayName(zone),
+                        style = TextStyle(
+                            fontSize = DesignTokens.bodySm,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (isSelected) DesignTokens.neutral100 else DesignTokens.darkTextSecondary,
+                        ),
+                    )
+                }
+            }
+        }
     }
 }
 
