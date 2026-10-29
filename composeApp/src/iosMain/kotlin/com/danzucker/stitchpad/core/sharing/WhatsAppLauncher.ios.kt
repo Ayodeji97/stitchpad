@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.core.sharing
 
+import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.logging.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -12,7 +13,7 @@ private const val TAG = "WhatsAppLauncher"
 
 actual class WhatsAppLauncher {
     actual suspend fun launch(phone: String, message: String): Boolean {
-        val url = buildWhatsAppUrl(phone, message)
+        val url = buildWhatsAppUrl(phone, message, Country.DEFAULT)
         return withContext(Dispatchers.Main) {
             try {
                 val nsUrl = NSURL.URLWithString(url) ?: return@withContext false

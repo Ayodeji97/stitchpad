@@ -3,13 +3,14 @@ package com.danzucker.stitchpad.core.sharing
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.logging.AppLogger
 
 private const val TAG = "DialerLauncher"
 
 actual class DialerLauncher(private val context: Context) {
     actual suspend fun launch(phone: String): Boolean {
-        val normalised = normaliseNigerianPhone(phone)
+        val normalised = normalisePhone(phone, Country.DEFAULT)
         if (normalised.isBlank()) return false
         return try {
             val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$normalised")).apply {

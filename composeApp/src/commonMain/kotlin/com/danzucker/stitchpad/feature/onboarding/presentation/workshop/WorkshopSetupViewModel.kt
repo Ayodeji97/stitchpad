@@ -5,16 +5,17 @@ import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.analytics.domain.Analytics
 import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.domain.validation.BankDetailsValidator
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
 import com.danzucker.stitchpad.core.presentation.celebration.Milestone
 import com.danzucker.stitchpad.core.sharing.WHATSAPP_CONFIRM_CODE_LENGTH
-import com.danzucker.stitchpad.core.sharing.applyImpliedNigerianCountryCode
+import com.danzucker.stitchpad.core.sharing.applyImpliedCountryCode
 import com.danzucker.stitchpad.core.sharing.defaultWhatsAppConfirmCode
-import com.danzucker.stitchpad.core.sharing.normaliseNigerianPhone
-import com.danzucker.stitchpad.core.sharing.validateNigerianMobileE164
+import com.danzucker.stitchpad.core.sharing.isValidMobile
+import com.danzucker.stitchpad.core.sharing.normalisePhone
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.branding.domain.BrandLogoError
 import com.danzucker.stitchpad.feature.branding.domain.BrandLogoValidator
@@ -281,8 +282,8 @@ class WorkshopSetupViewModel(
     private fun validateWhatsAppNumber(): Boolean {
         val raw = _state.value.whatsappNumber.trim()
         if (raw.isBlank()) return true
-        val withCountry = applyImpliedNigerianCountryCode(raw)
-        return if (validateNigerianMobileE164(withCountry)) {
+        val withCountry = applyImpliedCountryCode(raw, Country.DEFAULT)
+        return if (isValidMobile(withCountry, Country.DEFAULT)) {
             true
         } else {
             _state.update { it.copy(whatsappError = Res.string.error_whatsapp_invalid) }
@@ -292,13 +293,13 @@ class WorkshopSetupViewModel(
 
     private fun onConfirmWhatsAppClick() {
         val raw = _state.value.whatsappNumber.trim()
-        val withCountry = applyImpliedNigerianCountryCode(raw)
-        if (!validateNigerianMobileE164(withCountry)) {
+        val withCountry = applyImpliedCountryCode(raw, Country.DEFAULT)
+        if (!isValidMobile(withCountry, Country.DEFAULT)) {
             _state.update { it.copy(whatsappError = Res.string.error_whatsapp_invalid) }
             return
         }
         val code = confirmCodeGenerator()
-        val phoneE164 = "+" + normaliseNigerianPhone(withCountry)
+        val phoneE164 = "+" + normalisePhone(withCountry, Country.DEFAULT)
         _state.update {
             it.copy(
                 whatsappConfirm = it.whatsappConfirm.copy(
@@ -381,7 +382,7 @@ class WorkshopSetupViewModel(
                     return@launch
                 }
                 val whatsappE164 = s.whatsappNumber.trim().takeIf { it.isNotBlank() }
-                    ?.let { "+" + normaliseNigerianPhone(applyImpliedNigerianCountryCode(it)) }
+                    ?.let { "+" + normalisePhone(applyImpliedCountryCode(it, Country.DEFAULT), Country.DEFAULT) }
 
                 // Group save: any field set → trust validation and pass the trio.
                 // Otherwise pass nulls so the user doc doesn't gain blank bank fields.

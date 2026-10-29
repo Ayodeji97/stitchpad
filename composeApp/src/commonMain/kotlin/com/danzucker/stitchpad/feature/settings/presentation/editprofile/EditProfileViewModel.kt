@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.domain.validation.BankDetailsValidator
@@ -11,10 +12,10 @@ import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.presentation.WhatsAppConfirmUiState
 import com.danzucker.stitchpad.core.sharing.WHATSAPP_CONFIRM_CODE_LENGTH
-import com.danzucker.stitchpad.core.sharing.applyImpliedNigerianCountryCode
+import com.danzucker.stitchpad.core.sharing.applyImpliedCountryCode
 import com.danzucker.stitchpad.core.sharing.defaultWhatsAppConfirmCode
-import com.danzucker.stitchpad.core.sharing.normaliseNigerianPhone
-import com.danzucker.stitchpad.core.sharing.validateNigerianMobileE164
+import com.danzucker.stitchpad.core.sharing.isValidMobile
+import com.danzucker.stitchpad.core.sharing.normalisePhone
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.branding.domain.BrandLogoError
 import com.danzucker.stitchpad.feature.branding.domain.BrandLogoValidator
@@ -290,13 +291,13 @@ class EditProfileViewModel(
 
     private fun onConfirmWhatsAppClick() {
         val raw = _state.value.whatsappNumber.trim()
-        val withCountry = applyImpliedNigerianCountryCode(raw)
-        if (!validateNigerianMobileE164(withCountry)) {
+        val withCountry = applyImpliedCountryCode(raw, Country.DEFAULT)
+        if (!isValidMobile(withCountry, Country.DEFAULT)) {
             _state.update { it.copy(whatsappError = Res.string.error_whatsapp_format) }
             return
         }
         val code = confirmCodeGenerator()
-        val phoneE164 = "+" + normaliseNigerianPhone(withCountry)
+        val phoneE164 = "+" + normalisePhone(withCountry, Country.DEFAULT)
         _state.update {
             it.copy(
                 whatsappConfirm = it.whatsappConfirm.copy(
@@ -383,8 +384,8 @@ class EditProfileViewModel(
             _state.update { it.copy(whatsappError = null) }
             return true
         }
-        val withCountry = applyImpliedNigerianCountryCode(raw)
-        return if (validateNigerianMobileE164(withCountry)) {
+        val withCountry = applyImpliedCountryCode(raw, Country.DEFAULT)
+        return if (isValidMobile(withCountry, Country.DEFAULT)) {
             _state.update { it.copy(whatsappError = null) }
             true
         } else {
@@ -423,7 +424,7 @@ class EditProfileViewModel(
             // subscriber number like "8031234567". The confirmation flag only rides along
             // with a real number — a blank/cleared field can never persist confirmed=true.
             val whatsappE164 = current.whatsappNumber.trim().takeIf { it.isNotBlank() }
-                ?.let { "+" + normaliseNigerianPhone(applyImpliedNigerianCountryCode(it)) }
+                ?.let { "+" + normalisePhone(applyImpliedCountryCode(it, Country.DEFAULT), Country.DEFAULT) }
             val result = userRepository.updateProfile(
                 userId = authUser.id,
                 businessName = current.businessName.trim(),

@@ -4,6 +4,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalUriHandler
+import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.presentation.openUriSafely
 import com.danzucker.stitchpad.core.sharing.buildWhatsAppUrl
@@ -69,7 +70,10 @@ fun SettingsEventEffect(
             is SettingsEvent.OpenWhatsApp -> {
                 scope.launch {
                     val message = getString(event.messageRes)
-                    uriHandler.openUriSafely(buildWhatsAppUrl(event.phoneNumber, message), tag = "SettingsEventEffect")
+                    uriHandler.openUriSafely(
+                        buildWhatsAppUrl(event.phoneNumber, message, Country.DEFAULT),
+                        tag = "SettingsEventEffect",
+                    )
                 }
             }
             is SettingsEvent.ShowSnackbar -> {
