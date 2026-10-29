@@ -702,4 +702,64 @@ class WorkshopSetupViewModelTest {
         }
         assertEquals(0, fakeUserRepository.createUserProfileCallCount, "failed read: no market write")
     }
+
+    @Test
+    fun `nigerian skipper who never touched the picker gets no write`() = runTest {
+        fakeAuth.currentUser = signedInUser()
+        fakeUserRepository.userFlow.value = null // confirmed absent
+        viewModel = createViewModel(region = { "NG" })
+
+        viewModel.onAction(WorkshopSetupAction.OnSkipClick)
+
+        assertIs<WorkshopSetupEvent.NavigateToHome>(viewModel.events.first())
+        assertEquals(0, fakeUserRepository.createUserProfileCallCount, "no users/{uid} doc for NG skippers")
+    }
+
+    @Test
+    fun `skip after explicitly picking nigeria gets no write`() = runTest {
+        fakeAuth.currentUser = signedInUser()
+        fakeUserRepository.userFlow.value = null
+        viewModel = createViewModel(region = { "GH" })
+
+        viewModel.onAction(WorkshopSetupAction.OnCountrySelected(Country.NG))
+        viewModel.onAction(WorkshopSetupAction.OnSkipClick)
+
+        assertIs<WorkshopSetupEvent.NavigateToHome>(viewModel.events.first())
+        assertEquals(0, fakeUserRepository.createUserProfileCallCount)
+    }
+
+    @Test
+    fun `double tap on skip during the doc-read wait navigates once`() = runTest {
+        fakeAuth.currentUser = signedInUser()
+        val gate = CompletableDeferred<Result<User?, DataError.Network>>()
+        fakeUserRepository.getUserOverride = { gate.await() }
+        viewModel = createViewModel(region = { "KE" })
+
+        viewModel.events.test {
+            viewModel.onAction(WorkshopSetupAction.OnSkipClick)
+            viewModel.onAction(WorkshopSetupAction.OnSkipClick)
+            gate.complete(Result.Success(null))
+            assertIs<WorkshopSetupEvent.NavigateToHome>(awaitItem())
+            expectNoEvents()
+        }
+        assertEquals(1, fakeUserRepository.createUserProfileCallCount, "one Skip, one market write")
+    }
+
+    @Test
+    fun `continue tapped during a running skip does not write or navigate again`() = runTest {
+        fakeAuth.currentUser = signedInUser()
+        val gate = CompletableDeferred<Result<User?, DataError.Network>>()
+        fakeUserRepository.getUserOverride = { gate.await() }
+        viewModel = createViewModel(region = { "NG" })
+        viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ama Stitches"))
+
+        viewModel.events.test {
+            viewModel.onAction(WorkshopSetupAction.OnSkipClick)
+            viewModel.onAction(WorkshopSetupAction.OnContinueClick)
+            gate.complete(Result.Success(null))
+            assertIs<WorkshopSetupEvent.NavigateToHome>(awaitItem())
+            expectNoEvents()
+        }
+        assertNull(fakeUserRepository.lastBusinessName, "Continue must not run after Skip")
+    }
 }

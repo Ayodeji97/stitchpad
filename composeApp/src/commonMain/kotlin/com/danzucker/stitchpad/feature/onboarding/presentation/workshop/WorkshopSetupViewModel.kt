@@ -74,6 +74,7 @@ class WorkshopSetupViewModel(
 
     private var logoUploadJob: Job? = null
     private var continueJob: Job? = null
+    private var skipJob: Job? = null
 
     // Bumped each time a logo is picked. Job.cancel() is cooperative — an
     // already-running coroutine can land its _state.update synchronously after
@@ -273,8 +274,11 @@ class WorkshopSetupViewModel(
     }
 
     private fun onSkip() {
+        // Skip can wait up to EXISTING_PROFILE_WAIT_MS for the doc read; a second tap in that
+        // window must not run a second cleanup, write or NavigateToHome.
+        if (skipJob?.isActive == true) return
         val current = _state.value.logo
-        viewModelScope.launch {
+        skipJob = viewModelScope.launch {
             // Cancel a pending Continue first. Otherwise its pending.join() would
             // resume normally when the upload job is cancelled below, and the rest
             // of Continue (createUserProfile / updateBrandLogo) would run after
@@ -318,22 +322,27 @@ class WorkshopSetupViewModel(
     }
 
     /**
-     * Skip still keeps the market, so a tailor who picked Ghana is not silently relabelled NG.
-     * Written only when it is safe: the user chose the country/zone, or the existing-doc read
-     * CONFIRMED there is no doc (so the device-region default overwrites nothing). A present doc
-     * the user didn't change already holds its market, and after a failed read the stored market
-     * is left untouched. Every profile field is null (and whatsappConfirmed null) so the merge
-     * write never clears a stored business name, number or confirmation. A market-only doc does
-     * not count as a workshop profile: [UserRepository.hasWorkshopProfileOrNull] keys off
+     * Skip still keeps a non-Nigerian market, so a tailor who picked Ghana is not silently
+     * relabelled NG. Written only when the effective selection differs from the default
+     * (country or zone), and only when it is safe: the user chose the country/zone, or the
+     * existing-doc read CONFIRMED there is no doc (so the device-region default overwrites
+     * nothing). A Nigerian skipper (untouched picker or Nigeria re-selected) gets no write, so
+     * Skip creates no `users/{uid}` doc for them, exactly as before the country picker: no
+     * early launch grant, billing seed or engagement-push audience entry. A present doc the user
+     * didn't change already holds its market, and after a failed read the stored market is left
+     * untouched. Every profile field is null (and whatsappConfirmed null) so the merge write
+     * never clears a stored business name, number or confirmation. A market-only doc does not
+     * count as a workshop profile: [UserRepository.hasWorkshopProfileOrNull] keys off
      * businessName, so routing is unchanged. Best effort: a rejected write never blocks Skip.
      */
     private suspend fun persistMarketOnSkip() {
         // Bounded by EXISTING_PROFILE_WAIT_MS, so Skip can never hang on it.
         if (!countryChosenByUser && existingProfileJob.isActive) existingProfileJob.join()
-        val writeMarket = countryChosenByUser || existingProfileRead == ExistingProfileRead.ABSENT
-        if (!writeMarket) return
-        val userId = authRepository.getCurrentUser()?.id ?: return
         val s = _state.value
+        val nonDefaultMarket = s.country != Country.DEFAULT || s.timeZone != Country.DEFAULT.defaultTimeZone
+        val safeToWrite = countryChosenByUser || existingProfileRead == ExistingProfileRead.ABSENT
+        if (!nonDefaultMarket || !safeToWrite) return
+        val userId = authRepository.getCurrentUser()?.id ?: return
         userRepository.createUserProfile(
             userId = userId,
             businessName = null,
@@ -472,8 +481,10 @@ class WorkshopSetupViewModel(
         // also disables visually on isLoading/isAwaitingLogo, but a slow
         // recomposition window could let multiple taps queue actions; this is
         // the canonical re-entry guard at the VM layer. continueJob covers the
-        // existing-doc wait below, before either flag is set.
-        if (continueJob?.isActive == true || _state.value.isLoading || _state.value.isAwaitingLogo) return
+        // existing-doc wait below, before either flag is set. A running Skip is already leaving
+        // the screen, so a Continue tapped during its wait must not write or navigate again.
+        if (continueJob?.isActive == true || skipJob?.isActive == true) return
+        if (_state.value.isLoading || _state.value.isAwaitingLogo) return
 
         continueJob = viewModelScope.launch {
             try {
