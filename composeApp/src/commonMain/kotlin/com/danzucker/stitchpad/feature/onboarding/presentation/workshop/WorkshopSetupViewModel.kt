@@ -48,7 +48,8 @@ import stitchpad.composeapp.generated.resources.workshop_logo_upload_failed
 import stitchpad.composeapp.generated.resources.workshop_logo_uploaded
 
 // Each collaborator is injected so JVM tests can fake it (logo codec, confirm code, device locale).
-@Suppress("LongParameterList")
+// TooManyFunctions: one private handler per setup step; the Skip market write took it past 15.
+@Suppress("LongParameterList", "TooManyFunctions")
 class WorkshopSetupViewModel(
     private val userRepository: UserRepository,
     private val authRepository: AuthRepository,
@@ -340,12 +341,13 @@ class WorkshopSetupViewModel(
             whatsappConfirmed = null,
             country = s.country,
             timeZone = s.timeZone,
-            locale = marketLocale(),
+            locale = marketLocale,
         )
     }
 
     /** The stored locale when the doc has one, else the device language. */
-    private fun marketLocale(): String? = existingLocale ?: deviceLanguage().takeIf { it.isNotBlank() }
+    private val marketLocale: String?
+        get() = existingLocale ?: deviceLanguage().takeIf { it.isNotBlank() }
 
     private fun validateBusinessName(): Boolean {
         val name = _state.value.businessName.trim()
@@ -530,7 +532,7 @@ class WorkshopSetupViewModel(
                     whatsappConfirmed = s.whatsappConfirm.confirmed && whatsappE164 != null,
                     country = country.takeIf { writeMarket },
                     timeZone = s.timeZone.takeIf { writeMarket },
-                    locale = marketLocale().takeIf { writeMarket },
+                    locale = marketLocale.takeIf { writeMarket },
                 )
                 if (profileResult is Result.Error) {
                     _events.send(WorkshopSetupEvent.ShowError(UiText.StringResourceText(Res.string.error_unknown)))
