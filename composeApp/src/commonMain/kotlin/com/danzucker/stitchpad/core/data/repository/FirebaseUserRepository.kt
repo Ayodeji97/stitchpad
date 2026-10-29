@@ -10,6 +10,7 @@ import com.danzucker.stitchpad.core.domain.currentPlatformName
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
@@ -61,6 +62,9 @@ class FirebaseUserRepository(
         bankAccountName: String?,
         bankAccountNumber: String?,
         whatsappConfirmed: Boolean,
+        country: Country,
+        timeZone: String,
+        locale: String?,
     ): EmptyResult<DataError.Network> {
         val document = firestore.collection(USERS).document(userId)
         val data = mutableMapOf<String, Any>()
@@ -72,6 +76,11 @@ class FirebaseUserRepository(
         bankName?.let { data["bankName"] = it }
         bankAccountName?.let { data["bankAccountName"] = it }
         bankAccountNumber?.let { data["bankAccountNumber"] = it }
+        // Currency is always derived from the country so the pair can never mismatch.
+        data["country"] = country.iso
+        data["currency"] = country.currency.code
+        data["timeZone"] = timeZone
+        locale?.let { data["locale"] = it }
         data["updatedAt"] = FieldValue.serverTimestamp
         // Profile fields are fire-and-forget so Workshop Setup returns instantly
         // offline (the whole point of OfflineWriteDispatcher). They never include
@@ -130,6 +139,8 @@ class FirebaseUserRepository(
         bankAccountName: String?,
         bankAccountNumber: String?,
         whatsappConfirmed: Boolean,
+        country: Country?,
+        timeZone: String?,
     ): EmptyResult<DataError.Network> {
         val data = mutableMapOf<String, Any>(
             "updatedAt" to FieldValue.serverTimestamp
@@ -161,6 +172,12 @@ class FirebaseUserRepository(
         data["bankName"] = bankName ?: FieldValue.delete
         data["bankAccountName"] = bankAccountName ?: FieldValue.delete
         data["bankAccountNumber"] = bankAccountNumber ?: FieldValue.delete
+        // Null = unchanged. Currency always travels with country.
+        country?.let {
+            data["country"] = it.iso
+            data["currency"] = it.currency.code
+        }
+        timeZone?.let { data["timeZone"] = it }
         val accepted = offlineWrites.enqueue("updateProfile userId=$userId") {
             firestore.collection(USERS).document(userId).set(data, merge = true)
         }

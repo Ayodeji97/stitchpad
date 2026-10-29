@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.core.data.repository
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import kotlinx.coroutines.flow.Flow
@@ -27,6 +28,10 @@ class FakeUserRepository : UserRepository {
     val deletedLogoPaths: MutableList<String> = mutableListOf()
 
     /** Last (url, path) pair passed to [updateBrandLogo], or null if never called. */
+    var lastCountry: Country? = null
+    var lastTimeZone: String? = null
+    var lastLocale: String? = null
+
     var lastBrandLogoUpdate: Pair<String?, String?>? = null
 
     /**
@@ -43,8 +48,14 @@ class FakeUserRepository : UserRepository {
         bankAccountName: String?,
         bankAccountNumber: String?,
         whatsappConfirmed: Boolean,
+        country: Country,
+        timeZone: String,
+        locale: String?,
     ): EmptyResult<DataError.Network> {
         shouldReturnError?.let { return Result.Error(it) }
+        lastCountry = country
+        lastTimeZone = timeZone
+        lastLocale = locale
         lastUserId = userId
         lastBusinessName = businessName
         lastWhatsAppNumber = whatsappNumber
@@ -72,8 +83,12 @@ class FakeUserRepository : UserRepository {
         bankAccountName: String?,
         bankAccountNumber: String?,
         whatsappConfirmed: Boolean,
+        country: Country?,
+        timeZone: String?,
     ): EmptyResult<DataError.Network> {
         shouldReturnError?.let { return Result.Error(it) }
+        lastCountry = country
+        lastTimeZone = timeZone
         lastUserId = userId
         lastBusinessName = businessName
         lastDisplayName = displayName

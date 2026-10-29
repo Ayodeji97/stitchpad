@@ -6,6 +6,7 @@ import com.danzucker.stitchpad.core.analytics.domain.Analytics
 import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Country
+import com.danzucker.stitchpad.core.domain.model.defaultTimeZone
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import com.danzucker.stitchpad.core.domain.validation.BankDetailsValidator
 import com.danzucker.stitchpad.core.presentation.UiText
@@ -397,6 +398,10 @@ class WorkshopSetupViewModel(
                     bankAccountName = bankAccountNameSave,
                     bankAccountNumber = bankAccountNumberSave,
                     whatsappConfirmed = s.whatsappConfirm.confirmed && whatsappE164 != null,
+                    // Task 6 adds the country picker; until then every new profile is Nigerian.
+                    country = Country.DEFAULT,
+                    timeZone = Country.DEFAULT.defaultTimeZone,
+                    locale = null,
                 )
                 if (profileResult is Result.Error) {
                     _events.send(WorkshopSetupEvent.ShowError(UiText.StringResourceText(Res.string.error_unknown)))

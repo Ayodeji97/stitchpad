@@ -8,10 +8,12 @@ package com.danzucker.stitchpad.core.domain.repository
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.domain.model.User
 import kotlinx.coroutines.flow.Flow
 
 interface UserRepository {
+    @Suppress("LongParameterList")
     suspend fun createUserProfile(
         userId: String,
         businessName: String?,
@@ -20,6 +22,9 @@ interface UserRepository {
         bankAccountName: String? = null,
         bankAccountNumber: String? = null,
         whatsappConfirmed: Boolean = false,
+        country: Country,
+        timeZone: String,
+        locale: String?,
     ): EmptyResult<DataError.Network>
 
     suspend fun deleteUserDoc(userId: String): EmptyResult<DataError.Network>
@@ -36,6 +41,9 @@ interface UserRepository {
         bankAccountName: String? = null,
         bankAccountNumber: String? = null,
         whatsappConfirmed: Boolean = false,
+        // Null means unchanged. A non-null country also writes its currency.
+        country: Country? = null,
+        timeZone: String? = null,
     ): EmptyResult<DataError.Network>
 
     fun observeUser(userId: String): Flow<User?>
