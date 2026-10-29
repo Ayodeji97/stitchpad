@@ -9,6 +9,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class UserDocCurrentCountryProviderTest {
 
@@ -135,5 +136,34 @@ class UserDocCurrentCountryProviderTest {
         runCurrent()
 
         assertEquals(Country.NG, provider.currentCountry())
+    }
+
+    @Test
+    fun loaded_country_is_null_until_the_users_doc_arrives_and_resets_on_switch() = runTest {
+        val uid = MutableStateFlow<String?>("u1")
+        val repo = FakeUserRepository()
+        val u1Doc = MutableSharedFlow<User?>()
+        repo.userFlowsByUid["u1"] = u1Doc
+        repo.userFlowsByUid["u2"] = MutableSharedFlow<User?>()
+        val provider = UserDocCurrentCountryProvider(uid, repo, backgroundScope)
+        runCurrent()
+        assertNull(provider.loadedCountry.value, "no doc yet")
+        assertEquals(Country.NG, provider.currentCountry(), "shown as the default meanwhile")
+
+        u1Doc.emit(null) // a failed listener or missing doc is still "not loaded"
+        runCurrent()
+        assertNull(provider.loadedCountry.value)
+
+        u1Doc.emit(user(Country.GH))
+        runCurrent()
+        assertEquals(Country.GH, provider.loadedCountry.value)
+
+        uid.value = "u2"
+        runCurrent()
+        assertNull(provider.loadedCountry.value, "a new account starts unloaded")
+
+        uid.value = null
+        runCurrent()
+        assertNull(provider.loadedCountry.value, "signed out is unloaded")
     }
 }

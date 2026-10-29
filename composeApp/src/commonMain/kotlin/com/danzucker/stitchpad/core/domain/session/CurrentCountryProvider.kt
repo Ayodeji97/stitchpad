@@ -11,5 +11,12 @@ import kotlinx.coroutines.flow.StateFlow
 interface CurrentCountryProvider {
     val country: StateFlow<Country>
 
+    /**
+     * The country read from the signed-in user's doc, or null while signed out or before that
+     * doc has been seen this session. Use it where a [Country.DEFAULT] stand-in would be stored
+     * permanently (an order's currency), not just shown.
+     */
+    val loadedCountry: StateFlow<Country?>
+
     fun currentCountry(): Country
 }

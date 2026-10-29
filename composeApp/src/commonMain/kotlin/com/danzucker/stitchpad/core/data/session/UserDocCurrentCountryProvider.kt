@@ -35,30 +35,36 @@ internal class UserDocCurrentCountryProvider(
     private val _country = MutableStateFlow(Country.DEFAULT)
     override val country: StateFlow<Country> = _country.asStateFlow()
 
+    private val _loadedCountry = MutableStateFlow<Country?>(null)
+    override val loadedCountry: StateFlow<Country?> = _loadedCountry.asStateFlow()
+
     init {
         scope.launch {
             uidFlow
                 .distinctUntilChanged()
                 .flatMapLatest { uid ->
                     if (uid == null) {
-                        flowOf(Country.DEFAULT)
+                        flowOf(null)
                     } else {
                         countryOf(userRepository, uid)
                     }
                 }
-                .collect { _country.value = it }
+                .collect {
+                    _country.value = it ?: Country.DEFAULT
+                    _loadedCountry.value = it
+                }
         }
     }
 
     /**
-     * Starts at [Country.DEFAULT] so a direct account switch never shows the previous user's
-     * country. A `null` emission (observeUser emits null when its listener fails, as well as for
-     * a missing doc) keeps the last country seen for this uid; before any doc has been seen it
-     * stays [Country.DEFAULT]. A terminal upstream failure is swallowed so the app-lifetime
-     * collector survives, leaving the last emitted value in place.
+     * Starts unloaded (null, shown as [Country.DEFAULT]) so a direct account switch never shows
+     * the previous user's country. A `null` emission (observeUser emits null when its listener
+     * fails, as well as for a missing doc) keeps the last country seen for this uid; before any
+     * doc has been seen it stays unloaded. A terminal upstream failure is swallowed so the
+     * app-lifetime collector survives, leaving the last emitted value in place.
      */
-    private fun countryOf(userRepository: UserRepository, uid: String): Flow<Country> = flow {
-        var last = Country.DEFAULT
+    private fun countryOf(userRepository: UserRepository, uid: String): Flow<Country?> = flow {
+        var last: Country? = null
         emit(last)
         userRepository.observeUser(uid)
             .catch { }

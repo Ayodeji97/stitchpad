@@ -45,6 +45,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -321,6 +322,42 @@ class OrderFormViewModelTest {
         vm.onAction(OrderFormAction.OnSave)
 
         assertEquals(Currency.GHS, orderRepository.lastCreatedOrder?.currency)
+    }
+
+    @Test
+    fun save_inCreateMode_beforeCountryLoads_waitsAndStampsTheRealCurrency() = runTest {
+        countryProvider = FakeCurrentCountryProvider(Country.NG, loaded = false)
+        val vm = createViewModel()
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        vm.onAction(
+            OrderFormAction.OnItemGarmentTypeChange(vm.state.value.items.first().id, GarmentType.AGBADA),
+        )
+        vm.onAction(OrderFormAction.OnItemPriceChange(vm.state.value.items.first().id, "5000"))
+        vm.onAction(OrderFormAction.OnSave)
+        assertNull(orderRepository.lastCreatedOrder, "not stamped from the unloaded NG stand-in")
+
+        countryProvider.load(Country.GH)
+        runCurrent()
+
+        assertEquals(Currency.GHS, orderRepository.lastCreatedOrder?.currency)
+    }
+
+    @Test
+    fun save_inCreateMode_countryNeverLoads_fallsBackAfterTheWait() = runTest {
+        countryProvider = FakeCurrentCountryProvider(Country.NG, loaded = false)
+        val vm = createViewModel()
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        vm.onAction(
+            OrderFormAction.OnItemGarmentTypeChange(vm.state.value.items.first().id, GarmentType.AGBADA),
+        )
+        vm.onAction(OrderFormAction.OnItemPriceChange(vm.state.value.items.first().id, "5000"))
+        vm.onAction(OrderFormAction.OnSave)
+
+        advanceTimeBy(2_900)
+        assertNull(orderRepository.lastCreatedOrder, "still waiting for the country")
+        advanceTimeBy(200)
+
+        assertEquals(Currency.NGN, orderRepository.lastCreatedOrder?.currency)
     }
 
     @Test

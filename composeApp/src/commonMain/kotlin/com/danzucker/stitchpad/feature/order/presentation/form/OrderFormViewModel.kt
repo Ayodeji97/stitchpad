@@ -7,6 +7,7 @@ import com.danzucker.stitchpad.core.analytics.domain.Analytics
 import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.FabricImageRef
 import com.danzucker.stitchpad.core.domain.model.GarmentGender
@@ -41,6 +42,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -48,6 +50,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.error_order_customer_required
 import stitchpad.composeapp.generated.resources.error_order_deposit_exceeds_total
@@ -861,6 +864,8 @@ class OrderFormViewModel(
             val deposit = s.depositPaid.toDoubleOrNull() ?: 0.0
             val now = Clock.System.now().toEpochMilliseconds()
             val isEdit = orderId != null
+            // Stamp the currency only on a NEW order; edits keep the loaded one.
+            val currency = if (isEdit) loadedCurrency else countryForNewOrder().currency
 
             // When editing an order without changing the deposit, preserve the
             // existing payment list verbatim. Calling reconcileForDeposit() in
@@ -901,8 +906,7 @@ class OrderFormViewModel(
                 deadline = s.deadline,
                 notes = s.notes.trim().ifBlank { null },
                 discount = discount,
-                // Stamp the currency only on a NEW order; edits keep the loaded one.
-                currency = if (isEdit) loadedCurrency else currentCountryProvider.currentCountry().currency,
+                currency = currency,
                 // Only keep a reason when there is an actual discount — avoids an
                 // orphaned reason string when the typed discount clamps to 0.
                 discountReason = if (discount > 0.0) s.discountReason.trim().ifBlank { null } else null,
@@ -950,6 +954,17 @@ class OrderFormViewModel(
             }
         }
     }
+
+    /**
+     * The country a new order's currency is stamped from. That stamp is permanent, so on a cold
+     * start before the user doc has loaded this waits briefly for it rather than stamping the
+     * provider's NG stand-in on a non-NG tailor's order. Falls back to the provider value after
+     * [COUNTRY_LOAD_WAIT_MS] (e.g. offline with no cache) so a save can never hang.
+     */
+    private suspend fun countryForNewOrder(): Country =
+        withTimeoutOrNull(COUNTRY_LOAD_WAIT_MS) {
+            currentCountryProvider.loadedCountry.filterNotNull().first()
+        } ?: currentCountryProvider.currentCountry()
 
     private fun setError(resource: org.jetbrains.compose.resources.StringResource) {
         _state.update { it.copy(errorMessage = UiText.StringResourceText(resource)) }
@@ -1140,6 +1155,7 @@ class OrderFormViewModel(
     }
 
     private companion object {
+        const val COUNTRY_LOAD_WAIT_MS = 3_000L
         const val MAX_ORDER_PHOTO_BYTES = 5 * 1024 * 1024
         const val MAX_STYLE_REFS = 3
     }
