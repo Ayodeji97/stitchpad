@@ -55,4 +55,12 @@ data class User(
     /** The tailor's own outbound referral code for the Founding Tailors program.
      *  Null until first minted server-side via getOrCreateMyReferralLink. */
     val referralCode: String? = null,
+    /** The tailor's market. Drives phone parsing, currency and default time zone. Legacy docs are NG. */
+    val country: Country = Country.DEFAULT,
+    /** Currency for money display. Always the [country]'s currency today; stored so it can diverge later. */
+    val currency: Currency = Country.DEFAULT.currency,
+    /** IANA time zone id (for example `Africa/Lagos`) used for due dates and reminders. */
+    val timeZone: String = Country.DEFAULT.defaultTimeZone,
+    /** Optional BCP-47 locale tag; null means use the [country]'s default language. */
+    val locale: String? = null,
 )

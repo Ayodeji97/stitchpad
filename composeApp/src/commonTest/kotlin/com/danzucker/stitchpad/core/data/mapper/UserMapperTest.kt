@@ -1,6 +1,8 @@
 package com.danzucker.stitchpad.core.data.mapper
 
 import com.danzucker.stitchpad.core.data.dto.UserDto
+import com.danzucker.stitchpad.core.domain.model.Country
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.User
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -118,7 +120,17 @@ class UserMapperTest {
 
         val roundTripped = original.toUser().toUserDto()
 
-        assertEquals(original.copy(dailyPushEnabled = true, announcementsPushEnabled = true), roundTripped)
+        // Legacy docs without country fields also come back with the resolved NG defaults.
+        assertEquals(
+            original.copy(
+                dailyPushEnabled = true,
+                announcementsPushEnabled = true,
+                country = "NG",
+                currency = "NGN",
+                timeZone = "Africa/Lagos",
+            ),
+            roundTripped,
+        )
     }
 
     @Test
@@ -199,5 +211,54 @@ class UserMapperTest {
     fun referralCode_isNullWhenAbsent() {
         val dto = UserDto(id = "u1", email = "a@b.com", displayName = "Ada")
         assertNull(dto.toUser().referralCode)
+    }
+
+    // --- Country fields ---
+
+    @Test
+    fun legacyDocWithoutCountryFallsBackToNigeria() {
+        val user = UserDto(id = "u").toUser()
+        assertEquals(Country.NG, user.country)
+        assertEquals(Currency.NGN, user.currency)
+        assertEquals("Africa/Lagos", user.timeZone)
+        assertNull(user.locale)
+    }
+
+    @Test
+    fun ghanaDocMaps() {
+        val user = UserDto(country = "GH", currency = "GHS", timeZone = "Africa/Accra").toUser()
+        assertEquals(Country.GH, user.country)
+        assertEquals(Currency.GHS, user.currency)
+        assertEquals("Africa/Accra", user.timeZone)
+    }
+
+    @Test
+    fun unknownOrLowercaseCodes() {
+        assertEquals(Country.NG, UserDto(country = "zz").toUser().country)
+        assertEquals(Country.GH, UserDto(country = "gh").toUser().country)
+        assertEquals(Currency.GHS, UserDto(country = "GH", currency = null).toUser().currency)
+    }
+
+    @Test
+    fun missingTimeZoneUsesTheCountryDefault() {
+        assertEquals("Africa/Nairobi", UserDto(country = "KE", timeZone = null).toUser().timeZone)
+    }
+
+    @Test
+    fun countryFieldsRoundTrip() {
+        val user = User(
+            id = "u",
+            email = "a@b.com",
+            displayName = "Ada",
+            businessName = null,
+            phoneNumber = null,
+            whatsappNumber = null,
+            avatarColorIndex = 0,
+            country = Country.CD,
+            currency = Country.CD.currency,
+            timeZone = "Africa/Lubumbashi",
+            locale = "fr-CD",
+        )
+        assertEquals(user, user.toUserDto().toUser())
     }
 }

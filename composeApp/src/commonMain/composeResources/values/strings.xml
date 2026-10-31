@@ -247,7 +247,8 @@
     <string name="customer_form_name_label">Full name</string>
     <string name="customer_form_name_placeholder">e.g. Amina Bello</string>
     <string name="customer_form_phone_label">Phone number</string>
-    <string name="customer_form_phone_placeholder">+234 801 234 5678</string>
+    <!-- %1$s = dial code (no plus), %2$s = the country's local example mobile number -->
+    <string name="customer_form_phone_placeholder">+%1$s %2$s</string>
     <string name="customer_form_email_label">Email (optional)</string>
     <string name="customer_form_email_placeholder">e.g. amina@gmail.com</string>
     <string name="customer_form_address_label">Address (optional)</string>
@@ -1353,10 +1354,31 @@
     <string name="brand_name">STITCHPAD</string>
 
     <!-- WhatsApp / Workshop Phase 2 -->
-    <string name="error_whatsapp_invalid">Enter a valid Nigerian WhatsApp number (10 digits)</string>
+    <string name="error_whatsapp_invalid_for_country">Enter a valid WhatsApp number for %1$s (%2$d digits after +%3$s)</string>
+
+    <!-- Country picker (africa expansion) -->
+    <string name="country_picker_title">Choose your country</string>
+    <string name="country_picker_chip_content_description">Country: %1$s, dial code +%2$s. Tap to change.</string>
+    <string name="country_time_zone_title">Time zone</string>
+    <string name="time_zone_kinshasa">Kinshasa (UTC+1)</string>
+    <string name="time_zone_lubumbashi">Lubumbashi (UTC+2)</string>
+    <string name="country_name_ng">Nigeria</string>
+    <string name="country_name_gh">Ghana</string>
+    <string name="country_name_ke">Kenya</string>
+    <string name="country_name_ci">Côte d&apos;Ivoire</string>
+    <string name="country_name_sn">Senegal</string>
+    <string name="country_name_bj">Benin</string>
+    <string name="country_name_tg">Togo</string>
+    <string name="country_name_ml">Mali</string>
+    <string name="country_name_bf">Burkina Faso</string>
+    <string name="country_name_ne">Niger</string>
+    <string name="country_name_cm">Cameroon</string>
+    <string name="country_name_ga">Gabon</string>
+    <string name="country_name_cg">Congo</string>
+    <string name="country_name_gn">Guinea</string>
+    <string name="country_name_cd">DR Congo</string>
     <string name="workshop_whatsapp_label">WhatsApp number</string>
     <string name="workshop_whatsapp_optional">Optional</string>
-    <string name="workshop_whatsapp_placeholder">801 234 5678</string>
     <string name="workshop_whatsapp_helper">Used for reminders and customer follow-up. Make sure WhatsApp is active on this number.</string>
     <string name="whatsapp_confirm_cta">Confirm on WhatsApp</string>
     <string name="whatsapp_confirmed_badge">WhatsApp confirmed</string>
@@ -1626,7 +1648,6 @@
     <string name="edit_profile_helper_phone">Voice line — only set this if it&apos;s different from your WhatsApp</string>
     <string name="edit_profile_label_whatsapp">WhatsApp number</string>
     <string name="edit_profile_helper_whatsapp">Used for customer reminders and receipts</string>
-    <string name="edit_profile_phone_prefix">🇳🇬 +234</string>
     <string name="edit_profile_label_email">Email</string>
     <string name="edit_profile_helper_email_readonly">Email changes require security verification — manage from Settings → Account → Email.</string>
     <string name="edit_profile_save">Save changes</string>
@@ -1638,8 +1659,7 @@
     <!-- Validation errors specific to Settings forms -->
     <string name="error_business_name_required">Business name is required</string>
     <string name="error_phone_required">Phone number is required</string>
-    <string name="error_phone_format">Phone number must be 10 digits after +234</string>
-    <string name="error_whatsapp_format">WhatsApp number must be 10 digits after +234</string>
+    <string name="error_phone_format">Enter a valid phone number (7 to 15 digits)</string>
 
     <!-- Change Email / Change Password -->
     <string name="change_email_title">Change email</string>

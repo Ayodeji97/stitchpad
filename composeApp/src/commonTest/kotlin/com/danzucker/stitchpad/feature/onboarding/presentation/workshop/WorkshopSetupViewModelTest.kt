@@ -4,23 +4,30 @@ import app.cash.turbine.test
 import com.danzucker.stitchpad.core.analytics.FakeAnalytics
 import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
 import com.danzucker.stitchpad.core.domain.error.DataError
+import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.Country
+import com.danzucker.stitchpad.core.domain.model.defaultTimeZone
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.error_business_name_too_short
-import stitchpad.composeapp.generated.resources.error_whatsapp_invalid
+import stitchpad.composeapp.generated.resources.error_whatsapp_invalid_for_country
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -46,23 +53,30 @@ class WorkshopSetupViewModelTest {
         fakeAuth = FakeAuthRepository()
         onboardingPreferences = FakeOnboardingPreferences()
         fakeAuth.shouldReturnError = null
-        viewModel = WorkshopSetupViewModel(
-            fakeUserRepository, fakeAuth, onboardingPreferences,
-            confirmCodeGenerator = { "1234" },
-            analytics = FakeAnalytics(),
-            celebrations = CelebrationController(
-                preferences = FakeOnboardingPreferences(),
-                analytics = FakeAnalytics(),
-                authUserIds = emptyFlow(),
-                scope = CoroutineScope(UnconfinedTestDispatcher()),
-            ),
-        )
+        viewModel = createViewModel()
     }
 
     @AfterTest
     fun tearDown() {
         Dispatchers.resetMain()
     }
+
+    private fun createViewModel(
+        region: () -> String? = { null },
+        language: () -> String = { "en" },
+    ) = WorkshopSetupViewModel(
+        fakeUserRepository, fakeAuth, onboardingPreferences,
+        confirmCodeGenerator = { "1234" },
+        analytics = FakeAnalytics(),
+        celebrations = CelebrationController(
+            preferences = FakeOnboardingPreferences(),
+            analytics = FakeAnalytics(),
+            authUserIds = emptyFlow(),
+            scope = CoroutineScope(UnconfinedTestDispatcher()),
+        ),
+        deviceRegion = region,
+        deviceLanguage = language,
+    )
 
     @Test
     fun initialStateIsEmpty() {
@@ -104,17 +118,7 @@ class WorkshopSetupViewModelTest {
     fun continueWithDataWritesToRepositoryAndNavigates() = runTest {
         fakeAuth.signUpWithEmail("test@test.com", "pass123", "Test")
 
-        viewModel = WorkshopSetupViewModel(
-            fakeUserRepository, fakeAuth, onboardingPreferences,
-            confirmCodeGenerator = { "1234" },
-            analytics = FakeAnalytics(),
-            celebrations = CelebrationController(
-                preferences = FakeOnboardingPreferences(),
-                analytics = FakeAnalytics(),
-                authUserIds = emptyFlow(),
-                scope = CoroutineScope(UnconfinedTestDispatcher()),
-            ),
-        )
+        viewModel = createViewModel()
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
         viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("0803 123 4567"))
         viewModel.onAction(WorkshopSetupAction.OnContinueClick)
@@ -139,17 +143,7 @@ class WorkshopSetupViewModelTest {
     @Test
     fun continueWithOnlyBusinessNameWritesProfileWithNullWhatsApp() = runTest {
         fakeAuth.signUpWithEmail("test@test.com", "pass123", "Test")
-        viewModel = WorkshopSetupViewModel(
-            fakeUserRepository, fakeAuth, onboardingPreferences,
-            confirmCodeGenerator = { "1234" },
-            analytics = FakeAnalytics(),
-            celebrations = CelebrationController(
-                preferences = FakeOnboardingPreferences(),
-                analytics = FakeAnalytics(),
-                authUserIds = emptyFlow(),
-                scope = CoroutineScope(UnconfinedTestDispatcher()),
-            ),
-        )
+        viewModel = createViewModel()
 
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
         viewModel.onAction(WorkshopSetupAction.OnContinueClick)
@@ -163,24 +157,14 @@ class WorkshopSetupViewModelTest {
     @Test
     fun continueWithBusinessNameAndInvalidWhatsAppSetsWhatsAppError() = runTest {
         fakeAuth.signUpWithEmail("test@test.com", "pass123", "Test")
-        viewModel = WorkshopSetupViewModel(
-            fakeUserRepository, fakeAuth, onboardingPreferences,
-            confirmCodeGenerator = { "1234" },
-            analytics = FakeAnalytics(),
-            celebrations = CelebrationController(
-                preferences = FakeOnboardingPreferences(),
-                analytics = FakeAnalytics(),
-                authUserIds = emptyFlow(),
-                scope = CoroutineScope(UnconfinedTestDispatcher()),
-            ),
-        )
+        viewModel = createViewModel()
 
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
         viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("0803"))
         viewModel.onAction(WorkshopSetupAction.OnContinueClick)
         runCurrent()
 
-        assertEquals(Res.string.error_whatsapp_invalid, viewModel.state.value.whatsappError)
+        assertEquals(Res.string.error_whatsapp_invalid_for_country, viewModel.state.value.whatsappError)
         assertNull(fakeUserRepository.lastBusinessName)
     }
 
@@ -188,17 +172,7 @@ class WorkshopSetupViewModelTest {
     fun continueWithRepositoryErrorEmitsShowError() = runTest {
         fakeAuth.signUpWithEmail("test@test.com", "pass123", "Test")
         fakeUserRepository.shouldReturnError = DataError.Network.UNKNOWN
-        viewModel = WorkshopSetupViewModel(
-            fakeUserRepository, fakeAuth, onboardingPreferences,
-            confirmCodeGenerator = { "1234" },
-            analytics = FakeAnalytics(),
-            celebrations = CelebrationController(
-                preferences = FakeOnboardingPreferences(),
-                analytics = FakeAnalytics(),
-                authUserIds = emptyFlow(),
-                scope = CoroutineScope(UnconfinedTestDispatcher()),
-            ),
-        )
+        viewModel = createViewModel()
 
         viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ade Fashions"))
         viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("0803 123 4567"))
@@ -233,7 +207,7 @@ class WorkshopSetupViewModelTest {
     fun `OnWhatsAppNumberBlur sets error when number is too short`() = runTest {
         viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("0803123"))
         viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberBlur)
-        assertEquals(Res.string.error_whatsapp_invalid, viewModel.state.first().whatsappError)
+        assertEquals(Res.string.error_whatsapp_invalid_for_country, viewModel.state.first().whatsappError)
     }
 
     @Test
@@ -372,5 +346,420 @@ class WorkshopSetupViewModelTest {
         assertNull(confirm.code)
         assertNull(confirm.error)
         assertFalse(confirm.confirmed)
+    }
+
+    // --- Country picker (africa expansion PR 1, Task 6) ---
+
+    private fun signedInUser(country: Country = Country.NG, timeZone: String = country.defaultTimeZone) = User(
+        id = "u1", email = "x@y.z", displayName = "Tester",
+        businessName = null, phoneNumber = null, whatsappNumber = null, avatarColorIndex = 0,
+        country = country, timeZone = timeZone,
+    )
+
+    @Test
+    fun `preselects device region`() {
+        viewModel = createViewModel(region = { "GH" })
+        assertEquals(Country.GH, viewModel.state.value.country)
+        assertEquals("Africa/Accra", viewModel.state.value.timeZone)
+    }
+
+    @Test
+    fun `lowercase device region is recognised`() {
+        viewModel = createViewModel(region = { "sn" })
+        assertEquals(Country.SN, viewModel.state.value.country)
+    }
+
+    @Test
+    fun `unknown region defaults to nigeria`() {
+        listOf(null, "", "  ", "US").forEach { region ->
+            viewModel = createViewModel(region = { region })
+            assertEquals(Country.NG, viewModel.state.value.country, "region=$region")
+            assertEquals("Africa/Lagos", viewModel.state.value.timeZone, "region=$region")
+        }
+    }
+
+    @Test
+    fun `chip click opens picker and dismiss closes it`() {
+        viewModel.onAction(WorkshopSetupAction.OnCountryChipClick)
+        assertTrue(viewModel.state.value.isCountryPickerOpen)
+        viewModel.onAction(WorkshopSetupAction.OnDismissCountryPicker)
+        assertFalse(viewModel.state.value.isCountryPickerOpen)
+    }
+
+    @Test
+    fun `selecting country closes picker`() {
+        viewModel.onAction(WorkshopSetupAction.OnCountryChipClick)
+        viewModel.onAction(WorkshopSetupAction.OnCountrySelected(Country.KE))
+        assertFalse(viewModel.state.value.isCountryPickerOpen)
+        assertEquals(Country.KE, viewModel.state.value.country)
+    }
+
+    @Test
+    fun `selecting country resets time zone to its default and revalidates the number`() {
+        viewModel.onAction(WorkshopSetupAction.OnCountrySelected(Country.CD))
+        viewModel.onAction(WorkshopSetupAction.OnTimeZoneSelected("Africa/Lubumbashi"))
+        viewModel.onAction(WorkshopSetupAction.OnCountrySelected(Country.NG))
+        assertEquals("Africa/Lagos", viewModel.state.value.timeZone)
+
+        viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("244123456"))
+        viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberBlur)
+        assertEquals(Res.string.error_whatsapp_invalid_for_country, viewModel.state.value.whatsappError)
+
+        viewModel.onAction(WorkshopSetupAction.OnCountrySelected(Country.GH))
+        assertNull(viewModel.state.value.whatsappError)
+        assertEquals("Africa/Accra", viewModel.state.value.timeZone)
+    }
+
+    @Test
+    fun `selecting a country that rejects the number shows the error`() {
+        viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("0803 123 4567"))
+        viewModel.onAction(WorkshopSetupAction.OnCountrySelected(Country.GH))
+        assertEquals(Res.string.error_whatsapp_invalid_for_country, viewModel.state.value.whatsappError)
+    }
+
+    @Test
+    fun `changing country resets whatsapp confirmation`() = runTest {
+        viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("8031234567"))
+        viewModel.events.test {
+            viewModel.onAction(WorkshopSetupAction.OnConfirmWhatsAppClick)
+            assertIs<WorkshopSetupEvent.LaunchWhatsAppConfirm>(awaitItem())
+        }
+        viewModel.onAction(WorkshopSetupAction.OnConfirmCodeChange("1234"))
+        assertTrue(viewModel.state.value.whatsappConfirm.confirmed)
+
+        viewModel.onAction(WorkshopSetupAction.OnCountrySelected(Country.GH))
+        assertFalse(viewModel.state.value.whatsappConfirm.confirmed)
+    }
+
+    @Test
+    fun `dr congo exposes both zones`() {
+        viewModel.onAction(WorkshopSetupAction.OnCountrySelected(Country.CD))
+        assertEquals("Africa/Kinshasa", viewModel.state.value.timeZone)
+        viewModel.onAction(WorkshopSetupAction.OnTimeZoneSelected("Africa/Lubumbashi"))
+        assertEquals("Africa/Lubumbashi", viewModel.state.value.timeZone)
+    }
+
+    @Test
+    fun `time zone outside the country is ignored`() {
+        viewModel.onAction(WorkshopSetupAction.OnCountrySelected(Country.GH))
+        viewModel.onAction(WorkshopSetupAction.OnTimeZoneSelected("Africa/Lubumbashi"))
+        assertEquals("Africa/Accra", viewModel.state.value.timeZone)
+    }
+
+    @Test
+    fun `continue saves country, time zone, locale and E164`() = runTest {
+        fakeAuth.currentUser = signedInUser()
+        viewModel = createViewModel(region = { "GH" }, language = { "fr" })
+
+        viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ama Stitches"))
+        viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("0244123456"))
+        viewModel.onAction(WorkshopSetupAction.OnContinueClick)
+
+        assertIs<WorkshopSetupEvent.NavigateToHome>(viewModel.events.first())
+        assertEquals(Country.GH, fakeUserRepository.lastCountry)
+        assertEquals("Africa/Accra", fakeUserRepository.lastTimeZone)
+        assertEquals("+233244123456", fakeUserRepository.lastWhatsAppNumber)
+        assertEquals("fr", fakeUserRepository.lastLocale)
+    }
+
+    @Test
+    fun `confirm launch uses the selected country`() = runTest {
+        viewModel.onAction(WorkshopSetupAction.OnCountrySelected(Country.GH))
+        viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("024 412 3456"))
+        viewModel.events.test {
+            viewModel.onAction(WorkshopSetupAction.OnConfirmWhatsAppClick)
+            val event = awaitItem()
+            assertIs<WorkshopSetupEvent.LaunchWhatsAppConfirm>(event)
+            assertEquals("+233244123456", event.phoneE164)
+        }
+    }
+
+    @Test
+    fun `existing user re-entering setup keeps their country over the device region`() = runTest {
+        val existing = signedInUser(country = Country.GH).copy(locale = "en-GH")
+        fakeAuth.currentUser = existing
+        fakeUserRepository.userFlow.value = existing
+        viewModel = createViewModel(region = { "NG" }, language = { "fr" })
+
+        assertEquals(Country.GH, viewModel.state.value.country)
+        assertEquals("Africa/Accra", viewModel.state.value.timeZone)
+
+        viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ama Stitches"))
+        viewModel.onAction(WorkshopSetupAction.OnContinueClick)
+
+        assertIs<WorkshopSetupEvent.NavigateToHome>(viewModel.events.first())
+        assertEquals(Country.GH, fakeUserRepository.lastCountry)
+        assertEquals("Africa/Accra", fakeUserRepository.lastTimeZone)
+        assertEquals("en-GH", fakeUserRepository.lastLocale)
+    }
+
+    @Test
+    fun `existing user keeps their stored dr congo zone`() {
+        val existing = signedInUser(country = Country.CD, timeZone = "Africa/Lubumbashi")
+        fakeAuth.currentUser = existing
+        fakeUserRepository.userFlow.value = existing
+        viewModel = createViewModel(region = { "GH" })
+
+        assertEquals(Country.CD, viewModel.state.value.country)
+        assertEquals("Africa/Lubumbashi", viewModel.state.value.timeZone)
+    }
+
+    @Test
+    fun `existing user doc arriving late does not override a manual pick`() {
+        fakeAuth.currentUser = signedInUser()
+        val late = MutableSharedFlow<User?>(extraBufferCapacity = 1)
+        fakeUserRepository.getUserOverride = { Result.Success(late.first()) }
+        viewModel = createViewModel(region = { "NG" })
+
+        viewModel.onAction(WorkshopSetupAction.OnCountrySelected(Country.KE))
+        assertTrue(late.tryEmit(signedInUser(country = Country.GH)))
+
+        assertEquals(Country.KE, viewModel.state.value.country)
+    }
+
+    @Test
+    fun `no existing doc uses the device region`() {
+        fakeAuth.currentUser = signedInUser()
+        fakeUserRepository.userFlow.value = null
+        viewModel = createViewModel(region = { "KE" })
+        assertEquals(Country.KE, viewModel.state.value.country)
+    }
+
+    @Test
+    fun `existing user with a zone outside their country gets the country default`() {
+        val existing = signedInUser(country = Country.GH, timeZone = "Africa/Lubumbashi")
+        fakeAuth.currentUser = existing
+        fakeUserRepository.userFlow.value = existing
+        viewModel = createViewModel(region = { "NG" })
+
+        assertEquals(Country.GH, viewModel.state.value.country)
+        assertEquals("Africa/Accra", viewModel.state.value.timeZone)
+    }
+
+    @Test
+    fun `rapid continue taps while the doc read is pending write the profile once`() = runTest {
+        fakeAuth.currentUser = signedInUser()
+        val gate = CompletableDeferred<Result<User?, DataError.Network>>()
+        fakeUserRepository.getUserOverride = { gate.await() }
+        viewModel = createViewModel(region = { "NG" })
+        viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ama Stitches"))
+
+        viewModel.onAction(WorkshopSetupAction.OnContinueClick)
+        assertTrue(viewModel.state.value.isLoading, "button shows busy during the doc wait")
+        viewModel.onAction(WorkshopSetupAction.OnContinueClick)
+        viewModel.onAction(WorkshopSetupAction.OnContinueClick)
+
+        viewModel.events.test {
+            gate.complete(Result.Success(null))
+            assertIs<WorkshopSetupEvent.NavigateToHome>(awaitItem())
+            expectNoEvents()
+        }
+        assertEquals(1, fakeUserRepository.createUserProfileCallCount)
+    }
+
+    @Test
+    fun `doc arriving during the continue wait is what gets saved`() = runTest {
+        fakeAuth.currentUser = signedInUser()
+        val late = MutableSharedFlow<User?>(extraBufferCapacity = 1)
+        fakeUserRepository.getUserOverride = { Result.Success(late.first()) }
+        viewModel = createViewModel(region = { "NG" })
+        viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ama Stitches"))
+        // A Ghanaian number: invalid under the device region, valid once the GH doc lands.
+        viewModel.onAction(WorkshopSetupAction.OnWhatsAppNumberChange("024 412 3456"))
+
+        viewModel.onAction(WorkshopSetupAction.OnContinueClick)
+        assertNull(fakeUserRepository.lastUserId, "nothing written before the read lands")
+        assertTrue(late.tryEmit(signedInUser(country = Country.GH)))
+
+        assertIs<WorkshopSetupEvent.NavigateToHome>(viewModel.events.first())
+        assertEquals(Country.GH, fakeUserRepository.lastCountry)
+        assertEquals("Africa/Accra", fakeUserRepository.lastTimeZone)
+        assertEquals("+233244123456", fakeUserRepository.lastWhatsAppNumber)
+    }
+
+    @Test
+    fun `failed doc read leaves the stored market untouched on continue`() = runTest {
+        fakeAuth.currentUser = signedInUser(country = Country.GH)
+        fakeUserRepository.getUserOverride = { Result.Error(DataError.Network.UNKNOWN) }
+        viewModel = createViewModel(region = { "NG" }, language = { "fr" })
+
+        viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ama Stitches"))
+        viewModel.onAction(WorkshopSetupAction.OnContinueClick)
+
+        assertIs<WorkshopSetupEvent.NavigateToHome>(viewModel.events.first())
+        assertEquals("u1", fakeUserRepository.lastUserId)
+        assertNull(fakeUserRepository.lastCountry, "country (and so currency) not rewritten")
+        assertNull(fakeUserRepository.lastTimeZone)
+        assertNull(fakeUserRepository.lastLocale)
+    }
+
+    @Test
+    fun `failed doc read still saves a country the user picked`() = runTest {
+        fakeAuth.currentUser = signedInUser()
+        fakeUserRepository.getUserOverride = { Result.Error(DataError.Network.UNKNOWN) }
+        viewModel = createViewModel(region = { "NG" })
+
+        viewModel.onAction(WorkshopSetupAction.OnCountrySelected(Country.KE))
+        viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Wanjiru Designs"))
+        viewModel.onAction(WorkshopSetupAction.OnContinueClick)
+
+        assertIs<WorkshopSetupEvent.NavigateToHome>(viewModel.events.first())
+        assertEquals(Country.KE, fakeUserRepository.lastCountry)
+        assertEquals("Africa/Nairobi", fakeUserRepository.lastTimeZone)
+    }
+
+    @Test
+    fun `timed-out doc read lets continue finish without writing the market`() = runTest {
+        fakeAuth.currentUser = signedInUser(country = Country.GH)
+        fakeUserRepository.getUserOverride = { awaitCancellation() }
+        viewModel = createViewModel(region = { "NG" })
+        viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ama Stitches"))
+
+        viewModel.events.test {
+            viewModel.onAction(WorkshopSetupAction.OnContinueClick)
+            advanceTimeBy(2_000)
+            assertNull(fakeUserRepository.lastUserId, "still waiting on the read")
+            advanceTimeBy(1_500)
+            assertIs<WorkshopSetupEvent.NavigateToHome>(awaitItem())
+        }
+        assertEquals("u1", fakeUserRepository.lastUserId)
+        assertNull(fakeUserRepository.lastCountry)
+        assertNull(fakeUserRepository.lastTimeZone)
+        assertEquals(Country.NG, viewModel.state.value.country, "device region shown, but not saved")
+    }
+
+    @Test
+    fun `skip after picking ghana persists the market only`() = runTest {
+        fakeAuth.currentUser = signedInUser()
+        fakeUserRepository.userFlow.value = null
+        viewModel = createViewModel(region = { "NG" }, language = { "en" })
+
+        viewModel.onAction(WorkshopSetupAction.OnCountrySelected(Country.GH))
+        viewModel.onAction(WorkshopSetupAction.OnSkipClick)
+
+        assertIs<WorkshopSetupEvent.NavigateToHome>(viewModel.events.first())
+        assertEquals(Country.GH, fakeUserRepository.lastCountry)
+        assertEquals("Africa/Accra", fakeUserRepository.lastTimeZone)
+        assertEquals("en", fakeUserRepository.lastLocale)
+        // Nothing else is written, so the merge never clears stored profile values.
+        assertNull(fakeUserRepository.lastBusinessName)
+        assertNull(fakeUserRepository.lastWhatsAppNumber)
+        assertNull(fakeUserRepository.lastWhatsappConfirmed)
+        assertNull(fakeUserRepository.lastBankName)
+    }
+
+    @Test
+    fun `skip after a confirmed-absent read persists the device region`() = runTest {
+        fakeAuth.currentUser = signedInUser()
+        fakeUserRepository.userFlow.value = null
+        viewModel = createViewModel(region = { "KE" })
+
+        viewModel.onAction(WorkshopSetupAction.OnSkipClick)
+
+        assertIs<WorkshopSetupEvent.NavigateToHome>(viewModel.events.first())
+        assertEquals(Country.KE, fakeUserRepository.lastCountry)
+        assertEquals("Africa/Nairobi", fakeUserRepository.lastTimeZone)
+    }
+
+    @Test
+    fun `skip after a failed doc read writes no market`() = runTest {
+        fakeAuth.currentUser = signedInUser(country = Country.GH)
+        fakeUserRepository.getUserOverride = { Result.Error(DataError.Network.UNKNOWN) }
+        viewModel = createViewModel(region = { "NG" })
+
+        viewModel.onAction(WorkshopSetupAction.OnSkipClick)
+
+        assertIs<WorkshopSetupEvent.NavigateToHome>(viewModel.events.first())
+        assertEquals(0, fakeUserRepository.createUserProfileCallCount)
+        assertNull(fakeUserRepository.lastCountry)
+    }
+
+    @Test
+    fun `skip on an existing doc the user did not change writes no market`() = runTest {
+        val existing = signedInUser(country = Country.GH)
+        fakeAuth.currentUser = existing
+        fakeUserRepository.userFlow.value = existing
+        viewModel = createViewModel(region = { "NG" })
+
+        viewModel.onAction(WorkshopSetupAction.OnSkipClick)
+
+        assertIs<WorkshopSetupEvent.NavigateToHome>(viewModel.events.first())
+        assertEquals(0, fakeUserRepository.createUserProfileCallCount)
+    }
+
+    @Test
+    fun `skip while the doc read is pending waits for it before deciding`() = runTest {
+        fakeAuth.currentUser = signedInUser()
+        val gate = CompletableDeferred<Result<User?, DataError.Network>>()
+        fakeUserRepository.getUserOverride = { gate.await() }
+        viewModel = createViewModel(region = { "GH" })
+
+        viewModel.events.test {
+            viewModel.onAction(WorkshopSetupAction.OnSkipClick)
+            expectNoEvents()
+            gate.complete(Result.Error(DataError.Network.UNKNOWN))
+            assertIs<WorkshopSetupEvent.NavigateToHome>(awaitItem())
+        }
+        assertEquals(0, fakeUserRepository.createUserProfileCallCount, "failed read: no market write")
+    }
+
+    @Test
+    fun `nigerian skipper who never touched the picker gets no write`() = runTest {
+        fakeAuth.currentUser = signedInUser()
+        fakeUserRepository.userFlow.value = null // confirmed absent
+        viewModel = createViewModel(region = { "NG" })
+
+        viewModel.onAction(WorkshopSetupAction.OnSkipClick)
+
+        assertIs<WorkshopSetupEvent.NavigateToHome>(viewModel.events.first())
+        assertEquals(0, fakeUserRepository.createUserProfileCallCount, "no users/{uid} doc for NG skippers")
+    }
+
+    @Test
+    fun `skip after explicitly picking nigeria gets no write`() = runTest {
+        fakeAuth.currentUser = signedInUser()
+        fakeUserRepository.userFlow.value = null
+        viewModel = createViewModel(region = { "GH" })
+
+        viewModel.onAction(WorkshopSetupAction.OnCountrySelected(Country.NG))
+        viewModel.onAction(WorkshopSetupAction.OnSkipClick)
+
+        assertIs<WorkshopSetupEvent.NavigateToHome>(viewModel.events.first())
+        assertEquals(0, fakeUserRepository.createUserProfileCallCount)
+    }
+
+    @Test
+    fun `double tap on skip during the doc-read wait navigates once`() = runTest {
+        fakeAuth.currentUser = signedInUser()
+        val gate = CompletableDeferred<Result<User?, DataError.Network>>()
+        fakeUserRepository.getUserOverride = { gate.await() }
+        viewModel = createViewModel(region = { "KE" })
+
+        viewModel.events.test {
+            viewModel.onAction(WorkshopSetupAction.OnSkipClick)
+            viewModel.onAction(WorkshopSetupAction.OnSkipClick)
+            gate.complete(Result.Success(null))
+            assertIs<WorkshopSetupEvent.NavigateToHome>(awaitItem())
+            expectNoEvents()
+        }
+        assertEquals(1, fakeUserRepository.createUserProfileCallCount, "one Skip, one market write")
+    }
+
+    @Test
+    fun `continue tapped during a running skip does not write or navigate again`() = runTest {
+        fakeAuth.currentUser = signedInUser()
+        val gate = CompletableDeferred<Result<User?, DataError.Network>>()
+        fakeUserRepository.getUserOverride = { gate.await() }
+        viewModel = createViewModel(region = { "NG" })
+        viewModel.onAction(WorkshopSetupAction.OnBusinessNameChange("Ama Stitches"))
+
+        viewModel.events.test {
+            viewModel.onAction(WorkshopSetupAction.OnSkipClick)
+            viewModel.onAction(WorkshopSetupAction.OnContinueClick)
+            gate.complete(Result.Success(null))
+            assertIs<WorkshopSetupEvent.NavigateToHome>(awaitItem())
+            expectNoEvents()
+        }
+        assertNull(fakeUserRepository.lastBusinessName, "Continue must not run after Skip")
     }
 }

@@ -1,47 +1,67 @@
 package com.danzucker.stitchpad.core.sharing
 
-private const val NIGERIAN_TRUNK_PREFIX = "0"
-private const val NIGERIAN_COUNTRY_CODE = "234"
-private const val NIGERIAN_SUBSCRIBER_LENGTH = 10
+import com.danzucker.stitchpad.core.domain.model.Country
+
+private const val INTERNATIONAL_DIAL_PREFIX = "00"
+
+private fun String.digitsOnly(): String = filter { it.isDigit() }
+
+/** True when [raw] spells its own country code: a leading `+`, or `00` plus a registry dial code. */
+private fun hasExplicitCountryCode(raw: String): Boolean {
+    val trimmed = raw.trim()
+    val afterPrefix = trimmed.digitsOnly().drop(INTERNATIONAL_DIAL_PREFIX.length)
+    // No ITU country code starts with 0, so "+0803…" is a mistyped trunk number, not explicit.
+    return (trimmed.startsWith("+") && !trimmed.drop(1).trimStart { !it.isDigit() }.startsWith("0")) ||
+        (trimmed.startsWith(INTERNATIONAL_DIAL_PREFIX) && Country.entries.any { afterPrefix.startsWith(it.dialCode) })
+}
 
 /**
- * Strips formatting and resolves Nigerian local numbers to E.164-style digits.
- *  - "0803 123 4567"   → "2348031234567"
- *  - "+234 803 1234567" → "2348031234567"
- *  - "234-803-123-4567" → "2348031234567"
+ * Strips formatting and resolves a phone number to digits-only with its country code, using
+ * [country] to interpret local numbers. Rules, in order:
+ *  - "+234 803 123 4567" / "00234 803 123 4567" → "2348031234567" (country code already explicit,
+ *    any country, so a foreign customer keeps its own code)
+ *  - "234-803-123-4567" (starts with [Country.dialCode], full length) → "2348031234567"
+ *  - "0803 123 4567" (starts with [Country.trunkPrefix], national length + 1) → "2348031234567"
+ *  - anything else is returned digits-only; a country is never guessed for bare numbers.
  *
- * Non-Nigerian numbers (already including a non-234 country code) are returned digits-only;
- * the caller should ensure customer phones are stored with country context.
- *
- * For UIs that *imply* a Nigerian country code via a +234 chip (e.g. workshop WhatsApp field),
- * prefix the user's bare subscriber input with the country code at the call site before
- * calling this — see [applyImpliedNigerianCountryCode].
+ * For UIs that *imply* the country via a dial-code chip (e.g. workshop WhatsApp field),
+ * prefix the user's bare national input at the call site before calling this — see
+ * [applyImpliedCountryCode].
  */
-fun normaliseNigerianPhone(raw: String): String {
-    val digits = raw.filter { it.isDigit() }
+fun normalisePhone(raw: String, country: Country): String {
+    val digits = raw.digitsOnly()
+    if (hasExplicitCountryCode(raw)) {
+        return if (raw.trim().startsWith("+")) digits else digits.drop(INTERNATIONAL_DIAL_PREFIX.length)
+    }
+    val trunk = country.trunkPrefix
     return when {
-        digits.startsWith(NIGERIAN_COUNTRY_CODE) -> digits
-        digits.startsWith(NIGERIAN_TRUNK_PREFIX) -> NIGERIAN_COUNTRY_CODE + digits.drop(1)
+        digits.startsWith(country.dialCode) &&
+            digits.length == country.dialCode.length + country.nationalLength -> digits
+        trunk != null && digits.startsWith(trunk) &&
+            digits.length == country.nationalLength + 1 -> country.dialCode + digits.drop(trunk.length)
         else -> digits
     }
 }
 
 /**
- * Use only at call sites where the UI explicitly displays a Nigerian (+234) country-code chip
- * outside the input, so a bare 10-digit input is unambiguously the local subscriber portion.
- *  - "8031234567" → "2348031234567"
- *  - "0803 1234567" / "+234 803 1234567" → unchanged here, normaliseNigerianPhone handles them.
+ * Use only at call sites where the UI explicitly displays the country's dial-code chip outside
+ * the input, so a bare national-length input is unambiguously the local portion.
+ *  - NG "8031234567" → "2348031234567"
+ *  - GA "06 12 34 56" → "24106123456" after normalising (the leading 0 is part of the Gabonese number)
+ *  - "0803 1234567" / "+234 803 1234567" → unchanged here, [normalisePhone] handles them.
  *
  * Do NOT use on shared phone fields (e.g. customer contact) where the country is unknown —
- * a bare 10-digit US number would be silently rewritten as Nigerian.
+ * a bare number could belong to another country and would be silently rewritten.
  */
-fun applyImpliedNigerianCountryCode(raw: String): String {
-    val digits = raw.filter { it.isDigit() }
-    return if (digits.length == NIGERIAN_SUBSCRIBER_LENGTH &&
-        !digits.startsWith(NIGERIAN_COUNTRY_CODE) &&
-        !digits.startsWith(NIGERIAN_TRUNK_PREFIX)
-    ) {
-        NIGERIAN_COUNTRY_CODE + raw
+fun applyImpliedCountryCode(raw: String, country: Country): String {
+    val digits = raw.digitsOnly()
+    // "+803 123 4567" in a chip field: the user typed the national number after a stray "+".
+    val strayPlus = raw.trim().startsWith("+") &&
+        digits.length == country.nationalLength &&
+        Country.entries.none { digits.startsWith(it.dialCode) }
+    if (hasExplicitCountryCode(raw) && !strayPlus) return raw
+    return if (digits.length == country.nationalLength) {
+        country.dialCode + digits
     } else {
         raw
     }
@@ -49,32 +69,28 @@ fun applyImpliedNigerianCountryCode(raw: String): String {
 
 /**
  * Builds the wa.me URL that works on iOS, Android, and the web — falling back to a
- * browser-based WhatsApp page when the app isn't installed.
+ * browser-based WhatsApp page when the app isn't installed. [country] decides how local
+ * (trunk-prefixed) numbers are resolved.
  */
-fun buildWhatsAppUrl(phone: String, message: String): String {
+fun buildWhatsAppUrl(phone: String, message: String, country: Country): String {
     val encoded = urlEncode(message)
-    val normalised = normaliseNigerianPhone(phone)
+    val normalised = normalisePhone(phone, country)
     // No usable number — open WhatsApp's own recipient picker with the text
     // prefilled (wa.me without digits) instead of a dead link.
     if (normalised.isBlank()) return "https://wa.me/?text=$encoded"
     return "https://wa.me/$normalised?text=$encoded"
 }
 
-// Nigerian mobile NSN leading shape: first digit 7/8/9, second digit 0/1,
-// then 8 more digits. Covers operator blocks 70x/71x/80x/81x/90x/91x
-// (MTN/Glo/Airtel/9mobile/etc.) and rejects landlines, 20x, and +234 000…
-// It is deliberately broad (does not enumerate every assigned block) — the
-// "Confirm on WhatsApp" round-trip is the backstop for well-formed fakes,
-// since they will not be reachable on WhatsApp.
-private val NIGERIAN_MOBILE_E164 = Regex("^234[789][01]\\d{8}$")
-
 /**
- * Returns true iff [raw] normalises to a Nigerian mobile number in E.164 form
- * (234 + a 10-digit subscriber number whose leading pair matches `[789][01]`).
+ * Returns true iff [raw] (with the implied country code applied) normalises to [country]'s
+ * dial code followed by a national number matching [Country.mobilePattern]. The pattern is
+ * deliberately not an assignment list — the "Confirm on WhatsApp" round-trip is the backstop
+ * for well-formed fakes, since they will not be reachable on WhatsApp.
  */
-fun validateNigerianMobileE164(raw: String): Boolean {
-    val normalised = normaliseNigerianPhone(raw)
-    return NIGERIAN_MOBILE_E164.matches(normalised)
+fun isValidMobile(raw: String, country: Country): Boolean {
+    val normalised = normalisePhone(applyImpliedCountryCode(raw, country), country)
+    return normalised.startsWith(country.dialCode) &&
+        country.mobilePattern.matches(normalised.drop(country.dialCode.length))
 }
 
 // RFC 3986 unreserved is ASCII-only: A-Z a-z 0-9 - _ . ~. Anything else gets

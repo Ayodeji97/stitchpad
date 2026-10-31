@@ -109,6 +109,8 @@ data class Order(
     val costs: List<OrderCost> = emptyList(),
     val deadline: Long?,
     val notes: String?,
+    /** Currency the money fields are denominated in. Stamped at creation from the user's country. */
+    val currency: Currency = Currency.NGN,
     val archivedAt: Long? = null,
     val assignedMemberId: String? = null,
     val assignedMemberName: String? = null,

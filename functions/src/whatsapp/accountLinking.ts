@@ -23,7 +23,9 @@ export function detectAccountIntent(text: string): AccountIntent | null {
  * (+234 / 234 / 0-prefixed / bare national) when the sender is actually a 234
  * E.164 number — otherwise a foreign sender whose last 10 digits happen to match
  * a Nigerian user's number could be linked to that account. Non-Nigerian senders
- * are matched on their exact E.164 form only.
+ * are matched on their exact E.164 form only, so they rely on E.164 storage: new-
+ * country tailors' WhatsApp numbers are saved as `+<dial><national>`, which the
+ * `+${digits}` candidate matches.
  */
 export function phoneCandidates(waId: string): string[] {
   const digits = waId.replace(/\D/g, '');

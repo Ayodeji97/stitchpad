@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -56,15 +55,21 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.SubcomposeAsyncImage
 import com.danzucker.stitchpad.core.debug.isDebugBuild
+import com.danzucker.stitchpad.core.domain.model.Country
+import com.danzucker.stitchpad.core.domain.model.defaultTimeZone
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthCard
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthHero
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthTextField
 import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
+import com.danzucker.stitchpad.ui.components.CountryChip
+import com.danzucker.stitchpad.ui.components.CountryPickerSheet
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.components.StitchPadButton
+import com.danzucker.stitchpad.ui.components.TimeZoneRow
 import com.danzucker.stitchpad.ui.components.WhatsAppConfirmRow
+import com.danzucker.stitchpad.ui.components.countryDisplayName
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -108,7 +113,6 @@ import stitchpad.composeapp.generated.resources.workshop_title
 import stitchpad.composeapp.generated.resources.workshop_whatsapp_helper
 import stitchpad.composeapp.generated.resources.workshop_whatsapp_label
 import stitchpad.composeapp.generated.resources.workshop_whatsapp_optional
-import stitchpad.composeapp.generated.resources.workshop_whatsapp_placeholder
 
 @Composable
 fun WorkshopSetupRoot(
@@ -274,39 +278,12 @@ fun WorkshopSetupScreen(
                         }
                     }
 
-                    // 4b. Country picker (+234 fixed) + number input row
+                    // 4b. Country chip (opens the picker) + number input row
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        // +234 country block — non-interactive in V1 (Nigeria-only)
-                        Row(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFF2A2825))
-                                .border(1.5.dp, Color(0xFF3A3731), RoundedCornerShape(10.dp))
-                                .padding(horizontal = 12.dp, vertical = 13.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            // Nigerian flag — 3-band rectangle (green-white-green)
-                            Box(
-                                modifier = Modifier
-                                    .size(width = 24.dp, height = 18.dp)
-                                    .clip(RoundedCornerShape(3.dp)),
-                            ) {
-                                Row(modifier = Modifier.fillMaxSize()) {
-                                    Box(Modifier.weight(1f).fillMaxHeight().background(Color(0xFF008751)))
-                                    Box(Modifier.weight(1f).fillMaxHeight().background(Color.White))
-                                    Box(Modifier.weight(1f).fillMaxHeight().background(Color(0xFF008751)))
-                                }
-                            }
-                            Text(
-                                text = "+234",
-                                style = TextStyle(
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFFF5F2ED),
-                                ),
-                            )
-                        }
+                        CountryChip(
+                            country = state.country,
+                            onClick = { onAction(WorkshopSetupAction.OnCountryChipClick) },
+                        )
                         // Number input — AuthTextField with empty label (skips label render)
                         AuthTextField(
                             label = "",
@@ -315,10 +292,27 @@ fun WorkshopSetupScreen(
                             leadingIcon = Icons.Outlined.Phone,
                             keyboardType = KeyboardType.Phone,
                             imeAction = ImeAction.Done,
-                            placeholder = stringResource(Res.string.workshop_whatsapp_placeholder),
-                            errorText = state.whatsappError?.let { stringResource(it) },
+                            // A local example for the selected country (numbers only, not translated).
+                            placeholder = state.country.exampleNational,
+                            errorText = state.whatsappError?.let {
+                                stringResource(
+                                    it,
+                                    countryDisplayName(state.country),
+                                    state.country.nationalLength,
+                                    state.country.dialCode,
+                                )
+                            },
                             onFocusLost = { onAction(WorkshopSetupAction.OnWhatsAppNumberBlur) },
                             modifier = Modifier.weight(1f),
+                        )
+                    }
+
+                    // 4b'. Zone row, only for multi-zone countries (DR Congo)
+                    if (state.country.timeZones.size > 1) {
+                        TimeZoneRow(
+                            timeZones = state.country.timeZones,
+                            selected = state.timeZone,
+                            onSelect = { onAction(WorkshopSetupAction.OnTimeZoneSelected(it)) },
                         )
                     }
 
@@ -442,6 +436,13 @@ fun WorkshopSetupScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
             }
+        }
+        if (state.isCountryPickerOpen) {
+            CountryPickerSheet(
+                selected = state.country,
+                onSelect = { onAction(WorkshopSetupAction.OnCountrySelected(it)) },
+                onDismiss = { onAction(WorkshopSetupAction.OnDismissCountryPicker) },
+            )
         }
         SnackbarHost(
             hostState = snackbarHostState,
@@ -665,6 +666,43 @@ private fun WorkshopSetupScreenFilledPreview() {
             state = WorkshopSetupState(
                 businessName = "Ade Fashions",
                 whatsappNumber = "0803 123 4567",
+            ),
+            snackbarHostState = remember { SnackbarHostState() },
+            onAction = {},
+            onLaunchPicker = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun WorkshopSetupScreenGhanaPreview() {
+    StitchPadTheme {
+        WorkshopSetupScreen(
+            state = WorkshopSetupState(
+                businessName = "Ama Stitches",
+                whatsappNumber = "024 412 3456",
+                country = Country.GH,
+                timeZone = Country.GH.defaultTimeZone,
+            ),
+            snackbarHostState = remember { SnackbarHostState() },
+            onAction = {},
+            onLaunchPicker = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun WorkshopSetupScreenDrCongoPreview() {
+    StitchPadTheme {
+        WorkshopSetupScreen(
+            state = WorkshopSetupState(
+                businessName = "Maison Kabila",
+                country = Country.CD,
+                timeZone = "Africa/Lubumbashi",
             ),
             snackbarHostState = remember { SnackbarHostState() },
             onAction = {},

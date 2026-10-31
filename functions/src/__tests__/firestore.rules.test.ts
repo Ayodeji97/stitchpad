@@ -117,6 +117,71 @@ describe('users/{uid} creation', () => {
   });
 });
 
+describe('users/{uid} country fields', () => {
+  it('allows an owner create with valid country fields', async () => {
+    await assertSucceeds(
+      setDoc(doc(db('alice'), 'users/alice'), {
+        ...SEED_DEFAULTS,
+        country: 'GH',
+        currency: 'GHS',
+        timeZone: 'Africa/Accra',
+      }),
+    );
+  });
+
+  it('rejects a country that is not a 2-letter code', async () => {
+    await assertFails(setDoc(doc(db('alice'), 'users/alice'), { ...SEED_DEFAULTS, country: 'GHANA' }));
+  });
+
+  it('rejects a non-string currency', async () => {
+    await assertFails(setDoc(doc(db('alice'), 'users/alice'), { ...SEED_DEFAULTS, currency: 5 }));
+  });
+
+  it('allows an update that changes only country', async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice'), { ...SEED_DEFAULTS, displayName: 'Alice' });
+    });
+    await assertSucceeds(updateDoc(doc(db('alice'), 'users/alice'), { country: 'GH' }));
+  });
+
+  it('rejects an update to an invalid time zone', async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice'), { ...SEED_DEFAULTS, displayName: 'Alice' });
+    });
+    await assertFails(updateDoc(doc(db('alice'), 'users/alice'), { timeZone: '' }));
+  });
+
+  it('still updates an existing doc that has no country fields', async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice'), { ...SEED_DEFAULTS, displayName: 'Alice' });
+    });
+    await assertSucceeds(updateDoc(doc(db('alice'), 'users/alice'), { displayName: 'Alice B' }));
+  });
+
+  it('still updates an unrelated field when a stored country is malformed', async () => {
+    // e.g. hand-edited in the Console before the guard existed: must not lock the tailor out.
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice'), { ...SEED_DEFAULTS, businessName: 'Alice Couture', country: 'GHANA' });
+    });
+    await assertSucceeds(updateDoc(doc(db('alice'), 'users/alice'), { businessName: 'Alice Atelier' }));
+  });
+
+  it('rejects an update that sets a malformed country', async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice'), { ...SEED_DEFAULTS, displayName: 'Alice' });
+    });
+    await assertFails(updateDoc(doc(db('alice'), 'users/alice'), { country: 'GHANA' }));
+  });
+
+  it('rejects an update that leaves a malformed country malformed while rewriting it', async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice'), { ...SEED_DEFAULTS, country: 'GHANA' });
+    });
+    await assertFails(updateDoc(doc(db('alice'), 'users/alice'), { country: 'NIGERIA' }));
+    await assertSucceeds(updateDoc(doc(db('alice'), 'users/alice'), { country: 'GH' }));
+  });
+});
+
 describe('users/{uid} updates', () => {
   beforeEach(async () => {
     await asAdmin(async (admin) => {

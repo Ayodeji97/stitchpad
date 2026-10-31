@@ -10,6 +10,7 @@ import com.danzucker.stitchpad.core.domain.currentPlatformName
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
@@ -60,18 +61,29 @@ class FirebaseUserRepository(
         bankName: String?,
         bankAccountName: String?,
         bankAccountNumber: String?,
-        whatsappConfirmed: Boolean,
+        whatsappConfirmed: Boolean?,
+        country: Country?,
+        timeZone: String?,
+        locale: String?,
     ): EmptyResult<DataError.Network> {
         val document = firestore.collection(USERS).document(userId)
         val data = mutableMapOf<String, Any>()
         businessName?.let { data["businessName"] = it }
         whatsappNumber?.let { data["whatsapp"] = it }
-        // Boolean (not null-guarded): always reflects the current confirm state.
-        // The form layer sends false when there is no number or it was edited.
-        data["whatsappConfirmed"] = whatsappConfirmed
+        // Reflects the current confirm state: the form layer sends false when there is no
+        // number or it was edited. Null (Skip's market-only write) leaves it untouched.
+        whatsappConfirmed?.let { data["whatsappConfirmed"] = it }
         bankName?.let { data["bankName"] = it }
         bankAccountName?.let { data["bankAccountName"] = it }
         bankAccountNumber?.let { data["bankAccountNumber"] = it }
+        // Currency is always derived from the country so the pair can never mismatch.
+        // Null = leave the stored market untouched.
+        country?.let {
+            data["country"] = it.iso
+            data["currency"] = it.currency.code
+        }
+        timeZone?.let { data["timeZone"] = it }
+        locale?.let { data["locale"] = it }
         data["updatedAt"] = FieldValue.serverTimestamp
         // Profile fields are fire-and-forget so Workshop Setup returns instantly
         // offline (the whole point of OfflineWriteDispatcher). They never include
@@ -130,6 +142,8 @@ class FirebaseUserRepository(
         bankAccountName: String?,
         bankAccountNumber: String?,
         whatsappConfirmed: Boolean,
+        country: Country?,
+        timeZone: String?,
     ): EmptyResult<DataError.Network> {
         val data = mutableMapOf<String, Any>(
             "updatedAt" to FieldValue.serverTimestamp
@@ -161,6 +175,12 @@ class FirebaseUserRepository(
         data["bankName"] = bankName ?: FieldValue.delete
         data["bankAccountName"] = bankAccountName ?: FieldValue.delete
         data["bankAccountNumber"] = bankAccountNumber ?: FieldValue.delete
+        // Null = unchanged. Currency always travels with country.
+        country?.let {
+            data["country"] = it.iso
+            data["currency"] = it.currency.code
+        }
+        timeZone?.let { data["timeZone"] = it }
         val accepted = offlineWrites.enqueue("updateProfile userId=$userId") {
             firestore.collection(USERS).document(userId).set(data, merge = true)
         }
@@ -185,6 +205,20 @@ class FirebaseUserRepository(
                     "observeUser failed userId=$userId; retrying (attempt ${attempt + 1})"
                 }
             }
+    }
+
+    @Suppress("INLINE_FROM_HIGHER_PLATFORM", "TooGenericExceptionCaught")
+    override suspend fun getUser(userId: String): Result<User?, DataError.Network> {
+        return try {
+            val snapshot = firestore.collection(USERS).document(userId).get()
+            if (!snapshot.exists) return Result.Success(null)
+            Result.Success(snapshot.data(UserDto.serializer()).copy(id = userId).toUser())
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            AppLogger.w(tag = TAG, throwable = e) { "getUser read failed userId=$userId" }
+            Result.Error(DataError.Network.UNKNOWN)
+        }
     }
 
     // Offline / not-yet-cached / malformed doc: fall back to showing setup, the

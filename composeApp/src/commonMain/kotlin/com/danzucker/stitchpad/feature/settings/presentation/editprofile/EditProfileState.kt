@@ -1,5 +1,7 @@
 package com.danzucker.stitchpad.feature.settings.presentation.editprofile
 
+import com.danzucker.stitchpad.core.domain.model.Country
+import com.danzucker.stitchpad.core.domain.model.defaultTimeZone
 import com.danzucker.stitchpad.core.domain.validation.BankDetailsValidator
 import com.danzucker.stitchpad.core.presentation.WhatsAppConfirmUiState
 import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
@@ -28,6 +30,11 @@ data class EditProfileState(
     val bankName: String = "",
     val bankAccountName: String = "",
     val bankAccountNumber: String = "",
+    /** The workshop's market: drives the dial-code chip, WhatsApp validation and (on save) the currency. */
+    val country: Country = Country.DEFAULT,
+    /** IANA zone id; always one of [country]'s time zones. */
+    val timeZone: String = Country.DEFAULT.defaultTimeZone,
+    val isCountryPickerOpen: Boolean = false,
 
     // Original values, used to compute isDirty
     val originalBusinessName: String = "",
@@ -38,10 +45,16 @@ data class EditProfileState(
     val originalBankName: String = "",
     val originalBankAccountName: String = "",
     val originalBankAccountNumber: String = "",
+    val originalCountry: Country = Country.DEFAULT,
+    val originalTimeZone: String = Country.DEFAULT.defaultTimeZone,
 
     // Validation
     val businessNameError: StringResource? = null,
     val phoneError: StringResource? = null,
+    /**
+     * Formatted with the [country]'s localized name (`%1$s`), its [Country.nationalLength] (`%2$d`)
+     * and its [Country.dialCode] (`%3$s`).
+     */
     val whatsappError: StringResource? = null,
     val bankNameError: StringResource? = null,
     val bankAccountNameError: StringResource? = null,
@@ -68,6 +81,8 @@ data class EditProfileState(
             bankName != originalBankName ||
             bankAccountName != originalBankAccountName ||
             bankAccountNumber != originalBankAccountNumber ||
+            country != originalCountry ||
+            timeZone != originalTimeZone ||
             whatsappConfirm.confirmed != originalWhatsappConfirmed
 
     val hasErrors: Boolean

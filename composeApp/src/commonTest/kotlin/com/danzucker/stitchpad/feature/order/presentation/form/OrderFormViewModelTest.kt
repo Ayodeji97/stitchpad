@@ -2,14 +2,19 @@ package com.danzucker.stitchpad.feature.order.presentation.form
 
 import androidx.lifecycle.SavedStateHandle
 import com.danzucker.stitchpad.core.analytics.FakeAnalytics
-import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeCustomGarmentTypeRepository
+import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeMeasurementRepository
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
 import com.danzucker.stitchpad.core.data.repository.FakeStyleRepository
+import com.danzucker.stitchpad.core.data.repository.FakeUserRepository
+import com.danzucker.stitchpad.core.data.session.UserDocCurrentCountryProvider
+import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.CostCategory
-import com.danzucker.stitchpad.core.domain.model.Customer
+import com.danzucker.stitchpad.core.domain.model.Country
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.CustomGarmentType
+import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.ImageSyncState
 import com.danzucker.stitchpad.core.domain.model.Order
@@ -25,7 +30,9 @@ import com.danzucker.stitchpad.core.domain.model.Style
 import com.danzucker.stitchpad.core.domain.model.StyleFolder
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.model.StyleLocation
+import com.danzucker.stitchpad.core.domain.session.CurrentCountryProvider
 import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.FakeCurrentCountryProvider
 import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import com.danzucker.stitchpad.core.media.FakeImageCompressor
 import com.danzucker.stitchpad.core.media.ImageCompressor
@@ -37,11 +44,13 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -63,6 +72,7 @@ class OrderFormViewModelTest {
     private lateinit var measurementRepository: FakeMeasurementRepository
     private lateinit var activeWorkshopProvider: FakeActiveWorkshopProvider
     private lateinit var customGarmentTypeRepository: FakeCustomGarmentTypeRepository
+    private var countryProvider = FakeCurrentCountryProvider()
 
     private val testCustomer = Customer(
         id = "cust-1",
@@ -75,6 +85,7 @@ class OrderFormViewModelTest {
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         orderRepository = FakeOrderRepository()
+        countryProvider = FakeCurrentCountryProvider(Country.GH)
         customerRepository = FakeCustomerRepository()
         styleRepository = FakeStyleRepository()
         measurementRepository = FakeMeasurementRepository()
@@ -92,6 +103,7 @@ class OrderFormViewModelTest {
     private fun TestScope.createViewModel(
         orderId: String? = null,
         imageCompressor: ImageCompressor = FakeImageCompressor(),
+        currentCountryProvider: CurrentCountryProvider = countryProvider,
     ): OrderFormViewModel {
         val savedStateHandle = SavedStateHandle().apply {
             if (orderId != null) set("orderId", orderId)
@@ -113,6 +125,7 @@ class OrderFormViewModelTest {
                 scope = CoroutineScope(UnconfinedTestDispatcher()),
             ),
             reviewArmer = NoopReviewArmer(),
+            currentCountryProvider = currentCountryProvider,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -302,6 +315,86 @@ class OrderFormViewModelTest {
         assertNotNull(updated)
         assertEquals("Rush this one", updated.notes)
         assertEquals(costs, updated.costs)
+    }
+
+    @Test
+    fun save_inCreateMode_stampsCurrencyFromCurrentCountry() = runTest {
+        val vm = createViewModel()
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        vm.onAction(
+            OrderFormAction.OnItemGarmentTypeChange(vm.state.value.items.first().id, GarmentType.AGBADA),
+        )
+        vm.onAction(OrderFormAction.OnItemPriceChange(vm.state.value.items.first().id, "5000"))
+        vm.onAction(OrderFormAction.OnSave)
+
+        assertEquals(Currency.GHS, orderRepository.lastCreatedOrder?.currency)
+    }
+
+    @Test
+    fun save_inCreateMode_beforeCountryLoads_waitsAndStampsTheRealCurrency() = runTest {
+        countryProvider = FakeCurrentCountryProvider(Country.NG, loaded = false)
+        val vm = createViewModel()
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        vm.onAction(
+            OrderFormAction.OnItemGarmentTypeChange(vm.state.value.items.first().id, GarmentType.AGBADA),
+        )
+        vm.onAction(OrderFormAction.OnItemPriceChange(vm.state.value.items.first().id, "5000"))
+        vm.onAction(OrderFormAction.OnSave)
+        assertNull(orderRepository.lastCreatedOrder, "not stamped from the unloaded NG stand-in")
+
+        countryProvider.load(Country.GH)
+        runCurrent()
+
+        assertEquals(Currency.GHS, orderRepository.lastCreatedOrder?.currency)
+    }
+
+    @Test
+    fun save_inCreateMode_countryNeverLoads_fallsBackAfterTheWait() = runTest {
+        countryProvider = FakeCurrentCountryProvider(Country.NG, loaded = false)
+        val vm = createViewModel()
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        vm.onAction(
+            OrderFormAction.OnItemGarmentTypeChange(vm.state.value.items.first().id, GarmentType.AGBADA),
+        )
+        vm.onAction(OrderFormAction.OnItemPriceChange(vm.state.value.items.first().id, "5000"))
+        vm.onAction(OrderFormAction.OnSave)
+
+        advanceTimeBy(2_900)
+        assertNull(orderRepository.lastCreatedOrder, "still waiting for the country")
+        advanceTimeBy(200)
+
+        assertEquals(Currency.NGN, orderRepository.lastCreatedOrder?.currency)
+    }
+
+    @Test
+    fun save_inCreateMode_accountWithNoUserDoc_savesNairaWithoutWaiting() = runTest {
+        // Real provider: the listener emits null for the missing doc and the one-shot
+        // read confirms absence, so the country loads as NG instead of timing out.
+        val userRepository = FakeUserRepository().apply { getUserOverride = { Result.Success(null) } }
+        val provider = UserDocCurrentCountryProvider(MutableStateFlow("user-1"), userRepository, backgroundScope)
+        runCurrent()
+        val vm = createViewModel(currentCountryProvider = provider)
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        vm.onAction(
+            OrderFormAction.OnItemGarmentTypeChange(vm.state.value.items.first().id, GarmentType.AGBADA),
+        )
+        vm.onAction(OrderFormAction.OnItemPriceChange(vm.state.value.items.first().id, "5000"))
+        vm.onAction(OrderFormAction.OnSave)
+        advanceTimeBy(100)
+
+        assertEquals(Currency.NGN, orderRepository.lastCreatedOrder?.currency)
+    }
+
+    @Test
+    fun save_inEditMode_keepsLoadedCurrencyRegardlessOfCurrentCountry() = runTest {
+        val seeded = seedOrder()
+        orderRepository.ordersList = listOf(seeded.copy(currency = Currency.KES))
+        val vm = createViewModel(orderId = "order-1") // provider says GH
+
+        vm.onAction(OrderFormAction.OnNotesChange("Rush"))
+        vm.onAction(OrderFormAction.OnSave)
+
+        assertEquals(Currency.KES, orderRepository.lastUpdatedOrder?.currency)
     }
 
     @Test

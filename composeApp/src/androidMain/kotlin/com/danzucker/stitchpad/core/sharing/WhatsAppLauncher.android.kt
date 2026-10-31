@@ -3,13 +3,17 @@ package com.danzucker.stitchpad.core.sharing
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import com.danzucker.stitchpad.core.domain.session.CurrentCountryProvider
 import com.danzucker.stitchpad.core.logging.AppLogger
 
 private const val TAG = "WhatsAppLauncher"
 
-actual class WhatsAppLauncher(private val context: Context) {
+actual class WhatsAppLauncher(
+    private val context: Context,
+    private val countryProvider: CurrentCountryProvider,
+) {
     actual suspend fun launch(phone: String, message: String): Boolean {
-        val url = buildWhatsAppUrl(phone, message)
+        val url = buildWhatsAppUrl(phone, message, countryProvider.currentCountry())
         return try {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
