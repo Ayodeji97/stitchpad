@@ -12,6 +12,7 @@ import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import com.danzucker.stitchpad.core.domain.model.Currency
+import com.danzucker.stitchpad.core.presentation.moneyInputDecimalSeparator
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 
 /**
@@ -30,12 +31,16 @@ fun MoneyAmountField(
     isError: Boolean = false,
     enabled: Boolean = true,
 ) {
-    val input = rememberSanitizedTextFieldValue(value) { raw ->
-        onValueChange(sanitizeMoneyInput(raw, currency))
-    }
+    // The ViewModel owns currency precision/validation. Forward the original edit so
+    // unsupported precision or signs can be rejected rather than silently changing value.
+    val input = rememberSanitizedTextFieldValue(value, onValueChange)
     OutlinedTextField(
         value = input.value,
-        onValueChange = input.onValueChange,
+        onValueChange = { proposed ->
+            // French keyboards can emit a comma. Canonicalizing this equivalent character
+            // before caret reconciliation preserves mid-string selection/composition offsets.
+            input.onValueChange(proposed.copy(text = moneyInputDecimalSeparator(proposed.text, currency)))
+        },
         visualTransformation = MoneyGroupingTransformation,
         label = label,
         placeholder = placeholder,
@@ -50,15 +55,6 @@ fun MoneyAmountField(
         shape = RoundedCornerShape(DesignTokens.radiusMd),
         modifier = modifier,
     )
-}
-
-/** Keeps a dot decimal while permitting formatted amounts pasted from receipts. */
-internal fun sanitizeMoneyInput(raw: String, currency: Currency): String {
-    val filtered = raw.filter { it.isDigit() || it == '.' }
-    val whole = filtered.substringBefore('.')
-    if (!filtered.contains('.') || currency.decimals == 0) return whole
-    val fraction = filtered.substringAfter('.').filter { it.isDigit() }.take(currency.decimals)
-    return "$whole.$fraction"
 }
 
 /** Groups only the integer part, preserving a partially typed decimal and its caret. */
