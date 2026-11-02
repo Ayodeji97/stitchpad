@@ -7,6 +7,8 @@ import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.feature.style.domain.StylePickerFolder
 
 sealed interface OrderFormAction {
+    data object OnRetryCurrency : OrderFormAction
+
     // Navigation
     data object OnNextStep : OrderFormAction
     data object OnPreviousStep : OrderFormAction

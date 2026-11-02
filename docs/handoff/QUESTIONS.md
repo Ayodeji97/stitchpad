@@ -68,3 +68,11 @@ NGN), and progress only counts orders in that same currency. New goals use the h
 country. The existing editor has no currency reset/change control, so moving countries does not
 silently turn an NGN target into GHS. Product direction is needed for an explicit option to replace
 an existing goal in the new account currency; no automatic conversion or target reset is planned.
+
+## Q8 — duplicating an order across currencies (pending Daniel)
+
+A duplicated order is newly created in the workshop's current currency. Copying an old order's
+prices after a country/currency change would silently relabel money. Choose either copying details
+but clearing money fields with notice (recommended), or explicitly blocking cross-currency duplication.
+Until answered, the implementation blocks the cross-currency save with a clear message; same-currency
+duplication is unchanged. No elapsed waiting time counts as approval.

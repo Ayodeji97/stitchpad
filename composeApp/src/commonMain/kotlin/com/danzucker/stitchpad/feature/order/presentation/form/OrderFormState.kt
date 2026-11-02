@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.order.presentation.form
 
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.CustomGarmentType
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.FabricImageRef
@@ -20,6 +21,8 @@ enum class StylePickerSource { CLOSET, INSPIRATION }
 data class OrderFormState(
     val currentStep: Int = 1,
     val isEditMode: Boolean = false,
+    val currency: Currency = Currency.NGN,
+    val isCurrencyLoaded: Boolean = false,
     // Step 1 - Customer
     val customers: List<Customer> = emptyList(),
     val customerSearchQuery: String = "",

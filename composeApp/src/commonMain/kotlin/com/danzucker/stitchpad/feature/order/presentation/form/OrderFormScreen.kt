@@ -87,13 +87,14 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.SubcomposeAsyncImage
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.GarmentGender
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.media.rememberImageCaptureLauncher
-import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.feature.measurement.presentation.measurementDisplayName
 import com.danzucker.stitchpad.feature.order.domain.discountBreakdown
 import com.danzucker.stitchpad.feature.order.presentation.components.StylePickerSheet
@@ -103,8 +104,8 @@ import com.danzucker.stitchpad.feature.style.presentation.form.styleFormSelectio
 import com.danzucker.stitchpad.ui.components.CustomDatePickerDialog
 import com.danzucker.stitchpad.ui.components.FullScreenImageViewer
 import com.danzucker.stitchpad.ui.components.LoadingDots
+import com.danzucker.stitchpad.ui.components.MoneyAmountField
 import com.danzucker.stitchpad.ui.components.StitchPadButton
-import com.danzucker.stitchpad.ui.components.ThousandsSeparatorTransformation
 import com.danzucker.stitchpad.ui.components.rememberSanitizedTextFieldValue
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -129,6 +130,8 @@ import stitchpad.composeapp.generated.resources.garment_picker_custom_pill
 import stitchpad.composeapp.generated.resources.garment_picker_saved_snackbar_format
 import stitchpad.composeapp.generated.resources.order_form_add_item
 import stitchpad.composeapp.generated.resources.order_form_create_button
+import stitchpad.composeapp.generated.resources.order_form_currency_loading
+import stitchpad.composeapp.generated.resources.order_form_currency_retry
 import stitchpad.composeapp.generated.resources.order_form_deadline_label
 import stitchpad.composeapp.generated.resources.order_form_deposit_dialog_body
 import stitchpad.composeapp.generated.resources.order_form_deposit_dialog_body_with_other_payments
@@ -622,6 +625,14 @@ private fun CustomerSelectionStep(
     }
 }
 
+@Composable
+private fun CurrencyLoadingNotice(onRetry: () -> Unit) {
+    Column {
+        Text(stringResource(Res.string.order_form_currency_loading), style = MaterialTheme.typography.bodySmall)
+        TextButton(onClick = onRetry) { Text(stringResource(Res.string.order_form_currency_retry)) }
+    }
+}
+
 // ── Step 2: Items ───────────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -643,6 +654,8 @@ private fun ItemsStep(
             key(item.id) {
                 OrderItemCard(
                     item = item,
+                    currency = state.currency,
+                    currencyLoaded = state.isCurrencyLoaded,
                     index = index,
                     showRemove = state.items.size > 1,
                     availableStyles = state.availableStyles,
@@ -672,6 +685,8 @@ private fun ItemsStep(
 @Composable
 private fun OrderItemCard(
     item: OrderItemFormState,
+    currency: Currency,
+    currencyLoaded: Boolean,
     index: Int,
     showRemove: Boolean,
     availableStyles: List<com.danzucker.stitchpad.core.domain.model.Style>,
@@ -824,20 +839,17 @@ private fun OrderItemCard(
 
             Spacer(Modifier.height(DesignTokens.space2))
 
-            // Price
-            val price = rememberSanitizedTextFieldValue(item.price) { raw ->
-                onAction(OrderFormAction.OnItemPriceChange(item.id, raw.filter { it.isDigit() }))
+            if (currencyLoaded) {
+                MoneyAmountField(
+                    value = item.price,
+                    onValueChange = { onAction(OrderFormAction.OnItemPriceChange(item.id, it)) },
+                    currency = currency,
+                    label = { Text(stringResource(Res.string.order_form_price_label)) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                CurrencyLoadingNotice { onAction(OrderFormAction.OnRetryCurrency) }
             }
-            OutlinedTextField(
-                value = price.value,
-                onValueChange = price.onValueChange,
-                label = { Text(stringResource(Res.string.order_form_price_label)) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                visualTransformation = ThousandsSeparatorTransformation,
-                singleLine = true,
-                shape = RoundedCornerShape(DesignTokens.radiusMd),
-                modifier = Modifier.fillMaxWidth()
-            )
 
             // PTSP-26: the price field is per item, so multiplying by quantity
             // used to be a silent surprise at save time. When more than one is
@@ -851,8 +863,8 @@ private fun OrderItemCard(
                     text = stringResource(
                         Res.string.order_form_line_total,
                         lineQty,
-                        formatPrice(unitPrice),
-                        formatPrice(unitPrice * lineQty),
+                        formatMoney(unitPrice, currency),
+                        formatMoney(unitPrice * lineQty, currency),
                     ),
                     style = MaterialTheme.typography.bodySmall,
                     fontFamily = FontFamily.Monospace,
@@ -1098,38 +1110,26 @@ private fun DetailsStep(
 
         Spacer(Modifier.height(DesignTokens.space4))
 
-        // Deposit
-        val deposit = rememberSanitizedTextFieldValue(state.depositPaid) { raw ->
-            onAction(OrderFormAction.OnDepositChange(raw.filter { it.isDigit() }))
+        if (state.isCurrencyLoaded) {
+            MoneyAmountField(
+                value = state.depositPaid,
+                onValueChange = { onAction(OrderFormAction.OnDepositChange(it)) },
+                currency = state.currency,
+                label = { Text(stringResource(Res.string.order_form_deposit_label)) },
+                placeholder = { Text(stringResource(Res.string.order_form_deposit_placeholder)) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(DesignTokens.space3))
+            MoneyAmountField(
+                value = state.discount,
+                onValueChange = { onAction(OrderFormAction.OnDiscountChange(it)) },
+                currency = state.currency,
+                label = { Text(stringResource(Res.string.order_form_discount_label)) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        } else {
+            CurrencyLoadingNotice { onAction(OrderFormAction.OnRetryCurrency) }
         }
-        OutlinedTextField(
-            value = deposit.value,
-            onValueChange = deposit.onValueChange,
-            visualTransformation = ThousandsSeparatorTransformation,
-            label = { Text(stringResource(Res.string.order_form_deposit_label)) },
-            placeholder = { Text(stringResource(Res.string.order_form_deposit_placeholder)) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            singleLine = true,
-            shape = RoundedCornerShape(DesignTokens.radiusMd),
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(Modifier.height(DesignTokens.space3))
-
-        // Discount
-        val discount = rememberSanitizedTextFieldValue(state.discount) { raw ->
-            onAction(OrderFormAction.OnDiscountChange(raw.filter { it.isDigit() }))
-        }
-        OutlinedTextField(
-            value = discount.value,
-            onValueChange = discount.onValueChange,
-            label = { Text(stringResource(Res.string.order_form_discount_label)) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            visualTransformation = ThousandsSeparatorTransformation,
-            singleLine = true,
-            shape = RoundedCornerShape(DesignTokens.radiusMd),
-            modifier = Modifier.fillMaxWidth(),
-        )
         Spacer(Modifier.height(DesignTokens.space3))
         OutlinedTextField(
             value = state.discountReason,
@@ -1157,7 +1157,7 @@ private fun DetailsStep(
         // PTSP-26: a per-item + grand total summary so the full order cost
         // (after unit price × quantity) is shown before the order is created.
         Spacer(Modifier.height(DesignTokens.space4))
-        OrderTotalSummary(items = state.items, discount = state.discount)
+        OrderTotalSummary(items = state.items, discount = state.discount, currency = state.currency)
 
         Spacer(Modifier.height(DesignTokens.space4))
     }
@@ -1182,6 +1182,7 @@ private fun DetailsStep(
     state.depositReconciliationPrompt?.let { prompt ->
         DepositReconciliationDialog(
             prompt = prompt,
+            currency = state.currency,
             onConfirm = { onAction(OrderFormAction.OnConfirmDepositChange) },
             onDismiss = { onAction(OrderFormAction.OnDismissDepositPrompt) },
         )
@@ -1196,7 +1197,7 @@ private fun DetailsStep(
  */
 @Suppress("CyclomaticComplexMethod")
 @Composable
-private fun OrderTotalSummary(items: List<OrderItemFormState>, discount: String) {
+private fun OrderTotalSummary(items: List<OrderItemFormState>, discount: String, currency: Currency = Currency.NGN) {
     data class PricedLine(val name: String, val qty: Int, val unit: Double)
 
     val lines = items.mapNotNull { item ->
@@ -1256,14 +1257,14 @@ private fun OrderTotalSummary(items: List<OrderItemFormState>, discount: String)
                             text = stringResource(
                                 Res.string.order_form_summary_item_qty,
                                 line.qty,
-                                formatPrice(line.unit),
+                                formatMoney(line.unit, currency),
                             ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     Text(
-                        text = "₦${formatPrice(line.unit * line.qty)}",
+                        text = formatMoney(line.unit * line.qty, currency),
                         style = MaterialTheme.typography.bodyMedium,
                         fontFamily = FontFamily.Monospace,
                     )
@@ -1294,7 +1295,7 @@ private fun OrderTotalSummary(items: List<OrderItemFormState>, discount: String)
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        text = "₦${formatPrice(subtotal)}",
+                        text = formatMoney(subtotal, currency),
                         style = MaterialTheme.typography.bodyMedium,
                         fontFamily = FontFamily.Monospace,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1311,7 +1312,7 @@ private fun OrderTotalSummary(items: List<OrderItemFormState>, discount: String)
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        text = "−₦${formatPrice(breakdown.amount)}",
+                        text = "−${formatMoney(breakdown.amount, currency)}",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                         fontFamily = FontFamily.Monospace,
@@ -1331,7 +1332,7 @@ private fun OrderTotalSummary(items: List<OrderItemFormState>, discount: String)
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    text = "₦${formatPrice(breakdown.payable)}",
+                    text = formatMoney(breakdown.payable, currency),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
@@ -1870,6 +1871,7 @@ private fun AddImageTile(onClick: () -> Unit) {
 @Composable
 private fun DepositReconciliationDialog(
     prompt: DepositPrompt,
+    currency: Currency,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -1886,8 +1888,8 @@ private fun DepositReconciliationDialog(
                 Text(
                     text = stringResource(
                         Res.string.order_form_deposit_dialog_body,
-                        formatPrice(prompt.oldAmount),
-                        formatPrice(prompt.newAmount),
+                        formatMoney(prompt.oldAmount, currency),
+                        formatMoney(prompt.newAmount, currency),
                     ),
                 )
                 if (prompt.nonDepositTotal > 0.0) {
@@ -1895,7 +1897,7 @@ private fun DepositReconciliationDialog(
                     Text(
                         text = stringResource(
                             Res.string.order_form_deposit_dialog_body_with_other_payments,
-                            formatPrice(prompt.nonDepositTotal),
+                            formatMoney(prompt.nonDepositTotal, currency),
                         ),
                     )
                 }
