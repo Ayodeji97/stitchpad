@@ -33,8 +33,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
-import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.feature.reports.domain.model.CappedList
+import com.danzucker.stitchpad.feature.reports.domain.model.CurrencyReports
 import com.danzucker.stitchpad.feature.reports.domain.model.CustomRange
 import com.danzucker.stitchpad.feature.reports.domain.model.CustomerBadge
 import com.danzucker.stitchpad.feature.reports.domain.model.CustomerRanking
@@ -47,6 +48,7 @@ import com.danzucker.stitchpad.feature.reports.presentation.components.CustomRan
 import com.danzucker.stitchpad.feature.reports.presentation.components.KpiGrid
 import com.danzucker.stitchpad.feature.reports.presentation.components.OutstandingBalancesCard
 import com.danzucker.stitchpad.feature.reports.presentation.components.ProductionStatusCard
+import com.danzucker.stitchpad.feature.reports.presentation.components.ReportOrderCount
 import com.danzucker.stitchpad.feature.reports.presentation.components.ReportsEmptyState
 import com.danzucker.stitchpad.feature.reports.presentation.components.ReportsLoadingSkeleton
 import com.danzucker.stitchpad.feature.reports.presentation.components.ReportsPaywallCard
@@ -102,7 +104,7 @@ fun ReportsRoot(
                     val message = getString(
                         Res.string.reports_reminder_template,
                         event.customerName,
-                        formatPrice(event.totalOwed)
+                        formatMoney(event.totalOwed, event.currency)
                     )
                     val launched = whatsAppLauncher.launch(event.customerPhone, message)
                     if (!launched) {
@@ -230,10 +232,9 @@ fun ReportsScreen(
                     )
                     !state.hasAnyOrders -> ReportsEmptyState(onNavigateToTutorial = onNavigateToTutorial)
                     else -> ReportsContent(
-                        kpiSummary = state.kpiSummary,
+                        currencyReports = state.monetaryReports,
+                        orderCount = state.orderCountKpi,
                         productionCounts = state.productionCounts,
-                        topCustomers = state.topCustomers,
-                        debtors = state.debtors,
                         period = state.selectedPeriod,
                         customRange = state.customRange,
                         today = today,
@@ -259,10 +260,9 @@ fun ReportsScreen(
 
 @Composable
 private fun ReportsContent(
-    kpiSummary: KpiSummary?,
+    currencyReports: List<CurrencyReports>,
+    orderCount: Kpi?,
     productionCounts: ProductionCounts?,
-    topCustomers: CappedList<CustomerRanking>,
-    debtors: CappedList<DebtorEntry>,
     period: ReportsPeriod,
     customRange: CustomRange?,
     today: LocalDate,
@@ -278,11 +278,7 @@ private fun ReportsContent(
     } else {
         period
     }
-    val deltaSuffix = when (effectivePeriod) {
-        ReportsPeriod.WEEK -> stringResource(Res.string.reports_delta_vs_last_week)
-        ReportsPeriod.MONTH -> stringResource(Res.string.reports_delta_vs_last_month)
-        ReportsPeriod.CUSTOM -> stringResource(Res.string.reports_delta_vs_last_custom)
-    }
+    val deltaSuffix = reportsDeltaSuffix(effectivePeriod)
     // For Custom (with a range), prefer the actual dates ('Apr 14 – 23')
     // over the generic 'Custom range' label — the chip up top already shows
     // the full range, but echoing the dates inside each tile reinforces
@@ -306,32 +302,48 @@ private fun ReportsContent(
             ),
         verticalArrangement = Arrangement.spacedBy(DesignTokens.space3)
     ) {
-        if (kpiSummary != null) {
+        if (currencyReports.size > 1 && orderCount != null) {
+            ReportOrderCount(orderCount, deltaSuffix, periodLabel)
+            if (productionCounts != null) ProductionStatusCard(counts = productionCounts)
+        }
+        currencyReports.forEach { report ->
+            if (currencyReports.size > 1) {
+                Text(report.currency.code, style = MaterialTheme.typography.titleMedium)
+            }
             KpiGrid(
-                summary = kpiSummary,
+                summary = report.kpiSummary,
                 deltaSuffix = deltaSuffix,
-                periodLabel = periodLabel
+                periodLabel = periodLabel,
+                currency = report.currency,
+                showOrderCount = currencyReports.size == 1,
+            )
+            if (currencyReports.size == 1 && productionCounts != null) {
+                ProductionStatusCard(counts = productionCounts)
+            }
+            OutstandingBalancesCard(
+                debtors = report.debtors,
+                today = today,
+                onDebtorClick = { onAction(ReportsAction.OnDebtorClick(it)) },
+                onSendReminder = { onAction(ReportsAction.OnSendReminderClick(it, report.currency)) },
+                onViewAllClick = { /* Expanded list is a later stage. */ },
+            )
+            TopCustomersCard(
+                rankings = report.topCustomers,
+                onCustomerClick = { onAction(ReportsAction.OnTopCustomerClick(it)) },
+                onViewAllClick = { /* Expanded list is a later stage. */ },
             )
         }
-        if (productionCounts != null) {
-            ProductionStatusCard(counts = productionCounts)
-        }
-        // Outstanding sits above Top Customers — collecting unpaid balances
-        // is the most action-driving piece of the report for a tailor.
-        OutstandingBalancesCard(
-            debtors = debtors,
-            today = today,
-            onDebtorClick = { onAction(ReportsAction.OnDebtorClick(it)) },
-            onSendReminder = { onAction(ReportsAction.OnSendReminderClick(it)) },
-            onViewAllClick = { /* Stage 4: navigate to expanded list */ }
-        )
-        TopCustomersCard(
-            rankings = topCustomers,
-            onCustomerClick = { onAction(ReportsAction.OnTopCustomerClick(it)) },
-            onViewAllClick = { /* Stage 4: navigate to expanded list */ }
-        )
     }
 }
+
+@Composable
+private fun reportsDeltaSuffix(period: ReportsPeriod): String = stringResource(
+    when (period) {
+        ReportsPeriod.WEEK -> Res.string.reports_delta_vs_last_week
+        ReportsPeriod.MONTH -> Res.string.reports_delta_vs_last_month
+        ReportsPeriod.CUSTOM -> Res.string.reports_delta_vs_last_custom
+    },
+)
 
 // Compact range label for the KPI tile footer (third line). The
 // SelectedRangeChip shows the full date with year up top, so each tile

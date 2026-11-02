@@ -4,20 +4,19 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
-import com.danzucker.stitchpad.feature.reports.domain.CustomerInsightsCalculator
-import com.danzucker.stitchpad.feature.reports.domain.KpiCalculator
+import com.danzucker.stitchpad.feature.reports.domain.CurrencyReportsCalculator
 import com.danzucker.stitchpad.feature.reports.domain.ProductionCountsCalculator
 import com.danzucker.stitchpad.feature.reports.domain.model.CappedList
+import com.danzucker.stitchpad.feature.reports.domain.model.CurrencyReports
 import com.danzucker.stitchpad.feature.reports.domain.model.CustomRange
-import com.danzucker.stitchpad.feature.reports.domain.model.CustomerRanking
 import com.danzucker.stitchpad.feature.reports.domain.model.DebtorEntry
-import com.danzucker.stitchpad.feature.reports.domain.model.KpiSummary
 import com.danzucker.stitchpad.feature.reports.domain.model.ProductionCounts
 import com.danzucker.stitchpad.feature.reports.domain.model.ReportsPeriod
 import kotlinx.coroutines.CoroutineDispatcher
@@ -94,22 +93,23 @@ class ReportsViewModel(
             is ReportsAction.OnDebtorClick -> emitEvent(
                 ReportsEvent.NavigateToCustomerDetail(action.customerId)
             )
-            is ReportsAction.OnSendReminderClick -> handleSendReminder(action.customerId)
+            is ReportsAction.OnSendReminderClick -> handleSendReminder(action.customerId, action.currency)
             ReportsAction.OnUpgradeClick -> emitEvent(ReportsEvent.NavigateToUpgrade)
             ReportsAction.OnErrorDismiss -> _state.update { it.copy(errorMessage = null) }
         }
     }
 
-    private fun handleSendReminder(customerId: String) {
+    private fun handleSendReminder(customerId: String, currency: Currency) {
         val customer = cachedCustomers.firstOrNull { it.id == customerId }
-        val debtor = cachedDebtors.firstOrNull { it.customerId == customerId }
+        val debtor = cachedDebtors.firstOrNull { it.customerId == customerId && it.currency == currency }
         if (customer == null || debtor == null || customer.phone.isBlank()) return
         emitEvent(
             ReportsEvent.LaunchWhatsAppReminder(
                 customerName = customer.name,
                 customerPhone = customer.phone,
                 totalOwed = debtor.totalOwed,
-                oldestDeadline = debtor.oldestDeadline
+                oldestDeadline = debtor.oldestDeadline,
+                currency = debtor.currency
             )
         )
     }
@@ -147,10 +147,8 @@ class ReportsViewModel(
     )
 
     private data class Computed(
-        val kpiSummary: KpiSummary?,
+        val currencyReports: List<CurrencyReports>,
         val productionCounts: ProductionCounts?,
-        val topCustomers: CappedList<CustomerRanking>,
-        val debtors: CappedList<DebtorEntry>
     )
 
     @Suppress("LongMethod")
@@ -178,27 +176,15 @@ class ReportsViewModel(
         // snapshot; off Main so a large workshop can't stall input dispatch.
         val computed = withContext(computeDispatcher) {
             Computed(
-                kpiSummary = if (hasAnyOrders) {
-                    KpiCalculator.computeSummary(
-                        orders = orders,
-                        period = effectivePeriod,
-                        today = today,
-                        timeZone = timeZone,
-                        customRange = inputs.customRange
-                    )
-                } else {
-                    null
-                },
-                productionCounts = if (hasAnyOrders) ProductionCountsCalculator.compute(orders) else null,
-                topCustomers = CustomerInsightsCalculator.topCustomers(
+                currencyReports = CurrencyReportsCalculator.compute(
                     orders = orders,
                     customers = customers,
                     period = effectivePeriod,
                     today = today,
                     timeZone = timeZone,
-                    customRange = inputs.customRange
+                    customRange = inputs.customRange,
                 ),
-                debtors = CustomerInsightsCalculator.debtors(orders, customers, timeZone)
+                productionCounts = if (hasAnyOrders) ProductionCountsCalculator.compute(orders) else null,
             )
         }
         // Both caches publish together, AFTER the background compute, alongside the
@@ -207,7 +193,7 @@ class ReportsViewModel(
         // debtor against the already-replaced customer list and silently no-oped
         // (cursor/codex, PR #360).
         cachedCustomers = customers
-        cachedDebtors = computed.debtors.items
+        cachedDebtors = computed.currencyReports.flatMap { it.debtors.items }
 
         _state.update {
             it.copy(
@@ -216,10 +202,11 @@ class ReportsViewModel(
                 selectedPeriod = inputs.period,
                 customRange = inputs.customRange,
                 hasAnyOrders = hasAnyOrders,
-                kpiSummary = computed.kpiSummary,
+                kpiSummary = computed.currencyReports.singleOrNull()?.kpiSummary,
+                currencyReports = computed.currencyReports,
                 productionCounts = computed.productionCounts,
-                topCustomers = computed.topCustomers,
-                debtors = computed.debtors,
+                topCustomers = computed.currencyReports.singleOrNull()?.topCustomers ?: CappedList.empty(),
+                debtors = computed.currencyReports.singleOrNull()?.debtors ?: CappedList.empty(),
                 today = today,
                 errorMessage = error
             )

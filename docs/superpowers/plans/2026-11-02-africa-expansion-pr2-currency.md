@@ -43,8 +43,7 @@ Base: country foundation + shared phone UI checkpoint, merged with PR #374 head 
 3. **Order list/customer detail.** Thread each order's currency into summary rows, profit,
    payment progress and shared `StrikethroughPrice`. Ensure foreign-currency order histories
    remain correctly labelled after a country change.
-4. **Reports, collections, dashboard and goals.** Await Daniel's mixed-currency-summary
-   decision. Current aggregate DTOs drop currency and sum across orders. A display-only
+4. **Reports, collections, dashboard and goals.** Daniel approved separate totals per currency on 2 November 2026. Current aggregate DTOs drop currency and sum across orders. A display-only
    symbol replacement would mislabel amounts; propagate grouping/filter selection through
    calculations and presentation first. Existing weekly goals lack a currency stamp and need
    an explicit old-goal fallback/migration strategy before market changes can be safe.
@@ -57,8 +56,8 @@ Base: country foundation + shared phone UI checkpoint, merged with PR #374 head 
 
 ## Decisions and dependencies
 
-- Root has raised the summary question with Daniel: separate totals per currency versus a
-  selected-currency filter. Do not aggregate unlike currencies while waiting for that answer.
+- Approved 2 November 2026: separate totals per immutable order currency, no filter requirement
+  and no FX conversion. Every summary pipeline must partition before adding monetary values.
 - User profile fields are intentionally owner-only. The staff-market fix needs an explicit
   minimal shared data contract and emulator tests rather than broader profile read access.
 - XOF/XAF/GNF input must not accept fractional minor units. Read-time formatting rounds
@@ -98,3 +97,21 @@ Senegal and existing-Nigeria smoke tests on both platforms.
   goals, notification payloads, and active-workshop market metadata for staff.
 
 Second-slice check: Android source compilation, detekt, and targeted formatter/receipt/input/partial-payment/strikethrough tests passed (78 tests, zero failures/errors). No runtime screenshot verification or iOS build was performed for this second slice.
+
+## Third slice implemented — grouped monetary reports
+
+Approved decision (Daniel, 2 November 2026): show separate totals per currency; no FX conversion
+and no required currency filter. `CurrencyReportsCalculator` partitions immutable order currency
+before KPI windows/sparklines, customer rankings and debt calculations. Multiple-currency reports
+show a section per currency while single-currency reports keep the existing simple layout. Order
+counts and production counts remain global. Customer/reminder identity includes currency so a
+customer owing both GHS and NGN receives the amount from the tapped section.
+
+Customer relationship order-count badges continue to count all lifetime orders across currencies.
+The existing NGN spend-based VIP threshold is never compared against foreign-currency amounts;
+foreign monetary thresholds remain an explicit pending question in `docs/handoff/QUESTIONS.md`.
+
+Validation: Android compilation, detekt and 58 targeted report/domain/ViewModel/money tests passed,
+including mixed current/historical currency windows, sparklines, the same customer's separate debts,
+global counts, currency-specific reminder lookup, single-currency compatibility and empty data.
+No runtime visual QA or iOS compilation was performed for this slice.

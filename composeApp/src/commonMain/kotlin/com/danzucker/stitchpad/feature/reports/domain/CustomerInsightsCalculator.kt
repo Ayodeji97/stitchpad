@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.reports.domain
 
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
@@ -33,6 +34,8 @@ private const val REPEAT_ORDER_COUNT = 2
  */
 object CustomerInsightsCalculator {
 
+    // Window, source snapshots and whole-relationship history are independent inputs.
+    @Suppress("LongParameterList")
     fun topCustomers(
         orders: List<Order>,
         customers: List<Customer>,
@@ -40,9 +43,11 @@ object CustomerInsightsCalculator {
         today: LocalDate,
         timeZone: TimeZone,
         limit: Int = DEFAULT_LIMIT,
-        customRange: CustomRange? = null
+        customRange: CustomRange? = null,
+        lifetimeOrders: List<Order> = orders,
     ): CappedList<CustomerRanking> {
         if (customers.isEmpty()) return CappedList.empty()
+        val currency = orders.firstOrNull()?.currency ?: Currency.NGN
         val (windowStart, windowEnd) = reportsWindow(period, today, timeZone, 0, customRange)
         val customersById = customers.associateBy { it.id }
 
@@ -51,10 +56,10 @@ object CustomerInsightsCalculator {
         // still drive the ranking sort order.
         data class Lifetime(var orders: Int = 0, var collected: Double = 0.0)
         val lifetimeByCustomer = HashMap<String, Lifetime>()
-        for (order in orders) {
+        for (order in lifetimeOrders) {
             val l = lifetimeByCustomer.getOrPut(order.customerId) { Lifetime() }
             l.orders += 1
-            l.collected += order.depositPaid
+            if (order.currency == currency) l.collected += order.depositPaid
         }
 
         data class Acc(var total: Double = 0.0, var count: Int = 0)
@@ -83,7 +88,8 @@ object CustomerInsightsCalculator {
                     customerName = customer.name,
                     totalCollected = acc.total,
                     orderCount = acc.count,
-                    badge = badgeFor(lifetime.orders, lifetime.collected)
+                    badge = badgeFor(lifetime.orders, lifetime.collected, currency),
+                    currency = currency
                 )
             }
             .sortedWith(
@@ -95,8 +101,9 @@ object CustomerInsightsCalculator {
         return CappedList(items = ranked.take(limit), totalCount = ranked.size)
     }
 
-    private fun badgeFor(lifetimeOrders: Int, lifetimeSpend: Double): CustomerBadge = when {
-        lifetimeOrders >= VIP_ORDER_COUNT || lifetimeSpend >= VIP_LIFETIME_SPEND -> CustomerBadge.VIP
+    private fun badgeFor(lifetimeOrders: Int, lifetimeSpend: Double, currency: Currency): CustomerBadge = when {
+        lifetimeOrders >= VIP_ORDER_COUNT ||
+            (currency == Currency.NGN && lifetimeSpend >= VIP_LIFETIME_SPEND) -> CustomerBadge.VIP
         lifetimeOrders >= REPEAT_ORDER_COUNT -> CustomerBadge.REPEAT
         else -> CustomerBadge.NONE
     }
@@ -109,6 +116,7 @@ object CustomerInsightsCalculator {
     ): CappedList<DebtorEntry> {
         if (customers.isEmpty()) return CappedList.empty()
         val customersById = customers.associateBy { it.id }
+        val currency = orders.firstOrNull()?.currency ?: Currency.NGN
 
         data class Acc(
             var totalOwed: Double = 0.0,
@@ -143,7 +151,8 @@ object CustomerInsightsCalculator {
                     oldestDeadline = acc.oldestDeadlineMillis?.let { millis ->
                         Instant.fromEpochMilliseconds(millis).toLocalDateTime(timeZone).date
                     },
-                    canSendWhatsAppReminder = customer.phone.isNotBlank()
+                    canSendWhatsAppReminder = customer.phone.isNotBlank(),
+                    currency = currency
                 )
             }
             .sortedWith(

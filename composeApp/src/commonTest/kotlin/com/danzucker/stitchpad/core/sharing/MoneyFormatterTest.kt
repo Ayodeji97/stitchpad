@@ -29,6 +29,13 @@ class MoneyFormatterTest {
     }
 
     @Test
+    fun compactMoneyKeepsMeaningfulFractionalThousandsForZeroDecimalCurrencies() {
+        assertEquals("F CFA 1.2K", formatCompactMoney(1200.0, Currency.XOF))
+        assertEquals("GH₵1.5M", formatCompactMoney(1500000.0, Currency.GHS))
+        assertEquals("-KSh 1.2K", formatCompactMoney(-1200.0, Currency.KES))
+    }
+
+    @Test
     fun numericOnlyCompatibilityPreservesNigerianFormatting() {
         assertEquals("5,000", formatMoney(5000.0, Currency.NGN, includeSymbol = false))
         assertEquals("5,000.50", formatPrice(5000.5))

@@ -28,7 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.feature.reports.domain.model.CappedList
 import com.danzucker.stitchpad.feature.reports.domain.model.DebtorEntry
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -128,7 +128,7 @@ private fun OutstandingRow(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "₦" + formatPrice(debtor.totalOwed),
+                text = formatMoney(debtor.totalOwed, debtor.currency),
                 style = MaterialTheme.typography.bodyMedium,
                 fontFamily = monoFamily,
                 fontWeight = FontWeight.Bold,

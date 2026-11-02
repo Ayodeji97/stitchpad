@@ -1,7 +1,10 @@
 package com.danzucker.stitchpad.feature.reports.presentation
 
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.feature.reports.domain.CurrencyReportsCalculator
 import com.danzucker.stitchpad.feature.reports.domain.model.CappedList
+import com.danzucker.stitchpad.feature.reports.domain.model.CurrencyReports
 import com.danzucker.stitchpad.feature.reports.domain.model.CustomRange
 import com.danzucker.stitchpad.feature.reports.domain.model.CustomerRanking
 import com.danzucker.stitchpad.feature.reports.domain.model.DebtorEntry
@@ -20,6 +23,7 @@ data class ReportsState(
     val customRange: CustomRange? = null,
     val hasAnyOrders: Boolean = false,
     val kpiSummary: KpiSummary? = null,
+    val currencyReports: List<CurrencyReports> = emptyList(),
     val productionCounts: ProductionCounts? = null,
     val topCustomers: CappedList<CustomerRanking> = CappedList.empty(),
     val debtors: CappedList<DebtorEntry> = CappedList.empty(),
@@ -30,4 +34,16 @@ data class ReportsState(
     // pre-midnight date for as long as the user left Reports open.
     val today: LocalDate? = null,
     val errorMessage: UiText? = null
-)
+) {
+    /** Legacy manually constructed states/previews remain a single Nigerian report. */
+    val monetaryReports: List<CurrencyReports>
+        get() = if (currencyReports.isNotEmpty()) {
+            currencyReports
+        } else {
+            kpiSummary?.let {
+                listOf(CurrencyReports(Currency.NGN, it, topCustomers, debtors))
+            }.orEmpty()
+        }
+
+    val orderCountKpi get() = CurrencyReportsCalculator.orderCount(monetaryReports)
+}

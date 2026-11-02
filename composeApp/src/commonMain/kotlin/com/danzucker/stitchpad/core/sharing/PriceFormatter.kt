@@ -1,6 +1,8 @@
 package com.danzucker.stitchpad.core.sharing
 
 import com.danzucker.stitchpad.core.domain.model.Currency
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
 /**
@@ -28,6 +30,20 @@ fun formatMoney(amount: Double, currency: Currency, includeSymbol: Boolean = tru
         ""
     }
     return sign + symbol + number
+}
+
+/** Compact display keeps one significant decimal even for a zero-decimal currency (1.2K francs). */
+fun formatCompactMoney(amount: Double, currency: Currency): String {
+    val divisor = when {
+        abs(amount) >= 1_000_000.0 -> 1_000_000.0
+        abs(amount) >= 1_000.0 -> 1_000.0
+        else -> return formatMoney(amount, currency)
+    }
+    val rounded = (abs(amount) / divisor * 10.0).roundToInt() / 10.0
+    val number = if (rounded == rounded.toLong().toDouble()) rounded.toLong().toString() else rounded.toString()
+    val prefix = formatMoney(0.0, currency).removeSuffix("0")
+    val suffix = if (divisor == 1_000_000.0) "M" else "K"
+    return (if (amount < 0) "-" else "") + prefix + number + suffix
 }
 
 /** Compatibility for number-only Nigerian call sites pending their currency migration. */

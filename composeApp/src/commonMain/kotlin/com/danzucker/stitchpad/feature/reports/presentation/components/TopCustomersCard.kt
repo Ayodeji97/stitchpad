@@ -30,7 +30,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.feature.reports.domain.model.CappedList
 import com.danzucker.stitchpad.feature.reports.domain.model.CustomerBadge
 import com.danzucker.stitchpad.feature.reports.domain.model.CustomerRanking
@@ -131,7 +131,7 @@ private fun TopCustomerRow(
         // nothing for NONE — without a reserved slot the chevron drifts).
         Text(
             modifier = Modifier.width(110.dp),
-            text = "₦" + formatPrice(ranking.totalCollected),
+            text = formatMoney(ranking.totalCollected, ranking.currency),
             style = MaterialTheme.typography.bodyMedium,
             fontFamily = monoFamily,
             fontWeight = FontWeight.Bold,

@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.reports.presentation
 
+import com.danzucker.stitchpad.core.domain.model.Currency
 import kotlinx.datetime.LocalDate
 
 sealed interface ReportsEvent {
@@ -15,7 +16,8 @@ sealed interface ReportsEvent {
         val customerName: String,
         val customerPhone: String,
         val totalOwed: Double,
-        val oldestDeadline: LocalDate?
+        val oldestDeadline: LocalDate?,
+        val currency: Currency = Currency.NGN,
     ) : ReportsEvent
 
     /** Fired when a Free-tier tailor taps the paywall card's Upgrade CTA. */

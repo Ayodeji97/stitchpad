@@ -14,7 +14,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.core.domain.model.Currency
+import com.danzucker.stitchpad.core.sharing.formatCompactMoney
 import com.danzucker.stitchpad.feature.reports.domain.model.Kpi
 import com.danzucker.stitchpad.feature.reports.domain.model.KpiSummary
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -37,7 +38,9 @@ fun KpiGrid(
     summary: KpiSummary,
     deltaSuffix: String,
     periodLabel: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    currency: Currency = Currency.NGN,
+    showOrderCount: Boolean = true,
 ) {
     // PTSP-39 "Calm" direction: every KPI icon chip is indigo (the unifying
     // brand accent). Colour is reserved for meaning — the Outstanding value
@@ -58,7 +61,7 @@ fun KpiGrid(
                 iconTint = iconTint,
                 iconBackground = iconBg,
                 kpi = summary.revenue,
-                valueFormatter = ::formatNaira,
+                valueFormatter = { formatCompactMoney(it, currency) },
                 deltaSuffix = deltaSuffix,
                 periodLabel = periodLabel,
                 sparklineColor = spark
@@ -70,7 +73,7 @@ fun KpiGrid(
                 iconTint = iconTint,
                 iconBackground = iconBg,
                 kpi = summary.collected,
-                valueFormatter = ::formatNaira,
+                valueFormatter = { formatCompactMoney(it, currency) },
                 deltaSuffix = deltaSuffix,
                 periodLabel = periodLabel,
                 sparklineColor = spark
@@ -84,7 +87,7 @@ fun KpiGrid(
                 iconTint = iconTint,
                 iconBackground = iconBg,
                 kpi = summary.outstanding,
-                valueFormatter = ::formatNaira,
+                valueFormatter = { formatCompactMoney(it, currency) },
                 deltaSuffix = deltaSuffix,
                 periodLabel = periodLabel,
                 sparklineColor = spark,
@@ -94,18 +97,20 @@ fun KpiGrid(
                 // Outstanding rising = bad: a + delta should render red.
                 invertDeltaSign = true
             )
-            KpiTile(
-                modifier = Modifier.weight(1f),
-                label = stringResource(Res.string.reports_kpi_orders),
-                icon = Icons.Default.ShoppingBag,
-                iconTint = iconTint,
-                iconBackground = iconBg,
-                kpi = summary.orders,
-                valueFormatter = ::formatCount,
-                deltaSuffix = deltaSuffix,
-                periodLabel = periodLabel,
-                sparklineColor = spark
-            )
+            if (showOrderCount) {
+                KpiTile(
+                    modifier = Modifier.weight(1f),
+                    label = stringResource(Res.string.reports_kpi_orders),
+                    icon = Icons.Default.ShoppingBag,
+                    iconTint = iconTint,
+                    iconBackground = iconBg,
+                    kpi = summary.orders,
+                    valueFormatter = ::formatCount,
+                    deltaSuffix = deltaSuffix,
+                    periodLabel = periodLabel,
+                    sparklineColor = spark
+                )
+            }
         }
         // Profit spans the full grid width — it carries a coverage caption the
         // fixed-shape tiles above never need, so it doesn't share their 2-up row.
@@ -117,6 +122,7 @@ fun KpiGrid(
             else -> stringResource(Res.string.reports_profit_coverage_all, summary.ordersInWindow)
         }
         ProfitKpiTile(
+            currency = currency,
             modifier = Modifier.fillMaxWidth(),
             label = stringResource(Res.string.reports_kpi_profit) + profitMarginSuffix,
             icon = Icons.Default.Payments,
@@ -143,27 +149,22 @@ fun KpiGrid(
     }
 }
 
-private fun formatNaira(value: Double): String {
-    val abs = kotlin.math.abs(value)
-    return when {
-        abs >= 1_000_000.0 -> "₦${shorten(value, 1_000_000.0)}M"
-        abs >= 1_000.0 -> "₦${shorten(value, 1_000.0)}K"
-        else -> "₦" + formatPrice(value)
-    }
-}
-
-private fun shorten(value: Double, divisor: Double): String {
-    val scaled = value / divisor
-    val rounded = (scaled * 10).roundToInt() / 10.0
-    // Trim trailing .0 for cleaner display: 1.0M -> 1M, 1.5M -> 1.5M
-    return if (rounded == rounded.toLong().toDouble()) {
-        rounded.toLong().toString()
-    } else {
-        rounded.toString()
-    }
-}
-
 private fun formatCount(value: Double): String = value.roundToInt().toString()
+
+@Composable
+fun ReportOrderCount(kpi: Kpi, deltaSuffix: String, periodLabel: String) {
+    KpiTile(
+        label = stringResource(Res.string.reports_kpi_orders),
+        icon = Icons.Default.ShoppingBag,
+        iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
+        iconBackground = MaterialTheme.colorScheme.primaryContainer,
+        kpi = kpi,
+        valueFormatter = ::formatCount,
+        deltaSuffix = deltaSuffix,
+        periodLabel = periodLabel,
+        sparklineColor = MaterialTheme.colorScheme.primary,
+    )
+}
 
 // --------------- Previews ---------------
 
