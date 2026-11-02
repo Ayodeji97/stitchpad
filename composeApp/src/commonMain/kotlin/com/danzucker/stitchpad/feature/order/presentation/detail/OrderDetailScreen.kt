@@ -607,6 +607,7 @@ fun OrderDetailScreen(
             currency = state.order.currency,
             balanceRemaining = state.order.balanceRemaining,
             amountInput = state.paymentAmountInput,
+            amountInvalid = state.paymentAmountInvalid,
             method = state.paymentMethodSelection,
             type = state.paymentTypeSelection,
             wasCapped = state.wasPaymentCapped,
@@ -624,6 +625,7 @@ fun OrderDetailScreen(
         CostsEditorSheet(
             currency = state.order.currency,
             draft = state.costsDraft,
+            invalidCategories = state.costDraftInvalid,
             onAmountChange = { category, digits ->
                 onAction(OrderDetailAction.OnCostDraftChange(category, digits))
             },

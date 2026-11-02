@@ -3,13 +3,15 @@
 package com.danzucker.stitchpad.feature.order.presentation.detail
 
 import com.danzucker.stitchpad.core.domain.model.CostCategory
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.OrderCost
+import com.danzucker.stitchpad.core.presentation.moneyInputValue
 
 /**
  * Pure mapper from the costs editor's in-progress draft to persistable [OrderCost] lines.
  *
  * Intentionally free of any Order / Firestore / coroutine dependency so the invariants
- * (digits-only parsing, blank-drop, zero-exclusion) can be unit-tested in isolation
+ * (precision-aware parsing, blank-drop, zero-exclusion) can be unit-tested in isolation
  * without building an expect-class sharer fake for commonTest — mirrors [capPaymentDigits]
  * in PaymentMath.kt.
  *
@@ -23,8 +25,9 @@ import com.danzucker.stitchpad.core.domain.model.OrderCost
 internal fun orderCostsFromDraft(
     draft: Map<CostCategory, String>,
     existingNotes: Map<CostCategory, String?> = emptyMap(),
+    currency: Currency = Currency.NGN,
 ): List<OrderCost> =
     draft.mapNotNull { (category, digits) ->
-        val amount = digits.filter(Char::isDigit).toDoubleOrNull() ?: return@mapNotNull null
+        val amount = moneyInputValue(digits, currency) ?: return@mapNotNull null
         if (amount <= 0.0) null else OrderCost(category, amount, note = existingNotes[category])
     }

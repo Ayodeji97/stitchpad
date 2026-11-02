@@ -35,8 +35,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.sharing.formatMoney
-import com.danzucker.stitchpad.ui.components.NairaAmountField
+import com.danzucker.stitchpad.ui.components.MoneyAmountField
 import com.danzucker.stitchpad.ui.components.StitchPadButton
+import com.danzucker.stitchpad.ui.components.moneyInputErrorText
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import com.danzucker.stitchpad.util.ObserveAsEvents
@@ -156,9 +157,16 @@ private fun GoalSetupContent(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        NairaAmountField(
+        MoneyAmountField(
             value = state.targetAmountInput,
-            leadingIcon = { Text(state.currency.symbol) },
+            currency = state.currency,
+            enabled = state.isCurrencyLoaded && !state.isSaving,
+            isError = state.hasTargetAmountError,
+            supportingText = if (state.hasTargetAmountError) {
+                { Text(moneyInputErrorText(state.currency)) }
+            } else {
+                null
+            },
             onValueChange = { onAction(GoalSetupAction.OnTargetAmountChange(it)) },
             label = { Text(stringResource(Res.string.goals_setup_amount_label)) },
             placeholder = { Text(stringResource(Res.string.goals_setup_amount_placeholder)) },

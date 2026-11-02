@@ -47,6 +47,26 @@ class MoneyInputTest {
     }
 
     @Test
+    fun validLargerAmountsDoNotLoseACentAtPaymentAndCapBoundaries() {
+        listOf(10_000_000.03, 1_000_000_000.03).forEach { amount ->
+            val text = moneyInputForAmount(amount)
+            assertEquals(amount, moneyAmountAtPrecision(amount, Currency.NGN))
+            assertEquals(text, capMoneyInput("2000000000", amount, Currency.NGN))
+            assertEquals(amount, moneyInputValue(text, Currency.NGN))
+        }
+        assertNull(moneyAmountAtPrecision(10_000_000.035, Currency.NGN))
+        assertNull(moneyAmountAtPrecision(10_000_000.03, Currency.XOF))
+        assertNull(moneyAmountAtPrecision(1_000_000_000.001, Currency.XOF))
+    }
+
+    @Test
+    fun distinctExtremeAmountsCannotCollapseIntoTheSamePersistedDouble() {
+        assertNull(moneyInputValue("90071992547409.90", Currency.NGN))
+        assertNull(moneyInputValue("90071992547409.91", Currency.NGN))
+        assertEquals("12.34", moneyInputAfterEdit("90071992547409.90", "12.34", Currency.NGN))
+    }
+
+    @Test
     fun prefillPreservesExistingFractionsAndExpandsScientificNotationWithoutRounding() {
         assertEquals("12.34", moneyInputForAmount(12.34))
         assertEquals("12.345", moneyInputForAmount(12.345))

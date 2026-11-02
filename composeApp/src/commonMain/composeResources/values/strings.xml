@@ -2029,4 +2029,6 @@
     <string name="country_picker_empty">No countries match. Try a country name or dial code.</string>
     <string name="goals_setup_error_load">Couldn&apos;t load your goal. Go back and try again.</string>
     <string name="country_picker_clear_search">Clear search</string>
+    <string name="money_input_whole_amount_required">Enter a whole amount for this currency.</string>
+    <string name="money_input_amount_invalid">Enter a valid amount using up to %1$d decimal places.</string>
 </resources>

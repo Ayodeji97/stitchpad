@@ -2,6 +2,11 @@
 
 package com.danzucker.stitchpad.feature.order.presentation.detail
 
+import com.danzucker.stitchpad.core.domain.model.Currency
+import com.danzucker.stitchpad.core.presentation.capMoneyInput
+import com.danzucker.stitchpad.core.presentation.moneyAmountAtPrecision
+import com.danzucker.stitchpad.core.presentation.moneyInputAfterEdit
+
 /**
  * Pure payment-math helpers used by the Record Payment flow.
  *
@@ -10,22 +15,22 @@ package com.danzucker.stitchpad.feature.order.presentation.detail
  * isolation without building an expect-class sharer fake for commonTest.
  */
 
-/**
- * Cap digit-only user input so the amount cannot exceed the outstanding balance.
- * Leading zeros are trimmed, letters (never expected from a numeric keyboard) are dropped.
- * Returns an empty string when the input would evaluate to zero after trimming.
- */
-internal fun capPaymentDigits(rawDigits: String, balanceRemaining: Double): String {
-    val filtered = rawDigits.filter { it.isDigit() }.trimStart('0')
-    val typed = filtered.toLongOrNull()
-    val remainingWhole = balanceRemaining.toLong()
-    val needsCapping = typed != null && balanceRemaining > 0.0 && typed > remainingWhole
-    return when {
-        filtered.isEmpty() -> ""
-        needsCapping -> remainingWhole.toString()
-        else -> filtered
-    }
+/** Cap major-unit edits without losing the record currency's supported fractional digits. */
+internal fun capPaymentDigits(
+    rawDigits: String,
+    balanceRemaining: Double,
+    currency: Currency = Currency.NGN,
+    previous: String = "",
+): String {
+    val accepted = moneyInputAfterEdit(rawDigits, previous, currency)
+    val trimmed = accepted.trimStart('0')
+    val canonical = if (trimmed.startsWith('.')) "0$trimmed" else trimmed
+    return capMoneyInput(canonical, balanceRemaining, currency)
 }
+
+/** Accept representable payments while ignoring only binary floating-point noise in balances. */
+internal fun paymentAmountAtPrecision(amount: Double, currency: Currency): Double? =
+    moneyAmountAtPrecision(amount, currency)
 
 /**
  * Payment progress for the hero card's unified money block.
