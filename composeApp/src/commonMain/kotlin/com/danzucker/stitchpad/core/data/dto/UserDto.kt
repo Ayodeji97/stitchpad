@@ -59,4 +59,15 @@ data class UserDto(
     val announcementsPushEnabled: Boolean? = null,
     @SerialName("referralCode")
     val referralCode: String? = null,
+    /** ISO 3166-1 alpha-2 market code. Absent on legacy docs, which the mapper treats as NG. */
+    @SerialName("country")
+    val country: String? = null,
+    /** ISO 4217 currency code. Absent means derive from [country]. */
+    @SerialName("currency")
+    val currency: String? = null,
+    /** IANA time zone id. Absent means the country's default zone. */
+    @SerialName("timeZone")
+    val timeZone: String? = null,
+    @SerialName("locale")
+    val locale: String? = null,
 )

@@ -244,7 +244,9 @@ internal fun orderItemBaseWriteFields(items: List<OrderItemBaseDto>, now: Long):
 
 /**
  * Non-payment half of [FirebaseOrderRepository.updateOrder]'s `/private/money` write —
- * every [OrderMoneyDto] field EXCEPT `payments`, which [orderMoneyMergeWrite] unions on top.
+ * every [OrderMoneyDto] field EXCEPT `payments` (which [orderMoneyMergeWrite] unions on top)
+ * and `currency`. `currency` is create-only: it is stamped by the full write in createOrder and
+ * never written on update, so a later country change can't re-label old orders.
  *
  * These fields stay REPLACE-whole (the edit screen is authoritative for them): clearing the
  * costs list or a discount is a legitimate state the tailor can express, and costs are

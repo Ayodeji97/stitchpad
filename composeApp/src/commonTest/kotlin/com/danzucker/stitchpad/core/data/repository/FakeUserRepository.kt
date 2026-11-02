@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.core.data.repository
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.domain.repository.UserRepository
 import kotlinx.coroutines.flow.Flow
@@ -26,6 +27,11 @@ class FakeUserRepository : UserRepository {
     /** Paths passed to [deleteUserLogo], in call order. */
     val deletedLogoPaths: MutableList<String> = mutableListOf()
 
+    var lastCountry: Country? = null
+    var createUserProfileCallCount = 0
+    var lastTimeZone: String? = null
+    var lastLocale: String? = null
+
     /** Last (url, path) pair passed to [updateBrandLogo], or null if never called. */
     var lastBrandLogoUpdate: Pair<String?, String?>? = null
 
@@ -42,9 +48,16 @@ class FakeUserRepository : UserRepository {
         bankName: String?,
         bankAccountName: String?,
         bankAccountNumber: String?,
-        whatsappConfirmed: Boolean,
+        whatsappConfirmed: Boolean?,
+        country: Country?,
+        timeZone: String?,
+        locale: String?,
     ): EmptyResult<DataError.Network> {
         shouldReturnError?.let { return Result.Error(it) }
+        createUserProfileCallCount++
+        lastCountry = country
+        lastTimeZone = timeZone
+        lastLocale = locale
         lastUserId = userId
         lastBusinessName = businessName
         lastWhatsAppNumber = whatsappNumber
@@ -72,8 +85,12 @@ class FakeUserRepository : UserRepository {
         bankAccountName: String?,
         bankAccountNumber: String?,
         whatsappConfirmed: Boolean,
+        country: Country?,
+        timeZone: String?,
     ): EmptyResult<DataError.Network> {
         shouldReturnError?.let { return Result.Error(it) }
+        lastCountry = country
+        lastTimeZone = timeZone
         lastUserId = userId
         lastBusinessName = businessName
         lastDisplayName = displayName
@@ -87,7 +104,16 @@ class FakeUserRepository : UserRepository {
         return Result.Success(Unit)
     }
 
-    override fun observeUser(userId: String): Flow<User?> = userFlow
+    /** Per-uid override for [observeUser]; falls back to [userFlow]. */
+    val userFlowsByUid = mutableMapOf<String, Flow<User?>>()
+
+    override fun observeUser(userId: String): Flow<User?> = userFlowsByUid[userId] ?: userFlow
+
+    /** Override for [getUser]; null returns Success([userFlow]'s current value). */
+    var getUserOverride: (suspend (String) -> Result<User?, DataError.Network>)? = null
+
+    override suspend fun getUser(userId: String): Result<User?, DataError.Network> =
+        getUserOverride?.invoke(userId) ?: Result.Success(userFlow.value)
 
     /** Value returned by [hasWorkshopProfile]. */
     var hasWorkshopProfileResult = false

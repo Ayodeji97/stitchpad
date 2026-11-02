@@ -125,11 +125,15 @@ class OrderOfflineWriteRegressionTest {
     // mirror. A legacy order with no mirror + recordPayment produces an UNSTAMPED partial
     // mirror that the read path (Order.withMoney) ignores — so the in-memory Order never
     // carries that payment, and the replace deleted it for good. The merge payload must
-    // therefore carry every money field EXCEPT payments, which are unioned separately.
+    // therefore carry every money field EXCEPT payments (unioned separately) and currency
+    // (create-only, see below).
     @Test
-    fun orderMoneyMergeFields_containsEveryMoneyFieldExceptPayments() {
+    fun orderMoneyMergeFields_containsEveryMoneyFieldExceptPaymentsAndCurrency() {
         val fields = orderMoneyMergeFields(money())
 
+        // currency is create-only: an update must never re-label old orders after a country
+        // change, so it must never appear in the merge payload.
+        assertFalse("currency" in orderMoneyMergeFields(money().copy(currency = "GHS")).keys)
         assertEquals(
             setOf("ownerId", "orderId", "totalPrice", "discount", "discountReason", "costs", "itemPrices"),
             fields.keys,

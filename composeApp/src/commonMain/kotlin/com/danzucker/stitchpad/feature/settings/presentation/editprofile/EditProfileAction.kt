@@ -1,5 +1,7 @@
 package com.danzucker.stitchpad.feature.settings.presentation.editprofile
 
+import com.danzucker.stitchpad.core.domain.model.Country
+
 sealed interface EditProfileAction {
     data class OnBusinessNameChange(val value: String) : EditProfileAction
     data class OnDisplayNameChange(val value: String) : EditProfileAction
@@ -25,6 +27,12 @@ sealed interface EditProfileAction {
     data object OnBankNameBlur : EditProfileAction
     data object OnBankAccountNameBlur : EditProfileAction
     data object OnBankAccountNumberBlur : EditProfileAction
+
+    // Country picker
+    data object OnCountryChipClick : EditProfileAction
+    data class OnCountrySelected(val country: Country) : EditProfileAction
+    data class OnTimeZoneSelected(val timeZone: String) : EditProfileAction
+    data object OnDismissCountryPicker : EditProfileAction
 
     // WhatsApp confirm
     data object OnConfirmWhatsAppClick : EditProfileAction

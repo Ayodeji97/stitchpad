@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.settings.presentation.foundersnote
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalUriHandler
+import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.presentation.openUriSafely
 import com.danzucker.stitchpad.core.sharing.buildWhatsAppUrl
 import kotlinx.coroutines.launch
@@ -32,7 +33,10 @@ fun FoundersNoteRoot(
         onOpenWhatsApp = {
             scope.launch {
                 val message = getString(Res.string.settings_support_intro_message)
-                uriHandler.openUriSafely(buildWhatsAppUrl(SUPPORT_WHATSAPP_NUMBER, message), tag = "FoundersNoteRoot")
+                uriHandler.openUriSafely(
+                    buildWhatsAppUrl(SUPPORT_WHATSAPP_NUMBER, message, Country.NG),
+                    tag = "FoundersNoteRoot",
+                )
             }
         },
     )

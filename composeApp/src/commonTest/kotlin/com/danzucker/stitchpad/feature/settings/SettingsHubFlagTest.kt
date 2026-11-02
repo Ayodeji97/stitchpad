@@ -1,4 +1,5 @@
 package com.danzucker.stitchpad.feature.settings
+import com.danzucker.stitchpad.core.domain.session.FakeCurrentCountryProvider
 import com.danzucker.stitchpad.core.domain.session.SelfInitiatedLeaveSignal
 import com.danzucker.stitchpad.feature.auth.domain.NoOpRemoteSyncGate
 import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
@@ -163,6 +164,7 @@ private fun buildSettingsVm(
         inviteRedemptionRepository = FakeInviteRedemptionRepository(),
         analytics = FakeAnalytics(),
         storeReviewLauncher = FakeStoreReviewLauncher(),
+        currentCountryProvider = FakeCurrentCountryProvider(),
     )
 }
 

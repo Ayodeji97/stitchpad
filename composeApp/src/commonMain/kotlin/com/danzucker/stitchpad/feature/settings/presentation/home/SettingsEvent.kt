@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.settings.presentation.home
 
+import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.presentation.UiText
 import org.jetbrains.compose.resources.StringResource
 
@@ -29,7 +30,11 @@ sealed interface SettingsEvent {
      * Empty [phoneNumber] opens WhatsApp's universal share picker (no
      * direct chat target).
      */
-    data class OpenWhatsApp(val phoneNumber: String, val messageRes: StringResource) : SettingsEvent
+    data class OpenWhatsApp(
+        val phoneNumber: String,
+        val messageRes: StringResource,
+        val country: Country,
+    ) : SettingsEvent
     data class ShowSnackbar(val message: UiText) : SettingsEvent
     data object NavigateToUpgrade : SettingsEvent
     data object NavigateToFoundersNote : SettingsEvent

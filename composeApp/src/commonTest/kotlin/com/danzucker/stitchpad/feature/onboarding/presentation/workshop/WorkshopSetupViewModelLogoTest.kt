@@ -189,8 +189,9 @@ class WorkshopSetupViewModelLogoTest {
 
         vm.onAction(WorkshopSetupAction.OnSkipClick)
 
-        // Continue was cancelled mid-await; no profile write, no logo URL persisted.
-        assertNull(repo.lastUserId, "createUserProfile must not run after Skip")
+        // Continue was cancelled mid-await; no profile write, no logo URL persisted. (Skip's own
+        // market-only write may land, but it carries no business name.)
+        assertNull(repo.lastBusinessName, "Continue's createUserProfile must not run after Skip")
         assertNull(repo.lastBrandLogoUpdate, "updateBrandLogo must not run after Skip")
         assertEquals(false, vm.state.value.isAwaitingLogo)
     }

@@ -67,8 +67,8 @@ actual val platformModule: Module = module {
     single { OrderReceiptSharer(androidContext()) }
     single { ImageSharer(androidContext()) }
     single<MeasurementSharer> { AndroidMeasurementSharer(androidContext()) }
-    single { WhatsAppLauncher(androidContext()) }
-    single { DialerLauncher(androidContext()) }
+    single { WhatsAppLauncher(androidContext(), get()) }
+    single { DialerLauncher(androidContext(), get()) }
     single { CurrentActivityHolder() }
     single { ReviewPreferences(androidContext()) } bind ReviewPreferencesStore::class
     single<StoreReviewLauncher> { AndroidStoreReviewLauncher(activityHolder = get(), context = androidContext()) }

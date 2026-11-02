@@ -10,6 +10,8 @@ import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.WorkshopSession
+import com.danzucker.stitchpad.core.domain.model.Country
+import com.danzucker.stitchpad.core.domain.session.FakeCurrentCountryProvider
 import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
 import com.danzucker.stitchpad.feature.auth.data.FakePatternValidator
 import com.danzucker.stitchpad.feature.onboarding.data.FakeOnboardingPreferences
@@ -40,6 +42,8 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class CustomerFormViewModelTest {
 
+    private var countryProvider = FakeCurrentCountryProvider()
+
     private lateinit var customerRepository: FakeCustomerRepository
     private lateinit var activeWorkshopProvider: FakeActiveWorkshopProvider
     private lateinit var emailValidator: FakePatternValidator
@@ -61,6 +65,7 @@ class CustomerFormViewModelTest {
         val args = if (customerId != null) mapOf("customerId" to customerId) else emptyMap()
         val vm = CustomerFormViewModel(
             savedStateHandle = SavedStateHandle(args),
+            currentCountryProvider = countryProvider,
             customerRepository = customerRepository,
             activeWorkshopProvider = activeWorkshopProvider,
             emailValidator = emailValidator,
@@ -84,6 +89,7 @@ class CustomerFormViewModelTest {
         val args = if (customerId != null) mapOf("customerId" to customerId) else emptyMap()
         val vm = CustomerFormViewModel(
             savedStateHandle = SavedStateHandle(args),
+            currentCountryProvider = countryProvider,
             customerRepository = customerRepository,
             activeWorkshopProvider = activeWorkshopProvider,
             emailValidator = validator,
@@ -98,6 +104,16 @@ class CustomerFormViewModelTest {
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
+    }
+
+    @Test
+    fun stateCarriesTheTailorsCountryForThePhonePlaceholder() = runTest {
+        countryProvider = FakeCurrentCountryProvider(Country.GH)
+        val vm = createViewModel()
+        assertEquals(Country.GH, vm.state.value.country)
+
+        countryProvider.load(Country.KE)
+        assertEquals(Country.KE, vm.state.value.country)
     }
 
     /**

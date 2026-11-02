@@ -60,6 +60,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.feature.freemium.presentation.cap.CustomerCapReachedSheet
 import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.components.rememberSanitizedTextFieldValue
@@ -230,7 +231,11 @@ fun CustomerFormScreen(
                 },
                 onBlur = { onAction(CustomerFormAction.OnPhoneBlur) },
                 label = stringResource(Res.string.customer_form_phone_label),
-                placeholder = stringResource(Res.string.customer_form_phone_placeholder),
+                placeholder = stringResource(
+                    Res.string.customer_form_phone_placeholder,
+                    state.country.dialCode,
+                    state.country.exampleNational,
+                ),
                 isError = state.phoneError != null,
                 errorText = state.phoneError?.asString(),
                 singleLine = true,
@@ -482,6 +487,15 @@ private fun MeasurementsToggleCard(
 private fun CustomerFormScreenAddPreview() {
     StitchPadTheme {
         CustomerFormScreen(state = CustomerFormState(), onAction = {})
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun CustomerFormScreenAddGhanaPreview() {
+    StitchPadTheme {
+        CustomerFormScreen(state = CustomerFormState(country = Country.GH), onAction = {})
     }
 }
 

@@ -1,10 +1,18 @@
 package com.danzucker.stitchpad.feature.onboarding.presentation.workshop
 
+import com.danzucker.stitchpad.core.domain.model.Country
+
 sealed interface WorkshopSetupAction {
     data class OnBusinessNameChange(val name: String) : WorkshopSetupAction
     data class OnWhatsAppNumberChange(val raw: String) : WorkshopSetupAction
     data object OnBusinessNameBlur : WorkshopSetupAction
     data object OnWhatsAppNumberBlur : WorkshopSetupAction
+
+    // Country picker
+    data object OnCountryChipClick : WorkshopSetupAction
+    data class OnCountrySelected(val country: Country) : WorkshopSetupAction
+    data class OnTimeZoneSelected(val timeZone: String) : WorkshopSetupAction
+    data object OnDismissCountryPicker : WorkshopSetupAction
     data object OnContinueClick : WorkshopSetupAction
     data object OnSkipClick : WorkshopSetupAction
 

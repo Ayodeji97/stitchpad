@@ -5,9 +5,11 @@ import com.danzucker.stitchpad.core.data.appLifetimeScope
 import com.danzucker.stitchpad.core.data.entitlement.UserDocEntitlementsProvider
 import com.danzucker.stitchpad.core.data.session.FirebaseActiveWorkshopProvider
 import com.danzucker.stitchpad.core.data.session.MembershipStatusDto
+import com.danzucker.stitchpad.core.data.session.UserDocCurrentCountryProvider
 import com.danzucker.stitchpad.core.data.sync.SyncStatusObserver
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.CurrentCountryProvider
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
 import com.danzucker.stitchpad.core.domain.session.SelfInitiatedLeaveSignal
 import com.danzucker.stitchpad.core.domain.staff.StaffMembershipPrefsStore
@@ -72,6 +74,14 @@ val coreModule = module {
         UserDocEntitlementsProvider(
             auth = get(),
             firestore = get(),
+            scope = get<CoroutineScope>(qualifier = named("entitlementsAppScope")),
+        )
+    }
+    // Tracks the signed-in user's country; reuses the entitlements scope (same auth-state lifetime).
+    single<CurrentCountryProvider> {
+        UserDocCurrentCountryProvider(
+            uidFlow = get<FirebaseAuth>().authStateChanged.map { it?.uid },
+            userRepository = get(),
             scope = get<CoroutineScope>(qualifier = named("entitlementsAppScope")),
         )
     }

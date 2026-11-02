@@ -69,7 +69,10 @@ fun SettingsEventEffect(
             is SettingsEvent.OpenWhatsApp -> {
                 scope.launch {
                     val message = getString(event.messageRes)
-                    uriHandler.openUriSafely(buildWhatsAppUrl(event.phoneNumber, message), tag = "SettingsEventEffect")
+                    uriHandler.openUriSafely(
+                        buildWhatsAppUrl(event.phoneNumber, message, event.country),
+                        tag = "SettingsEventEffect",
+                    )
                 }
             }
             is SettingsEvent.ShowSnackbar -> {

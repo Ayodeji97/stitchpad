@@ -34,4 +34,6 @@ data class OrderMoneyDto(
     val payments: List<PaymentDto> = emptyList(),
     val costs: List<OrderCostDto> = emptyList(),
     val itemPrices: Map<String, Double> = emptyMap(),
+    // ISO code; null on docs written before currency was stamped (those read as NGN).
+    val currency: String? = null,
 )

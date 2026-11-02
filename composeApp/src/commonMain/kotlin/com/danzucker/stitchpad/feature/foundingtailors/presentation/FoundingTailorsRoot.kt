@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.presentation.openUriSafely
 import com.danzucker.stitchpad.core.sharing.buildWhatsAppUrl
 import com.danzucker.stitchpad.util.ObserveAsEvents
@@ -33,7 +34,7 @@ fun FoundingTailorsRoot(
             // The share text is already resolved by the ViewModel. Empty phone
             // opens WhatsApp's share picker — same path as the gift/team share.
             is FoundingTailorsEvent.ShareText ->
-                uriHandler.openUriSafely(buildWhatsAppUrl("", event.text), tag = "FoundingTailorsRoot")
+                uriHandler.openUriSafely(buildWhatsAppUrl("", event.text, Country.DEFAULT), tag = "FoundingTailorsRoot")
         }
     }
 

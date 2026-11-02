@@ -8,10 +8,12 @@ package com.danzucker.stitchpad.core.domain.repository
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.domain.model.User
 import kotlinx.coroutines.flow.Flow
 
 interface UserRepository {
+    @Suppress("LongParameterList")
     suspend fun createUserProfile(
         userId: String,
         businessName: String?,
@@ -19,7 +21,13 @@ interface UserRepository {
         bankName: String? = null,
         bankAccountName: String? = null,
         bankAccountNumber: String? = null,
-        whatsappConfirmed: Boolean = false,
+        // Null leaves the stored confirmation as it is (the market-only write on Skip).
+        whatsappConfirmed: Boolean? = false,
+        // Null leaves the stored value as it is (used when the existing doc could not be read).
+        // A non-null country also writes its currency.
+        country: Country?,
+        timeZone: String?,
+        locale: String?,
     ): EmptyResult<DataError.Network>
 
     suspend fun deleteUserDoc(userId: String): EmptyResult<DataError.Network>
@@ -36,9 +44,20 @@ interface UserRepository {
         bankAccountName: String? = null,
         bankAccountNumber: String? = null,
         whatsappConfirmed: Boolean = false,
+        // Null means unchanged. A non-null country also writes its currency.
+        country: Country? = null,
+        timeZone: String? = null,
     ): EmptyResult<DataError.Network>
 
     fun observeUser(userId: String): Flow<User?>
+
+    /**
+     * One-shot read of `users/{userId}`. Success(null) means the doc is confirmed absent;
+     * Error means the read failed (offline with no cache, permission, malformed doc), so
+     * callers can tell "no profile" apart from "couldn't tell" — unlike [observeUser], whose
+     * retry fallback emits null for both.
+     */
+    suspend fun getUser(userId: String): Result<User?, DataError.Network>
 
     /**
      * One-shot check of whether the remote `users/{userId}` document already holds

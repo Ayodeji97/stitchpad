@@ -9,6 +9,7 @@ import com.danzucker.stitchpad.core.data.dto.PaymentDto
 import com.danzucker.stitchpad.core.data.dto.StatusChangeDto
 import com.danzucker.stitchpad.core.data.dto.StyleImageRefDto
 import com.danzucker.stitchpad.core.domain.model.CostCategory
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.FabricImageRef
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.ImageSyncState
@@ -141,6 +142,7 @@ fun Order.toOrderMoneyDto(ownerId: String): OrderMoneyDto = OrderMoneyDto(
     payments = payments.map { it.toPaymentDto() },
     costs = costs.map { it.toOrderCostDto() },
     itemPrices = items.associate { it.id to it.price },
+    currency = currency.code,
 )
 
 /**
@@ -163,6 +165,7 @@ fun Order.withMoney(money: OrderMoneyDto?): Order {
         totalPrice = money.totalPrice,
         discount = money.discount,
         discountReason = money.discountReason,
+        currency = Currency.fromCode(money.currency) ?: Currency.NGN,
         payments = money.payments.map { it.toPayment() },
         costs = money.costs.map { it.toOrderCost() },
         items = items.map { item ->

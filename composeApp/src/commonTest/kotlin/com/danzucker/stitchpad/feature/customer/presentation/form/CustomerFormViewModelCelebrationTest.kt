@@ -8,6 +8,7 @@ import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
+import com.danzucker.stitchpad.core.domain.session.FakeCurrentCountryProvider
 import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
 import com.danzucker.stitchpad.core.presentation.celebration.Milestone
 import com.danzucker.stitchpad.feature.auth.data.FakePatternValidator
@@ -32,6 +33,8 @@ import kotlin.test.assertNull
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CustomerFormViewModelCelebrationTest {
+
+    private var countryProvider = FakeCurrentCountryProvider()
 
     private lateinit var customerRepository: FakeCustomerRepository
     private lateinit var activeWorkshopProvider: FakeActiveWorkshopProvider
@@ -61,6 +64,7 @@ class CustomerFormViewModelCelebrationTest {
         val args = if (customerId != null) mapOf("customerId" to customerId) else emptyMap()
         val vm = CustomerFormViewModel(
             savedStateHandle = SavedStateHandle(args),
+            currentCountryProvider = countryProvider,
             customerRepository = customerRepository,
             activeWorkshopProvider = activeWorkshopProvider,
             emailValidator = FakePatternValidator(shouldMatch = true),

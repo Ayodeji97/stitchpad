@@ -90,8 +90,8 @@ actual val platformModule: Module = module {
     single { OrderReceiptSharer() }
     single { ImageSharer() }
     single<MeasurementSharer> { IosMeasurementSharer() }
-    single { WhatsAppLauncher() }
-    single { DialerLauncher() }
+    single { WhatsAppLauncher(get()) }
+    single { DialerLauncher(get()) }
     single { ReviewPreferences() } bind ReviewPreferencesStore::class
     single<StoreReviewLauncher> { IosStoreReviewLauncher() }
     single<PushPermissionController> { IosPushPermissionController() }

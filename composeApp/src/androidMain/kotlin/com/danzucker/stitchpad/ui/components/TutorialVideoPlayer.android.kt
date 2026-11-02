@@ -31,6 +31,7 @@ private fun String.sourceKind(): String = if (startsWith("file:")) "local" else 
  * PlayerView's own buffering spinner is suppressed to avoid a double indicator. Renders to a
  * TextureView (see tutorial_player_view.xml) and surfaces player errors via [onPlaybackError].
  */
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 actual fun TutorialVideoPlayer(
     uri: String,
