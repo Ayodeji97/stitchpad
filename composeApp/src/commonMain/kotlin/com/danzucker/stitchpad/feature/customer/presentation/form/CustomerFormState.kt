@@ -16,6 +16,9 @@ data class CustomerFormState(
     val isEditMode: Boolean = false,
     val errorMessage: UiText? = null,
     val addMeasurementsNext: Boolean = true,
-    /** The tailor's country; drives the phone placeholder's dial code and example number. */
+    val isCountryPickerOpen: Boolean = false,
+    val countrySearchQuery: String = "",
+    val isPhoneCountrySelected: Boolean = false,
+    /** Defaults to the tailor country; selecting a customer prefix never updates the workshop. */
     val country: Country = Country.DEFAULT,
 )

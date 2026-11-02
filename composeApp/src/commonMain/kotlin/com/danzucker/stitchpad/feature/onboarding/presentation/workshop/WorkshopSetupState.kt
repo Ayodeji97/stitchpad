@@ -15,6 +15,7 @@ data class WorkshopSetupState(
     /** IANA zone id; always one of [country]'s time zones. */
     val timeZone: String = Country.DEFAULT.defaultTimeZone,
     val isCountryPickerOpen: Boolean = false,
+    val countrySearchQuery: String = "",
     val isLoading: Boolean = false,
     val businessNameError: StringResource? = null,
     /**

@@ -2024,4 +2024,6 @@
     <string name="sync_status_offline">Offline — saved on this phone, will sync later</string>
     <string name="sync_status_syncing">Syncing…</string>
     <string name="sync_not_synced">Not synced</string>
+    <string name="country_picker_search">Search country or dial code</string>
+    <string name="country_picker_empty">No countries match. Try a country name or dial code.</string>
 </resources>

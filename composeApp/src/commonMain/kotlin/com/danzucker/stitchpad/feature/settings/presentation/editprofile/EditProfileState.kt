@@ -35,6 +35,7 @@ data class EditProfileState(
     /** IANA zone id; always one of [country]'s time zones. */
     val timeZone: String = Country.DEFAULT.defaultTimeZone,
     val isCountryPickerOpen: Boolean = false,
+    val countrySearchQuery: String = "",
 
     // Original values, used to compute isDirty
     val originalBusinessName: String = "",

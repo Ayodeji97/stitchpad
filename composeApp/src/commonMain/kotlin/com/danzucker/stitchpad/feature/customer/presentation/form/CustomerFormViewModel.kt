@@ -8,6 +8,7 @@ import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
@@ -16,6 +17,8 @@ import com.danzucker.stitchpad.core.domain.session.workshopUidOrNull
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
 import com.danzucker.stitchpad.core.presentation.celebration.Milestone
+import com.danzucker.stitchpad.core.sharing.applyImpliedCountryCode
+import com.danzucker.stitchpad.core.sharing.normalisePhone
 import com.danzucker.stitchpad.feature.auth.domain.PatternValidator
 import com.danzucker.stitchpad.feature.customer.presentation.toCustomerUiText
 import kotlinx.coroutines.channels.Channel
@@ -70,17 +73,49 @@ class CustomerFormViewModel(
     /** Keeps the phone placeholder on the tailor's own country's example number. */
     private fun observeCountry() {
         viewModelScope.launch {
-            currentCountryProvider.country.collect { country -> _state.update { it.copy(country = country) } }
+            currentCountryProvider.country.collect { country ->
+                _state.update {
+                    if (it.isPhoneCountrySelected || it.phone.trim().startsWith("+")) it else it.copy(country = country)
+                }
+            }
         }
     }
 
     @Suppress("CyclomaticComplexMethod")
     fun onAction(action: CustomerFormAction) {
         when (action) {
+            CustomerFormAction.OnCountryPickerOpen -> _state.update {
+                it.copy(
+                    isCountryPickerOpen = true,
+                    countrySearchQuery = ""
+                )
+            }
+            CustomerFormAction.OnCountryPickerDismiss -> _state.update { it.copy(isCountryPickerOpen = false) }
+            is CustomerFormAction.OnCountrySearchChange -> _state.update {
+                it.copy(
+                    countrySearchQuery = action.query.take(80)
+                )
+            }
+            is CustomerFormAction.OnCountrySelected -> _state.update {
+                val local = it.phone.removePrefix("+${it.country.dialCode}")
+                it.copy(
+                    country = action.country,
+                    phone = local,
+                    isPhoneCountrySelected = true,
+                    isCountryPickerOpen = false,
+                )
+            }
+
             is CustomerFormAction.OnNameChange ->
                 _state.update { it.copy(name = action.name, nameError = null) }
             is CustomerFormAction.OnPhoneChange ->
-                _state.update { it.copy(phone = action.phone, phoneError = null) }
+                _state.update {
+                    it.copy(
+                        phone = action.phone.filter { c -> isValidPhoneChar(c) }.take(20),
+                        country = countryForExplicitPhone(action.phone) ?: it.country,
+                        phoneError = null,
+                    )
+                }
             is CustomerFormAction.OnEmailChange ->
                 _state.update { it.copy(email = action.email, emailError = null) }
             is CustomerFormAction.OnAddressChange ->
@@ -117,6 +152,7 @@ class CustomerFormViewModel(
                         it.copy(
                             name = c.name,
                             phone = c.phone,
+                            country = countryForExplicitPhone(c.phone) ?: it.country,
                             email = c.email ?: "",
                             address = c.address ?: "",
                             createdAt = c.createdAt,
@@ -163,7 +199,7 @@ class CustomerFormViewModel(
                 id = newId,
                 userId = userId,
                 name = s.name.trim(),
-                phone = s.phone.trim(),
+                phone = customerPhoneForStorage(s.phone, s.country),
                 email = s.email.trim().ifBlank { null },
                 address = s.address.trim().ifBlank { null },
                 createdAt = s.createdAt
@@ -271,3 +307,18 @@ class CustomerFormViewModel(
         return isValid
     }
 }
+
+/** The visible dial-code control makes a national customer number unambiguous. */
+internal fun customerPhoneForStorage(raw: String, country: Country): String {
+    val normalized = normalisePhone(applyImpliedCountryCode(raw, country), country)
+    val matchesCountry = normalized.startsWith(country.dialCode) &&
+        normalized.length == country.dialCode.length + country.nationalLength
+    return if (matchesCountry) {
+        "+$normalized"
+    } else {
+        raw.trim()
+    }
+}
+
+private fun countryForExplicitPhone(phone: String): Country? =
+    Country.entries.firstOrNull { phone.trim().startsWith("+${it.dialCode}") }

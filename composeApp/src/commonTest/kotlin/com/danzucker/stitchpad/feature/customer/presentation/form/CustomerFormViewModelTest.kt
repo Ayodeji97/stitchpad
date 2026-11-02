@@ -247,11 +247,12 @@ class CustomerFormViewModelTest {
     }
 
     @Test
-    fun onPhoneBlur_withInvalidPhone_setsPhoneError() = runTest {
+    fun onPhoneChange_filtersUnsupportedCharactersBeforeValidation() = runTest {
         val viewModel = createViewModel()
         viewModel.onAction(CustomerFormAction.OnPhoneChange("abc123"))
+        assertEquals("123", viewModel.state.value.phone)
         viewModel.onAction(CustomerFormAction.OnPhoneBlur)
-        assertNotNull(viewModel.state.value.phoneError)
+        assertNull(viewModel.state.value.phoneError)
     }
 
     @Test
@@ -351,6 +352,38 @@ class CustomerFormViewModelTest {
         assertNotNull(customerRepository.lastCreatedCustomer)
         assertNull(customerRepository.lastCreatedCustomer?.email)  // blank → stored as null
         assertIs<CustomerFormEvent.NavigateToCustomerList>(viewModel.events.first())
+    }
+
+    @Test
+    fun ghanaCustomerNationalNumber_savesWithSelectedInternationalPrefix() = runTest {
+        val viewModel = createViewModel()
+        viewModel.onAction(CustomerFormAction.OnNameChange("Ghana smoke"))
+        viewModel.onAction(CustomerFormAction.OnCountrySelected(Country.GH))
+        viewModel.onAction(CustomerFormAction.OnPhoneChange("24 555 1234"))
+        viewModel.onAction(CustomerFormAction.OnSaveClick)
+        assertEquals("+233245551234", customerRepository.lastCreatedCustomer?.phone)
+        assertEquals(Country.NG, countryProvider.country.value)
+    }
+
+    @Test
+    fun pastedForeignNumber_updatesCustomerPrefixWithoutChangingWorkshop() = runTest {
+        val viewModel = createViewModel()
+        viewModel.onAction(CustomerFormAction.OnPhoneChange("+254712345678"))
+        assertEquals(Country.KE, viewModel.state.value.country)
+        assertEquals(Country.NG, countryProvider.country.value)
+    }
+
+    @Test
+    fun customerCountryPicker_searchResetsOnReopenAndDismissKeepsCountry() = runTest {
+        val viewModel = createViewModel()
+        viewModel.onAction(CustomerFormAction.OnCountryPickerOpen)
+        viewModel.onAction(CustomerFormAction.OnCountrySearchChange("Ghana"))
+        assertEquals("Ghana", viewModel.state.value.countrySearchQuery)
+        viewModel.onAction(CustomerFormAction.OnCountryPickerDismiss)
+        assertFalse(viewModel.state.value.isCountryPickerOpen)
+        assertEquals(Country.NG, viewModel.state.value.country)
+        viewModel.onAction(CustomerFormAction.OnCountryPickerOpen)
+        assertEquals("", viewModel.state.value.countrySearchQuery)
     }
 
     // --- Save: create mode ---

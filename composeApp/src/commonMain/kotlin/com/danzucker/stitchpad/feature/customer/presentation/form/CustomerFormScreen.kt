@@ -62,6 +62,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.feature.freemium.presentation.cap.CustomerCapReachedSheet
+import com.danzucker.stitchpad.ui.components.CountryPhoneField
+import com.danzucker.stitchpad.ui.components.CountryPickerSheet
 import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.components.rememberSanitizedTextFieldValue
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -81,7 +83,6 @@ import stitchpad.composeapp.generated.resources.customer_form_email_placeholder
 import stitchpad.composeapp.generated.resources.customer_form_name_label
 import stitchpad.composeapp.generated.resources.customer_form_name_placeholder
 import stitchpad.composeapp.generated.resources.customer_form_phone_label
-import stitchpad.composeapp.generated.resources.customer_form_phone_placeholder
 import stitchpad.composeapp.generated.resources.customer_form_save_and_measure_button
 import stitchpad.composeapp.generated.resources.customer_form_save_button
 import stitchpad.composeapp.generated.resources.customer_form_title_add
@@ -160,6 +161,15 @@ fun CustomerFormScreen(
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     onAction: (CustomerFormAction) -> Unit
 ) {
+    if (state.isCountryPickerOpen) {
+        CountryPickerSheet(
+            selected = state.country,
+            onSelect = { onAction(CustomerFormAction.OnCountrySelected(it)) },
+            onDismiss = { onAction(CustomerFormAction.OnCountryPickerDismiss) },
+            query = state.countrySearchQuery,
+            onQueryChange = { onAction(CustomerFormAction.OnCountrySearchChange(it)) },
+        )
+    }
     val title = if (state.isEditMode) {
         stringResource(Res.string.customer_form_title_edit)
     } else {
@@ -223,26 +233,14 @@ fun CustomerFormScreen(
                 )
             )
 
-            StitchPadField(
+            CountryPhoneField(
+                country = state.country,
                 value = state.phone,
-                onValueChange = { newValue ->
-                    val filtered = newValue.filter { c -> c.isDigit() || c == '+' || c == ' ' || c == '-' }
-                    if (filtered.length <= 20) onAction(CustomerFormAction.OnPhoneChange(filtered))
-                },
+                onValueChange = { onAction(CustomerFormAction.OnPhoneChange(it)) },
                 onBlur = { onAction(CustomerFormAction.OnPhoneBlur) },
+                onCountryClick = { onAction(CustomerFormAction.OnCountryPickerOpen) },
                 label = stringResource(Res.string.customer_form_phone_label),
-                placeholder = stringResource(
-                    Res.string.customer_form_phone_placeholder,
-                    state.country.dialCode,
-                    state.country.exampleNational,
-                ),
-                isError = state.phoneError != null,
-                errorText = state.phoneError?.asString(),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Phone,
-                    imeAction = ImeAction.Next
-                )
+                error = state.phoneError?.asString(),
             )
 
             StitchPadField(

@@ -156,7 +156,12 @@ class EditProfileViewModel(
             EditProfileAction.OnBankNameBlur -> validateBankFields()
             EditProfileAction.OnBankAccountNameBlur -> validateBankFields()
             EditProfileAction.OnBankAccountNumberBlur -> validateBankFields()
-            EditProfileAction.OnCountryChipClick -> _state.update { it.copy(isCountryPickerOpen = true) }
+            is EditProfileAction.OnCountrySearchChange -> _state.update {
+                it.copy(countrySearchQuery = action.query.take(80))
+            }
+            EditProfileAction.OnCountryChipClick -> _state.update {
+                it.copy(isCountryPickerOpen = true, countrySearchQuery = "")
+            }
             EditProfileAction.OnDismissCountryPicker -> _state.update { it.copy(isCountryPickerOpen = false) }
             is EditProfileAction.OnCountrySelected -> onCountrySelected(action.country)
             is EditProfileAction.OnTimeZoneSelected -> onTimeZoneSelected(action.timeZone)

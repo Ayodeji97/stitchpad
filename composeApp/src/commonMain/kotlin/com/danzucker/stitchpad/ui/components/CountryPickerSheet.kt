@@ -1,5 +1,7 @@
 package com.danzucker.stitchpad.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,10 +15,14 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -50,9 +56,12 @@ import stitchpad.composeapp.generated.resources.country_name_ne
 import stitchpad.composeapp.generated.resources.country_name_ng
 import stitchpad.composeapp.generated.resources.country_name_sn
 import stitchpad.composeapp.generated.resources.country_name_tg
+import stitchpad.composeapp.generated.resources.country_picker_empty
+import stitchpad.composeapp.generated.resources.country_picker_search
 import stitchpad.composeapp.generated.resources.country_picker_title
 import stitchpad.composeapp.generated.resources.time_zone_kinshasa
 import stitchpad.composeapp.generated.resources.time_zone_lubumbashi
+import stitchpad.composeapp.generated.resources.tutorials_player_close
 
 /**
  * Bottom sheet listing the supported markets: flag, localized name and `+dialCode`, with a
@@ -64,13 +73,15 @@ fun CountryPickerSheet(
     selected: Country,
     onSelect: (Country) -> Unit,
     onDismiss: () -> Unit,
+    query: String = "",
+    onQueryChange: (String) -> Unit = {},
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = MaterialTheme.colorScheme.surface,
     ) {
-        CountryPickerSheetContent(selected = selected, onSelect = onSelect)
+        CountryPickerSheetContent(selected, onSelect, onDismiss, query, onQueryChange)
     }
 }
 
@@ -78,15 +89,44 @@ fun CountryPickerSheet(
 private fun CountryPickerSheetContent(
     selected: Country,
     onSelect: (Country) -> Unit,
+    onDismiss: () -> Unit = {},
+    query: String = "",
+    onQueryChange: (String) -> Unit = {},
 ) {
+    val countries = Country.entries.filter { country ->
+        countryDisplayName(country).contains(query.trim(), ignoreCase = true) ||
+            country.iso.contains(query.trim(), ignoreCase = true) ||
+            ("+" + country.dialCode).contains(query.trim())
+    }
     Column(
         modifier = Modifier.padding(horizontal = DesignTokens.space5, vertical = DesignTokens.space2),
     ) {
-        Text(
-            text = stringResource(Res.string.country_picker_title),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(bottom = DesignTokens.space3),
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(Res.string.country_picker_title),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = onDismiss) {
+                Icon(Icons.Default.Close, stringResource(Res.string.tutorials_player_close))
+            }
+        }
+        OutlinedTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            placeholder = { Text(stringResource(Res.string.country_picker_search)) },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            singleLine = true,
+            shape = RoundedCornerShape(DesignTokens.radiusMd),
+            modifier = Modifier.fillMaxWidth().padding(vertical = DesignTokens.space3),
         )
+        if (countries.isEmpty()) {
+            Text(
+                text = stringResource(Res.string.country_picker_empty),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(DesignTokens.space4),
+            )
+        }
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(2.dp),
             modifier = Modifier
@@ -94,7 +134,7 @@ private fun CountryPickerSheetContent(
                 .weight(1f, fill = false)
                 .padding(bottom = DesignTokens.space3),
         ) {
-            items(Country.entries, key = { it.iso }) { country ->
+            items(countries, key = { it.iso }) { country ->
                 CountryRow(
                     country = country,
                     isSelected = country == selected,
@@ -111,10 +151,14 @@ private fun CountryRow(
     isSelected: Boolean,
     onClick: () -> Unit,
 ) {
+    val background = animateColorAsState(
+        if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+    )
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(DesignTokens.radiusMd))
+            .background(background.value)
             .selectable(selected = isSelected, role = Role.RadioButton, onClick = onClick)
             .padding(vertical = 14.dp, horizontal = DesignTokens.space3),
         verticalAlignment = Alignment.CenterVertically,
