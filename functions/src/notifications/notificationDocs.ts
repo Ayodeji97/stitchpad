@@ -1,5 +1,6 @@
 // functions/src/notifications/notificationDocs.ts
 import { DigestItem, DigestModel } from './types';
+import { notificationCurrency } from './moneyDisplay';
 
 export type NotificationType = 'OVERDUE' | 'DUE_SOON' | 'TO_COLLECT';
 
@@ -8,7 +9,8 @@ export interface NotificationDocData {
   type: NotificationType;
   customerName: string;
   garmentSummary: string;
-  amount: number | null;   // set for TO_COLLECT
+  amount: number | null;   // major units, set for TO_COLLECT
+  currency: string;        // immutable order currency; legacy defaults to NGN
   deadline: number | null; // set for OVERDUE / DUE_SOON
   isOverdue: boolean;      // TO_COLLECT: money owed >= 7 days since Ready/Delivered; false for OVERDUE/DUE_SOON
 }
@@ -27,6 +29,7 @@ function toSpec(item: DigestItem, type: NotificationType): NotificationDocSpec {
       customerName: item.customerName,
       garmentSummary: item.garmentSummary,
       amount: item.amount ?? null,
+      currency: notificationCurrency(item.currency),
       deadline: item.deadline ?? null,
       isOverdue: item.isOverdue ?? false,
     },

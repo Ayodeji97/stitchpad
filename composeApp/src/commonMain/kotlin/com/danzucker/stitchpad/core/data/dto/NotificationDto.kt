@@ -17,4 +17,5 @@ data class NotificationDto(
     val isRead: Boolean = false,
     val createdAt: Long = 0L,
     val isOverdue: Boolean = false,
+    val currency: String? = null,
 )

@@ -20,6 +20,7 @@ describe('moneyFromDoc', () => {
       totalPrice: 15000, discount: 1000,
       payments: [{ amount: 5000 }], costs: [{ amount: 2000 }],
     })).toEqual({
+      currency: 'NGN',
       totalPrice: 15000, discount: 1000,
       payments: [{ amount: 5000 }], costs: [{ amount: 2000 }],
     });
@@ -27,10 +28,10 @@ describe('moneyFromDoc', () => {
 
   it('normalises a missing or malformed doc to zeroes rather than throwing', () => {
     expect(moneyFromDoc(undefined)).toEqual({
-      totalPrice: 0, discount: 0, payments: [], costs: [],
+      currency: 'NGN', totalPrice: 0, discount: 0, payments: [], costs: [],
     });
     expect(moneyFromDoc({ totalPrice: 'lots', payments: 'none' })).toEqual({
-      totalPrice: 0, discount: 0, payments: [], costs: [],
+      currency: 'NGN', totalPrice: 0, discount: 0, payments: [], costs: [],
     });
   });
 
@@ -84,7 +85,7 @@ describe('withMoney', () => {
   it('lets an authoritative zero win instead of resurrecting stale base money', () => {
     const legacy = order({ totalPrice: 8000, payments: [{ amount: 3000 }] });
     const merged = withMoney([legacy], new Map([['o1', {
-      totalPrice: 0, discount: 0, payments: [], costs: [],
+      currency: 'NGN', totalPrice: 0, discount: 0, payments: [], costs: [],
     }]]))[0];
     expect(merged.totalPrice).toBe(0);
     expect(balanceRemaining(merged)).toBe(0);
