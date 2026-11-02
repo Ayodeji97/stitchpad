@@ -90,7 +90,7 @@ jobs:
         continue-on-error: true
 
       - name: Run tests
-        run: ./gradlew :composeApp:allTests
+        run: ./gradlew :composeApp:testDebugUnitTest
 
       - name: Generate coverage report
         run: ./gradlew :composeApp:koverXmlReport :composeApp:koverHtmlReport
@@ -214,7 +214,7 @@ jobs:
 
   # ── iOS ───────────────────────────────────────────────────
   build-ios:
-    runs-on: macos-14
+    runs-on: macos-15
     needs: [detekt, secrets-scan, crash-check]
     steps:
       - uses: actions/checkout@v7

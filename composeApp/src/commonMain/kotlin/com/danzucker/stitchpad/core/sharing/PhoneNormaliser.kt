@@ -6,13 +6,13 @@ private const val INTERNATIONAL_DIAL_PREFIX = "00"
 
 private fun String.digitsOnly(): String = filter { it.isDigit() }
 
-/** True when [raw] spells its own country code: a leading `+`, or `00` plus a registry dial code. */
+/** True when [raw] spells its own country code with a leading `+` or `00`. */
 private fun hasExplicitCountryCode(raw: String): Boolean {
     val trimmed = raw.trim()
     val afterPrefix = trimmed.digitsOnly().drop(INTERNATIONAL_DIAL_PREFIX.length)
     // No ITU country code starts with 0, so "+0803…" is a mistyped trunk number, not explicit.
     return (trimmed.startsWith("+") && !trimmed.drop(1).trimStart { !it.isDigit() }.startsWith("0")) ||
-        (trimmed.startsWith(INTERNATIONAL_DIAL_PREFIX) && Country.entries.any { afterPrefix.startsWith(it.dialCode) })
+        (trimmed.startsWith(INTERNATIONAL_DIAL_PREFIX) && afterPrefix.isNotEmpty() && !afterPrefix.startsWith("0"))
 }
 
 /**

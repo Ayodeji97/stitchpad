@@ -59,6 +59,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -349,7 +350,7 @@ class OrderFormViewModelTest {
     }
 
     @Test
-    fun save_inCreateMode_countryNeverLoads_fallsBackAfterTheWait() = runTest {
+    fun save_inCreateMode_countryNeverLoads_showsErrorAndAllowsRetry() = runTest {
         countryProvider = FakeCurrentCountryProvider(Country.NG, loaded = false)
         val vm = createViewModel()
         vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
@@ -362,8 +363,16 @@ class OrderFormViewModelTest {
         advanceTimeBy(2_900)
         assertNull(orderRepository.lastCreatedOrder, "still waiting for the country")
         advanceTimeBy(200)
+        runCurrent()
 
-        assertEquals(Currency.NGN, orderRepository.lastCreatedOrder?.currency)
+        assertNull(orderRepository.lastCreatedOrder)
+        assertFalse(vm.state.value.isSaving)
+        assertNotNull(vm.state.value.errorMessage)
+
+        countryProvider.load(Country.GH)
+        vm.onAction(OrderFormAction.OnSave)
+        runCurrent()
+        assertEquals(Currency.GHS, orderRepository.lastCreatedOrder?.currency)
     }
 
     @Test
