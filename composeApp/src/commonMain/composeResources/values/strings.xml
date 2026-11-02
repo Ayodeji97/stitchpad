@@ -659,25 +659,25 @@
     <string name="garment_picker_add_new_cta">Add a new garment type</string>
     <string name="garment_picker_add_new_hint">Save to your list for next time</string>
 
-    <string name="order_form_price_label">Unit price (₦)</string>
-    <string name="order_form_line_total">%1$d × ₦%2$s = ₦%3$s</string>
+    <string name="order_form_price_label">Unit price</string>
+    <string name="order_form_line_total">%1$d × %2$s = %3$s</string>
     <string name="order_form_summary_title">Order summary</string>
     <string name="order_form_summary_subtotal">Subtotal</string>
     <string name="order_form_summary_total">Total</string>
     <string name="order_form_summary_discount">Discount (%1$s)</string>
     <string name="order_form_summary_discount_plain">Discount</string>
-    <string name="order_form_summary_item_qty">%1$d × ₦%2$s</string>
+    <string name="order_form_summary_item_qty">%1$d × %2$s</string>
     <string name="order_form_measurement_label">Measurement (optional)</string>
     <string name="order_form_add_item">Add item</string>
     <string name="order_form_remove_item">Remove item</string>
     <string name="order_form_deadline_label">Deadline (optional)</string>
     <string name="order_form_pick_date">Pick a date</string>
     <string name="order_form_priority_label">Priority</string>
-    <string name="order_form_deposit_label">Deposit paid (₦)</string>
+    <string name="order_form_deposit_label">Deposit paid</string>
     <string name="order_form_deposit_placeholder">0</string>
     <string name="order_form_notes_label">Notes (optional)</string>
     <string name="order_form_notes_placeholder">e.g. Customer wants express delivery…</string>
-    <string name="order_form_discount_label">Discount (₦)</string>
+    <string name="order_form_discount_label">Discount</string>
     <string name="order_form_discount_reason_label">Discount reason (optional)</string>
     <string name="order_form_discount_reason_placeholder">e.g. New customer</string>
     <string name="order_form_create_button">Create Order</string>
@@ -775,8 +775,8 @@
     <!-- Order form -->
     <string name="order_form_item_number">Item %1$d</string>
     <string name="order_form_deposit_dialog_title">Update deposit?</string>
-    <string name="order_form_deposit_dialog_body">Deposit will change from ₦%1$s to ₦%2$s.</string>
-    <string name="order_form_deposit_dialog_body_with_other_payments">Recorded progress/final payments (₦%1$s) won&apos;t change.</string>
+    <string name="order_form_deposit_dialog_body">Deposit will change from %1$s to %2$s.</string>
+    <string name="order_form_deposit_dialog_body_with_other_payments">Recorded progress/final payments (%1$s) won&apos;t change.</string>
     <string name="order_form_deposit_dialog_confirm">Update</string>
     <string name="order_form_deposit_dialog_cancel">Cancel</string>
     <string name="common_ok">OK</string>
@@ -2031,4 +2031,9 @@
     <string name="country_picker_clear_search">Clear search</string>
     <string name="money_input_whole_amount_required">Enter a whole amount for this currency.</string>
     <string name="money_input_amount_invalid">Enter a valid amount using up to %1$d decimal places.</string>
+    <string name="error_order_currency_changed">Your workshop currency changed. Reopen this form before saving.</string>
+    <string name="error_order_currency_seed">This order uses another currency. Create a new order and enter its prices instead.</string>
+    <string name="error_order_money_precision">Check the amounts. Use only the decimal places supported by this currency.</string>
+    <string name="order_form_currency_loading">Loading workshop currency…</string>
+    <string name="order_form_currency_retry">Try again</string>
 </resources>

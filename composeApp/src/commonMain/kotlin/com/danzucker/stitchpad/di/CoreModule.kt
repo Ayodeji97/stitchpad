@@ -3,11 +3,13 @@ package com.danzucker.stitchpad.di
 import com.danzucker.stitchpad.core.config.domain.repository.AppConfigRepository
 import com.danzucker.stitchpad.core.data.appLifetimeScope
 import com.danzucker.stitchpad.core.data.entitlement.UserDocEntitlementsProvider
+import com.danzucker.stitchpad.core.data.repository.CloudFunctionsWorkshopMarketRepository
 import com.danzucker.stitchpad.core.data.session.FirebaseActiveWorkshopProvider
 import com.danzucker.stitchpad.core.data.session.MembershipStatusDto
-import com.danzucker.stitchpad.core.data.session.UserDocCurrentCountryProvider
+import com.danzucker.stitchpad.core.data.session.WorkshopCurrentCountryProvider
 import com.danzucker.stitchpad.core.data.sync.SyncStatusObserver
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
+import com.danzucker.stitchpad.core.domain.repository.WorkshopMarketRepository
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.CurrentCountryProvider
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
@@ -31,6 +33,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.retryWhen
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.qualifier.named
+import org.koin.dsl.bind
 import org.koin.dsl.module
 
 // Backoff between membership-doc snapshot retries during the staff pending
@@ -77,11 +80,13 @@ val coreModule = module {
             scope = get<CoroutineScope>(qualifier = named("entitlementsAppScope")),
         )
     }
-    // Tracks the signed-in user's country; reuses the entitlements scope (same auth-state lifetime).
+    singleOf(::CloudFunctionsWorkshopMarketRepository) bind WorkshopMarketRepository::class
+    // Staff never observes an owner's private profile; the market callable checks active membership.
     single<CurrentCountryProvider> {
-        UserDocCurrentCountryProvider(
-            uidFlow = get<FirebaseAuth>().authStateChanged.map { it?.uid },
-            userRepository = get(),
+        WorkshopCurrentCountryProvider(
+            activeWorkshop = get(),
+            users = get(),
+            markets = get(),
             scope = get<CoroutineScope>(qualifier = named("entitlementsAppScope")),
         )
     }
