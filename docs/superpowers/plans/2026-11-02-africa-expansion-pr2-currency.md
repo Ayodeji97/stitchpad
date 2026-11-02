@@ -1,6 +1,6 @@
 # Africa expansion PR 2 — currency migration
 
-Status: first implementation slice only; do not describe this branch as complete market support.
+Status: two implementation slices only; do not describe this branch as complete market support.
 Base: country foundation + shared phone UI checkpoint, merged with PR #374 head fixes.
 
 ## Money contract
@@ -79,3 +79,22 @@ Senegal and existing-Nigeria smoke tests on both platforms.
 - Android production sources compiled as part of that run. Firebase config is deliberately absent
   in this worktree; the Google Services processing task was excluded for unit-test validation.
 - No runtime UI inspection or cross-platform build was performed for this isolated slice.
+
+
+## Second slice implemented — immutable-order UI
+
+- Order list gross/net prices, partial-payment labels and profit use each order's currency.
+- Detail hero, paid/balance/total, discount, cost/profit and payment history cards propagate
+  the same immutable currency through their child composables.
+- Receipt-share summaries, delete-payment warnings and unpaid-balance status warnings receive
+  complete formatted amounts; corresponding resources no longer hardcode naira.
+- Existing payment and cost editor prefixes and paid-in-full text use the order currency.
+  Their numeric editing semantics remain unchanged (integer-only); decimal-safe ViewModel
+  input/capping and the actual MoneyAmountField migration are a separate remaining slice.
+- `StrikethroughPrice`, `PaymentStatusText` and the detail cards keep NGN defaults for previews
+  and source compatibility. Every production caller of StrikethroughPrice and PaymentStatusText
+  now explicitly passes `order.currency`; no active production price caller relies on that default.
+- Remaining scope includes order form monetary state/inputs, currency-safe aggregated reports and
+  goals, notification payloads, and active-workshop market metadata for staff.
+
+Second-slice check: Android source compilation, detekt, and targeted formatter/receipt/input/partial-payment/strikethrough tests passed (78 tests, zero failures/errors). No runtime screenshot verification or iOS build was performed for this second slice.

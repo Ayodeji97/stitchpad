@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.order.presentation.list
 
+import com.danzucker.stitchpad.core.domain.model.Currency
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -37,6 +38,13 @@ class PaymentDisplayTest {
     fun depositCoveringDiscountedTotalReturnsPaid() {
         // amountOwed is the payable (post-discount) total: subtotal 12_000 − 2_000 discount.
         assertEquals(PaymentDisplay.Paid, formatPaymentStatus(depositPaid = 10_000.0, amountOwed = 10_000.0))
+    }
+
+    @Test
+    fun abbreviateUsesHistoricalOrderCurrencyInsteadOfNaira() {
+        assertEquals("GH₵1k", PaymentDisplay.Partial(1500.0).formatAbbreviated(Currency.GHS))
+        assertEquals("KSh 500", PaymentDisplay.Partial(500.0).formatAbbreviated(Currency.KES))
+        assertEquals("F CFA 500", PaymentDisplay.Partial(500.0).formatAbbreviated(Currency.XOF))
     }
 
     @Test

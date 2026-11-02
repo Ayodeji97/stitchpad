@@ -31,9 +31,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
-import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.ui.components.ThousandsSeparatorTransformation
 import com.danzucker.stitchpad.ui.components.rememberSanitizedTextFieldValue
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -70,12 +71,14 @@ fun RecordPaymentDialogV2(
     onMarkPaidInFull: () -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
+    currency: Currency = Currency.NGN,
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) {
         RecordPaymentSheetContent(
+            currency = currency,
             balanceRemaining = balanceRemaining,
             amountInput = amountInput,
             method = method,
@@ -106,6 +109,7 @@ private fun RecordPaymentSheetContent(
     onMarkPaidInFull: () -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
+    currency: Currency = Currency.NGN,
 ) {
     val isConfirmEnabled = amountInput.isNotBlank() && (amountInput.toDoubleOrNull() ?: 0.0) > 0.0
 
@@ -139,7 +143,7 @@ private fun RecordPaymentSheetContent(
             OutlinedTextField(
                 value = amount.value,
                 onValueChange = amount.onValueChange,
-                prefix = { Text(text = "₦") },
+                prefix = { Text(text = currency.symbol) },
                 visualTransformation = ThousandsSeparatorTransformation,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
@@ -150,7 +154,7 @@ private fun RecordPaymentSheetContent(
                         Text(
                             text = stringResource(
                                 Res.string.payment_capped_at_balance,
-                                "₦${formatPrice(balanceRemaining)}",
+                                formatMoney(balanceRemaining, currency),
                             ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -168,7 +172,7 @@ private fun RecordPaymentSheetContent(
                     Text(
                         text = stringResource(
                             Res.string.record_payment_dialog_mark_paid_full,
-                            formatPrice(balanceRemaining),
+                            formatMoney(balanceRemaining, currency),
                         ),
                         style = MaterialTheme.typography.labelMedium,
                     )

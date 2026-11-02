@@ -5,6 +5,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
@@ -18,7 +19,8 @@ fun PaymentStatusText(
     depositPaid: Double,
     amountOwed: Double,
     showAmounts: Boolean = true,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    currency: Currency = Currency.NGN,
 ) {
     val display = formatPaymentStatus(depositPaid, amountOwed)
     val (text, color) = when (display) {
@@ -27,7 +29,7 @@ fun PaymentStatusText(
         PaymentDisplay.Paid -> stringResource(Res.string.payment_paid) to DesignTokens.success500
         is PaymentDisplay.Partial -> {
             val label = if (showAmounts) {
-                stringResource(Res.string.payment_partial, display.formatAbbreviated())
+                stringResource(Res.string.payment_partial, display.formatAbbreviated(currency))
             } else {
                 stringResource(Res.string.payment_partial_masked)
             }

@@ -67,6 +67,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.domain.model.CostCategory
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderCost
@@ -85,7 +86,7 @@ import com.danzucker.stitchpad.core.sharing.DialerLauncher
 import com.danzucker.stitchpad.core.sharing.ReceiptDocumentType
 import com.danzucker.stitchpad.core.sharing.ReceiptFormatter
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
-import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.feature.order.presentation.components.StylePickerSheet
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.CostsEditorSheet
 import com.danzucker.stitchpad.feature.order.presentation.detail.components.MeasurementDetailSheet
@@ -436,7 +437,7 @@ fun OrderDetailScreen(
                         Text(
                             text = stringResource(
                                 Res.string.order_delete_payment_warning,
-                                formatPrice(order.depositPaid)
+                                formatMoney(order.depositPaid, order.currency)
                             ),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.error
@@ -570,6 +571,7 @@ fun OrderDetailScreen(
         state.selectedNewStatus != null
     ) {
         BalanceOwedWarningDialog(
+            currency = state.order.currency,
             customerName = state.order.customerName,
             balanceRemaining = state.order.balanceRemaining,
             targetStatus = state.selectedNewStatus,
@@ -589,8 +591,8 @@ fun OrderDetailScreen(
             naturalDocType = naturalDocType,
             chosenDocType = state.documentTypeChoice,
             customerName = state.order?.customerName,
-            totalFormatted = state.order?.let { "₦${formatPrice(it.payableTotal)}" },
-            balanceFormatted = state.order?.let { "₦${formatPrice(it.balanceRemaining)}" },
+            totalFormatted = state.order?.let { formatMoney(it.payableTotal, it.currency) },
+            balanceFormatted = state.order?.let { formatMoney(it.balanceRemaining, it.currency) },
             balanceDue = (state.order?.balanceRemaining ?: 0.0) > 0.0,
             onDocTypeChoice = { onAction(OrderDetailAction.OnDocumentTypeChoice(it)) },
             onShareAsImage = { onAction(OrderDetailAction.OnShareAsImageClick) },
@@ -602,6 +604,7 @@ fun OrderDetailScreen(
     // Record payment dialog
     if (state.showRecordPaymentDialog && state.order != null) {
         RecordPaymentDialogV2(
+            currency = state.order.currency,
             balanceRemaining = state.order.balanceRemaining,
             amountInput = state.paymentAmountInput,
             method = state.paymentMethodSelection,
@@ -617,8 +620,9 @@ fun OrderDetailScreen(
     }
 
     // Costs editor sheet — records per-category order costs behind the profit card
-    if (state.costsEditorVisible) {
+    if (state.costsEditorVisible && state.order != null) {
         CostsEditorSheet(
+            currency = state.order.currency,
             draft = state.costsDraft,
             onAmountChange = { category, digits ->
                 onAction(OrderDetailAction.OnCostDraftChange(category, digits))
@@ -1159,6 +1163,7 @@ private fun OrderDetailContent(
     ) {
         item {
             OrderHeroCard(
+                currency = order.currency,
                 garmentTypeIcon = Icons.Default.Checkroom,
                 garmentName = garmentName,
                 customerName = order.customerName,
@@ -1201,6 +1206,7 @@ private fun OrderDetailContent(
         if (!state.isActiveStaff) {
             item {
                 OrderCostsCard(
+                    currency = order.currency,
                     costs = order.costs,
                     totalCost = order.totalCost,
                     profit = order.profit,
@@ -1231,6 +1237,7 @@ private fun OrderDetailContent(
         if (!state.isActiveStaff) {
             item {
                 OrderPaymentCard(
+                    currency = order.currency,
                     totalPrice = order.totalPrice,
                     discount = order.discount,
                     payments = order.payments,
@@ -1470,6 +1477,7 @@ private fun statusLabel(status: OrderStatus): String = when (status) {
 
 @Composable
 private fun BalanceOwedWarningDialog(
+    currency: Currency,
     customerName: String,
     balanceRemaining: Double,
     targetStatus: OrderStatus,
@@ -1498,7 +1506,7 @@ private fun BalanceOwedWarningDialog(
         },
         text = {
             Text(
-                text = stringResource(messageRes, customerName, formatPrice(balanceRemaining)),
+                text = stringResource(messageRes, customerName, formatMoney(balanceRemaining, currency)),
                 style = MaterialTheme.typography.bodyMedium
             )
         },

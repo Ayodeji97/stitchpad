@@ -14,7 +14,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.core.domain.model.Currency
+import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 
 /** Strikethrough line weight — drawn manually because TextDecoration.LineThrough can't be thickened. */
@@ -39,9 +40,10 @@ fun StrikethroughPrice(
     netColor: Color,
     modifier: Modifier = Modifier,
     stacked: Boolean = false,
+    currency: Currency = Currency.NGN,
 ) {
     val net: @Composable () -> Unit = {
-        Text(text = "₦${formatPrice(netPrice)}", style = netStyle, color = netColor)
+        Text(text = formatMoney(netPrice, currency), style = netStyle, color = netColor)
     }
     if (!shouldShowStruckGross(discount)) {
         Row(modifier = modifier) { net() }
@@ -53,7 +55,7 @@ fun StrikethroughPrice(
         // strikethrough ourselves at STRIKE_THICKNESS — TextDecoration.LineThrough renders
         // a hairline tied to font metrics that's too faint to read on dark surfaces.
         Text(
-            text = "₦${formatPrice(grossPrice)}",
+            text = formatMoney(grossPrice, currency),
             style = netStyle.copy(fontWeight = FontWeight.Normal),
             color = strikeColor,
             modifier = Modifier.drawWithContent {

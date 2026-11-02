@@ -36,8 +36,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.core.domain.model.CostCategory
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.OrderCost
-import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.feature.order.presentation.detail.costCategoryOrder
 import com.danzucker.stitchpad.feature.order.presentation.detail.label
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -67,6 +68,7 @@ fun OrderCostsCard(
     onToggleExpanded: () -> Unit,
     onEditClick: () -> Unit,
     modifier: Modifier = Modifier,
+    currency: Currency = Currency.NGN,
 ) {
     val hasCosts = costs.isNotEmpty()
     Surface(
@@ -121,13 +123,14 @@ fun OrderCostsCard(
                 !hasCosts -> OrderCostsEmptyState(onEditClick = onEditClick)
                 isExpanded -> OrderCostsFilledContent(
                     costs = costs,
+                    currency = currency,
                     totalCost = totalCost,
                     profit = profit,
                     profitMargin = profitMargin,
                     onEditClick = onEditClick,
                 )
                 // Collapsed: just the profit headline to save space; tap header to expand.
-                else -> ProfitBand(profit = profit, profitMargin = profitMargin)
+                else -> ProfitBand(profit = profit, profitMargin = profitMargin, currency = currency)
             }
         }
     }
@@ -159,6 +162,7 @@ private fun OrderCostsEmptyState(onEditClick: () -> Unit) {
 
 @Composable
 private fun OrderCostsFilledContent(
+    currency: Currency,
     costs: List<OrderCost>,
     totalCost: Double,
     profit: Double,
@@ -174,7 +178,7 @@ private fun OrderCostsFilledContent(
         costCategoryOrder.forEach { category ->
             val cost = costsByCategory[category]
             if (cost != null) {
-                CostRow(category = category, cost = cost, onClick = onEditClick)
+                CostRow(category = category, cost = cost, onClick = onEditClick, currency = currency)
             }
         }
     }
@@ -214,7 +218,7 @@ private fun OrderCostsFilledContent(
             color = MaterialTheme.colorScheme.onSurface,
         )
         Text(
-            text = "₦${formatPrice(totalCost)}",
+            text = formatMoney(totalCost, currency),
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
             fontFamily = FontFamily.Monospace,
@@ -224,11 +228,11 @@ private fun OrderCostsFilledContent(
 
     Spacer(Modifier.height(DesignTokens.space2))
 
-    ProfitBand(profit = profit, profitMargin = profitMargin)
+    ProfitBand(profit = profit, profitMargin = profitMargin, currency = currency)
 }
 
 @Composable
-private fun CostRow(category: CostCategory, cost: OrderCost, onClick: () -> Unit) {
+private fun CostRow(category: CostCategory, cost: OrderCost, onClick: () -> Unit, currency: Currency) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -252,7 +256,7 @@ private fun CostRow(category: CostCategory, cost: OrderCost, onClick: () -> Unit
             }
         }
         Text(
-            text = "₦${formatPrice(cost.amount)}",
+            text = formatMoney(cost.amount, currency),
             style = MaterialTheme.typography.bodyMedium,
             fontFamily = FontFamily.Monospace,
             color = MaterialTheme.colorScheme.onSurface,
@@ -261,7 +265,7 @@ private fun CostRow(category: CostCategory, cost: OrderCost, onClick: () -> Unit
 }
 
 @Composable
-private fun ProfitBand(profit: Double, profitMargin: Double?) {
+private fun ProfitBand(profit: Double, profitMargin: Double?, currency: Currency) {
     val isLoss = profit < 0.0
     val dark = isSystemInDarkTheme()
     val containerColor = if (isLoss) {
@@ -277,8 +281,7 @@ private fun ProfitBand(profit: Double, profitMargin: Double?) {
 
     val amountText = buildString {
         if (isLoss) append('−')
-        append('₦')
-        append(formatPrice(abs(profit)))
+        append(formatMoney(abs(profit), currency))
         profitMargin?.let { margin ->
             append(" · ")
             // abs() so the loss case doesn't double up on a minus sign — the

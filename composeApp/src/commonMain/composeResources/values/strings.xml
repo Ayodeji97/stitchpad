@@ -629,7 +629,7 @@
     <string name="order_delete_cancel">Cancel</string>
     <!-- Extra warning lines shown when deleting an order that is still in flight or has payments -->
     <string name="order_delete_active_intro">This order is currently %1$s for %2$s.</string>
-    <string name="order_delete_payment_warning">₦%1$s has already been recorded as paid. Deleting will erase that from your revenue record.</string>
+    <string name="order_delete_payment_warning">%1$s has already been recorded as paid. Deleting will erase that from your revenue record.</string>
     <string name="order_delete_consequences">Deleting removes it from your pipeline and clears its status history. This cannot be undone.</string>
 
     <!-- Order form screen -->
@@ -761,8 +761,8 @@
     <!-- Balance-owed warning shown when moving an order to Ready/Delivered with money still owed -->
     <string name="balance_warning_ready_title">Mark ready with balance owed?</string>
     <string name="balance_warning_delivered_title">Mark delivered with balance owed?</string>
-    <string name="balance_warning_ready_message">%1$s still owes ₦%2$s. You can record a payment now or mark ready and collect when they pick up.</string>
-    <string name="balance_warning_delivered_message">%1$s still owes ₦%2$s. Marking delivered with an unpaid balance affects your weekly revenue and how this order is tracked.</string>
+    <string name="balance_warning_ready_message">%1$s still owes %2$s. You can record a payment now or mark ready and collect when they pick up.</string>
+    <string name="balance_warning_delivered_message">%1$s still owes %2$s. Marking delivered with an unpaid balance affects your weekly revenue and how this order is tracked.</string>
     <string name="balance_warning_record_payment">Record payment</string>
     <string name="balance_warning_proceed">Mark anyway</string>
     <string name="balance_warning_dismiss">Cancel</string>
@@ -1289,7 +1289,7 @@
     <string name="record_payment_dialog_amount_label">Amount</string>
     <string name="record_payment_dialog_type_label">Payment type</string>
     <string name="record_payment_dialog_method_label">Method</string>
-    <string name="record_payment_dialog_mark_paid_full">Mark paid in full · ₦%1$s</string>
+    <string name="record_payment_dialog_mark_paid_full">Mark paid in full · %1$s</string>
     <string name="payment_capped_at_balance">Capped at balance %1$s</string>
 
     <!-- Order detail WhatsApp message templates (status-aware, %1$s = customer first name) -->

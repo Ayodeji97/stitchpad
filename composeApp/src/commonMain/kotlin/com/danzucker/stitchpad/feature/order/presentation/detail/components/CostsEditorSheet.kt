@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import com.danzucker.stitchpad.core.domain.model.CostCategory
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.feature.order.presentation.detail.costCategoryOrder
 import com.danzucker.stitchpad.feature.order.presentation.detail.hint
 import com.danzucker.stitchpad.feature.order.presentation.detail.label
@@ -43,12 +44,14 @@ fun CostsEditorSheet(
     onAmountChange: (CostCategory, String) -> Unit,
     onSave: () -> Unit,
     onDismiss: () -> Unit,
+    currency: Currency = Currency.NGN,
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) {
         CostsEditorSheetContent(
+            currency = currency,
             draft = draft,
             onAmountChange = onAmountChange,
             onSave = onSave,
@@ -61,6 +64,7 @@ private fun CostsEditorSheetContent(
     draft: Map<CostCategory, String>,
     onAmountChange: (CostCategory, String) -> Unit,
     onSave: () -> Unit,
+    currency: Currency = Currency.NGN,
 ) {
     Column(
         modifier = Modifier
@@ -92,6 +96,7 @@ private fun CostsEditorSheetContent(
         ) {
             costCategoryOrder.forEach { category ->
                 CostAmountRow(
+                    currency = currency,
                     category = category,
                     digits = draft[category].orEmpty(),
                     onAmountChange = onAmountChange,
@@ -129,6 +134,7 @@ private fun CostAmountRow(
     category: CostCategory,
     digits: String,
     onAmountChange: (CostCategory, String) -> Unit,
+    currency: Currency = Currency.NGN,
 ) {
     // Digits-only rejects characters mid-string; the helper re-derives the caret
     // from what survived instead of leaving it where the IME put it.
@@ -157,7 +163,7 @@ private fun CostAmountRow(
         OutlinedTextField(
             value = amount.value,
             onValueChange = amount.onValueChange,
-            prefix = { Text(text = "₦") },
+            prefix = { Text(text = currency.symbol) },
             visualTransformation = ThousandsSeparatorTransformation,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             singleLine = true,
