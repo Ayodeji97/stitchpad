@@ -90,6 +90,63 @@ class GoalSetupViewModelTest {
         assertNotNull(vm.state.value.errorMessage)
     }
 
+    @Test
+    fun fractionalExistingGoalIsNotTruncatedWhenOpenedAndSaved() = runTest {
+        signIn()
+        goalRepository.storedGoal = WeeklyGoal(targetAmount = 12.34, updatedAt = 0L, currency = Currency.GHS)
+        val vm = createViewModel(Country.NG)
+        assertEquals("12.34", vm.state.value.targetAmountInput)
+        vm.onAction(GoalSetupAction.OnSaveClick)
+        assertIs<GoalSetupEvent.NavigateBack>(vm.events.first())
+        assertEquals(12.34, goalRepository.lastSavedGoal?.targetAmount)
+        assertEquals(Currency.GHS, goalRepository.lastSavedGoal?.currency)
+    }
+
+    @Test
+    fun unsupportedFractionOnAnExistingWholeCurrencyGoalIsNotSilentlyRounded() = runTest {
+        signIn()
+        goalRepository.storedGoal = WeeklyGoal(targetAmount = 12.34, updatedAt = 0L, currency = Currency.XOF)
+        val vm = createViewModel(Country.NG)
+        assertEquals("12.34", vm.state.value.targetAmountInput)
+        assertTrue(vm.state.value.hasTargetAmountError)
+        assertFalse(vm.state.value.canSave)
+        vm.onAction(GoalSetupAction.OnSaveClick)
+        assertNull(goalRepository.lastSavedGoal)
+    }
+
+    @Test
+    fun decimalGoalEditsAcceptLocalCommaAndRejectExtraPrecisionWithoutChangingAmount() = runTest {
+        signIn()
+        val vm = createViewModel(Country.GH)
+        vm.onAction(GoalSetupAction.OnTargetAmountChange("12,34"))
+        assertEquals("12.34", vm.state.value.targetAmountInput)
+        vm.onAction(GoalSetupAction.OnTargetAmountChange("12.345"))
+        assertEquals("12.34", vm.state.value.targetAmountInput)
+        assertTrue(vm.state.value.hasTargetAmountError)
+        vm.onAction(GoalSetupAction.OnSaveClick)
+        assertNull(goalRepository.lastSavedGoal)
+        vm.onAction(GoalSetupAction.OnTargetAmountChange("12.35"))
+        vm.onAction(GoalSetupAction.OnSaveClick)
+        assertIs<GoalSetupEvent.NavigateBack>(vm.events.first())
+        assertEquals(12.35, goalRepository.lastSavedGoal?.targetAmount)
+    }
+
+    @Test
+    fun zeroDecimalGoalRejectsFractionalPasteAndRetainsItsWholeAmount() = runTest {
+        signIn()
+        val vm = createViewModel(Country.SN)
+        vm.onAction(GoalSetupAction.OnTargetAmountChange("1234"))
+        vm.onAction(GoalSetupAction.OnTargetAmountChange("12.34"))
+        assertEquals("1234", vm.state.value.targetAmountInput)
+        assertFalse(vm.state.value.canSave)
+        assertTrue(vm.state.value.hasTargetAmountError)
+        vm.onAction(GoalSetupAction.OnTargetAmountChange("1235"))
+        vm.onAction(GoalSetupAction.OnSaveClick)
+        assertIs<GoalSetupEvent.NavigateBack>(vm.events.first())
+        assertEquals(1235.0, goalRepository.lastSavedGoal?.targetAmount)
+        assertEquals(Currency.XOF, goalRepository.lastSavedGoal?.currency)
+    }
+
     // --- Prefill ---
 
     @Test

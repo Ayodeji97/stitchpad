@@ -1,9 +1,29 @@
 package com.danzucker.stitchpad.feature.order.presentation.detail
 
+import com.danzucker.stitchpad.core.domain.model.Currency
+import kotlin.test.assertNull
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class PaymentMathTest {
+
+    @Test
+    fun decimalPaymentCapsUseTheFractionalBalance() {
+        assertEquals("12.34", capPaymentDigits("99.99", 12.34, Currency.GHS))
+        assertEquals("0.05", capPaymentDigits("0.05", 12.34, Currency.NGN))
+        assertEquals("12.34", capPaymentDigits("12.34", 12.34, Currency.GHS))
+        assertEquals("12.34", capPaymentDigits("12.345", 99.0, Currency.GHS, previous = "12.34"))
+        assertEquals("12", capPaymentDigits("12.34", 99.0, Currency.XOF, previous = "12"))
+    }
+
+    @Test
+    fun markPaidSupportsBinaryNoiseButRejectsRealUnsupportedPrecision() {
+        assertEquals(0.29, paymentAmountAtPrecision(0.30 - 0.01, Currency.NGN))
+        assertEquals(12.34, paymentAmountAtPrecision(12.34, Currency.GHS))
+        assertEquals(10_000_000.03, paymentAmountAtPrecision(10_000_000.03, Currency.NGN))
+        assertNull(paymentAmountAtPrecision(12.34, Currency.XOF))
+        assertNull(paymentAmountAtPrecision(12.345, Currency.GHS))
+    }
 
     @Test
     fun progressUnpaidOrderIsZero() {

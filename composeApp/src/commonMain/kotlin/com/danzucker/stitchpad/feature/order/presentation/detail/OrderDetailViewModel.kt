@@ -38,6 +38,9 @@ import com.danzucker.stitchpad.core.domain.staff.TeamMemberStatus
 import com.danzucker.stitchpad.core.domain.staff.repository.TeamRosterRepository
 import com.danzucker.stitchpad.core.domain.staff.resolveClaimDisplayName
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.presentation.moneyInputAfterEdit
+import com.danzucker.stitchpad.core.presentation.moneyInputForAmount
+import com.danzucker.stitchpad.core.presentation.moneyInputValue
 import com.danzucker.stitchpad.core.sharing.OrderReceiptSharer
 import com.danzucker.stitchpad.core.sharing.ReceiptData
 import com.danzucker.stitchpad.core.sharing.ReceiptFormatter
@@ -229,6 +232,7 @@ class OrderDetailViewModel(
                         selectedNewSubStatus = null,
                         showRecordPaymentDialog = true,
                         paymentAmountInput = "",
+                        paymentAmountInvalid = false,
                         wasPaymentCapped = false,
                     )
                 }
@@ -283,6 +287,7 @@ class OrderDetailViewModel(
                     it.copy(
                         showRecordPaymentDialog = true,
                         paymentAmountInput = "",
+                        paymentAmountInvalid = false,
                         wasPaymentCapped = false,
                         paymentTypeSelection = if (isFirst) PaymentType.DEPOSIT else PaymentType.PROGRESS,
                         paymentMethodSelection = PaymentMethod.TRANSFER,
@@ -290,10 +295,17 @@ class OrderDetailViewModel(
                 }
             }
             is OrderDetailAction.OnPaymentAmountChange -> {
-                val rawDigits = action.digits.filter { it.isDigit() }.trimStart('0')
-                val capped = capPaymentAmountDigits(action.digits)
-                val didCap = rawDigits.isNotEmpty() && rawDigits != capped
-                _state.update { it.copy(paymentAmountInput = capped, wasPaymentCapped = didCap) }
+                val order = _state.value.order ?: return
+                val accepted = moneyInputAfterEdit(action.digits, _state.value.paymentAmountInput, order.currency)
+                val capped = capPaymentDigits(accepted, order.balanceRemaining, order.currency)
+                val requestedAmount = moneyInputValue(accepted, order.currency)
+                val cappedAmount = moneyInputValue(capped, order.currency)
+                val didCap = requestedAmount != null && cappedAmount != null && requestedAmount > cappedAmount
+                val invalid = action.digits.isNotBlank() &&
+                    moneyInputAfterEdit(action.digits, "", order.currency).isEmpty()
+                _state.update {
+                    it.copy(paymentAmountInput = capped, wasPaymentCapped = didCap, paymentAmountInvalid = invalid)
+                }
             }
             is OrderDetailAction.OnPaymentMethodSelect ->
                 _state.update { it.copy(paymentMethodSelection = action.method) }
@@ -306,6 +318,7 @@ class OrderDetailViewModel(
                     it.copy(
                         showRecordPaymentDialog = false,
                         paymentAmountInput = "",
+                        paymentAmountInvalid = false,
                         wasPaymentCapped = false,
                     )
                 }
@@ -326,14 +339,24 @@ class OrderDetailViewModel(
 
             // Costs
             OrderDetailAction.OnEditCostsClick -> {
-                val existing = _state.value.order?.costs.orEmpty()
-                    .associate { it.category to it.amount.toLong().toString() }
-                _state.update { it.copy(costsEditorVisible = true, costsDraft = existing) }
+                val order = _state.value.order ?: return
+                val existing = order.costs.associate { it.category to moneyInputForAmount(it.amount) }
+                val invalid = existing.filterValues { moneyInputValue(it, order.currency) == null }.keys
+                _state.update { it.copy(costsEditorVisible = true, costsDraft = existing, costDraftInvalid = invalid) }
             }
-            is OrderDetailAction.OnCostDraftChange ->
-                _state.update {
-                    it.copy(costsDraft = it.costsDraft + (action.category to action.digits.filter(Char::isDigit)))
-                }
+            is OrderDetailAction.OnCostDraftChange -> _state.update {
+                val currency = it.order?.currency ?: return@update it
+                val accepted = moneyInputAfterEdit(action.digits, it.costsDraft[action.category].orEmpty(), currency)
+                val invalid = action.digits.isNotBlank() && moneyInputAfterEdit(action.digits, "", currency).isEmpty()
+                it.copy(
+                    costsDraft = it.costsDraft + (action.category to accepted),
+                    costDraftInvalid = if (invalid) {
+                        it.costDraftInvalid + action.category
+                    } else {
+                        it.costDraftInvalid - action.category
+                    },
+                )
+            }
             OrderDetailAction.OnSaveCosts -> saveCosts()
             OrderDetailAction.OnDismissCostsEditor ->
                 _state.update { it.copy(costsEditorVisible = false) }
@@ -1194,12 +1217,22 @@ class OrderDetailViewModel(
         }
     }
 
+    @Suppress("ReturnCount")
     private fun saveCosts() {
         val orderId = orderId ?: return
         // The costs editor only drafts amounts — carry forward each category's existing
         // note so a plain amount edit doesn't silently wipe it. See orderCostsFromDraft KDoc.
-        val existingNotes = _state.value.order?.costs.orEmpty().associate { it.category to it.note }
-        val costs = orderCostsFromDraft(_state.value.costsDraft, existingNotes)
+        val snapshot = _state.value
+        val order = snapshot.order ?: return
+        val invalid = snapshot.costsDraft.filterValues {
+            it.isNotBlank() && moneyInputValue(it, order.currency) == null
+        }.keys
+        if (snapshot.costDraftInvalid.isNotEmpty() || invalid.isNotEmpty()) {
+            _state.update { it.copy(costDraftInvalid = it.costDraftInvalid + invalid) }
+            return
+        }
+        val existingNotes = order.costs.associate { it.category to it.note }
+        val costs = orderCostsFromDraft(snapshot.costsDraft, existingNotes, order.currency)
         viewModelScope.launch {
             val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
             when (val res = orderRepository.updateCosts(userId, orderId, costs)) {
@@ -1230,21 +1263,21 @@ class OrderDetailViewModel(
         viewModelScope.launch { _events.send(OrderDetailEvent.LaunchDialer(phone)) }
     }
 
-    private fun capPaymentAmountDigits(digits: String): String {
-        val remaining = _state.value.order?.balanceRemaining ?: return digits
-        return capPaymentDigits(digits, remaining)
-    }
-
     private fun markPaidInFull() {
         val order = _state.value.order ?: return
         submitPayment(order.balanceRemaining)
     }
 
+    @Suppress("ReturnCount")
     private fun recordPayment() {
-        val amount = _state.value.paymentAmountInput.trimStart('0').toDoubleOrNull() ?: return
+        val snapshot = _state.value
+        val order = snapshot.order ?: return
+        if (snapshot.paymentAmountInvalid) return
+        val amount = moneyInputValue(snapshot.paymentAmountInput, order.currency) ?: return
         submitPayment(amount)
     }
 
+    @Suppress("ReturnCount")
     @OptIn(ExperimentalUuidApi::class)
     private fun submitPayment(amountJustPaid: Double) {
         val orderId = orderId
@@ -1254,7 +1287,11 @@ class OrderDetailViewModel(
         // capPaymentDigits intentionally echoes user input when balance is 0.0
         // (so the field stays editable visually), so we must guard AFTER
         // coercing — otherwise a 0-balance order accepts a phantom payment.
-        val safeAmount = amountJustPaid.coerceAtMost(order.balanceRemaining)
+        val safeAmount = paymentAmountAtPrecision(amountJustPaid.coerceAtMost(order.balanceRemaining), order.currency)
+        if (safeAmount == null) {
+            _state.update { it.copy(paymentAmountInvalid = true, showRecordPaymentDialog = true) }
+            return
+        }
         if (safeAmount <= 0.0) return
         val now = Clock.System.now().toEpochMilliseconds()
         val payment = Payment(
@@ -1269,6 +1306,7 @@ class OrderDetailViewModel(
             it.copy(
                 showRecordPaymentDialog = false,
                 paymentAmountInput = "",
+                paymentAmountInvalid = false,
                 wasPaymentCapped = false,
             )
         }

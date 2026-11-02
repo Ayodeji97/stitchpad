@@ -110,6 +110,7 @@ data class OrderDetailState(
 
     // Payment dialog state
     val paymentAmountInput: String = "",
+    val paymentAmountInvalid: Boolean = false,
     val wasPaymentCapped: Boolean = false,
     val paymentMethodSelection: PaymentMethod = PaymentMethod.TRANSFER,
     val paymentTypeSelection: PaymentType = PaymentType.DEPOSIT,
@@ -122,6 +123,7 @@ data class OrderDetailState(
     // Costs editor
     val costsEditorVisible: Boolean = false,
     val costsDraft: Map<CostCategory, String> = emptyMap(),
+    val costDraftInvalid: Set<CostCategory> = emptySet(),
     val isCostsExpanded: Boolean = false,
 
     // Status sheet

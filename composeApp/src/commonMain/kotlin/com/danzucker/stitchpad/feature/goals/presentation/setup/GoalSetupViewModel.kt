@@ -5,6 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.session.CurrentCountryProvider
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.presentation.moneyInputAfterEdit
+import com.danzucker.stitchpad.core.presentation.moneyInputForAmount
+import com.danzucker.stitchpad.core.presentation.moneyInputValue
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.goals.domain.model.WeeklyGoal
 import com.danzucker.stitchpad.feature.goals.domain.repository.WeeklyGoalRepository
@@ -22,7 +25,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.goals_setup_error_load
 import stitchpad.composeapp.generated.resources.goals_setup_error_save
-import kotlin.math.roundToLong
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
@@ -55,10 +57,16 @@ class GoalSetupViewModel(
 
     fun onAction(action: GoalSetupAction) {
         when (action) {
-            is GoalSetupAction.OnTargetAmountChange ->
-                _state.update { it.copy(targetAmountInput = action.value) }
+            is GoalSetupAction.OnTargetAmountChange -> _state.update {
+                if (!it.isCurrencyLoaded) return@update it
+                val invalid = action.value.isNotBlank() && moneyInputAfterEdit(action.value, "", it.currency).isEmpty()
+                it.copy(
+                    targetAmountInput = moneyInputAfterEdit(action.value, it.targetAmountInput, it.currency),
+                    isTargetAmountInvalid = invalid,
+                )
+            }
             is GoalSetupAction.OnQuickPickClick ->
-                _state.update { it.copy(targetAmountInput = action.amount.toString()) }
+                _state.update { it.copy(targetAmountInput = action.amount.toString(), isTargetAmountInvalid = false) }
             GoalSetupAction.OnSaveClick -> save()
             GoalSetupAction.OnBackClick -> emit(GoalSetupEvent.NavigateBack)
             GoalSetupAction.OnErrorDismiss -> _state.update { it.copy(errorMessage = null) }
@@ -99,7 +107,7 @@ class GoalSetupViewModel(
                     } else {
                         null
                     },
-                    targetAmountInput = current?.targetAmount?.roundToLong()?.toString()
+                    targetAmountInput = current?.targetAmount?.let(::moneyInputForAmount)
                         ?: it.targetAmountInput
                 )
             }
@@ -109,7 +117,7 @@ class GoalSetupViewModel(
     private fun save() {
         val current = _state.value
         if (!current.canSave) return
-        val target = current.targetAmountInput.toDoubleOrNull() ?: return
+        val target = moneyInputValue(current.targetAmountInput, current.currency) ?: return
         viewModelScope.launch {
             val user = authRepository.getCurrentUser() ?: return@launch
             _state.update { it.copy(isSaving = true) }

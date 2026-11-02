@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.order.presentation.detail
 
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.CostCategory
 import com.danzucker.stitchpad.core.domain.model.OrderCost
 import kotlin.test.Test
@@ -45,16 +46,31 @@ class CostDraftTest {
     }
 
     @Test
-    fun nonDigitCharactersAreStrippedBeforeParsing() {
+    fun unsupportedCurrencyLabelsAreNotSilentlyReinterpreted() {
         val draft = mapOf(CostCategory.FABRIC to "₦25,000")
         val result = orderCostsFromDraft(draft)
-        assertEquals(listOf(OrderCost(CostCategory.FABRIC, 25_000.0)), result)
+        assertTrue(result.isEmpty())
     }
 
     @Test
     fun emptyMapProducesEmptyList() {
         val result = orderCostsFromDraft(emptyMap())
         assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun decimalCostsKeepTheirSavedFractionAndExistingNote() {
+        val notes = mapOf(CostCategory.FABRIC to "Supplier receipt")
+        val draft = mapOf(CostCategory.FABRIC to "12.34", CostCategory.LABOUR to "0.50")
+        val result = orderCostsFromDraft(draft, notes, Currency.GHS)
+        assertEquals(listOf(OrderCost(CostCategory.FABRIC, 12.34, "Supplier receipt"), OrderCost(CostCategory.LABOUR, 0.50)), result)
+    }
+
+    @Test
+    fun invalidPrecisionAndNegativeDraftsNeverCreateInflatedCosts() {
+        val draft = mapOf(CostCategory.FABRIC to "12.345", CostCategory.LABOUR to "-12")
+        assertTrue(orderCostsFromDraft(draft, currency = Currency.GHS).isEmpty())
+        assertTrue(orderCostsFromDraft(mapOf(CostCategory.FABRIC to "12.34"), currency = Currency.XOF).isEmpty())
     }
 
     // Regression: the costs editor only drafts amounts (no note input), so saving must

@@ -1,55 +1,11 @@
 package com.danzucker.stitchpad.ui.components
 
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
-import com.danzucker.stitchpad.ui.theme.DesignTokens
 
-/**
- * Outlined text field for Naira amounts. Input is digits-only (caller receives
- * only the filtered digit string); display inserts thousands separators on the fly.
- */
-@Composable
-fun NairaAmountField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    label: @Composable (() -> Unit)? = null,
-    placeholder: @Composable (() -> Unit)? = null,
-    supportingText: @Composable (() -> Unit)? = null,
-    leadingIcon: @Composable (() -> Unit)? = null,
-    isError: Boolean = false,
-    enabled: Boolean = true,
-) {
-    // Digits-only rejects characters mid-string, so the caret has to be re-derived
-    // from what survived rather than left where the IME put it.
-    val input = rememberSanitizedTextFieldValue(value) { raw ->
-        onValueChange(raw.filter { it.isDigit() })
-    }
-    OutlinedTextField(
-        value = input.value,
-        onValueChange = input.onValueChange,
-        visualTransformation = ThousandsSeparatorTransformation,
-        label = label,
-        placeholder = placeholder,
-        supportingText = supportingText,
-        leadingIcon = leadingIcon,
-        isError = isError,
-        enabled = enabled,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        singleLine = true,
-        shape = RoundedCornerShape(DesignTokens.radiusMd),
-        modifier = modifier,
-    )
-}
-
+/** Integer grouping retained for existing non-money callers until their own migration. */
 object ThousandsSeparatorTransformation : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
         val original = text.text

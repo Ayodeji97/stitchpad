@@ -8,7 +8,8 @@ import kotlin.math.round
 
 // Exact integer limit of the Double model used by persisted amounts, measured in minor units.
 private const val MAX_EXACT_MINOR_UNITS = 9_007_199_254_740_991L
-private const val MINOR_UNIT_ROUNDING_TOLERANCE = 0.0000001
+private const val DOUBLE_RELATIVE_EPSILON = 2.220446049250313e-16
+private const val MAX_NOISE_IN_MINOR_UNITS = 0.000001
 
 /**
  * Accept an edit only when its major-unit value is unambiguous and supported by [currency].
@@ -50,13 +51,44 @@ fun moneyInputDecimalSeparator(raw: String, currency: Currency): String {
 
 /** Parse canonical major units without stripping signs/separators or rounding precision away. */
 fun moneyInputValue(input: String, currency: Currency): Double? {
+    val units = moneyInputMinorUnits(input, currency) ?: return null
+    val amount = units.toDouble() / moneyScale(currency)
+    // Necessary near Double's exact-integer limit: distinct decimal texts must not
+    // collapse to a value that formats/prefills as a different monetary amount.
+    if (moneyInputMinorUnits(moneyInputForAmount(amount), currency) != units ||
+        round(amount * moneyScale(currency)).toLong() != units
+    ) {
+        return null
+    }
+    return amount
+}
+
+private fun moneyInputMinorUnits(input: String, currency: Currency): Long? {
     val pattern = if (currency.decimals == 0) "[0-9]+" else "[0-9]*\\.[0-9]{0,${currency.decimals}}|[0-9]+"
     if (!Regex(pattern).matches(input) || input.none { it in '0'..'9' }) return null
     val whole = input.substringBefore('.').ifEmpty { "0" }
     val fraction = input.substringAfter('.', "").padEnd(currency.decimals, '0')
     val units = (whole + fraction).trimStart('0').ifEmpty { "0" }.toLongOrNull() ?: return null
-    if (units > MAX_EXACT_MINOR_UNITS) return null
-    return units.toDouble() / moneyScale(currency)
+    return units.takeIf { it <= MAX_EXACT_MINOR_UNITS }
+}
+
+/**
+ * Normalize only binary arithmetic noise, never a real unsupported fraction.
+ * The exact canonical roundtrip handles larger valid amounts without a fixed epsilon;
+ * the fallback tolerance follows magnitude and remains far below a meaningful minor unit.
+ */
+fun moneyAmountAtPrecision(amount: Double, currency: Currency): Double? {
+    if (!amount.isFinite() || amount < 0.0) return null
+    val scale = moneyScale(currency)
+    val normalized = round(amount * scale) / scale
+    val magnitudeTolerance = maxOf(kotlin.math.abs(amount), kotlin.math.abs(normalized)) *
+        DOUBLE_RELATIVE_EPSILON * 2.0
+    val tolerance = magnitudeTolerance.coerceAtMost(MAX_NOISE_IN_MINOR_UNITS / scale)
+    return if (amount == normalized || kotlin.math.abs(amount - normalized) <= tolerance) {
+        moneyInputValue(moneyInputForAmount(normalized), currency)
+    } else {
+        null
+    }
 }
 
 /** Prefill an existing amount without integer truncation, currency relabeling or hidden rounding. */
@@ -87,9 +119,9 @@ fun capMoneyInput(input: String, maximum: Double, currency: Currency): String {
     val amount = moneyInputValue(input, currency) ?: return input
     if (!maximum.isFinite() || maximum <= 0.0 || amount <= maximum) return input
     val scaled = maximum * moneyScale(currency)
-    val nearest = round(scaled)
+    val canonicalMaximum = moneyAmountAtPrecision(maximum, currency)
     // Correct binary arithmetic noise only; real unsupported fractions round DOWN at the cap.
-    val units = if (kotlin.math.abs(scaled - nearest) < MINOR_UNIT_ROUNDING_TOLERANCE) nearest else floor(scaled)
+    val units = if (canonicalMaximum != null) round(canonicalMaximum * moneyScale(currency)) else floor(scaled)
     return moneyInputForAmount(units / moneyScale(currency))
 }
 
