@@ -6,13 +6,18 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -25,12 +30,17 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -56,6 +66,7 @@ import stitchpad.composeapp.generated.resources.country_name_ne
 import stitchpad.composeapp.generated.resources.country_name_ng
 import stitchpad.composeapp.generated.resources.country_name_sn
 import stitchpad.composeapp.generated.resources.country_name_tg
+import stitchpad.composeapp.generated.resources.country_picker_clear_search
 import stitchpad.composeapp.generated.resources.country_picker_empty
 import stitchpad.composeapp.generated.resources.country_picker_search
 import stitchpad.composeapp.generated.resources.country_picker_title
@@ -93,13 +104,16 @@ private fun CountryPickerSheetContent(
     query: String = "",
     onQueryChange: (String) -> Unit = {},
 ) {
-    val countries = Country.entries.filter { country ->
-        countryDisplayName(country).contains(query.trim(), ignoreCase = true) ||
-            country.iso.contains(query.trim(), ignoreCase = true) ||
-            ("+" + country.dialCode).contains(query.trim())
-    }
+    val names = Country.entries.associateWith { countryDisplayName(it) }
+    val countries = searchCountries(query, names)
+    val search = rememberSanitizedTextFieldValue(query, onQueryChange)
+    val listState = rememberLazyListState()
+    val keyboard = LocalSoftwareKeyboardController.current
+    LaunchedEffect(query) { listState.scrollToItem(0) }
     Column(
-        modifier = Modifier.padding(horizontal = DesignTokens.space5, vertical = DesignTokens.space2),
+        modifier = Modifier
+            .fillMaxHeight(COUNTRY_PICKER_HEIGHT_FRACTION)
+            .padding(horizontal = DesignTokens.space5, vertical = DesignTokens.space2),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -112,34 +126,56 @@ private fun CountryPickerSheetContent(
             }
         }
         OutlinedTextField(
-            value = query,
-            onValueChange = onQueryChange,
+            value = search.value,
+            onValueChange = search.onValueChange,
             placeholder = { Text(stringResource(Res.string.country_picker_search)) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            trailingIcon = {
+                if (query.isNotEmpty()) {
+                    IconButton(onClick = { onQueryChange("") }) {
+                        Icon(Icons.Default.Close, stringResource(Res.string.country_picker_clear_search))
+                    }
+                }
+            },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
             singleLine = true,
             shape = RoundedCornerShape(DesignTokens.radiusMd),
             modifier = Modifier.fillMaxWidth().padding(vertical = DesignTokens.space3),
         )
-        if (countries.isEmpty()) {
-            Text(
-                text = stringResource(Res.string.country_picker_empty),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(DesignTokens.space4),
-            )
-        }
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f, fill = false)
-                .padding(bottom = DesignTokens.space3),
-        ) {
-            items(countries, key = { it.iso }) { country ->
-                CountryRow(
-                    country = country,
-                    isSelected = country == selected,
-                    onClick = { onSelect(country) },
-                )
+        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            if (countries.isEmpty()) {
+                Column(
+                    modifier = Modifier.align(Alignment.Center).padding(DesignTokens.space4),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+                ) {
+                    Text(
+                        text = stringResource(Res.string.country_picker_empty),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                    TextButton(onClick = { onQueryChange("") }) {
+                        Text(stringResource(Res.string.country_picker_clear_search))
+                    }
+                }
+            } else {
+                LazyColumn(
+                    state = listState,
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    modifier = Modifier.fillMaxSize().padding(bottom = DesignTokens.space3),
+                ) {
+                    items(countries, key = { it.iso }) { country ->
+                        CountryRow(
+                            country = country,
+                            isSelected = country == selected,
+                            onClick = {
+                                keyboard?.hide()
+                                onSelect(country)
+                            },
+                        )
+                    }
+                }
             }
         }
     }
@@ -168,6 +204,11 @@ private fun CountryRow(
         Text(
             text = countryDisplayName(country),
             style = MaterialTheme.typography.bodyLarge,
+            color = if (isSelected) {
+                MaterialTheme.colorScheme.onPrimaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
@@ -244,3 +285,6 @@ private fun CountryPickerSheetContentPreview() {
         }
     }
 }
+
+// Reserve room for results independently of their count; IME insets remain platform-managed.
+private const val COUNTRY_PICKER_HEIGHT_FRACTION = 0.9f

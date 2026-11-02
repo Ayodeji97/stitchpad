@@ -2028,4 +2028,5 @@
     <string name="country_picker_search">Search country or dial code</string>
     <string name="country_picker_empty">No countries match. Try a country name or dial code.</string>
     <string name="goals_setup_error_load">Couldn&apos;t load your goal. Go back and try again.</string>
+    <string name="country_picker_clear_search">Clear search</string>
 </resources>
