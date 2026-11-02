@@ -4,10 +4,12 @@ import { DraftContext } from '../../smart/types';
 describe('buildSystemPrompt', () => {
   it('returns a stable system prompt with the tailor instructions', () => {
     const prompt = buildSystemPrompt();
-    expect(prompt).toContain('writing assistant for a Nigerian tailor');
+    expect(prompt).toContain('writing assistant for an African tailor');
     expect(prompt).toContain('Address the customer by their first name');
     expect(prompt).toContain('2-4 sentences');
     expect(prompt).toContain('Output ONLY the message body');
+    expect(prompt).toContain('Never convert money');
+    expect(prompt).not.toContain('₦');
   });
 });
 

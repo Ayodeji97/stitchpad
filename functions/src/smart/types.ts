@@ -46,6 +46,10 @@ export interface DraftMessageResponse {
  * prompt builder. Decouples the prompt logic from Firestore document shapes.
  */
 export interface DraftContext {
+  /** Saved workshop country; context only, never used to relabel an order amount. */
+  country?: string;
+  /** Immutable order currency; absent legacy data is NGN. */
+  currency?: string;
   customerFirstName: string;
   garmentLabel: string;
   depositFormatted: string;
@@ -62,6 +66,7 @@ export type Tier = 'free' | 'pro' | 'atelier';
  */
 export interface UserProfileSummary {
   tier: Tier;
+  country?: string;
   /** Welcome bonus coins seeded on the user doc; lifted into the usage doc on first Smart call. */
   welcomeBonusCoins: number;
 }
