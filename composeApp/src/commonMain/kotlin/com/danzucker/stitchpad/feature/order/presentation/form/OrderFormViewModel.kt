@@ -52,6 +52,7 @@ import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.error_order_country_unavailable
 import stitchpad.composeapp.generated.resources.error_order_customer_required
 import stitchpad.composeapp.generated.resources.error_order_deposit_exceeds_total
 import stitchpad.composeapp.generated.resources.error_order_discount_exceeds_total
@@ -823,6 +824,19 @@ class OrderFormViewModel(
         _state.update { it.copy(isSaving = true) }
 
         viewModelScope.launch {
+            val isEdit = orderId != null
+            // Resolve before uploading images or writing anything: the currency is permanent.
+            val currency = if (isEdit) {
+                loadedCurrency
+            } else {
+                val country = countryForNewOrder()
+                if (country == null) {
+                    _state.update { it.copy(isSaving = false) }
+                    setError(Res.string.error_order_country_unavailable)
+                    return@launch
+                }
+                country.currency
+            }
             val orderItems = mutableListOf<OrderItem>()
             for (item in formItems) {
                 val garmentType = item.garmentType!!
@@ -863,9 +877,6 @@ class OrderFormViewModel(
             val discount = (s.discount.toDoubleOrNull() ?: 0.0).coerceIn(0.0, totalPrice)
             val deposit = s.depositPaid.toDoubleOrNull() ?: 0.0
             val now = Clock.System.now().toEpochMilliseconds()
-            val isEdit = orderId != null
-            // Stamp the currency only on a NEW order; edits keep the loaded one.
-            val currency = if (isEdit) loadedCurrency else countryForNewOrder().currency
 
             // When editing an order without changing the deposit, preserve the
             // existing payment list verbatim. Calling reconcileForDeposit() in
@@ -958,13 +969,13 @@ class OrderFormViewModel(
     /**
      * The country a new order's currency is stamped from. That stamp is permanent, so on a cold
      * start before the user doc has loaded this waits briefly for it rather than stamping the
-     * provider's NG stand-in on a non-NG tailor's order. Falls back to the provider value after
-     * [COUNTRY_LOAD_WAIT_MS] (e.g. offline with no cache) so a save can never hang.
+     * provider's NG stand-in on a non-NG tailor's order. Returns null after
+     * [COUNTRY_LOAD_WAIT_MS] so the caller can offer a retry without storing a guessed currency.
      */
-    private suspend fun countryForNewOrder(): Country =
+    private suspend fun countryForNewOrder(): Country? =
         withTimeoutOrNull(COUNTRY_LOAD_WAIT_MS) {
             currentCountryProvider.loadedCountry.filterNotNull().first()
-        } ?: currentCountryProvider.currentCountry()
+        }
 
     private fun setError(resource: org.jetbrains.compose.resources.StringResource) {
         _state.update { it.copy(errorMessage = UiText.StringResourceText(resource)) }

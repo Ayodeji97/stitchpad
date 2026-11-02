@@ -11,6 +11,16 @@ class PhoneNormaliserTest {
     // --- normalisePhone ---
 
     @Test
+    fun `international dial prefix preserves foreign country codes`() {
+        assertEquals("447911123456", normalisePhone("0044 7911 123456", Country.NG))
+        assertEquals("12125550123", normalisePhone("001 212 555 0123", Country.GH))
+        assertEquals(
+            "https://wa.me/447911123456?text=Hello",
+            buildWhatsAppUrl("0044 7911 123456", "Hello", Country.NG),
+        )
+    }
+
+    @Test
     fun `normalisePhone strips trunk prefix`() {
         assertEquals("2348031234567", normalisePhone("0803 123 4567", Country.NG))
     }
@@ -248,11 +258,11 @@ class PhoneNormaliserTest {
     }
 
     @Test
-    fun `double zero prefix is explicit only for registry dial codes`() {
+    fun `double zero prefix is explicit for supported and foreign dial codes`() {
         assertEquals("2348031234567", normalisePhone("002348031234567", Country.NG))
         // Local NG number is a trunk number, never "00" + dial code.
         assertEquals("2348031234567", normalisePhone("08031234567", Country.NG))
-        // 44 is not a registry country: digits stay untouched.
-        assertEquals("00442079460958", normalisePhone("0044 20 7946 0958", Country.NG))
+        // Customer numbers can belong to countries outside the tailor's market registry.
+        assertEquals("442079460958", normalisePhone("0044 20 7946 0958", Country.NG))
     }
 }

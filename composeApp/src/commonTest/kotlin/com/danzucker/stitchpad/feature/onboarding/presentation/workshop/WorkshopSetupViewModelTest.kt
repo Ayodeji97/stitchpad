@@ -447,7 +447,7 @@ class WorkshopSetupViewModelTest {
     }
 
     @Test
-    fun `continue saves country, time zone, locale and E164`() = runTest {
+    fun `continue saves country and time zone and locale and E164`() = runTest {
         fakeAuth.currentUser = signedInUser()
         viewModel = createViewModel(region = { "GH" }, language = { "fr" })
 
