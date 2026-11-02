@@ -1,5 +1,7 @@
 package com.danzucker.stitchpad.core.sharing
 
+import com.danzucker.stitchpad.core.domain.model.Country
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
@@ -72,6 +74,33 @@ class ReceiptFormatterTest {
     )
 
     private fun formatResult() = ReceiptFormatter.format(testOrder, testUser, garmentNames)
+
+    @Test
+    fun historicalOrderKeepsItsCurrencyAfterOwnerChangesCountry() {
+        val data = ReceiptFormatter.format(
+            testOrder.copy(currency = Currency.GHS),
+            testUser.copy(country = Country.KE, currency = Currency.KES),
+            garmentNames,
+        )
+        assertEquals("GH₵70,000", data.totalFormatted)
+        assertEquals("GH₵40,000", data.balanceFormatted)
+        assertEquals("GH₵30,000", data.paymentRows.single().formattedAmount)
+        assertEquals("GH₵45,000", data.items.first().formattedUnitPrice)
+    }
+
+    @Test
+    fun francReceiptItemsAndPaymentRowsHaveNoFractionalMinorUnits() {
+        val order = testOrder.copy(
+            currency = Currency.XOF,
+            totalPrice = 1234.5,
+            payments = listOf(depositPayment(234.5)),
+            items = testOrder.items.take(1).map { it.copy(price = 1234.5) },
+        )
+        val data = ReceiptFormatter.format(order, testUser, garmentNames)
+        assertEquals("F CFA 1,235", data.totalFormatted)
+        assertEquals("F CFA 235", data.paymentRows.single().formattedAmount)
+        assertEquals("F CFA 1,235", data.items.single().formattedPrice)
+    }
 
     @Test
     fun formatsBusinessName() {
