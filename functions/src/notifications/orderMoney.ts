@@ -24,9 +24,11 @@
 import * as functions from 'firebase-functions/v1';
 import type { DocumentData, Firestore } from 'firebase-admin/firestore';
 import { OrderScanDoc } from './types';
+import { notificationCurrency } from './moneyDisplay';
 
 /** The money fields a detector needs. Mirrors OrderMoneyDto's relevant half. */
 export interface OrderMoney {
+  currency?: string;
   totalPrice: number;
   discount: number;
   payments: { amount: number }[];
@@ -54,6 +56,7 @@ export function isStampedMoney(d: DocumentData | undefined): boolean {
 
 export function moneyFromDoc(d: DocumentData | undefined): OrderMoney {
   return {
+    currency: notificationCurrency(d?.currency),
     totalPrice: num(d?.totalPrice),
     discount: num(d?.discount),
     payments: amounts(d?.payments),
@@ -114,6 +117,6 @@ export function withMoney(
   return orders.map((o) => {
     const m = byOrderId.get(o.id);
     if (!m) return o;
-    return { ...o, totalPrice: m.totalPrice, discount: m.discount, payments: m.payments, costs: m.costs };
+    return { ...o, currency: notificationCurrency(m.currency), totalPrice: m.totalPrice, discount: m.discount, payments: m.payments, costs: m.costs };
   });
 }

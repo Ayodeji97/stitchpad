@@ -1,13 +1,9 @@
 import { DigestItem, DigestModel } from './types';
+import { formatNotificationMoney } from './moneyDisplay';
 
 export interface PushSummary {
   title: string;
   body: string;
-}
-
-/** Thousands-separated naira figure, e.g. 18000 -> "18,000". */
-function formatNaira(amount: number): string {
-  return Math.round(amount).toLocaleString('en-US');
 }
 
 /**
@@ -60,7 +56,7 @@ export function pushSummary(model: DigestModel): PushSummary {
     // Within outstanding (no overdue/dueSoon items), an overdue-to-collect item
     // outranks a fresh one for the lead line, even if it isn't the biggest amount.
     const s = model.outstanding.find((i) => i.isOverdue) ?? model.outstanding[0];
-    lead = `${s.customerName} owes ₦${formatNaira(s.amount ?? 0)}`;
+    lead = `${s.customerName} owes ${formatNotificationMoney(s.amount ?? 0, s.currency)}`;
   }
 
   return { title: pushTitle(model), body: lead };

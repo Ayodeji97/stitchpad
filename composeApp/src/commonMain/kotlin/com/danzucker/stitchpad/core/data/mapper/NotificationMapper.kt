@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.core.data.mapper
 
 import com.danzucker.stitchpad.core.data.dto.NotificationDto
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.Notification
 import com.danzucker.stitchpad.core.domain.model.NotificationType
 
@@ -17,4 +18,5 @@ fun NotificationDto.toNotification(docId: String): Notification = Notification(
     isRead = isRead,
     createdAt = createdAt,
     isOverdue = isOverdue,
+    currency = Currency.fromCode(currency?.trim()) ?: Currency.NGN,
 )

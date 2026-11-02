@@ -8,6 +8,8 @@ export interface OrderScanDoc {
   status: 'PENDING' | 'IN_PROGRESS' | 'READY' | 'DELIVERED' | string;
   deadline: number | null;     // epoch millis; null = no deadline set
   archivedAt: number | null;   // epoch millis; non-null = archived (excluded)
+  /** Immutable order currency; absent legacy records are NGN. */
+  currency?: string;
   totalPrice: number;          // subtotal before the whole-order discount
   discount?: number;           // whole-order discount; payable = max(0, totalPrice - discount)
   payments: { amount: number }[];
@@ -28,7 +30,8 @@ export interface DigestItem {
   customerName: string;
   garmentSummary: string;
   deadline?: number; // present for dueSoon / overdue
-  amount?: number;   // present for outstanding (naira)
+  amount?: number;   // major units, present for outstanding
+  currency?: string; // immutable order currency; absent legacy items are NGN
   isOverdue?: boolean; // TO_COLLECT: money owed >= 7 days since Ready/Delivered
   /** Still PENDING — nobody has begun the work. Only meaningful for dueSoon/overdue. */
   notStarted?: boolean;
