@@ -2,15 +2,16 @@ package com.danzucker.stitchpad.ui.components
 
 import androidx.compose.ui.text.AnnotatedString
 import com.danzucker.stitchpad.core.domain.model.Currency
+import com.danzucker.stitchpad.core.presentation.moneyInputAfterEdit
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class MoneyAmountInputTest {
     @Test
-    fun pasteKeepsCurrencyPrecisionAndRejectsUnsupportedSymbols() {
-        assertEquals("1234.56", sanitizeMoneyInput("GH₵1,234.567", Currency.GHS))
-        assertEquals("1234", sanitizeMoneyInput("F CFA 1,234.56", Currency.XOF))
-        assertEquals("1234.", sanitizeMoneyInput("1234.", Currency.NGN))
+    fun unsupportedPrecisionAndSymbolsDoNotChangeThePreviousAmount() {
+        assertEquals("12.34", moneyInputAfterEdit("GH₵1,234.567", "12.34", Currency.GHS))
+        assertEquals("1234", moneyInputAfterEdit("1234.56", "1234", Currency.XOF))
+        assertEquals("1234.", moneyInputAfterEdit("1234.", "1234", Currency.NGN))
     }
 
     @Test
