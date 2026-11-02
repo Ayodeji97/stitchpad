@@ -115,3 +115,29 @@ Validation: Android compilation, detekt and 58 targeted report/domain/ViewModel/
 including mixed current/historical currency windows, sparklines, the same customer's separate debts,
 global counts, currency-specific reminder lookup, single-currency compatibility and empty data.
 No runtime visual QA or iOS compilation was performed for this slice.
+
+## Fourth slice implemented — dashboard, collections and goal denomination
+
+- Shared `CurrencyAmount` / `sumByCurrency` groups money before summing.
+- Dashboard and To Collect display separate owed totals per immutable order currency, with global
+  order/overdue counts. Ready/Delivered collectibility semantics remain unchanged. Rows and NBA
+  reminders carry their order currency. Face-value sorting of unlike balances is avoided by a stable
+  currency grouping before balance comparison.
+- Legacy single-amount summary fields remain for source compatibility only: on mixed-currency data
+  they are zero, never a cross-currency sum. Production views render the explicit currency groups.
+- Bucket/owner state includes grouped outstanding values; switching to staff clears them along with
+  the existing money state. Staff views retain their money-free behavior.
+- Weekly goals now persist their currency. Old/unknown codes map to NGN, new goals use the hydrated
+  account market, and existing goals retain their denomination across account-country changes.
+  Progress counts only matching-currency order payments within the existing cycle window.
+- An unreadable existing goal or an unresolved market prevents saving, with a recoverable load
+  error, instead of guessing a denomination. Goal numeric editing semantics remain integer-only;
+  decimal-safe ViewModel input remains a separate slice.
+- An explicit reset/replace-goal-in-new-currency control is still a pending product question; no
+  automatic conversion or silent target reset was added.
+
+Validation: complete Android unit suite **2,201 tests passed**, zero failures/errors; detekt and
+`compileKotlinIosSimulatorArm64` passed. Regression coverage includes mixed collectible totals,
+row denominations, global counts, owner-to-staff amount clearing, goal-only matching-currency
+progress, legacy goal mapper fallback, new Ghana goal stamping and unresolved-market save guards.
+No runtime screenshot verification or app install was performed in this worktree.

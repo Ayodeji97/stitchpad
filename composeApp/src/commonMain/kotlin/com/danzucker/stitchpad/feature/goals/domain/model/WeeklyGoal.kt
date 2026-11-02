@@ -1,5 +1,7 @@
 package com.danzucker.stitchpad.feature.goals.domain.model
 
+import com.danzucker.stitchpad.core.domain.model.Currency
+
 /**
  * The user's revenue target for a single ISO week (Monday-Sunday). Stored
  * per-user in Firestore at users/{uid}/goals/weekly. Only one active goal
@@ -10,5 +12,6 @@ package com.danzucker.stitchpad.feature.goals.domain.model
  */
 data class WeeklyGoal(
     val targetAmount: Double,
-    val updatedAt: Long
+    val updatedAt: Long,
+    val currency: Currency = Currency.NGN,
 )

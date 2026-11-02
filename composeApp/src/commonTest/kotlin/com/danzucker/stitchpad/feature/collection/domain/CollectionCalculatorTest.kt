@@ -1,5 +1,7 @@
 package com.danzucker.stitchpad.feature.collection.domain
 
+import com.danzucker.stitchpad.core.domain.model.Currency
+import com.danzucker.stitchpad.core.domain.model.CurrencyAmount
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
@@ -54,6 +56,22 @@ private fun customer(id: String = "c1", phone: String = "08030000000") =
 class CollectionCalculatorTest {
 
     private val customers = mapOf("c1" to customer())
+
+    @Test
+    fun mixedCurrencySummaryKeepsSeparateOwedTotalsAndGlobalOrderCounts() {
+        val items = CollectionCalculator.collectibles(
+            listOf(
+                order("ng", totalPrice = 1000.0, depositPaid = 100.0),
+                order("gh", status = OrderStatus.READY, totalPrice = 200.0, depositPaid = 50.0)
+                    .copy(currency = Currency.GHS),
+            ), customers, NOW,
+        )
+        val summary = CollectionCalculator.summarize(items)
+        assertEquals(listOf(CurrencyAmount(Currency.GHS, 150.0), CurrencyAmount(Currency.NGN, 900.0)), summary.amountsByCurrency)
+        assertEquals(2, summary.orderCount)
+        assertEquals(0.0, summary.totalOutstanding)
+        assertEquals(Currency.GHS, items.first { it.orderId == "gh" }.currency)
+    }
 
     @Test
     fun includesReadyAndDeliveredWithBalanceOnly() {

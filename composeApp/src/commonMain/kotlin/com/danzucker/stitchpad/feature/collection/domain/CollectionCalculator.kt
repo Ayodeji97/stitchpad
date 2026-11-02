@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.collection.domain
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
+import com.danzucker.stitchpad.core.domain.model.sumByCurrency
 
 /**
  * Single source of truth for "money to collect": orders that are done
@@ -35,6 +36,7 @@ object CollectionCalculator {
                     daysOwed = daysOwed,
                     isOverdue = daysOwed >= OVERDUE_THRESHOLD_DAYS,
                     status = order.status,
+                    currency = order.currency,
                 )
             }
 
@@ -53,17 +55,21 @@ object CollectionCalculator {
         return ((to - from) / MILLIS_PER_DAY).toInt()
     }
 
-    fun summarize(items: List<CollectibleOrder>): CollectionSummary =
-        CollectionSummary(
-            totalOutstanding = items.sumOf { it.balanceRemaining },
+    fun summarize(items: List<CollectibleOrder>): CollectionSummary {
+        val totals = sumByCurrency(items, { it.currency }, { it.balanceRemaining })
+        return CollectionSummary(
+            totalOutstanding = totals.singleOrNull()?.amount ?: 0.0,
             orderCount = items.size,
             overdueCount = items.count { it.isOverdue },
+            amountsByCurrency = totals,
         )
+    }
 
     fun sorted(items: List<CollectibleOrder>, sort: CollectionSort): List<CollectibleOrder> {
         val bySort = when (sort) {
             CollectionSort.OLDEST_OWED -> compareBy<CollectibleOrder> { it.owedSince }
-            CollectionSort.BIGGEST_BALANCE -> compareByDescending<CollectibleOrder> { it.balanceRemaining }
+            CollectionSort.BIGGEST_BALANCE -> compareBy<CollectibleOrder> { it.currency.code }
+                .thenByDescending { it.balanceRemaining }
             CollectionSort.NEWEST -> compareByDescending<CollectibleOrder> { it.owedSince }
             CollectionSort.CUSTOMER_NAME -> compareBy<CollectibleOrder> { it.customerName.lowercase() }
         }

@@ -5,5 +5,6 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class WeeklyGoalDto(
     val targetAmount: Double = 0.0,
-    val updatedAt: Long = 0L
+    val updatedAt: Long = 0L,
+    val currency: String? = null,
 )

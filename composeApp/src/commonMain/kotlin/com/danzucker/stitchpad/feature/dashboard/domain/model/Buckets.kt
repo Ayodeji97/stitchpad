@@ -1,5 +1,7 @@
 package com.danzucker.stitchpad.feature.dashboard.domain.model
 
+import com.danzucker.stitchpad.core.domain.model.CurrencyAmount
+
 /**
  * Triage / pipeline / outstanding aggregates produced by [BucketCalculator]. UI
  * state derives from these — `overdue` + `dueToday` flip the dashboard into
@@ -33,4 +35,5 @@ data class Buckets(
     val pipelinePending: List<DashboardOrderRow>,
     val pipelinePendingTotal: Int,
     val openQueue: List<DashboardOrderRow> = emptyList(),
+    val outstandingAmounts: List<CurrencyAmount> = emptyList(),
 )

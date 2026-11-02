@@ -1,5 +1,7 @@
 package com.danzucker.stitchpad.feature.dashboard.presentation.model
 
+import com.danzucker.stitchpad.core.domain.model.Currency
+
 /**
  * UI-layer rendering model for the WeeklyGoalsCard.
  *
@@ -12,7 +14,8 @@ data class WeeklyGoalUi(
     val targetAmount: Double,
     val collectedAmount: Double,
     val daysLeft: Int,
-    val pace: WeeklyGoalPace = WeeklyGoalPace.OnPace
+    val pace: WeeklyGoalPace = WeeklyGoalPace.OnPace,
+    val currency: Currency = Currency.NGN,
 ) {
     val progressPercent: Float
         get() = if (targetAmount > 0) {

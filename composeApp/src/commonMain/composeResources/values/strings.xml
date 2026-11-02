@@ -957,10 +957,10 @@
     <string name="dashboard_workshop_summary_not_started">%1$d not started</string>
     <string name="dashboard_workshop_summary_cd">In the workshop: %1$s. Opens all orders.</string>
     <!-- NBA card primary line: e.g. "Collect ₦480,000 from Mrs Adebayo" -->
-    <string name="dashboard_nba_collect_overdue_title">Collect ₦%1$s from %2$s</string>
+    <string name="dashboard_nba_collect_overdue_title">Collect %1$s from %2$s</string>
     <string name="dashboard_nba_collect_overdue_sub">%1$s · %2$d days past deadline</string>
     <string name="dashboard_nba_collect_overdue_sub_one">%1$s · 1 day past deadline</string>
-    <string name="dashboard_nba_collect_ready_title">Collect ₦%1$s from %2$s</string>
+    <string name="dashboard_nba_collect_ready_title">Collect %1$s from %2$s</string>
     <string name="dashboard_nba_collect_ready_sub_today">%1$s · ready today</string>
     <string name="dashboard_nba_collect_ready_sub_one">%1$s · ready 1 day</string>
     <string name="dashboard_nba_collect_ready_sub">%1$s · ready %2$d days</string>
@@ -970,7 +970,7 @@
     <string name="dashboard_nba_deliver_stale_title">Deliver to %1$s</string>
     <string name="dashboard_nba_deliver_stale_sub">%1$s · ready %2$dd</string>
     <string name="dashboard_nba_collect_deposit_title">Collect deposit from %1$s</string>
-    <string name="dashboard_nba_collect_deposit_sub">%1$s · ₦%2$s order</string>
+    <string name="dashboard_nba_collect_deposit_sub">%1$s · %2$s order</string>
     <string name="dashboard_nba_start_soon_title">Start %1$s’s %2$s</string>
     <string name="dashboard_nba_start_soon_sub">Due in %1$dd</string>
     <string name="dashboard_nba_start_soon_sub_today">Due today</string>
@@ -980,8 +980,8 @@
     <string name="dashboard_nba_cta_open_order">Open order</string>
     <string name="dashboard_nba_card_cd">%1$s. %2$s. Tap %3$s.</string>
     <!-- WhatsApp message templates -->
-    <string name="dashboard_whatsapp_collect_ready">Hi %1$s, your %2$s order is ready for collection. Balance: ₦%3$s. — %4$s</string>
-    <string name="dashboard_whatsapp_collect_overdue">Hi %1$s, your %2$s order is now %3$dd past its delivery date. Outstanding balance: ₦%4$s. — %5$s</string>
+    <string name="dashboard_whatsapp_collect_ready">Hi %1$s, your %2$s order is ready for collection. Balance: %3$s. — %4$s</string>
+    <string name="dashboard_whatsapp_collect_overdue">Hi %1$s, your %2$s order is now %3$dd past its delivery date. Outstanding balance: %4$s. — %5$s</string>
     <!-- Shown when whatsAppLauncher.launch returns false — WhatsApp not installed, URL rejected, etc. -->
     <string name="dashboard_whatsapp_launch_failed">Couldn&apos;t open WhatsApp. Make sure it&apos;s installed and try again.</string>
     <string name="to_collect_chase_no_contact">Couldn&apos;t send a reminder — this customer&apos;s contact details are missing.</string>
@@ -1023,7 +1023,7 @@
     <string name="order_setup_action_section">Next action</string>
     <string name="order_setup_action_title">Complete %1$s</string>
     <!-- Subtitle pattern: "Senator · ₦200,000 order" -->
-    <string name="order_setup_action_subtitle">%1$s · ₦%2$s order</string>
+    <string name="order_setup_action_subtitle">%1$s · %2$s order</string>
     <string name="order_setup_action_missing_both">Missing due date and deposit</string>
     <string name="order_setup_action_missing_due_date">Missing due date</string>
     <string name="order_setup_action_missing_deposit">Missing deposit</string>
@@ -2027,4 +2027,5 @@
     <string name="sync_not_synced">Not synced</string>
     <string name="country_picker_search">Search country or dial code</string>
     <string name="country_picker_empty">No countries match. Try a country name or dial code.</string>
+    <string name="goals_setup_error_load">Couldn&apos;t load your goal. Go back and try again.</string>
 </resources>

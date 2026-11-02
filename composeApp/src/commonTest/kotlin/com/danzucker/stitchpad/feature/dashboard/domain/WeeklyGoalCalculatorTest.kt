@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.dashboard.domain
 
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
@@ -69,6 +70,19 @@ class WeeklyGoalCalculatorTest {
             createdAt = millisAt(updatedAt),
             updatedAt = millisAt(updatedAt),
         )
+    }
+
+    @Test
+    fun goalProgressCountsOnlyPaymentsInTheGoalsStampedCurrency() {
+        val orders = listOf(
+            order(goalCreated, totalPrice = 1000.0),
+            order(goalCreated, totalPrice = 50.0).copy(currency = Currency.GHS),
+        )
+        val ghana = WeeklyGoalCalculator.compute(orders, goalCreated, goal().copy(currency = Currency.GHS), tz)!!
+        val legacyNigeria = WeeklyGoalCalculator.compute(orders, goalCreated, goal(), tz)!!
+        assertEquals(50.0, ghana.collectedAmount)
+        assertEquals(Currency.GHS, ghana.currency)
+        assertEquals(1000.0, legacyNigeria.collectedAmount)
     }
 
     @Test

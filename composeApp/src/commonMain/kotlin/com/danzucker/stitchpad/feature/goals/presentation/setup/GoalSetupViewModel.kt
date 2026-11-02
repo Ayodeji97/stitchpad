@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.goals.presentation.setup
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.session.CurrentCountryProvider
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.goals.domain.model.WeeklyGoal
@@ -10,13 +11,16 @@ import com.danzucker.stitchpad.feature.goals.domain.repository.WeeklyGoalReposit
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.goals_setup_error_load
 import stitchpad.composeapp.generated.resources.goals_setup_error_save
 import kotlin.math.roundToLong
 import kotlin.time.Clock
@@ -26,6 +30,7 @@ import kotlin.time.ExperimentalTime
 class GoalSetupViewModel(
     private val weeklyGoalRepository: WeeklyGoalRepository,
     private val authRepository: AuthRepository,
+    private val currentCountryProvider: CurrentCountryProvider,
     private val nowMillis: () -> Long = { Clock.System.now().toEpochMilliseconds() }
 ) : ViewModel() {
 
@@ -71,10 +76,29 @@ class GoalSetupViewModel(
             // Firestore re-emission overwrite an in-progress edit while they're
             // still typing.
             val firstEmission = weeklyGoalRepository.observeWeeklyGoal(user.id).first()
+            if (firstEmission is Result.Error) {
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = UiText.StringResourceText(Res.string.goals_setup_error_load)
+                    )
+                }
+                return@launch
+            }
             val current = (firstEmission as? Result.Success)?.data
+            val currency = current?.currency ?: withTimeoutOrNull(5_000L) {
+                currentCountryProvider.loadedCountry.filterNotNull().first().currency
+            }
             _state.update {
                 it.copy(
                     isLoading = false,
+                    currency = currency ?: it.currency,
+                    isCurrencyLoaded = currency != null,
+                    errorMessage = if (currency == null) {
+                        UiText.StringResourceText(Res.string.goals_setup_error_load)
+                    } else {
+                        null
+                    },
                     targetAmountInput = current?.targetAmount?.roundToLong()?.toString()
                         ?: it.targetAmountInput
                 )
@@ -91,7 +115,7 @@ class GoalSetupViewModel(
             _state.update { it.copy(isSaving = true) }
             val result = weeklyGoalRepository.setWeeklyGoal(
                 userId = user.id,
-                goal = WeeklyGoal(targetAmount = target, updatedAt = nowMillis())
+                goal = WeeklyGoal(targetAmount = target, updatedAt = nowMillis(), currency = current.currency)
             )
             _state.update { it.copy(isSaving = false) }
             when (result) {

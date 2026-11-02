@@ -727,6 +727,7 @@ class DashboardViewModel(
                 dueToday = emptyList(),
                 ready = emptyList(),
                 outstandingAmount = 0.0,
+                outstandingAmounts = emptyList(),
                 outstandingOrderCount = 0,
                 outstandingOverdueCount = 0,
                 nextBestActions = emptyList(),
@@ -965,6 +966,7 @@ class DashboardViewModel(
                 dueToday = buckets.dueToday,
                 ready = buckets.ready,
                 outstandingAmount = collectionSummary.totalOutstanding,
+                outstandingAmounts = collectionSummary.amountsByCurrency,
                 outstandingOrderCount = collectionSummary.orderCount,
                 outstandingOverdueCount = collectionSummary.overdueCount,
                 nextBestActions = nextBestActions,
@@ -1030,6 +1032,7 @@ class DashboardViewModel(
                 hasDeposit = hasDeposit,
                 garmentLabel = firstOrder?.items?.firstOrNull()?.displayGarmentName { it.simpleLabel() }.orEmpty(),
                 totalAmount = firstOrder?.payableTotal ?: 0.0,
+                currency = firstOrder?.currency ?: com.danzucker.stitchpad.core.domain.model.Currency.NGN,
             )
         } else {
             null

@@ -1,5 +1,7 @@
 package com.danzucker.stitchpad.feature.dashboard.domain
 
+import com.danzucker.stitchpad.core.domain.model.Currency
+import com.danzucker.stitchpad.core.domain.model.CurrencyAmount
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
@@ -79,6 +81,20 @@ class BucketCalculatorTest {
             createdAt = createdAt,
             updatedAt = millisAt(today),
         )
+    }
+
+    @Test
+    fun mixedCurrencyBucketsNeverAddUnlikeBalancesAndRowsKeepDenomination() {
+        val buckets = BucketCalculator.compute(
+            listOf(
+                order("ng", balanceRemaining = 900.0),
+                order("gh", balanceRemaining = 150.0, deadline = today).copy(currency = Currency.GHS),
+            ), today, tz,
+        )
+        assertEquals(listOf(CurrencyAmount(Currency.GHS, 150.0), CurrencyAmount(Currency.NGN, 900.0)), buckets.outstandingAmounts)
+        assertEquals(2, buckets.outstandingOrderCount)
+        assertEquals(0.0, buckets.outstandingAmount)
+        assertEquals(Currency.GHS, buckets.dueToday.single().currency)
     }
 
     @Test

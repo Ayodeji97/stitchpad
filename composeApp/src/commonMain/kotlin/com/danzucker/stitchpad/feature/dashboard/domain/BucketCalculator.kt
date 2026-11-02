@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.dashboard.domain
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.displayGarmentName
+import com.danzucker.stitchpad.core.domain.model.sumByCurrency
 import com.danzucker.stitchpad.feature.dashboard.domain.internal.simpleLabel
 import com.danzucker.stitchpad.feature.dashboard.domain.internal.toLocalDate
 import com.danzucker.stitchpad.feature.dashboard.domain.model.Buckets
@@ -56,6 +57,7 @@ object BucketCalculator {
             .map { it.toRow(today, timeZone) }
 
         val unpaid = active.filter { it.balanceRemaining > 0.0 }
+        val outstandingTotals = sumByCurrency(unpaid, { it.currency }, { it.balanceRemaining })
 
         val triageOrderIds = buildSet {
             active.forEach { order ->
@@ -80,7 +82,8 @@ object BucketCalculator {
             overdue = overdue,
             dueToday = dueToday,
             ready = ready,
-            outstandingAmount = unpaid.sumOf { it.balanceRemaining },
+            outstandingAmount = outstandingTotals.singleOrNull()?.amount ?: 0.0,
+            outstandingAmounts = outstandingTotals,
             outstandingOrderCount = unpaid.size,
             pipelineInProgress = pipelineInProgressAll.take(PIPELINE_PREVIEW_LIMIT)
                 .map { it.toPipelineRow(today, timeZone) },
@@ -118,6 +121,7 @@ private fun Order.toRow(today: LocalDate, tz: TimeZone): DashboardOrderRow {
         primaryLabel = garment,
         daysLate = daysLate,
         orderValue = payableTotal,
+        currency = currency,
         paymentStatus = pipelinePaymentStatusOf(depositPaid, payableTotal),
         assignedMemberId = assignedMemberId,
         assignedMemberName = assignedMemberName,
@@ -138,6 +142,7 @@ private fun Order.toPipelineRow(today: LocalDate, tz: TimeZone): DashboardOrderR
         daysUntilDeadline = daysUntil,
         createdAtEpochMillis = createdAt,
         orderValue = payableTotal,
+        currency = currency,
         paymentStatus = pipelinePaymentStatusOf(depositPaid, payableTotal),
         assignedMemberId = assignedMemberId,
         assignedMemberName = assignedMemberName,
@@ -169,6 +174,7 @@ private fun Order.toQueueRow(today: LocalDate, tz: TimeZone): DashboardOrderRow 
         daysUntilDeadline = daysUntilDeadline,
         createdAtEpochMillis = createdAt,
         orderValue = payableTotal,
+        currency = currency,
         paymentStatus = pipelinePaymentStatusOf(depositPaid, payableTotal),
         assignedMemberId = assignedMemberId,
         assignedMemberName = assignedMemberName,

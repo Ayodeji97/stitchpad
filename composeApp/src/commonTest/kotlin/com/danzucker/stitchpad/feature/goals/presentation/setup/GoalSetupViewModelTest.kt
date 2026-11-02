@@ -1,6 +1,9 @@
 package com.danzucker.stitchpad.feature.goals.presentation.setup
 
 import com.danzucker.stitchpad.core.domain.error.DataError
+import com.danzucker.stitchpad.core.domain.model.Country
+import com.danzucker.stitchpad.core.domain.model.Currency
+import com.danzucker.stitchpad.core.domain.session.FakeCurrentCountryProvider
 import com.danzucker.stitchpad.feature.auth.data.FakeAuthRepository
 import com.danzucker.stitchpad.feature.goals.data.FakeWeeklyGoalRepository
 import com.danzucker.stitchpad.feature.goals.domain.model.WeeklyGoal
@@ -13,6 +16,8 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.setMain
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -48,14 +53,41 @@ class GoalSetupViewModelTest {
         authRepository.signUpWithEmail("t@t.com", "pass", "Ade Bello")
     }
 
-    private fun TestScope.createViewModel(): GoalSetupViewModel {
+    private fun TestScope.createViewModel(country: Country = Country.NG, loaded: Boolean = true): GoalSetupViewModel {
         val vm = GoalSetupViewModel(
             weeklyGoalRepository = goalRepository,
             authRepository = authRepository,
+            currentCountryProvider = FakeCurrentCountryProvider(country, loaded),
             nowMillis = { fixedNow }
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
+    }
+
+    @Test
+    fun newGoalUsesLoadedAccountCurrencyAndExistingGoalNeverRelabelsAfterCountryChange() = runTest {
+        signIn()
+        val newGoal = createViewModel(Country.GH)
+        newGoal.onAction(GoalSetupAction.OnTargetAmountChange("500"))
+        newGoal.onAction(GoalSetupAction.OnSaveClick)
+        assertIs<GoalSetupEvent.NavigateBack>(newGoal.events.first())
+        assertEquals(Currency.GHS, goalRepository.lastSavedGoal?.currency)
+        goalRepository.storedGoal = WeeklyGoal(1000.0, fixedNow)
+        val existing = createViewModel(Country.GH)
+        assertEquals(Currency.NGN, existing.state.value.currency)
+    }
+
+    @Test
+    fun unknownAccountCurrencyNeverSavesANigerianDefaultForAForeignGoal() = runTest {
+        signIn()
+        val vm = createViewModel(Country.GH, loaded = false)
+        vm.onAction(GoalSetupAction.OnTargetAmountChange("500"))
+        vm.onAction(GoalSetupAction.OnSaveClick)
+        assertNull(goalRepository.lastSavedGoal)
+        advanceTimeBy(5001)
+        runCurrent()
+        assertFalse(vm.state.value.canSave)
+        assertNotNull(vm.state.value.errorMessage)
     }
 
     // --- Prefill ---
@@ -82,17 +114,19 @@ class GoalSetupViewModelTest {
     }
 
     @Test
-    fun prefill_clearsLoading_evenWhenRepositoryErrors() = runTest {
+    fun prefill_blocksSaveWhenExistingGoalCurrencyCouldNotBeRead() = runTest {
         signIn()
         goalRepository.shouldReturnError = DataError.Network.UNKNOWN
 
         val vm = createViewModel()
 
         assertFalse(vm.state.value.isLoading)
-        // Repository error during prefill is silent — the input stays blank and the screen
-        // is responsive. Save flow surfaces its own errors.
         assertEquals("", vm.state.value.targetAmountInput)
-        assertNull(vm.state.value.errorMessage)
+        assertNotNull(vm.state.value.errorMessage)
+        vm.onAction(GoalSetupAction.OnTargetAmountChange("100"))
+        vm.onAction(GoalSetupAction.OnSaveClick)
+        assertFalse(vm.state.value.canSave)
+        assertNull(goalRepository.lastSavedGoal)
     }
 
     @Test

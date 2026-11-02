@@ -34,7 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.ui.components.NairaAmountField
 import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -158,6 +158,7 @@ private fun GoalSetupContent(
 
         NairaAmountField(
             value = state.targetAmountInput,
+            leadingIcon = { Text(state.currency.symbol) },
             onValueChange = { onAction(GoalSetupAction.OnTargetAmountChange(it)) },
             label = { Text(stringResource(Res.string.goals_setup_amount_label)) },
             placeholder = { Text(stringResource(Res.string.goals_setup_amount_placeholder)) },
@@ -179,7 +180,7 @@ private fun GoalSetupContent(
                 FilterChip(
                     selected = selected,
                     onClick = { onAction(GoalSetupAction.OnQuickPickClick(amount)) },
-                    label = { Text(text = "₦${formatPrice(amount.toDouble())}") }
+                    label = { Text(text = formatMoney(amount.toDouble(), state.currency)) }
                 )
             }
         }
