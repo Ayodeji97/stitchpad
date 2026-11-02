@@ -32,3 +32,23 @@ Scope: Africa expansion PR #374. Daniel is testing iOS with a Ghana device regio
 - [ ] Repeat existing Nigerian-account regression checks from PR #374.
 
 These local changes require review and a fresh smoke test before merging; they have not been pushed.
+
+## Follow-up: country search UX
+
+Daniel observed the search caret behaving incorrectly on iOS and the sheet collapsing as
+results disappeared. Search now uses the selection-aware text-field binding already used
+by phone fields. The sheet reserves a stable viewport rather than wrapping list contents;
+keyboard insets remain platform-managed. Search includes accent-insensitive name tokens,
+ISO codes, common aliases and dial codes with +/00/spacing. A clear action is available in
+the field and in the empty state. Searches reset list scroll to the top.
+
+- [ ] Type, delete, paste, and insert text in the middle of a search query on iOS.
+- [ ] Compare sheet position for all results, one result and no results with the same keyboard state.
+- [ ] Search `cote`, `Ivory Coast`, `benin`, `GH`, `+233`, and `00233`.
+- [ ] Clear from no results; confirm the full list returns without moving the search field.
+- [ ] Open the software keyboard and ensure results remain scrollable and Close stays reachable.
+
+Follow-up automated checks passed: targeted `CountrySearchTest` and `CaretAfterSanitizeTest`,
+`:composeApp:compileKotlinIosSimulatorArm64`, and `detekt`. A separate read-only code review
+found no blocker. Live iOS visual/caret verification remains pending because Simulator access
+was not approved in this session.
