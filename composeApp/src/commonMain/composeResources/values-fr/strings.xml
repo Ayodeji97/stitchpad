@@ -1730,4 +1730,11 @@
     <string name="relative_days_short">%1$d j</string>
     <string name="relative_months_short">%1$d mois</string>
     <string name="relative_years_short">%1$d ans</string>
+    <string name="dashboard_earnings_title">Votre atelier à ce jour</string>
+    <string name="dashboard_earnings_remaining">Reste à encaisser</string>
+    <string name="dashboard_earnings_received">Total encaissé à ce jour</string>
+    <string name="dashboard_earnings_supporting">Terminez vos commandes et encaissez le solde.</string>
+    <string name="dashboard_earnings_explanation">Paiements enregistrés, avant déduction des coûts.</string>
+    <string name="dashboard_earnings_orders">Voir les commandes</string>
+    <string name="dashboard_earnings_dismiss">Masquer le récapitulatif des revenus</string>
 </resources>
