@@ -41,6 +41,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
+import com.danzucker.stitchpad.core.presentation.localizedMonthName
 import com.danzucker.stitchpad.feature.settings.domain.SubscriptionStatus
 import com.danzucker.stitchpad.feature.settings.domain.SubscriptionStatusKind
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -795,15 +796,12 @@ private fun subscriptionStatusText(status: SubscriptionStatus): String {
     }
 }
 
+@Composable
 private fun formatPlanDate(endsAt: Instant): String {
     // Africa/Lagos to match the countdown's TZ (EntitlementsCalculator computes
     // days/months-left in Lagos) — keeps the shown date and "N days left" consistent.
     val date = endsAt.toLocalDateTime(TimeZone.of("Africa/Lagos")).date
-    val monthAbbrev = arrayOf(
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-    )
-    return "${date.dayOfMonth} ${monthAbbrev[date.monthNumber - 1]} ${date.year}"
+    return "${date.dayOfMonth} ${localizedMonthName(date.monthNumber, short = true)} ${date.year}"
 }
 
 @Composable

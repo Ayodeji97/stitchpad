@@ -1,3 +1,5 @@
+import { serverLanguage } from '../localization/language';
+import { frenchDigestEmail } from '../localization/frenchDigest';
 /**
  * Pure HTML+text builder for the daily digest. Inline styles only (email clients
  * strip <style>). Adire Atelier palette mirrors verificationEmailTemplate.ts;
@@ -22,6 +24,7 @@ function escapeHtml(v: string): string {
 
 /** CTA target + one-click unsubscribe. Shared shape with nudgeEmailTemplate.ts. */
 export interface DigestEmailOptions {
+  locale?: string;
   /** Where the CTA points — the platform-neutral App Link that opens the app
    *  directly, falling back to the correct store per platform when it is absent. */
   ctaUrl: string;
@@ -34,6 +37,7 @@ export function buildDigestEmail(
   tailorName: string,
   opts: DigestEmailOptions,
 ): { subject: string; html: string; text: string } {
+  if (serverLanguage(opts.locale) === 'fr') return frenchDigestEmail(model, tailorName, opts);
   const name = tailorName?.trim() ? tailorName.trim() : 'there';
 
   const CAP = 5;

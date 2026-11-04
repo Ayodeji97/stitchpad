@@ -39,6 +39,7 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v6
+      - run: python3 tools/check_french_resources.py
       - run: ./gradlew detekt
 
   # ── Crash Prevention ──────────────────────────────────────

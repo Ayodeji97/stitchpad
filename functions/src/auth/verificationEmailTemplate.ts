@@ -1,3 +1,5 @@
+import { serverLanguage } from '../localization/language';
+import { frenchActionEmail } from '../localization/frenchActionEmail';
 /**
  * Branded HTML for the email-verification message. Kept as a pure function so
  * it can be unit-tested without sending anything. Inline styles only — email
@@ -42,7 +44,13 @@ function escapeHtml(value: string): string {
 export function buildVerificationEmailHtml(params: {
   displayName?: string;
   verifyLink: string;
+  locale?: string;
 }): string {
+  if (serverLanguage(params.locale) === 'fr') {
+    return frenchActionEmail({ name: params.displayName, url: params.verifyLink,
+      title: 'Bienvenue sur StitchPad', body: 'Confirmez votre adresse e-mail pour commencer à gérer votre atelier sur StitchPad.',
+      cta: 'Confirmer mon adresse e-mail', footer: 'Si vous n’avez pas créé de compte, vous pouvez ignorer cet e-mail.' }).html;
+  }
   const name = params.displayName?.trim() ? escapeHtml(params.displayName.trim()) : 'there';
   const link = escapeHtml(params.verifyLink);
 

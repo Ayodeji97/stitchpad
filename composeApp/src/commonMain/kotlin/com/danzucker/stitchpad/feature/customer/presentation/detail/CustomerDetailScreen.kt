@@ -70,6 +70,7 @@ import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
+import com.danzucker.stitchpad.core.presentation.localizedMonthName
 import com.danzucker.stitchpad.core.sharing.DialerLauncher
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.feature.customer.presentation.detail.components.AddMeasurementSheet
@@ -872,9 +873,7 @@ private fun MeasurementListItem(
     } else {
         stringResource(Res.string.measurement_unit_cm)
     }
-    val dateText = remember(measurement.dateTaken) {
-        epochToDateString(measurement.dateTaken)
-    }
+    val dateText = epochToDateString(measurement.dateTaken)
     val subtitleParts = listOfNotNull(genderWord, dateText.ifBlank { null }, unitLabel)
 
     val tapModifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
@@ -941,6 +940,7 @@ private fun MeasurementListItem(
     }
 }
 
+@Composable
 private fun epochToDateString(epochMs: Long): String {
     if (epochMs == 0L) return ""
     val totalSeconds = epochMs / 1000
@@ -957,11 +957,7 @@ private fun epochToDateString(epochMs: Long): String {
     val d = doy - (153 * mp + 2) / 5 + 1
     val m = if (mp < 10) mp + 3 else mp - 9
     val year = y + (if (m <= 2) 1L else 0L)
-    val monthNames = listOf(
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-    )
-    val monthName = monthNames.getOrElse((m - 1).toInt()) { "" }
+    val monthName = localizedMonthName(m.toInt(), short = true)
     return "$d $monthName $year"
 }
 

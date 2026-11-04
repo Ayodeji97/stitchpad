@@ -71,6 +71,8 @@ val smartPresentationModule = module {
             connectivity = get(named("connectivity")),
             usageStore = get(),
             analytics = get(),
+            workshopMarketRepository = get(),
+            activeWorkshopProvider = get(),
         )
     }
 }
