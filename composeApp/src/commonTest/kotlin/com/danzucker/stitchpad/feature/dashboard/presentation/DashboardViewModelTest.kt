@@ -1082,6 +1082,48 @@ class DashboardViewModelTest {
         assertEquals(listOf("ready1"), ids)
     }
 
+    @Test
+    fun earningsSummaryIncludesPendingBalancesAndKeepsCurrenciesSeparate() = runTest {
+        signIn()
+        orderRepository.ordersList = listOf(
+            fakeOrder("ng", depositPaid = 100.25, balanceRemaining = 900.50),
+            fakeOrder("gh", depositPaid = 400.0, balanceRemaining = 3400.0).copy(currency = Currency.GHS),
+            fakeOrder("archive", depositPaid = 50.0, balanceRemaining = 200.0).copy(archivedAt = 1L),
+        )
+        val vm = createViewModel()
+        assertEquals(
+            listOf(
+                com.danzucker.stitchpad.feature.dashboard.domain.WorkshopEarnings(Currency.GHS, 400.0, 3400.0),
+                com.danzucker.stitchpad.feature.dashboard.domain.WorkshopEarnings(Currency.NGN, 150.25, 900.50),
+            ),
+            vm.state.value.workshopEarnings,
+        )
+        vm.onAction(DashboardAction.OnDismissEarningsCard)
+        assertTrue(vm.state.value.earningsCardDismissed)
+        becomeActiveStaff()
+        assertTrue(vm.state.value.workshopEarnings.isEmpty())
+        assertFalse(vm.state.value.earningsCardDismissed)
+    }
+
+    @Test
+    fun incompleteArchivedEarningsDoNotPresentAPartialTotal() = runTest {
+        signIn()
+        orderRepository.ordersList = listOf(fakeOrder(depositPaid = 100.0, balanceRemaining = 900.0))
+        orderRepository.archivedError = DataError.Network.UNKNOWN
+        val vm = createViewModel()
+        assertTrue(vm.state.value.workshopEarnings.isEmpty())
+    }
+
+    @Test
+    fun earningsSummaryViewOrdersUsesExistingOrdersNavigation() = runTest {
+        signIn()
+        val vm = createViewModel()
+        vm.events.test {
+            vm.onAction(DashboardAction.OnViewAllOrdersClick)
+            assertEquals(DashboardEvent.NavigateToOrders(), awaitItem())
+        }
+    }
+
     // --- Outstanding balance ---
 
     // "Outstanding" is now sourced from CollectionCalculator: only Ready/Delivered

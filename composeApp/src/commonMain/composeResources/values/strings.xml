@@ -155,7 +155,14 @@
     <string name="reports_view_all_with_count">View all (%1$d)</string>
     <string name="reports_badge_vip">VIP</string>
     <string name="reports_badge_repeat">Repeat</string>
-    <string name="reports_top_customers_total_spent">Total Spent</string>
+    <string name="reports_top_customers_total_spent">Total earnings</string>
+    <string name="dashboard_earnings_title">Your workshop so far</string>
+    <string name="dashboard_earnings_remaining">Still to collect</string>
+    <string name="dashboard_earnings_received">Total earnings so far</string>
+    <string name="dashboard_earnings_supporting">Finish your orders and collect the balance.</string>
+    <string name="dashboard_earnings_explanation">Recorded payments, before costs.</string>
+    <string name="dashboard_earnings_orders">View orders</string>
+    <string name="dashboard_earnings_dismiss">Dismiss earnings summary</string>
     <string name="reports_picker_confirm">Apply</string>
     <string name="reports_picker_cancel">Cancel</string>
     <string name="reports_range_chip_separator">–</string>
