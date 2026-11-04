@@ -10,4 +10,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class PasswordResetEmailRequest(
     val email: String,
+    val locale: String = "en",
 )
+
+@Serializable
+internal data class VerificationEmailRequest(val locale: String)

@@ -66,7 +66,7 @@ export async function runDailyDigest(io: DigestIO, now: number): Promise<DigestR
         ) {
           const tokens = await io.loadPushTokens(r.uid);
           if (tokens.length > 0) {
-            const { successCount, invalidTokens } = await io.sendPush(tokens, pushSummary(model));
+            const { successCount, invalidTokens } = await io.sendPush(tokens, pushSummary(model, r.locale));
             if (invalidTokens.length > 0) {
               await io.deletePushTokens(r.uid, invalidTokens);
             }
@@ -101,7 +101,7 @@ export async function runDailyDigest(io: DigestIO, now: number): Promise<DigestR
             // NOT the owner's 'to_collect' target: firestore.rules denies staff the money
             // surface, so that tap dead-ends on a blank screen — and it aims the money
             // screen at people who must never see it.
-            { ...pushSummary(d.model), target: 'dashboard' },
+            { ...pushSummary(d.model, await io.staffLocale?.(d.staffUid)), target: 'dashboard' },
           );
           if (invalidTokens.length > 0) await io.deletePushTokens(d.staffUid, invalidTokens);
           if (successCount > 0) {
@@ -140,7 +140,7 @@ export async function runDailyDigest(io: DigestIO, now: number): Promise<DigestR
         if (orders.length > 0) kind = 'quiet';
         else kind = (await io.hasCustomers(r.uid)) ? 'first_order' : 'setup';
       }
-      const opts = { ctaUrl: ctaUrl(), unsubscribeUrl: r.unsubscribeUrl };
+      const opts = { ctaUrl: ctaUrl(), unsubscribeUrl: r.unsubscribeUrl, locale: r.locale };
       const { subject, html, text } = kind
         ? buildNudgeEmail(kind, r.name, opts)
         : buildDigestEmail(model, r.name, opts);

@@ -127,6 +127,7 @@ fun DraftMessageScreen(
         // Language toggle
         LanguageToggle(
             selectedLanguage = state.language,
+            availableLanguages = state.availableLanguages,
             onLanguageChange = { onAction(DraftMessageAction.ToggleLanguage(it)) },
             modifier = Modifier.fillMaxWidth(),
         )

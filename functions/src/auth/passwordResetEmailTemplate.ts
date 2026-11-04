@@ -1,3 +1,5 @@
+import { serverLanguage } from '../localization/language';
+import { frenchActionEmail } from '../localization/frenchActionEmail';
 /**
  * Branded HTML+text for the password-reset message. Kept as a pure function so
  * it can be unit-tested without sending anything. Inline styles only — email
@@ -46,7 +48,13 @@ function escapeHtml(value: string): string {
 export function buildPasswordResetEmail(params: {
   displayName?: string;
   resetLink: string;
+  locale?: string;
 }): { html: string; text: string } {
+  if (serverLanguage(params.locale) === 'fr') {
+    return frenchActionEmail({ name: params.displayName, url: params.resetLink,
+      title: 'Réinitialisez votre mot de passe', body: 'Vous avez demandé à réinitialiser votre mot de passe StitchPad. Utilisez le bouton ci-dessous pour en choisir un nouveau.',
+      cta: 'Réinitialiser mon mot de passe', footer: 'Si vous n’avez pas fait cette demande, ignorez cet e-mail. Votre mot de passe restera inchangé.' });
+  }
   const name = params.displayName?.trim() ? escapeHtml(params.displayName.trim()) : 'there';
   const link = escapeHtml(params.resetLink);
 

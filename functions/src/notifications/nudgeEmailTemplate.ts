@@ -1,3 +1,5 @@
+import { serverLanguage } from '../localization/language';
+import { frenchActionEmail } from '../localization/frenchActionEmail';
 /**
  * Pure HTML+text builder for the DAILY NUDGE — the email a tailor gets on a morning
  * when nothing is due.
@@ -30,6 +32,7 @@ const LOGO_URL = 'https://firebasestorage.googleapis.com/v0/b/stitchpad-30607.fi
 export type NudgeKind = 'quiet' | 'first_order' | 'setup';
 
 export interface NudgeOptions {
+  locale?: string;
   /** Where the CTA points — the platform-neutral App Link that opens the app
    *  directly, falling back to the correct store per platform when it is absent. */
   ctaUrl: string;
@@ -67,6 +70,16 @@ export function buildNudgeEmail(
   tailorName: string,
   opts: NudgeOptions,
 ): { subject: string; html: string; text: string } {
+  if (serverLanguage(opts.locale) === 'fr') {
+    const copy = {
+      quiet: { title: 'Une nouvelle commande aujourd’hui ?', body: 'Votre planning est calme aujourd’hui. Si vous avez reçu une commande, enregistrez ses mesures, sa date de livraison et son prix.', cta: 'Enregistrer une commande' },
+      first_order: { title: 'Créez votre première commande', body: 'Vos clients sont enregistrés. Ajoutez leur première commande pour suivre son avancement et sa date de livraison.', cta: 'Créer une commande' },
+      setup: { title: 'Ajoutez votre premier client', body: 'Votre atelier est prêt. Enregistrez un client et ses mensurations pour les retrouver facilement lors de sa prochaine visite.', cta: 'Ajouter un client' },
+    }[kind];
+    const result = frenchActionEmail({ name: tailorName, title: copy.title, body: copy.body, cta: copy.cta,
+      url: opts.ctaUrl, footer: `Désactivez les résumés dans Paramètres → Préférences → Résumé quotidien par e-mail. Désabonnement : ${opts.unsubscribeUrl}` });
+    return { subject: `StitchPad : ${copy.title}`, ...result };
+  }
   const name = tailorName?.trim() ? tailorName.trim() : 'there';
   const c = COPY[kind];
 

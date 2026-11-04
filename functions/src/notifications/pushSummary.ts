@@ -1,3 +1,4 @@
+import { serverLanguage } from '../localization/language';
 import { DigestItem, DigestModel } from './types';
 import { formatNotificationMoney } from './moneyDisplay';
 
@@ -43,7 +44,19 @@ function pushTitle(model: DigestModel): string {
  * The body is the single most urgent item and nothing else: the totals now live in
  * the title, so the old "+N more need attention" tail would just repeat them.
  */
-export function pushSummary(model: DigestModel): PushSummary {
+export function pushSummary(model: DigestModel, locale?: string): PushSummary {
+  if (serverLanguage(locale) === 'fr') {
+    const parts: string[] = [];
+    if (model.overdue.length) parts.push(`${model.overdue.length} en retard`);
+    if (model.dueSoon.length) parts.push(`${model.dueSoon.length} à livrer bientôt`);
+    if (model.outstanding.length) parts.push(`${model.outstanding.length} à encaisser`);
+    const urgent = model.overdue[0] ?? model.dueSoon[0];
+    const owed = model.outstanding.find(item => item.isOverdue) ?? model.outstanding[0];
+    const body = urgent
+      ? `${urgent.customerName} · ${urgent.garmentSummary} ${model.overdue.length ? 'est en retard' : 'est bientôt à livrer'}${urgent.notStarted ? ' — pas encore commencé' : ''}`
+      : owed ? `${owed.customerName} doit ${formatNotificationMoney(owed.amount ?? 0, owed.currency)}` : '';
+    return { title: parts.join(' · ') || 'StitchPad', body };
+  }
 
   let lead: string;
   if (model.overdue.length > 0) {

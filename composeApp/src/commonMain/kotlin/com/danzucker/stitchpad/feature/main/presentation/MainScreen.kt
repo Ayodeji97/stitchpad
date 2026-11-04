@@ -23,6 +23,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -187,7 +189,14 @@ fun MainRoot(
                                         contentDescription = stringResource(item.labelRes)
                                     )
                                 },
-                                label = { Text(stringResource(item.labelRes)) },
+                                label = {
+                                    Text(
+                                        text = stringResource(item.labelRes),
+                                        textAlign = TextAlign.Center,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                },
                                 colors = NavigationBarItemDefaults.colors(
                                     selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
                                     selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,

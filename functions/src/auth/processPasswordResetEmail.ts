@@ -1,3 +1,4 @@
+import { serverLanguage } from '../localization/language';
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { normalizeEmail } from './passwordResetShared';
@@ -16,7 +17,7 @@ export interface PasswordResetWorkerIO {
   /** Returns the account's display name, or null if no account has this email. */
   getUserByEmail(email: string): Promise<{ displayName?: string } | null>;
   generateLink(email: string): Promise<string>;
-  sendEmail(params: { to: string; displayName?: string; resetLink: string }): Promise<void>;
+  sendEmail(params: { to: string; displayName?: string; resetLink: string; locale?: string }): Promise<void>;
 }
 
 /**
@@ -45,18 +46,20 @@ export async function processPasswordResetEmailHandler(
   }
 
   const resetLink = rewriteActionLinkHost(await io.generateLink(email));
-  await io.sendEmail({ to: email, displayName: user.displayName, resetLink });
+  const locale = serverLanguage((data as { locale?: unknown })?.locale);
+  await io.sendEmail({ to: email, displayName: user.displayName, resetLink, ...(locale === 'fr' ? { locale } : {}) });
 }
 
 async function sendViaResend(
   apiKey: string,
-  params: { to: string; displayName?: string; resetLink: string },
+  params: { to: string; displayName?: string; resetLink: string; locale?: string },
 ): Promise<void> {
   const { html, text } = buildPasswordResetEmail({
     displayName: params.displayName,
     resetLink: params.resetLink,
+    locale: params.locale,
   });
-  await sendResendEmail(apiKey, { to: params.to, subject: SUBJECT, html, text });
+  await sendResendEmail(apiKey, { to: params.to, subject: serverLanguage(params.locale) === 'fr' ? 'Réinitialisez votre mot de passe StitchPad' : SUBJECT, html, text });
 }
 
 function productionIO(apiKey: string): PasswordResetWorkerIO {

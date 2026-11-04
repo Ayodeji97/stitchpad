@@ -46,6 +46,7 @@ export interface DigestModel {
 }
 
 export interface DigestRecipient {
+  locale?: string;
   uid: string;
   email: string;
   /**
@@ -99,6 +100,7 @@ export interface DigestIO {
   listStaffUids(ownerUid: string): Promise<string[]>;
   /** True when this staff member has not opted out of push. */
   isStaffPushEnabled(staffUid: string): Promise<boolean>;
+  staffLocale?(staffUid: string): Promise<string | undefined>;
 }
 
 export interface DigestRunResult {

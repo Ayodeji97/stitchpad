@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.di
 
 import com.danzucker.stitchpad.core.config.domain.repository.AppConfigRepository
+import com.danzucker.stitchpad.core.data.FirebaseDeviceLanguageSync
 import com.danzucker.stitchpad.core.data.appLifetimeScope
 import com.danzucker.stitchpad.core.data.entitlement.UserDocEntitlementsProvider
 import com.danzucker.stitchpad.core.data.repository.CloudFunctionsWorkshopMarketRepository
@@ -42,6 +43,13 @@ import org.koin.dsl.module
 private const val WORKSHOP_MEMBERSHIP_RETRY_DELAY_MS = 5_000L
 
 val coreModule = module {
+    single {
+        FirebaseDeviceLanguageSync(
+            auth = get(),
+            firestore = get(),
+            scope = get<CoroutineScope>(qualifier = named("entitlementsAppScope")),
+        )
+    }
     single { Firebase.auth }
     single { Firebase.firestore }
     single { Firebase.storage }

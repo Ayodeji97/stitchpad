@@ -34,6 +34,9 @@ import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.ui.components.celebration.rememberReduceMotionEnabled
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
+import org.jetbrains.compose.resources.stringResource
+import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.collection_money
 
 private const val NUDGE_CYCLE_MS = 12_000
 private const val OVERDUE_NUDGE_CYCLE_MS = 8_000
@@ -125,7 +128,7 @@ fun YoureOwedCard(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Money to collect",
+                    text = stringResource(Res.string.collection_money),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.secondary,
                 )

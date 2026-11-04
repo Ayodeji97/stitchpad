@@ -45,6 +45,7 @@ import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.change_email_cta
+import stitchpad.composeapp.generated.resources.change_email_current
 import stitchpad.composeapp.generated.resources.change_email_helper
 import stitchpad.composeapp.generated.resources.change_email_label_new
 import stitchpad.composeapp.generated.resources.change_email_title
@@ -128,7 +129,7 @@ fun ChangeEmailScreen(
                     value = state.currentEmail,
                     onValueChange = {},
                     enabled = false,
-                    label = { Text("Current email") },
+                    label = { Text(stringResource(Res.string.change_email_current)) },
                     singleLine = true,
                     shape = RoundedCornerShape(DesignTokens.radiusMd),
                     modifier = Modifier.fillMaxWidth(),

@@ -11,7 +11,7 @@ export type IntentType =
   | 'follow_up'
   | 'custom_note';
 
-export type Language = 'en' | 'pcm'; // pcm = Nigerian Pidgin (ISO 639-3)
+export type Language = 'en' | 'fr' | 'pcm'; // pcm = Nigerian Pidgin (ISO 639-3)
 
 /**
  * Wire-name string for each Smart-feature consumer of the shared monthly
