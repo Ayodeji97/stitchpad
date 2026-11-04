@@ -1,0 +1,363 @@
+:root {
+    font-family:
+        system-ui,
+        -apple-system,
+        sans-serif;
+    color: #252320;
+    background: #faf6ec;
+    font-synthesis: none;
+    --primary: #2c3e7c;
+    --muted: #625c54;
+    --border: #c9c0b1;
+}
+* {
+    box-sizing: border-box;
+}
+body {
+    margin: 0;
+}
+header,
+main,
+footer {
+    max-width: 1000px;
+    margin: auto;
+    padding: 24px;
+}
+header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+}
+a {
+    color: var(--primary);
+}
+.brand {
+    font-family: Georgia, serif;
+    font-weight: bold;
+    font-size: 29px;
+    text-decoration: none;
+    color: #252320;
+}
+.brand span {
+    color: #b85a30;
+}
+.language {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    font-size: 14px;
+}
+select,
+input,
+button {
+    font: inherit;
+}
+button,
+.button {
+    min-height: 48px;
+    padding: 12px 20px;
+    border: 1px solid var(--primary);
+    border-radius: 12px;
+    background: var(--primary);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+}
+button.secondary {
+    background: transparent;
+    color: var(--primary);
+}
+button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+input,
+select {
+    border: 1px solid var(--border);
+    background: #fffdf8;
+    border-radius: 8px;
+    padding: 10px;
+    min-height: 44px;
+    max-width: 100%;
+    color: #252320;
+}
+input[type="checkbox"],
+input[type="radio"] {
+    min-height: 24px;
+    width: 24px;
+    flex-shrink: 0;
+    accent-color: var(--primary);
+}
+label {
+    line-height: 1.5;
+}
+h1 {
+    font-family: Georgia, serif;
+    font-size: clamp(30px, 5vw, 44px);
+    line-height: 1.15;
+    margin: 30px 0 14px;
+    font-weight: 500;
+}
+h2 {
+    font-size: 22px;
+    margin: 26px 0 12px;
+}
+p {
+    line-height: 1.65;
+    max-width: 68ch;
+    color: var(--muted);
+}
+.notice {
+    border: 1px solid #c9c0b1;
+    padding: 10px 16px;
+    background: #f3eadb;
+    line-height: 1.6;
+}
+.steps {
+    display: flex;
+    gap: 10px;
+    list-style: none;
+    padding: 0;
+    margin: 12px 0 30px;
+    color: var(--muted);
+    font-size: 14px;
+}
+.steps li {
+    flex: 1;
+    border-top: 3px solid var(--border);
+    padding-top: 10px;
+}
+.steps li.current {
+    border-color: var(--primary);
+    color: var(--primary);
+    font-weight: 700;
+}
+.choices {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 24px 0;
+}
+.choice {
+    display: flex;
+    gap: 12px;
+    border: 1px solid var(--border);
+    padding: 20px;
+    border-radius: 12px;
+    align-items: flex-start;
+}
+.choice:has(input:checked) {
+    border-color: var(--primary);
+    background: #eaeef8;
+}
+.choice strong {
+    display: block;
+}
+.choice small {
+    display: block;
+    color: var(--muted);
+    margin-top: 6px;
+    font-size: 14px;
+}
+.field {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin: 20px 0;
+}
+.check {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    margin: 20px 0;
+    max-width: 68ch;
+}
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 28px 0 10px;
+}
+.error {
+    color: #a02d25;
+    background: #ffede7;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin: 18px 0;
+}
+.workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 0.8fr);
+    gap: 28px;
+    margin-top: 24px;
+}
+.image-area {
+    background: #e8e1d5;
+    border-radius: 12px;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    min-height: 280px;
+}
+.image-area canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    touch-action: manipulation;
+    cursor: crosshair;
+}
+.point-list {
+    display: grid;
+    gap: 4px;
+}
+.point {
+    display: grid;
+    grid-template-columns: 1fr 65px 65px;
+    gap: 6px;
+    padding: 6px 0;
+    align-items: center;
+}
+.point button {
+    padding: 6px 8px;
+    text-align: left;
+    background: transparent;
+    color: #252320;
+    border: 1px solid transparent;
+    font-weight: 400;
+    font-size: 14px;
+    min-height: 40px;
+}
+.point.active button {
+    color: var(--primary);
+    border-color: var(--primary);
+    background: #eaeef8;
+}
+.point input {
+    width: 65px;
+    padding: 6px;
+    font-size: 14px;
+}
+.small {
+    font-size: 14px;
+}
+.file {
+    display: block;
+    margin: 20px 0;
+}
+.file input {
+    display: block;
+    margin-top: 8px;
+    width: 100%;
+}
+.review-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+}
+.review-table th,
+.review-table td {
+    text-align: left;
+    padding: 16px 8px;
+    border-bottom: 1px solid var(--border);
+}
+.review-table th {
+    font-size: 14px;
+    color: var(--muted);
+}
+.review-table td strong {
+    font-family: ui-monospace, monospace;
+    font-size: 21px;
+}
+.review-table input {
+    width: 100px;
+}
+.tag {
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--primary);
+    font-weight: 700;
+}
+.synthetic {
+    color: #a02d25;
+    font-weight: 700;
+}
+.definition {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    margin-top: 24px;
+}
+.definition p {
+    font-size: 14px;
+}
+footer {
+    color: var(--muted);
+    font-size: 13px;
+    border-top: 1px solid var(--border);
+    margin-top: 35px;
+}
+summary {
+    cursor: pointer;
+    padding: 10px 0;
+    color: var(--primary);
+}
+:focus-visible {
+    outline: 3px solid #5871b8;
+    outline-offset: 3px;
+}
+::selection {
+    background: #d1d9ee;
+}
+button:hover:not(:disabled) {
+    filter: brightness(0.94);
+}
+@media (max-width: 650px) {
+    header,
+    main,
+    footer {
+        padding: 20px;
+    }
+    .language > span {
+        display: none;
+    }
+    .choices,
+    .workspace,
+    .definition {
+        grid-template-columns: 1fr;
+    }
+    .steps {
+        font-size: 12px;
+        gap: 6px;
+    }
+    .workspace {
+        gap: 16px;
+    }
+    .review-table th,
+    .review-table td {
+        padding: 12px 4px;
+        font-size: 13px;
+    }
+    .review-table td strong {
+        font-size: 18px;
+    }
+    .review-table input {
+        width: 78px;
+    }
+    .field {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+    .image-area {
+        min-height: 180px;
+    }
+    h1 {
+        margin-top: 24px;
+    }
+}
+
+/* Programmatic heading focus announces step changes without a decorative focus box. */
+h1[tabindex="-1"]:focus {
+    outline: none;
+}

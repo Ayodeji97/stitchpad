@@ -76,3 +76,17 @@ prices after a country/currency change would silently relabel money. Choose eith
 but clearing money fields with notice (recommended), or explicitly blocking cross-currency duplication.
 Until answered, the implementation blocks the cross-currency save with a clear message; same-currency
 duplication is unchanged. No elapsed waiting time counts as approval.
+
+## Remote measurement pilot decisions — implementation checkpoint 4 November
+
+No immediate interruption requested: Daniel asked for autonomous work and smoke tests only.
+The local capture prototype does not decide these production gates:
+
+- What field-specific error/retake thresholds and garment types must a tailor approve
+  before any estimated field can be used for cutting? No numerical tolerance is approved.
+- Who supplies the consented reference cohort and trained independent tape measurers?
+  The prototype includes no minors policy or approved population coverage.
+- What retention period, production hosting region and explicit training opt-in should
+  apply if photo uploads are introduced? Current prototype never uploads photos.
+
+These are recorded for pilot planning; they do not block local synthetic prototyping.
