@@ -1,0 +1,4 @@
+# Native Anny only: do not install SMPL/SMPL-X extras or reconstruction checkpoints.
+anny==0.6.2
+torch==2.10.0
+numpy==2.5.4
