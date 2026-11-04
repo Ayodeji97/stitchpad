@@ -160,7 +160,7 @@
     <string name="dashboard_earnings_remaining">Still to collect</string>
     <string name="dashboard_earnings_received">Total earnings so far</string>
     <string name="dashboard_earnings_supporting">Finish your orders and collect the balance.</string>
-    <string name="dashboard_earnings_explanation">Based on recorded payments, before costs.</string>
+    <string name="dashboard_earnings_explanation">Recorded payments, before costs.</string>
     <string name="dashboard_earnings_orders">View orders</string>
     <string name="dashboard_earnings_dismiss">Dismiss earnings summary</string>
     <string name="reports_picker_confirm">Apply</string>

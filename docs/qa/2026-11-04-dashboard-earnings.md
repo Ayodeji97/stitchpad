@@ -39,3 +39,19 @@ generated concept images are not evidence of runtime rendering.
 3. Check mixed currencies remain separate; check large text and long customer names.
 4. Close summary: adaptive hero returns. Switch workshop/account: no previous totals.
 5. Staff dashboard remains money-free; Top Customers badges and chevrons remain usable.
+
+## Compact follow-up
+
+After Daniel's runtime screenshot showed excessive height, moved the existing
+illustration alongside the balance, tightened section gaps, and placed earnings
+label/amounts side by side at standard text sizes. Narrow containers or increased
+font scale retain a stacked layout and omit the decorative illustration. Shortened
+the note to “Recorded payments, before costs.” No calculator/ViewModel changes.
+Android and iOS simulator source compilation, detekt and diff checks passed.
+No app launch performed, per Daniel's preference. Runtime visual check outstanding.
+
+Reports was reviewed from current source and screenshots. A separate generated
+prototype explores a unified monetary summary, flatter profit/status sections and
+clean customer rows. It is a concept only; Reports implementation remains unchanged
+by the compact follow-up. Preserve existing KPI comparisons, currency separation,
+profit coverage and actions in any subsequent implementation.

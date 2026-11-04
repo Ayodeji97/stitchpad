@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.dashboard.presentation.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,6 +22,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -53,80 +55,110 @@ fun WorkshopEarningsCard(
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
     ) {
-        Column(
-            modifier = Modifier.padding(DesignTokens.space4),
-            verticalArrangement = Arrangement.spacedBy(DesignTokens.space3),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = stringResource(Res.string.dashboard_earnings_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f),
-                )
-                IconButton(onClick = onDismiss) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = stringResource(Res.string.dashboard_earnings_dismiss),
-                    )
-                }
-            }
+        BoxWithConstraints(Modifier.padding(DesignTokens.space4)) {
+            val useColumns = maxWidth >= 280.dp && LocalDensity.current.fontScale <= 1.2f
             Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
-                Text(
-                    text = stringResource(Res.string.dashboard_earnings_remaining),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                earnings.forEach { total ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = formatMoney(total.remaining, total.currency),
-                        style = MaterialTheme.typography.headlineLarge,
+                        text = stringResource(Res.string.dashboard_earnings_title),
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f),
                     )
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = stringResource(Res.string.dashboard_earnings_dismiss),
+                        )
+                    }
                 }
-            }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2),
-            ) {
-                Text(
-                    text = stringResource(Res.string.dashboard_earnings_supporting),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f),
-                )
-                DashboardIllustration(drawable = heroIllustrationFor(FocusVariant.FirstOrder), size = 72.dp)
-            }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            // Stack the label above the values so large amounts and larger text never
-            // compete for a fixed horizontal slot. Every denomination stays explicit.
-            Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
-                Text(
-                    text = stringResource(Res.string.dashboard_earnings_received),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                earnings.forEach { total ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(DesignTokens.space1),
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.dashboard_earnings_remaining),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        earnings.forEach { total ->
+                            Text(
+                                text = formatMoney(total.remaining, total.currency),
+                                style = MaterialTheme.typography.headlineLarge,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                        Text(
+                            text = stringResource(Res.string.dashboard_earnings_supporting),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (useColumns) {
+                        DashboardIllustration(drawable = heroIllustrationFor(FocusVariant.FirstOrder), size = 64.dp)
+                    }
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                if (useColumns) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.dashboard_earnings_received),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1.3f),
+                        )
+                        EarningsReceivedAmounts(earnings, Modifier.weight(1f), Alignment.End)
+                    }
+                } else {
                     Text(
-                        text = formatMoney(total.collected, total.currency),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
+                        text = stringResource(Res.string.dashboard_earnings_received),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    EarningsReceivedAmounts(earnings)
                 }
                 Text(
                     text = stringResource(Res.string.dashboard_earnings_explanation),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                TextButton(onClick = onViewOrders) {
+                    Text(stringResource(Res.string.dashboard_earnings_orders))
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        modifier = Modifier.padding(start = DesignTokens.space2).size(DesignTokens.iconInline),
+                    )
+                }
             }
-            TextButton(onClick = onViewOrders) {
-                Text(stringResource(Res.string.dashboard_earnings_orders))
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    modifier = Modifier.padding(start = DesignTokens.space2).size(DesignTokens.iconInline),
-                )
-            }
+        }
+    }
+}
+
+@Composable
+private fun EarningsReceivedAmounts(
+    earnings: List<WorkshopEarnings>,
+    modifier: Modifier = Modifier,
+    alignment: Alignment.Horizontal = Alignment.Start,
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = alignment,
+        verticalArrangement = Arrangement.spacedBy(DesignTokens.space1),
+    ) {
+        earnings.forEach { total ->
+            Text(
+                text = formatMoney(total.collected, total.currency),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+            )
         }
     }
 }
