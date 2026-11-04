@@ -274,6 +274,7 @@ class DashboardViewModel(
                 }
             )
             DashboardAction.OnGoalsCardClick -> emitEvent(DashboardEvent.NavigateToGoalSetup)
+            DashboardAction.OnDismissEarningsCard -> _state.update { it.copy(earningsCardDismissed = true) }
             DashboardAction.OnFocusCtaClick -> handleFocusCtaClick()
             DashboardAction.OnSettingsClick -> emitEvent(DashboardEvent.NavigateToSettings)
             DashboardAction.OnSetupChecklistAdvance -> emitEvent(DashboardEvent.NavigateToOrderForm)
@@ -664,9 +665,7 @@ class DashboardViewModel(
                         if (isStaff) {
                             // Publish staff identity up front so the header renders the staff
                             // variant (name + Staff pill + workshop) while the first snapshot loads.
-                            _state.update {
-                                it.copy(isStaff = true, businessName = staffMembershipPrefs.workshopName.value)
-                            }
+                            showStaffIdentity()
                         }
                         // Orders/customers are scoped to workshopUid so active staff see the
                         // owner's book; the user doc stays on authUid (the signed-in person's
@@ -677,11 +676,18 @@ class DashboardViewModel(
                             orderRepository.observeOrders(workshopUid),
                             customerRepository.observeCustomers(workshopUid),
                             goalFlowFor(isStaff, workshopUid),
-                        ) { firestoreUser, ordersResult, customersResult, goalResult ->
+                            archivedEarningsFlowFor(isStaff, workshopUid),
+                        ) { firestoreUser, ordersResult, customersResult, goalResult, archivedResult ->
                             DashboardLoadTick(
                                 isStaff = isStaff,
                                 staffAuthUid = staffAuthUid,
-                                data = UserAndDashboardData(firestoreUser, ordersResult, customersResult, goalResult),
+                                data = UserAndDashboardData(
+                                    firestoreUser,
+                                    ordersResult,
+                                    customersResult,
+                                    goalResult,
+                                    archivedResult
+                                ),
                             )
                         }
                         if (isWorkshopSwitch) combined.onStart { emit(null) } else combined
@@ -726,6 +732,8 @@ class DashboardViewModel(
                 overdue = emptyList(),
                 dueToday = emptyList(),
                 ready = emptyList(),
+                workshopEarnings = emptyList(),
+                earningsCardDismissed = false,
                 outstandingAmount = 0.0,
                 outstandingAmounts = emptyList(),
                 outstandingOrderCount = 0,
@@ -747,6 +755,28 @@ class DashboardViewModel(
                 weeklyGoal = null,
             )
         }
+    }
+
+    private fun showStaffIdentity() {
+        _state.update {
+            it.copy(
+                isStaff = true,
+                businessName = staffMembershipPrefs.workshopName.value,
+                workshopEarnings = emptyList(),
+                earningsCardDismissed = false,
+            )
+        }
+    }
+
+    private fun archivedEarningsFlowFor(
+        isStaff: Boolean,
+        workshopUid: String,
+    ): Flow<Result<List<Order>, DataError.Network>?> = if (isStaff) {
+        flowOf(Result.Success(emptyList()))
+    } else {
+        orderRepository.observeArchivedOrders(workshopUid)
+            .map<Result<List<Order>, DataError.Network>, Result<List<Order>, DataError.Network>?> { it }
+            .onStart { emit(null) }
     }
 
     /**
@@ -841,6 +871,8 @@ class DashboardViewModel(
         _state.update {
             it.copy(
                 isStaff = true,
+                workshopEarnings = emptyList(),
+                earningsCardDismissed = false,
                 viewerMemberId = staffAuthUid,
                 firstName = firstNameFor(user),
                 // Owner's workshop name comes from redeem-time prefs — staff can't
@@ -965,6 +997,13 @@ class DashboardViewModel(
                 overdue = buckets.overdue,
                 dueToday = buckets.dueToday,
                 ready = buckets.ready,
+                workshopEarnings = if (ordersResult is Result.Success && combined.archivedResult is Result.Success) {
+                    com.danzucker.stitchpad.feature.dashboard.domain.WorkshopEarningsCalculator.compute(
+                        orders + combined.archivedResult.data,
+                    )
+                } else {
+                    emptyList()
+                },
                 outstandingAmount = collectionSummary.totalOutstanding,
                 outstandingAmounts = collectionSummary.amountsByCurrency,
                 outstandingOrderCount = collectionSummary.orderCount,
@@ -1040,12 +1079,13 @@ class DashboardViewModel(
     }
 }
 
-/** Combine-output holder so the 4-way flow combine has a typed payload for the collect lambda. */
+/** Typed payload for the dashboard flows, including owner-only archived earnings. */
 private data class UserAndDashboardData(
     val firestoreUser: User?,
     val ordersResult: Result<List<Order>, DataError.Network>,
     val customersResult: Result<List<Customer>, DataError.Network>,
     val goalResult: Result<WeeklyGoal?, DataError.Network>,
+    val archivedResult: Result<List<Order>, DataError.Network>?,
 )
 
 /**

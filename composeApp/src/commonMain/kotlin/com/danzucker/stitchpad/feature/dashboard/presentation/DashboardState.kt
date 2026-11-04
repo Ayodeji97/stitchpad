@@ -72,6 +72,9 @@ data class DashboardState(
     val overdue: List<DashboardOrderRow> = emptyList(),
     val dueToday: List<DashboardOrderRow> = emptyList(),
     val ready: List<DashboardOrderRow> = emptyList(),
+    val workshopEarnings: List<com.danzucker.stitchpad.feature.dashboard.domain.WorkshopEarnings> = emptyList(),
+    /** Dismissal lasts for this workshop session; resets on identity/workshop changes. */
+    val earningsCardDismissed: Boolean = false,
     val outstandingAmount: Double = 0.0,
     val outstandingAmounts: List<CurrencyAmount> = emptyList(),
     val outstandingOrderCount: Int = 0,

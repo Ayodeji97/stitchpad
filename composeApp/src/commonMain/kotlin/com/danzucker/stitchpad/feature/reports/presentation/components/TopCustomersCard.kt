@@ -3,14 +3,12 @@ package com.danzucker.stitchpad.feature.reports.presentation.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -29,7 +27,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.feature.reports.domain.model.CappedList
 import com.danzucker.stitchpad.feature.reports.domain.model.CustomerBadge
@@ -37,6 +38,7 @@ import com.danzucker.stitchpad.feature.reports.domain.model.CustomerRanking
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.JetBrainsMonoFamily
 import com.danzucker.stitchpad.ui.theme.LocalStitchPadColors
+import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.reports_badge_repeat
@@ -118,31 +120,34 @@ private fun TopCustomerRow(
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = "$countLabel · $totalSpentLabel",
-                style = MaterialTheme.typography.labelSmall,
+                text = countLabel,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        // Fixed-width slots so amounts/badges line up across rows regardless
-        // of amount length or whether a badge is present (BadgeChip returns
-        // nothing for NONE — without a reserved slot the chevron drifts).
-        Text(
-            modifier = Modifier.width(110.dp),
-            text = formatMoney(ranking.totalCollected, ranking.currency),
-            style = MaterialTheme.typography.bodyMedium,
-            fontFamily = monoFamily,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.End,
-            maxLines = 1
-        )
-        Box(
-            modifier = Modifier.width(72.dp),
-            contentAlignment = Alignment.Center
+        Column(
+            modifier = Modifier.weight(1.2f),
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(DesignTokens.space1),
         ) {
+            Text(
+                text = formatMoney(ranking.totalCollected, ranking.currency),
+                style = MaterialTheme.typography.bodyMedium,
+                fontFamily = monoFamily,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.End,
+            )
+            Text(
+                text = totalSpentLabel,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.End,
+            )
             BadgeChip(badge = ranking.badge)
         }
         Icon(
@@ -248,4 +253,33 @@ internal fun CardHeader(
             }
         }
     }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview(widthDp = 320, fontScale = 1.3f)
+@Composable
+private fun TopCustomersCardLightPreview() {
+    StitchPadTheme { TopCustomersPreviewContent() }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun TopCustomersCardDarkPreview() {
+    StitchPadTheme(darkTheme = true) { TopCustomersPreviewContent() }
+}
+
+@Composable
+private fun TopCustomersPreviewContent() {
+    TopCustomersCard(
+        rankings = CappedList(
+            items = listOf(
+                CustomerRanking("amina", "Amina John", 400.0, 1, currency = Currency.GHS),
+                CustomerRanking("long", "Omobolanle Adeyemi", 1234567.89, 12, CustomerBadge.VIP),
+            ),
+            totalCount = 2,
+        ),
+        onCustomerClick = {},
+        onViewAllClick = {},
+    )
 }
