@@ -58,7 +58,7 @@ object WeeklyGoalCalculator {
             .toEpochMilliseconds()
 
         val collected = orders
-            .filter { it.updatedAt in cycleStartMillis until nextCycleStartMillis }
+            .filter { it.currency == goal.currency && it.updatedAt in cycleStartMillis until nextCycleStartMillis }
             .sumOf { it.depositPaid }
 
         val cycleStartEpoch = cycleStart.toEpochDays().toLong()
@@ -74,7 +74,8 @@ object WeeklyGoalCalculator {
             targetAmount = goal.targetAmount,
             collectedAmount = collected,
             daysLeft = daysLeft,
-            pace = pace
+            pace = pace,
+            currency = goal.currency,
         )
     }
 }

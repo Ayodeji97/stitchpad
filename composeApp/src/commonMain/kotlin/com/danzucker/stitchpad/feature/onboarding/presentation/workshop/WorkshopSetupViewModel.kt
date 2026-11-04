@@ -137,7 +137,12 @@ class WorkshopSetupViewModel(
                 if (_state.value.businessName.isNotBlank()) validateBusinessName()
             WorkshopSetupAction.OnWhatsAppNumberBlur ->
                 if (_state.value.whatsappNumber.isNotBlank()) validateWhatsAppNumber()
-            WorkshopSetupAction.OnCountryChipClick -> _state.update { it.copy(isCountryPickerOpen = true) }
+            is WorkshopSetupAction.OnCountrySearchChange -> _state.update {
+                it.copy(countrySearchQuery = action.query.take(80))
+            }
+            WorkshopSetupAction.OnCountryChipClick -> _state.update {
+                it.copy(isCountryPickerOpen = true, countrySearchQuery = "")
+            }
             WorkshopSetupAction.OnDismissCountryPicker -> _state.update { it.copy(isCountryPickerOpen = false) }
             is WorkshopSetupAction.OnCountrySelected -> onCountrySelected(action.country)
             is WorkshopSetupAction.OnTimeZoneSelected -> onTimeZoneSelected(action.timeZone)

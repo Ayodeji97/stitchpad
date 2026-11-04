@@ -29,11 +29,14 @@ import com.danzucker.stitchpad.core.domain.repository.OrderRepository
 import com.danzucker.stitchpad.core.domain.repository.StyleRepository
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.CurrentCountryProvider
-import com.danzucker.stitchpad.core.domain.session.workshopUidOrNull
+import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import com.danzucker.stitchpad.core.media.ImageCompressor
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
 import com.danzucker.stitchpad.core.presentation.celebration.Milestone
+import com.danzucker.stitchpad.core.presentation.moneyInputAfterEdit
+import com.danzucker.stitchpad.core.presentation.moneyInputForAmount
+import com.danzucker.stitchpad.core.presentation.moneyInputValue
 import com.danzucker.stitchpad.feature.order.domain.DepositReconciler
 import com.danzucker.stitchpad.feature.order.domain.toOrderUiText
 import com.danzucker.stitchpad.feature.review.presentation.ReviewArmer
@@ -53,12 +56,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.error_order_country_unavailable
+import stitchpad.composeapp.generated.resources.error_order_currency_changed
+import stitchpad.composeapp.generated.resources.error_order_currency_seed
 import stitchpad.composeapp.generated.resources.error_order_customer_required
 import stitchpad.composeapp.generated.resources.error_order_deposit_exceeds_total
 import stitchpad.composeapp.generated.resources.error_order_discount_exceeds_total
 import stitchpad.composeapp.generated.resources.error_order_item_price_required
 import stitchpad.composeapp.generated.resources.error_order_item_quantity_required
 import stitchpad.composeapp.generated.resources.error_order_items_required
+import stitchpad.composeapp.generated.resources.error_order_money_precision
 import stitchpad.composeapp.generated.resources.error_order_photo_too_large
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
@@ -84,6 +90,8 @@ class OrderFormViewModel(
     private val seedFromOrderId: String? = savedStateHandle["seedFromOrderId"]
     private val initialCustomerId: String? = savedStateHandle["customerId"]
     private var userId: String? = null
+    private var formSession: WorkshopSession? = null
+    private var seedCurrency: Currency? = null
 
     // Preserved across edit: carry original metadata so save() doesn't overwrite them.
     private var loadedCreatedAt: Long = 0L
@@ -118,6 +126,7 @@ class OrderFormViewModel(
 
     // Single user-level Inspiration collector, started once userId is known.
     private var inspirationJob: Job? = null
+    private var currencyRetryJob: Job? = null
 
     private var hasLoadedInitialData = false
     private val _state = MutableStateFlow(OrderFormState(isEditMode = orderId != null))
@@ -141,6 +150,8 @@ class OrderFormViewModel(
     @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount", "NestedBlockDepth")
     fun onAction(action: OrderFormAction) {
         when (action) {
+            OrderFormAction.OnRetryCurrency -> retryCurrency()
+
             OrderFormAction.OnNextStep -> {
                 val current = _state.value.currentStep
                 if (current < 3) _state.update { it.copy(currentStep = current + 1) }
@@ -190,7 +201,7 @@ class OrderFormViewModel(
                 it.copy(quantity = action.quantity)
             }
             is OrderFormAction.OnItemPriceChange -> updateItem(action.itemId) {
-                it.copy(price = action.price)
+                it.copy(price = moneyInputAfterEdit(action.price, it.price, _state.value.currency))
             }
             is OrderFormAction.OnItemMeasurementChange -> updateItem(action.itemId) {
                 it.copy(measurementId = action.measurementId)
@@ -333,14 +344,19 @@ class OrderFormViewModel(
                 _state.update { it.copy(priority = action.priority) }
             }
             is OrderFormAction.OnDepositChange -> {
-                _state.update { it.copy(depositPaid = action.deposit) }
+                _state.update {
+                    it.copy(
+                        depositPaid = moneyInputAfterEdit(action.deposit, it.depositPaid, it.currency)
+                    )
+                }
             }
             is OrderFormAction.OnNotesChange -> {
                 _state.update { it.copy(notes = action.notes) }
             }
             is OrderFormAction.OnDiscountChange -> {
-                val digits = action.discount.filter { it.isDigit() }
-                _state.update { it.copy(discount = digits) }
+                _state.update {
+                    it.copy(discount = moneyInputAfterEdit(action.discount, it.discount, it.currency))
+                }
             }
             is OrderFormAction.OnDiscountReasonChange -> {
                 _state.update { it.copy(discountReason = action.reason) }
@@ -444,7 +460,10 @@ class OrderFormViewModel(
 
     private fun loadInitialData() {
         viewModelScope.launch {
-            userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
+            val session = activeWorkshopProvider.awaitHydrated()
+            formSession = session
+            userId = session.workshopUid.takeIf { it.isNotBlank() } ?: return@launch
+            if (orderId == null) observeCreateCurrency()
             observeCustomers()
             observeCustomGarmentTypes()
             observeInspirationStyles()
@@ -452,6 +471,30 @@ class OrderFormViewModel(
                 loadOrder(orderId)
             } else if (seedFromOrderId != null) {
                 loadOrderForSeed(seedFromOrderId)
+            }
+        }
+    }
+
+    private fun retryCurrency() {
+        if (orderId != null || currencyRetryJob?.isActive == true) return
+        currencyRetryJob = viewModelScope.launch {
+            val country = countryForNewOrder()
+            if (country == null || activeWorkshopProvider.current() != formSession) {
+                setError(Res.string.error_order_country_unavailable)
+            } else {
+                _state.update {
+                    if (it.isCurrencyLoaded) it else it.copy(currency = country.currency, isCurrencyLoaded = true)
+                }
+            }
+        }
+    }
+
+    private fun observeCreateCurrency() {
+        viewModelScope.launch {
+            currentCountryProvider.loadedCountry.filterNotNull().collect { country ->
+                _state.update {
+                    if (it.isCurrencyLoaded) it else it.copy(currency = country.currency, isCurrencyLoaded = true)
+                }
             }
         }
     }
@@ -554,14 +597,12 @@ class OrderFormViewModel(
                             items = order.items.map { item -> item.toFormState() },
                             deadline = order.deadline,
                             priority = order.priority,
-                            depositPaid = DepositReconciler
-                                .currentDepositSum(order.payments)
-                                .takeIf { it > 0.0 }
-                                ?.toLong()
-                                ?.toString()
-                                ?: "",
+                            depositPaid = depositTotal(order.payments, order.currency)
+                                .takeIf { it > 0.0 }?.let(::moneyInputForAmount) ?: "",
+                            currency = order.currency,
+                            isCurrencyLoaded = true,
                             notes = order.notes ?: "",
-                            discount = if (order.discount > 0.0) order.discount.toLong().toString() else "",
+                            discount = if (order.discount > 0.0) moneyInputForAmount(order.discount) else "",
                             discountReason = order.discountReason ?: "",
                             isLoading = false
                         )
@@ -585,6 +626,7 @@ class OrderFormViewModel(
             when (val result = orderRepository.getOrder(uid, sourceOrderId)) {
                 is Result.Success -> {
                     val source = result.data
+                    seedCurrency = source.currency
                     pendingCustomerId = source.customerId
                     _state.update {
                         it.copy(
@@ -644,7 +686,7 @@ class OrderFormViewModel(
         },
         description = description,
         quantity = quantity.coerceAtLeast(1).toString(),
-        price = if (price > 0) price.toLong().toString() else "",
+        price = if (price > 0) moneyInputForAmount(price) else "",
         measurementId = measurementId,
         fabricName = fabricName.orEmpty(),
         // PTSP-11 — load the lists; uploadedBytesList stays empty until the user
@@ -671,6 +713,7 @@ class OrderFormViewModel(
         if (awaitPendingPhotosThenResave()) return
 
         val s = _state.value
+
         if (userId == null) return
 
         val customer = s.selectedCustomer
@@ -708,6 +751,11 @@ class OrderFormViewModel(
             return
         }
 
+        if (!hasSupportedMoney(formItems, s.discount, s.depositPaid, s.currency)) {
+            setError(Res.string.error_order_money_precision)
+            return
+        }
+
         // Reject a discount above the subtotal rather than silently clamping it
         // (which would persist a smaller discount than the user typed). The
         // coerceIn in executeSave() stays as defence-in-depth for direct entry.
@@ -721,7 +769,7 @@ class OrderFormViewModel(
         val isEdit = orderId != null
         if (isEdit && loadedPayments.isNotEmpty()) {
             val typedDeposit = s.depositPaid.toDoubleOrNull() ?: 0.0
-            val currentDeposit = DepositReconciler.currentDepositSum(loadedPayments)
+            val currentDeposit = depositTotal(loadedPayments, loadedCurrency)
             if (typedDeposit != currentDeposit) {
                 _state.update {
                     it.copy(
@@ -779,13 +827,71 @@ class OrderFormViewModel(
         typedDiscount: String,
         typedDeposit: String,
     ): Boolean {
-        val payable = (formSubtotal(formItems) - (typedDiscount.toDoubleOrNull() ?: 0.0)).coerceAtLeast(0.0)
-        return (typedDeposit.toDoubleOrNull() ?: 0.0) > payable
+        val currency = _state.value.currency
+        val subtotal = subtotalMinorUnits(formItems, currency) ?: return true
+        val discount = minorUnits(typedDiscount, currency) ?: 0L
+        val payable = (subtotal - discount).coerceAtLeast(0L)
+        return (minorUnits(typedDeposit, currency) ?: 0L) > payable
     }
 
     /** Sum of price × quantity over valid items — mirrors [executeSave]'s subtotal math. */
-    private fun formSubtotal(formItems: List<OrderItemFormState>): Double = formItems.sumOf {
-        (it.price.toDoubleOrNull() ?: 0.0) * (it.quantity.toIntOrNull()?.coerceAtLeast(1) ?: 1)
+    private fun formSubtotal(formItems: List<OrderItemFormState>, currency: Currency = _state.value.currency): Double {
+        val units = subtotalMinorUnits(formItems, currency) ?: return Double.NaN
+        val amount = units.toDouble() / if (currency.decimals == 0) 1.0 else 100.0
+        val canonical = moneyInputForAmount(amount)
+        return if (minorUnits(canonical, currency) == units) {
+            moneyInputValue(canonical, currency) ?: Double.NaN
+        } else {
+            Double.NaN
+        }
+    }
+
+    @Suppress("ReturnCount") // Reject malformed input and overflow before adding exact minor units.
+    private fun subtotalMinorUnits(formItems: List<OrderItemFormState>, currency: Currency): Long? {
+        var total = 0L
+        for (item in formItems) {
+            val unit = minorUnits(item.price, currency) ?: return null
+            val quantity = (item.quantity.toIntOrNull()?.coerceAtLeast(1) ?: 1).toLong()
+            if (unit > Long.MAX_VALUE / quantity) return null
+            val line = unit * quantity
+            if (total > Long.MAX_VALUE - line) return null
+            total += line
+        }
+        return total
+    }
+
+    /** Parse canonical form input into exact minor units before any arithmetic. */
+    private fun minorUnits(input: String, currency: Currency): Long? {
+        if (moneyInputValue(input, currency) == null) return null
+        val whole = input.substringBefore('.').ifEmpty { "0" }
+        val fraction = input.substringAfter('.', "").padEnd(currency.decimals, '0')
+        return (whole + fraction).trimStart('0').ifEmpty { "0" }.toLongOrNull()
+    }
+
+    private fun hasSupportedMoney(
+        items: List<OrderItemFormState>,
+        discount: String,
+        deposit: String,
+        currency: Currency,
+    ): Boolean = items.all { moneyInputValue(it.price, currency) != null } &&
+        (discount.isBlank() || moneyInputValue(discount, currency) != null) &&
+        (deposit.isBlank() || moneyInputValue(deposit, currency) != null) &&
+        formSubtotal(items, currency).isFinite() &&
+        (orderId == null || depositTotal(loadedPayments, loadedCurrency).isFinite())
+
+    /** Sum valid deposit minor units, preserving individual payment metadata on an unchanged edit. */
+    @Suppress("ReturnCount") // Preserve unsupported legacy values; never truncate or wrap them.
+    private fun depositTotal(payments: List<Payment>, currency: Currency): Double {
+        val deposits = payments.filter { it.type == com.danzucker.stitchpad.core.domain.model.PaymentType.DEPOSIT }
+        var total = 0L
+        for (payment in deposits) {
+            val units = minorUnits(moneyInputForAmount(payment.amount), currency)
+                ?: return DepositReconciler.currentDepositSum(payments)
+            if (total > Long.MAX_VALUE - units) return DepositReconciler.currentDepositSum(payments)
+            total += units
+        }
+        val amount = total.toDouble() / if (currency.decimals == 0) 1.0 else 100.0
+        return if (minorUnits(moneyInputForAmount(amount), currency) == total) amount else Double.NaN
     }
 
     @OptIn(ExperimentalUuidApi::class)
@@ -825,17 +931,38 @@ class OrderFormViewModel(
 
         viewModelScope.launch {
             val isEdit = orderId != null
-            // Resolve before uploading images or writing anything: the currency is permanent.
+            if (activeWorkshopProvider.awaitHydrated() != formSession) {
+                _state.update { it.copy(isSaving = false) }
+                setError(Res.string.error_order_country_unavailable)
+                return@launch
+            }
             val currency = if (isEdit) {
                 loadedCurrency
             } else {
-                val country = countryForNewOrder()
-                if (country == null) {
+                val market = countryForNewOrder()
+                if (market == null || activeWorkshopProvider.current() != formSession) {
                     _state.update { it.copy(isSaving = false) }
                     setError(Res.string.error_order_country_unavailable)
                     return@launch
                 }
-                country.currency
+                val displayed = _state.value
+                if (displayed.isCurrencyLoaded && displayed.currency != market.currency) {
+                    _state.update { it.copy(isSaving = false) }
+                    setError(Res.string.error_order_currency_changed)
+                    return@launch
+                }
+                if (seedCurrency != null && seedCurrency != market.currency) {
+                    _state.update { it.copy(isSaving = false) }
+                    setError(Res.string.error_order_currency_seed)
+                    return@launch
+                }
+                _state.update { it.copy(currency = market.currency, isCurrencyLoaded = true) }
+                market.currency
+            }
+            if (!hasSupportedMoney(formItems, s.discount, s.depositPaid, currency)) {
+                _state.update { it.copy(isSaving = false) }
+                setError(Res.string.error_order_money_precision)
+                return@launch
             }
             val orderItems = mutableListOf<OrderItem>()
             for (item in formItems) {
@@ -873,7 +1000,7 @@ class OrderFormViewModel(
                 )
             }
 
-            val totalPrice = orderItems.sumOf { it.price * it.quantity }
+            val totalPrice = formSubtotal(formItems, currency)
             val discount = (s.discount.toDoubleOrNull() ?: 0.0).coerceIn(0.0, totalPrice)
             val deposit = s.depositPaid.toDoubleOrNull() ?: 0.0
             val now = Clock.System.now().toEpochMilliseconds()
@@ -887,7 +1014,7 @@ class OrderFormViewModel(
             // existing deposit sum — that's the case the dialog confirmed.
             val payments = if (
                 isEdit &&
-                deposit == DepositReconciler.currentDepositSum(loadedPayments)
+                deposit == depositTotal(loadedPayments, loadedCurrency)
             ) {
                 loadedPayments
             } else {
@@ -936,6 +1063,11 @@ class OrderFormViewModel(
             // snapshot first is deterministic with respect to our own write.
             val isFirstOrderCandidate = !isEdit && isOrderListKnownEmpty(uid)
 
+            if (activeWorkshopProvider.current() != formSession) {
+                _state.update { it.copy(isSaving = false) }
+                setError(Res.string.error_order_country_unavailable)
+                return@launch
+            }
             val result = if (isEdit) {
                 orderRepository.updateOrder(uid, order)
             } else {
@@ -974,7 +1106,7 @@ class OrderFormViewModel(
      */
     private suspend fun countryForNewOrder(): Country? =
         withTimeoutOrNull(COUNTRY_LOAD_WAIT_MS) {
-            currentCountryProvider.loadedCountry.filterNotNull().first()
+            currentCountryProvider.countryForWrite()
         }
 
     private fun setError(resource: org.jetbrains.compose.resources.StringResource) {

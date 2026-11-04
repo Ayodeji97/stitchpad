@@ -54,11 +54,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
 import com.danzucker.stitchpad.core.presentation.UiText
-import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.feature.order.presentation.detail.CtaPair
 import com.danzucker.stitchpad.feature.order.presentation.detail.PrimaryCta
 import com.danzucker.stitchpad.feature.order.presentation.detail.SecondaryCta
@@ -131,6 +132,7 @@ fun OrderHeroCard(
     // Slice 6c: active staff see garment / customer / status / deadline only — the
     // money block, reach-out chips and money/contact CTAs are suppressed below.
     isActiveStaff: Boolean = false,
+    currency: Currency = Currency.NGN,
 ) {
     val borderColor = if (isOverdue) {
         MaterialTheme.colorScheme.error.copy(alpha = 0.4f)
@@ -149,6 +151,7 @@ fun OrderHeroCard(
             verticalArrangement = Arrangement.spacedBy(DesignTokens.space3),
         ) {
             HeroDetails(
+                currency = currency,
                 garmentTypeIcon = garmentTypeIcon,
                 garmentName = garmentName,
                 customerName = customerName,
@@ -194,6 +197,7 @@ fun OrderHeroCard(
 @Suppress("LongParameterList")
 @Composable
 private fun HeroDetails(
+    currency: Currency,
     garmentTypeIcon: ImageVector,
     garmentName: String,
     customerName: String,
@@ -287,6 +291,7 @@ private fun HeroDetails(
         // collected. When no deadline is set the left slot becomes a "Set
         // deadline" CTA (the empty-state pattern used elsewhere in the redesign).
         PaymentBlock(
+            currency = currency,
             dueLabel = dueLabel,
             isOverdue = isOverdue,
             status = status,
@@ -301,6 +306,7 @@ private fun HeroDetails(
 
 @Composable
 private fun PaymentBlock(
+    currency: Currency,
     dueLabel: UiText?,
     isOverdue: Boolean,
     status: OrderStatus,
@@ -353,6 +359,7 @@ private fun PaymentBlock(
                 // Balance + total is money — hidden for active staff (Slice 6c).
                 if (!isActiveStaff) {
                     BalanceSection(
+                        currency = currency,
                         balanceRemaining = balanceRemaining,
                         netTotal = progress.netTotal,
                         grossTotal = totalPrice,
@@ -373,7 +380,7 @@ private fun PaymentBlock(
                     Text(
                         text = stringResource(
                             Res.string.order_detail_paid_amount,
-                            "₦${formatPrice(progress.paid)}",
+                            formatMoney(progress.paid, currency),
                         ),
                         style = MaterialTheme.typography.labelSmall,
                         fontFamily = FontFamily.Monospace,
@@ -618,6 +625,7 @@ private fun SetDeadlineCta(onClick: () -> Unit) {
 
 @Composable
 private fun BalanceSection(
+    currency: Currency,
     balanceRemaining: Double,
     netTotal: Double,
     grossTotal: Double,
@@ -637,7 +645,7 @@ private fun BalanceSection(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
-            text = "₦${formatPrice(balanceRemaining)}",
+            text = formatMoney(balanceRemaining, currency),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
             fontFamily = FontFamily.Monospace,
@@ -656,6 +664,7 @@ private fun BalanceSection(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             StrikethroughPrice(
+                currency = currency,
                 grossPrice = grossTotal,
                 netPrice = netTotal,
                 discount = discount,

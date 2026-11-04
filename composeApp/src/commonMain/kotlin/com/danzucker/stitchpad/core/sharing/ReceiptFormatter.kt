@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.core.sharing
 
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
@@ -48,7 +49,7 @@ object ReceiptFormatter {
         val dateFormatted = formatDate(order.createdAt, tz)
         val deadlineFormatted = order.deadline?.let { formatDate(it, tz) }
 
-        val groupedItems = groupReceiptItems(order.items, garmentNames)
+        val groupedItems = groupReceiptItems(order.items, garmentNames, order.currency)
         val shortId = order.id.take(ORDER_ID_PREFIX_LENGTH).uppercase()
 
         val naturalDocType = resolveDocumentType(order)
@@ -63,7 +64,7 @@ object ReceiptFormatter {
 
         val paymentRows = order.payments
             .sortedBy { it.recordedAt }
-            .map { it.toRow(tz) }
+            .map { it.toRow(tz, order.currency) }
 
         // Bank block hidden when nothing is owed (no point asking for transfer).
         // Otherwise shown only when all three fields are set — group-required is
@@ -83,12 +84,12 @@ object ReceiptFormatter {
             customerName = order.customerName,
             dateFormatted = dateFormatted,
             items = groupedItems,
-            subtotalFormatted = "₦${formatPrice(order.totalPrice)}",
-            discountFormatted = if (order.discount > 0.0) "−₦${formatPrice(order.discount)}" else null,
+            subtotalFormatted = formatMoney(order.totalPrice, order.currency),
+            discountFormatted = if (order.discount > 0.0) "−${formatMoney(order.discount, order.currency)}" else null,
             discountReason = order.discountReason,
-            totalFormatted = "₦${formatPrice(order.payableTotal)}",
-            depositFormatted = "₦${formatPrice(order.depositPaid)}",
-            balanceFormatted = "₦${formatPrice(order.balanceRemaining)}",
+            totalFormatted = formatMoney(order.payableTotal, order.currency),
+            depositFormatted = formatMoney(order.depositPaid, order.currency),
+            balanceFormatted = formatMoney(order.balanceRemaining, order.currency),
             isFullyPaid = fullyPaid,
             paymentRows = paymentRows,
             bankBlock = bankBlock,
@@ -186,11 +187,11 @@ object ReceiptFormatter {
         return BankBlock(name, accountName, accountNumber)
     }
 
-    private fun Payment.toRow(tz: TimeZone): PaymentRow = PaymentRow(
+    private fun Payment.toRow(tz: TimeZone, currency: Currency): PaymentRow = PaymentRow(
         dateFormatted = formatDate(recordedAt, tz),
         typeLabel = type.label(),
         methodLabel = method.label(),
-        formattedAmount = "₦${formatPrice(amount)}",
+        formattedAmount = formatMoney(amount, currency),
     )
 
     private fun PaymentType.label(): String = when (this) {
@@ -225,6 +226,7 @@ object ReceiptFormatter {
     private fun groupReceiptItems(
         items: List<OrderItem>,
         garmentNames: Map<GarmentType, String>,
+        currency: Currency,
     ): List<ReceiptItem> = items
         .groupBy { item ->
             // Normalize to the case-insensitive contract the upsert path uses
@@ -252,8 +254,8 @@ object ReceiptFormatter {
             ReceiptItem(
                 quantity = totalQuantity,
                 garmentName = garmentName,
-                formattedUnitPrice = "₦${formatPrice(first.price)}",
-                formattedPrice = "₦${formatPrice(first.price * totalQuantity)}",
+                formattedUnitPrice = formatMoney(first.price, currency),
+                formattedPrice = formatMoney(first.price * totalQuantity, currency),
             )
         }
 

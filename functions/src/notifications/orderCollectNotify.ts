@@ -9,6 +9,7 @@ import {
 } from './fcm';
 import { isStampedMoney, moneyFromDoc } from './orderMoney';
 import { isDigestAllowed } from './rollout';
+import { formatNotificationMoney, notificationCurrency } from './moneyDisplay';
 
 const REGION = 'europe-west1';
 const COLLECTIBLE = new Set(['READY', 'DELIVERED']);
@@ -16,7 +17,8 @@ const COLLECTIBLE = new Set(['READY', 'DELIVERED']);
 export interface CollectNotification {
   customerName: string;
   garmentSummary: string;
-  amount: number;               // rounded naira
+  amount: number;               // major units; display rounding happens only in the renderer
+  currency?: string;            // stamped order currency, absent legacy values default NGN
   status: 'READY' | 'DELIVERED';
 }
 
@@ -47,7 +49,8 @@ export function collectibleTransition(before: unknown, after: any): CollectNotif
   return {
     customerName: after.customerName ?? '',
     garmentSummary: summariseGarments(after.items ?? []),
-    amount: Math.round(bal),
+    amount: bal,
+    currency: notificationCurrency(after.currency),
     status: after.status,
   };
 }
@@ -57,7 +60,7 @@ export function collectPushCopy(n: CollectNotification): { title: string; body: 
   const firstName = (n.customerName.trim().split(/\s+/)[0]) || n.customerName;
   return {
     title: 'StitchPad',
-    body: `${firstName}'s ${n.garmentSummary} is ${state} — ₦${n.amount.toLocaleString('en-NG')} to collect`,
+    body: `${firstName}'s ${n.garmentSummary} is ${state} — ${formatNotificationMoney(n.amount, n.currency)} to collect`,
   };
 }
 
@@ -115,7 +118,7 @@ export const onOrderCollectible = functions
         .doc(`${orderId}__TO_COLLECT`)
         .create({
           orderId, type: 'TO_COLLECT', customerName: n.customerName,
-          garmentSummary: n.garmentSummary, amount: n.amount,
+          garmentSummary: n.garmentSummary, amount: n.amount, currency: notificationCurrency(n.currency),
           deadline: null, isOverdue: false, isRead: false, createdAt: Date.now(),
         });
     } catch (err) {

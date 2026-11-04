@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.dashboard.domain.model
 
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.feature.dashboard.domain.PipelinePaymentStatus
 
 data class DashboardOrderRow(
@@ -31,4 +32,5 @@ data class DashboardOrderRow(
      * hero stepper and ticket footer stage dots (2026-08-14 design spec).
      */
     val stage: PipelineStage? = null,
+    val currency: Currency = Currency.NGN,
 )

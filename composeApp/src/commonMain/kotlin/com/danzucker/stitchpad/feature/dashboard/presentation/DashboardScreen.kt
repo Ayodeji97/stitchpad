@@ -67,6 +67,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
+import com.danzucker.stitchpad.core.sharing.formatCompactMoney
+import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.BellButton
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.CommunityStrip
@@ -124,7 +126,6 @@ import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.cd_open_settings
-import stitchpad.composeapp.generated.resources.currency_naira
 import stitchpad.composeapp.generated.resources.customer_ready_section_label
 import stitchpad.composeapp.generated.resources.dashboard_fab_close_cd
 import stitchpad.composeapp.generated.resources.dashboard_fab_inspiration_cd
@@ -195,10 +196,6 @@ import stitchpad.composeapp.generated.resources.push_prompt_title
 import stitchpad.composeapp.generated.resources.reconnect_whatsapp_template
 import stitchpad.composeapp.generated.resources.staff_stage_moved_snackbar
 import stitchpad.composeapp.generated.resources.staff_stage_undo
-import kotlin.math.roundToLong
-
-private const val THOUSANDS = 1_000L
-private const val MILLIONS = 1_000_000L
 
 // Scroll bottom padding. With FAB visible we need clearance so the last
 // content row isn't obscured: FAB is 50dp tall + 16dp bottom margin = 66dp
@@ -845,6 +842,14 @@ private fun DashboardContent(
         if (state.outstandingOrderCount > 0) {
             YoureOwedCard(
                 amount = state.outstandingAmount,
+                amountsByCurrency = state.outstandingAmounts.ifEmpty {
+                    listOf(
+                        com.danzucker.stitchpad.core.domain.model.CurrencyAmount(
+                            com.danzucker.stitchpad.core.domain.model.Currency.NGN,
+                            state.outstandingAmount,
+                        )
+                    )
+                },
                 orderCount = state.outstandingOrderCount,
                 overdueCount = state.outstandingOverdueCount,
                 onClick = { onAction(DashboardAction.OnOutstandingClick) },
@@ -1091,14 +1096,8 @@ private fun emptyWeeklyGoalsState(): WeeklyGoalsCardState.Empty =
 
 @Composable
 private fun achievedWeeklyGoalsState(weeklyGoal: WeeklyGoalUi): WeeklyGoalsCardState.Filled {
-    val collectedAbbrev = stringResource(
-        Res.string.currency_naira,
-        formatAbbreviated(weeklyGoal.collectedAmount)
-    )
-    val targetAbbrev = stringResource(
-        Res.string.currency_naira,
-        formatAbbreviated(weeklyGoal.targetAmount)
-    )
+    val collectedAbbrev = formatCompactMoney(weeklyGoal.collectedAmount, weeklyGoal.currency)
+    val targetAbbrev = formatCompactMoney(weeklyGoal.targetAmount, weeklyGoal.currency)
     return WeeklyGoalsCardState.Filled(
         sectionLabel = stringResource(Res.string.goals_achieved_section_label),
         daysLeftLabel = daysLeftLabel(weeklyGoal.daysLeft),
@@ -1115,14 +1114,8 @@ private fun achievedWeeklyGoalsState(weeklyGoal: WeeklyGoalUi): WeeklyGoalsCardS
 private fun inProgressWeeklyGoalsState(weeklyGoal: WeeklyGoalUi): WeeklyGoalsCardState.Filled {
     val percentInt = (weeklyGoal.progressPercent * 100f).toInt().coerceIn(0, 999)
     val toGoAmount = (weeklyGoal.targetAmount - weeklyGoal.collectedAmount).coerceAtLeast(0.0)
-    val earned = stringResource(
-        Res.string.currency_naira,
-        formatNaira(weeklyGoal.collectedAmount)
-    )
-    val toGo = stringResource(
-        Res.string.currency_naira,
-        formatNaira(toGoAmount)
-    )
+    val earned = formatMoney(weeklyGoal.collectedAmount, weeklyGoal.currency)
+    val toGo = formatMoney(toGoAmount, weeklyGoal.currency)
     val motivationRes = when (weeklyGoal.pace) {
         WeeklyGoalPace.Behind -> Res.string.goals_motivation_behind
         WeeklyGoalPace.OnPace -> Res.string.goals_motivation_on_pace
@@ -1153,14 +1146,8 @@ private fun daysLeftLabel(daysLeft: Int): String =
 
 @Composable
 private fun formatGoalProgress(goal: WeeklyGoalUi): String {
-    val collected = stringResource(
-        Res.string.currency_naira,
-        formatAbbreviated(goal.collectedAmount)
-    )
-    val target = stringResource(
-        Res.string.currency_naira,
-        formatAbbreviated(goal.targetAmount)
-    )
+    val collected = formatCompactMoney(goal.collectedAmount, goal.currency)
+    val target = formatCompactMoney(goal.targetAmount, goal.currency)
     return "$collected / $target"
 }
 
@@ -1312,7 +1299,7 @@ private data class NbaPresentation(
 @Composable
 private fun nbaPresentationFor(action: NextBestAction): NbaPresentation {
     val isDark = LocalIsDarkTheme.current
-    val amount = formatNaira(action.balanceAmount)
+    val amount = formatMoney(action.balanceAmount, action.currency)
     return when (action.type) {
         NextBestActionType.CollectOverdue -> NbaPresentation(
             accent = if (isDark) DesignTokens.errorDarkText else DesignTokens.error500,
@@ -1520,7 +1507,7 @@ private fun DashboardHeader(
 
 private suspend fun buildWhatsAppMessage(action: NextBestAction, signature: String): String {
     val firstName = firstNameOf(action.customerName).ifBlank { action.customerName }
-    val amount = formatNaira(action.balanceAmount)
+    val amount = formatMoney(action.balanceAmount, action.currency)
     return when (action.type) {
         NextBestActionType.CollectOnReady -> getString(
             Res.string.dashboard_whatsapp_collect_ready,
@@ -1545,15 +1532,6 @@ private fun LocalDate.formatFriendly(): String {
     val day = dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }
     val mon = month.name.lowercase().take(3).replaceFirstChar { it.uppercase() }
     return "$day, $dayOfMonth $mon"
-}
-
-private fun formatAbbreviated(amount: Double): String {
-    val rounded = amount.roundToLong()
-    return when {
-        rounded >= MILLIONS -> "${rounded / MILLIONS}m"
-        rounded >= THOUSANDS -> "${rounded / THOUSANDS}k"
-        else -> rounded.toString()
-    }
 }
 
 @Suppress("UnusedPrivateMember")

@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.reports.presentation
 import com.danzucker.stitchpad.core.data.repository.FakeCustomerRepository
 import com.danzucker.stitchpad.core.data.repository.FakeOrderRepository
 import com.danzucker.stitchpad.core.domain.error.DataError
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
@@ -140,6 +141,24 @@ class ReportsViewModelTest {
             createdAt = updatedAt,
             updatedAt = updatedAt,
         )
+    }
+
+    @Test
+    fun mixedCurrencyReportsHaveSeparateSectionsAndReminderUsesTappedCurrency() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(customer("c1", "Ada"))
+        orderRepository.ordersList = listOf(
+            order("ng", totalPrice = 1000.0, balanceRemaining = 900.0),
+            order("gh", totalPrice = 200.0, balanceRemaining = 150.0).copy(currency = Currency.GHS),
+        )
+        val vm = createViewModel()
+        assertEquals(2, vm.state.value.currencyReports.size)
+        assertNull(vm.state.value.kpiSummary)
+        assertEquals(2.0, vm.state.value.orderCountKpi?.current)
+        vm.onAction(ReportsAction.OnSendReminderClick("c1", Currency.GHS))
+        val event = assertIs<ReportsEvent.LaunchWhatsAppReminder>(vm.events.first())
+        assertEquals(150.0, event.totalOwed)
+        assertEquals(Currency.GHS, event.currency)
     }
 
     @Test

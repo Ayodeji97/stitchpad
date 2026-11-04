@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.dashboard.presentation
 
+import com.danzucker.stitchpad.core.domain.model.CurrencyAmount
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.dashboard.domain.FocusQueue
 import com.danzucker.stitchpad.feature.dashboard.domain.StaffPipelineCounts
@@ -72,6 +73,7 @@ data class DashboardState(
     val dueToday: List<DashboardOrderRow> = emptyList(),
     val ready: List<DashboardOrderRow> = emptyList(),
     val outstandingAmount: Double = 0.0,
+    val outstandingAmounts: List<CurrencyAmount> = emptyList(),
     val outstandingOrderCount: Int = 0,
     val outstandingOverdueCount: Int = 0,
     val nextBestActions: List<NextBestAction> = emptyList(),

@@ -33,10 +33,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
-import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import kotlinx.datetime.Instant
@@ -73,6 +74,7 @@ fun OrderPaymentCard(
     onRecordPaymentClick: () -> Unit,
     modifier: Modifier = Modifier,
     discount: Double = 0.0,
+    currency: Currency = Currency.NGN,
 ) {
     // payable = subtotal minus the whole-order discount; the Total column and the
     // balance both come off this, never the raw subtotal.
@@ -118,7 +120,7 @@ fun OrderPaymentCard(
                     Text(
                         text = stringResource(
                             Res.string.order_detail_payment_subtotal,
-                            "₦${formatPrice(totalPrice)}",
+                            formatMoney(totalPrice, currency),
                         ),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -126,7 +128,7 @@ fun OrderPaymentCard(
                     Text(
                         text = stringResource(
                             Res.string.order_detail_payment_discount,
-                            "−₦${formatPrice(discount)}",
+                            "−${formatMoney(discount, currency)}",
                         ),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.SemiBold,
@@ -151,7 +153,7 @@ fun OrderPaymentCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        text = "₦${formatPrice(payable)}",
+                        text = formatMoney(payable, currency),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.SemiBold,
                         fontFamily = FontFamily.Monospace,
@@ -166,7 +168,7 @@ fun OrderPaymentCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        text = "₦${formatPrice(paid)}",
+                        text = formatMoney(paid, currency),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.SemiBold,
                         fontFamily = FontFamily.Monospace,
@@ -181,7 +183,7 @@ fun OrderPaymentCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        text = "₦${formatPrice(balance)}",
+                        text = formatMoney(balance, currency),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.SemiBold,
                         fontFamily = FontFamily.Monospace,
@@ -259,7 +261,7 @@ fun OrderPaymentCard(
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         payments.sortedBy { it.recordedAt }.forEach { payment ->
-                            PaymentRow(payment = payment)
+                            PaymentRow(payment = payment, currency = currency)
                         }
                     }
                 }
@@ -286,7 +288,7 @@ fun OrderPaymentCard(
 }
 
 @Composable
-private fun PaymentRow(payment: Payment) {
+private fun PaymentRow(payment: Payment, currency: Currency) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(DesignTokens.space1),
@@ -304,7 +306,7 @@ private fun PaymentRow(payment: Payment) {
             color = MaterialTheme.colorScheme.onSurface,
         )
         Text(
-            text = "₦${formatPrice(payment.amount)}",
+            text = formatMoney(payment.amount, currency),
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.SemiBold,
             fontFamily = FontFamily.Monospace,

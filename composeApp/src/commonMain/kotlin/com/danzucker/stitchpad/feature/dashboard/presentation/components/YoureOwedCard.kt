@@ -28,7 +28,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.danzucker.stitchpad.feature.dashboard.presentation.formatNaira
+import com.danzucker.stitchpad.core.domain.model.Currency
+import com.danzucker.stitchpad.core.domain.model.CurrencyAmount
+import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.ui.components.celebration.rememberReduceMotionEnabled
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -56,10 +58,11 @@ fun YoureOwedCard(
     overdueCount: Int,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    amountsByCurrency: List<CurrencyAmount> = listOf(CurrencyAmount(Currency.NGN, amount)),
 ) {
     val overdueSuffix = if (overdueCount > 0) " · $overdueCount overdue" else ""
     val subtitle = "across $orderCount orders$overdueSuffix"
-    val cd = "Money to collect: ₦${formatNaira(amount)}, $subtitle"
+    val cd = "Money to collect: ${amountsByCurrency.joinToString { formatMoney(it.amount, it.currency) }}, $subtitle"
 
     // Periodic "pop + wobble" nudge every ~12s (~8s + slightly stronger when overdue) to
     // draw the eye back to money waiting to be collected: a quick scale-up plus a small
@@ -126,12 +129,14 @@ fun YoureOwedCard(
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.secondary,
                 )
-                Text(
-                    text = "₦${formatNaira(amount)}",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
+                amountsByCurrency.forEach { total ->
+                    Text(
+                        text = formatMoney(total.amount, total.currency),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,

@@ -3,7 +3,7 @@ package com.danzucker.stitchpad.core.util
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
-import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.core.sharing.formatMoney
 import org.jetbrains.compose.resources.getString
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.whatsapp_collect_message_delivered
@@ -40,7 +40,7 @@ object WhatsAppMessageBuilder {
             OrderStatus.READY -> Res.string.whatsapp_collect_message_ready
             else -> Res.string.whatsapp_collect_message_delivered
         }
-        return getString(resource, customer.firstName(), formatPrice(order.balanceRemaining), signature)
+        return getString(resource, customer.firstName(), formatMoney(order.balanceRemaining, order.currency), signature)
     }
 
     private fun Customer.firstName(): String =

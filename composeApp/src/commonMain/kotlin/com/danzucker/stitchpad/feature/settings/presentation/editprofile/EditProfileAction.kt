@@ -29,6 +29,7 @@ sealed interface EditProfileAction {
     data object OnBankAccountNumberBlur : EditProfileAction
 
     // Country picker
+    data class OnCountrySearchChange(val query: String) : EditProfileAction
     data object OnCountryChipClick : EditProfileAction
     data class OnCountrySelected(val country: Country) : EditProfileAction
     data class OnTimeZoneSelected(val timeZone: String) : EditProfileAction

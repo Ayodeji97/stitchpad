@@ -7,27 +7,25 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import com.danzucker.stitchpad.core.domain.model.CostCategory
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.feature.order.presentation.detail.costCategoryOrder
 import com.danzucker.stitchpad.feature.order.presentation.detail.hint
 import com.danzucker.stitchpad.feature.order.presentation.detail.label
-import com.danzucker.stitchpad.ui.components.ThousandsSeparatorTransformation
-import com.danzucker.stitchpad.ui.components.rememberSanitizedTextFieldValue
+import com.danzucker.stitchpad.ui.components.MoneyAmountField
+import com.danzucker.stitchpad.ui.components.moneyInputErrorText
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
@@ -43,12 +41,16 @@ fun CostsEditorSheet(
     onAmountChange: (CostCategory, String) -> Unit,
     onSave: () -> Unit,
     onDismiss: () -> Unit,
+    currency: Currency = Currency.NGN,
+    invalidCategories: Set<CostCategory> = emptySet(),
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) {
         CostsEditorSheetContent(
+            currency = currency,
+            invalidCategories = invalidCategories,
             draft = draft,
             onAmountChange = onAmountChange,
             onSave = onSave,
@@ -61,6 +63,8 @@ private fun CostsEditorSheetContent(
     draft: Map<CostCategory, String>,
     onAmountChange: (CostCategory, String) -> Unit,
     onSave: () -> Unit,
+    currency: Currency = Currency.NGN,
+    invalidCategories: Set<CostCategory> = emptySet(),
 ) {
     Column(
         modifier = Modifier
@@ -92,8 +96,10 @@ private fun CostsEditorSheetContent(
         ) {
             costCategoryOrder.forEach { category ->
                 CostAmountRow(
+                    currency = currency,
                     category = category,
                     digits = draft[category].orEmpty(),
+                    isError = category in invalidCategories,
                     onAmountChange = onAmountChange,
                 )
             }
@@ -101,6 +107,7 @@ private fun CostsEditorSheetContent(
 
         Button(
             onClick = onSave,
+            enabled = invalidCategories.isEmpty(),
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(DesignTokens.radiusMd),
         ) {
@@ -114,28 +121,15 @@ private fun CostsEditorSheetContent(
     }
 }
 
-/**
- * Bound through [rememberSanitizedTextFieldValue] rather than the raw VM-owned digit
- * string directly — binding a VM String straight to a TextField's `value` desyncs the
- * cursor position on every recomposition (see feedback_compose_textfieldvalue_cursor).
- * The field only pushes the digits-only text back up via [onAmountChange]; the VM never
- * dictates cursor position.
- *
- * Rows are emitted from a fixed category list, so each gets its own stable slot and
- * therefore its own caret state — no key needed.
- */
+/** Each stable category row delegates presentation and caret handling to the shared money field. */
 @Composable
 private fun CostAmountRow(
     category: CostCategory,
     digits: String,
     onAmountChange: (CostCategory, String) -> Unit,
+    currency: Currency = Currency.NGN,
+    isError: Boolean = false,
 ) {
-    // Digits-only rejects characters mid-string; the helper re-derives the caret
-    // from what survived instead of leaving it where the IME put it.
-    val amount = rememberSanitizedTextFieldValue(digits) { raw ->
-        onAmountChange(category, raw.filter(Char::isDigit))
-    }
-
     val hint = category.hint()
 
     Column(
@@ -154,15 +148,17 @@ private fun CostAmountRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        OutlinedTextField(
-            value = amount.value,
-            onValueChange = amount.onValueChange,
-            prefix = { Text(text = "₦") },
-            visualTransformation = ThousandsSeparatorTransformation,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            singleLine = true,
+        MoneyAmountField(
+            value = digits,
+            onValueChange = { onAmountChange(category, it) },
+            currency = currency,
+            isError = isError,
+            supportingText = if (isError) {
+                { Text(moneyInputErrorText(currency)) }
+            } else {
+                null
+            },
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(DesignTokens.radiusMd),
         )
     }
 }

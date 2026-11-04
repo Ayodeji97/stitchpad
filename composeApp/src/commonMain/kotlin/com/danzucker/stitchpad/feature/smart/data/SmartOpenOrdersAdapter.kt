@@ -4,6 +4,7 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
+import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.smart.domain.model.OrderSummary
 import com.danzucker.stitchpad.feature.smart.presentation.draft.OpenOrdersProvider
@@ -39,15 +40,9 @@ internal class SmartOpenOrdersAdapter(
             ?: items.firstOrNull()?.garmentType?.name?.lowercase()
                 ?.replaceFirstChar { it.titlecase() }
             ?: "Garment",
-        balanceFormatted = formatNaira(balanceRemaining),
+        balanceFormatted = formatMoney(balanceRemaining, currency),
         deadlineFormatted = deadline?.let { formatDeadline(it) } ?: "No deadline set",
     )
-
-    private fun formatNaira(amount: Double): String {
-        val whole = amount.toLong().toString()
-        val grouped = whole.reversed().chunked(3).joinToString(",").reversed()
-        return "₦$grouped"
-    }
 
     private fun formatDeadline(epochMillis: Long): String {
         val dt = Instant.fromEpochMilliseconds(epochMillis)

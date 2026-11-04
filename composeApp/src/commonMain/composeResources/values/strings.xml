@@ -176,7 +176,7 @@
     <string name="reports_paywall_title">Unlock Reports</string>
     <string name="reports_paywall_body">See revenue trends, top customers, production status, and outstanding balances at a glance.</string>
     <string name="reports_paywall_cta">Upgrade to Premium</string>
-    <string name="reports_reminder_template">Hi %1$s, friendly reminder — you have an outstanding balance of ₦%2$s on your order. Could you settle it when convenient? Thanks!</string>
+    <string name="reports_reminder_template">Hi %1$s, friendly reminder — you have an outstanding balance of %2$s on your order. Could you settle it when convenient? Thanks!</string>
     <string name="reports_whatsapp_launch_failed">Couldn't open WhatsApp</string>
     <string name="reports_orders_count">×%1$d orders</string>
     <string name="reports_orders_count_one">×1 order</string>
@@ -629,7 +629,7 @@
     <string name="order_delete_cancel">Cancel</string>
     <!-- Extra warning lines shown when deleting an order that is still in flight or has payments -->
     <string name="order_delete_active_intro">This order is currently %1$s for %2$s.</string>
-    <string name="order_delete_payment_warning">₦%1$s has already been recorded as paid. Deleting will erase that from your revenue record.</string>
+    <string name="order_delete_payment_warning">%1$s has already been recorded as paid. Deleting will erase that from your revenue record.</string>
     <string name="order_delete_consequences">Deleting removes it from your pipeline and clears its status history. This cannot be undone.</string>
 
     <!-- Order form screen -->
@@ -659,25 +659,25 @@
     <string name="garment_picker_add_new_cta">Add a new garment type</string>
     <string name="garment_picker_add_new_hint">Save to your list for next time</string>
 
-    <string name="order_form_price_label">Unit price (₦)</string>
-    <string name="order_form_line_total">%1$d × ₦%2$s = ₦%3$s</string>
+    <string name="order_form_price_label">Unit price</string>
+    <string name="order_form_line_total">%1$d × %2$s = %3$s</string>
     <string name="order_form_summary_title">Order summary</string>
     <string name="order_form_summary_subtotal">Subtotal</string>
     <string name="order_form_summary_total">Total</string>
     <string name="order_form_summary_discount">Discount (%1$s)</string>
     <string name="order_form_summary_discount_plain">Discount</string>
-    <string name="order_form_summary_item_qty">%1$d × ₦%2$s</string>
+    <string name="order_form_summary_item_qty">%1$d × %2$s</string>
     <string name="order_form_measurement_label">Measurement (optional)</string>
     <string name="order_form_add_item">Add item</string>
     <string name="order_form_remove_item">Remove item</string>
     <string name="order_form_deadline_label">Deadline (optional)</string>
     <string name="order_form_pick_date">Pick a date</string>
     <string name="order_form_priority_label">Priority</string>
-    <string name="order_form_deposit_label">Deposit paid (₦)</string>
+    <string name="order_form_deposit_label">Deposit paid</string>
     <string name="order_form_deposit_placeholder">0</string>
     <string name="order_form_notes_label">Notes (optional)</string>
     <string name="order_form_notes_placeholder">e.g. Customer wants express delivery…</string>
-    <string name="order_form_discount_label">Discount (₦)</string>
+    <string name="order_form_discount_label">Discount</string>
     <string name="order_form_discount_reason_label">Discount reason (optional)</string>
     <string name="order_form_discount_reason_placeholder">e.g. New customer</string>
     <string name="order_form_create_button">Create Order</string>
@@ -761,8 +761,8 @@
     <!-- Balance-owed warning shown when moving an order to Ready/Delivered with money still owed -->
     <string name="balance_warning_ready_title">Mark ready with balance owed?</string>
     <string name="balance_warning_delivered_title">Mark delivered with balance owed?</string>
-    <string name="balance_warning_ready_message">%1$s still owes ₦%2$s. You can record a payment now or mark ready and collect when they pick up.</string>
-    <string name="balance_warning_delivered_message">%1$s still owes ₦%2$s. Marking delivered with an unpaid balance affects your weekly revenue and how this order is tracked.</string>
+    <string name="balance_warning_ready_message">%1$s still owes %2$s. You can record a payment now or mark ready and collect when they pick up.</string>
+    <string name="balance_warning_delivered_message">%1$s still owes %2$s. Marking delivered with an unpaid balance affects your weekly revenue and how this order is tracked.</string>
     <string name="balance_warning_record_payment">Record payment</string>
     <string name="balance_warning_proceed">Mark anyway</string>
     <string name="balance_warning_dismiss">Cancel</string>
@@ -775,8 +775,8 @@
     <!-- Order form -->
     <string name="order_form_item_number">Item %1$d</string>
     <string name="order_form_deposit_dialog_title">Update deposit?</string>
-    <string name="order_form_deposit_dialog_body">Deposit will change from ₦%1$s to ₦%2$s.</string>
-    <string name="order_form_deposit_dialog_body_with_other_payments">Recorded progress/final payments (₦%1$s) won&apos;t change.</string>
+    <string name="order_form_deposit_dialog_body">Deposit will change from %1$s to %2$s.</string>
+    <string name="order_form_deposit_dialog_body_with_other_payments">Recorded progress/final payments (%1$s) won&apos;t change.</string>
     <string name="order_form_deposit_dialog_confirm">Update</string>
     <string name="order_form_deposit_dialog_cancel">Cancel</string>
     <string name="common_ok">OK</string>
@@ -957,10 +957,10 @@
     <string name="dashboard_workshop_summary_not_started">%1$d not started</string>
     <string name="dashboard_workshop_summary_cd">In the workshop: %1$s. Opens all orders.</string>
     <!-- NBA card primary line: e.g. "Collect ₦480,000 from Mrs Adebayo" -->
-    <string name="dashboard_nba_collect_overdue_title">Collect ₦%1$s from %2$s</string>
+    <string name="dashboard_nba_collect_overdue_title">Collect %1$s from %2$s</string>
     <string name="dashboard_nba_collect_overdue_sub">%1$s · %2$d days past deadline</string>
     <string name="dashboard_nba_collect_overdue_sub_one">%1$s · 1 day past deadline</string>
-    <string name="dashboard_nba_collect_ready_title">Collect ₦%1$s from %2$s</string>
+    <string name="dashboard_nba_collect_ready_title">Collect %1$s from %2$s</string>
     <string name="dashboard_nba_collect_ready_sub_today">%1$s · ready today</string>
     <string name="dashboard_nba_collect_ready_sub_one">%1$s · ready 1 day</string>
     <string name="dashboard_nba_collect_ready_sub">%1$s · ready %2$d days</string>
@@ -970,7 +970,7 @@
     <string name="dashboard_nba_deliver_stale_title">Deliver to %1$s</string>
     <string name="dashboard_nba_deliver_stale_sub">%1$s · ready %2$dd</string>
     <string name="dashboard_nba_collect_deposit_title">Collect deposit from %1$s</string>
-    <string name="dashboard_nba_collect_deposit_sub">%1$s · ₦%2$s order</string>
+    <string name="dashboard_nba_collect_deposit_sub">%1$s · %2$s order</string>
     <string name="dashboard_nba_start_soon_title">Start %1$s’s %2$s</string>
     <string name="dashboard_nba_start_soon_sub">Due in %1$dd</string>
     <string name="dashboard_nba_start_soon_sub_today">Due today</string>
@@ -980,8 +980,8 @@
     <string name="dashboard_nba_cta_open_order">Open order</string>
     <string name="dashboard_nba_card_cd">%1$s. %2$s. Tap %3$s.</string>
     <!-- WhatsApp message templates -->
-    <string name="dashboard_whatsapp_collect_ready">Hi %1$s, your %2$s order is ready for collection. Balance: ₦%3$s. — %4$s</string>
-    <string name="dashboard_whatsapp_collect_overdue">Hi %1$s, your %2$s order is now %3$dd past its delivery date. Outstanding balance: ₦%4$s. — %5$s</string>
+    <string name="dashboard_whatsapp_collect_ready">Hi %1$s, your %2$s order is ready for collection. Balance: %3$s. — %4$s</string>
+    <string name="dashboard_whatsapp_collect_overdue">Hi %1$s, your %2$s order is now %3$dd past its delivery date. Outstanding balance: %4$s. — %5$s</string>
     <!-- Shown when whatsAppLauncher.launch returns false — WhatsApp not installed, URL rejected, etc. -->
     <string name="dashboard_whatsapp_launch_failed">Couldn&apos;t open WhatsApp. Make sure it&apos;s installed and try again.</string>
     <string name="to_collect_chase_no_contact">Couldn&apos;t send a reminder — this customer&apos;s contact details are missing.</string>
@@ -1023,7 +1023,7 @@
     <string name="order_setup_action_section">Next action</string>
     <string name="order_setup_action_title">Complete %1$s</string>
     <!-- Subtitle pattern: "Senator · ₦200,000 order" -->
-    <string name="order_setup_action_subtitle">%1$s · ₦%2$s order</string>
+    <string name="order_setup_action_subtitle">%1$s · %2$s order</string>
     <string name="order_setup_action_missing_both">Missing due date and deposit</string>
     <string name="order_setup_action_missing_due_date">Missing due date</string>
     <string name="order_setup_action_missing_deposit">Missing deposit</string>
@@ -1289,7 +1289,7 @@
     <string name="record_payment_dialog_amount_label">Amount</string>
     <string name="record_payment_dialog_type_label">Payment type</string>
     <string name="record_payment_dialog_method_label">Method</string>
-    <string name="record_payment_dialog_mark_paid_full">Mark paid in full · ₦%1$s</string>
+    <string name="record_payment_dialog_mark_paid_full">Mark paid in full · %1$s</string>
     <string name="payment_capped_at_balance">Capped at balance %1$s</string>
 
     <!-- Order detail WhatsApp message templates (status-aware, %1$s = customer first name) -->
@@ -1303,8 +1303,8 @@
     <string name="whatsapp_launch_failed">Couldn&apos;t open WhatsApp. Make sure it&apos;s installed and try again.</string>
 
     <!-- To collect "Chase" WhatsApp templates — balance-aware payment reminders (%1$s = first name, %2$s = amount, %3$s = signature) -->
-    <string name="whatsapp_collect_message_ready">Hi %1$s, your order is ready for collection. Kindly complete the outstanding balance of ₦%2$s when you can. Thank you! %3$s</string>
-    <string name="whatsapp_collect_message_delivered">Hi %1$s, a friendly reminder that you have an outstanding balance of ₦%2$s. Kindly complete the payment when you can. Thank you! %3$s</string>
+    <string name="whatsapp_collect_message_ready">Hi %1$s, your order is ready for collection. Kindly complete the outstanding balance of %2$s when you can. Thank you! %3$s</string>
+    <string name="whatsapp_collect_message_delivered">Hi %1$s, a friendly reminder that you have an outstanding balance of %2$s. Kindly complete the payment when you can. Thank you! %3$s</string>
 
     <!-- Login redesign additions -->
     <string name="login_subtitle">Sign in to manage your orders, customers, and payments.</string>
@@ -2025,4 +2025,15 @@
     <string name="sync_status_offline">Offline — saved on this phone, will sync later</string>
     <string name="sync_status_syncing">Syncing…</string>
     <string name="sync_not_synced">Not synced</string>
+    <string name="country_picker_search">Search country or dial code</string>
+    <string name="country_picker_empty">No countries match. Try a country name or dial code.</string>
+    <string name="goals_setup_error_load">Couldn&apos;t load your goal. Go back and try again.</string>
+    <string name="country_picker_clear_search">Clear search</string>
+    <string name="money_input_whole_amount_required">Enter a whole amount for this currency.</string>
+    <string name="money_input_amount_invalid">Enter a valid amount using up to %1$d decimal places.</string>
+    <string name="error_order_currency_changed">Your workshop currency changed. Reopen this form before saving.</string>
+    <string name="error_order_currency_seed">This order uses another currency. Create a new order and enter its prices instead.</string>
+    <string name="error_order_money_precision">Check the amounts. Use only the decimal places supported by this currency.</string>
+    <string name="order_form_currency_loading">Loading workshop currency…</string>
+    <string name="order_form_currency_retry">Try again</string>
 </resources>

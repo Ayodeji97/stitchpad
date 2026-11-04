@@ -127,6 +127,7 @@ object NbaCalculator {
             .sortedWith(
                 compareBy<NextBestAction> { it.type.ordinal }
                     .thenBy { if (it.type == NextBestActionType.StartSoon) it.daysCount else 0 }
+                    .thenBy { it.currency.code }
                     .thenByDescending { it.balanceAmount }
             )
             .take(NBA_LIMIT)
@@ -147,6 +148,7 @@ object NbaCalculator {
         customerPhone = customer.phone,
         garmentLabel = garment,
         balanceAmount = balance,
+        currency = order.currency,
         daysCount = days
     )
 

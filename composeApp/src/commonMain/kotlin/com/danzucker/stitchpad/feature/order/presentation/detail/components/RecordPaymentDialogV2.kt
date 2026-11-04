@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.AssistChip
@@ -21,7 +20,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -29,13 +27,14 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
-import com.danzucker.stitchpad.core.sharing.formatPrice
-import com.danzucker.stitchpad.ui.components.ThousandsSeparatorTransformation
-import com.danzucker.stitchpad.ui.components.rememberSanitizedTextFieldValue
+import com.danzucker.stitchpad.core.presentation.moneyInputValue
+import com.danzucker.stitchpad.core.sharing.formatMoney
+import com.danzucker.stitchpad.ui.components.MoneyAmountField
+import com.danzucker.stitchpad.ui.components.moneyInputErrorText
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
@@ -70,12 +69,16 @@ fun RecordPaymentDialogV2(
     onMarkPaidInFull: () -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
+    currency: Currency = Currency.NGN,
+    amountInvalid: Boolean = false,
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) {
         RecordPaymentSheetContent(
+            currency = currency,
+            amountInvalid = amountInvalid,
             balanceRemaining = balanceRemaining,
             amountInput = amountInput,
             method = method,
@@ -106,8 +109,10 @@ private fun RecordPaymentSheetContent(
     onMarkPaidInFull: () -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
+    currency: Currency = Currency.NGN,
+    amountInvalid: Boolean = false,
 ) {
-    val isConfirmEnabled = amountInput.isNotBlank() && (amountInput.toDoubleOrNull() ?: 0.0) > 0.0
+    val isConfirmEnabled = !amountInvalid && (moneyInputValue(amountInput, currency) ?: 0.0) > 0.0
 
     Column(
         modifier = Modifier
@@ -132,25 +137,20 @@ private fun RecordPaymentSheetContent(
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            // The ViewModel keeps digits only, strips leading zeros, and caps the
-            // amount at the outstanding balance — all of which can shorten or
-            // replace what was typed, so the caret is re-derived from the result.
-            val amount = rememberSanitizedTextFieldValue(amountInput, onAmountChange)
-            OutlinedTextField(
-                value = amount.value,
-                onValueChange = amount.onValueChange,
-                prefix = { Text(text = "₦") },
-                visualTransformation = ThousandsSeparatorTransformation,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
+            MoneyAmountField(
+                value = amountInput,
+                onValueChange = onAmountChange,
+                currency = currency,
+                isError = amountInvalid,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(DesignTokens.radiusMd),
-                supportingText = if (wasCapped) {
+                supportingText = if (amountInvalid) {
+                    { Text(moneyInputErrorText(currency)) }
+                } else if (wasCapped) {
                     {
                         Text(
                             text = stringResource(
                                 Res.string.payment_capped_at_balance,
-                                "₦${formatPrice(balanceRemaining)}",
+                                formatMoney(balanceRemaining, currency),
                             ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -168,7 +168,7 @@ private fun RecordPaymentSheetContent(
                     Text(
                         text = stringResource(
                             Res.string.record_payment_dialog_mark_paid_full,
-                            formatPrice(balanceRemaining),
+                            formatMoney(balanceRemaining, currency),
                         ),
                         style = MaterialTheme.typography.labelMedium,
                     )

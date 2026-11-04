@@ -48,6 +48,8 @@ function isLanguage(value: unknown): value is Language {
 import { buildSystemPrompt, buildUserPrompt } from './promptBuilder';
 import { reconcileUsage } from './freeTierCounter';
 import { getVertexClient, VertexClient } from './vertexClient';
+import { isStampedMoney, moneyFromDoc } from '../notifications/orderMoney';
+import { formatNotificationMoney, notificationCurrency } from '../notifications/moneyDisplay';
 
 /**
  * Test seam — production code uses getVertexClient() directly.
@@ -88,6 +90,7 @@ export interface DraftMessageIO {
   customerGet(): Promise<{ exists: boolean; data(): { firstName: string } | undefined }>;
   orderGet(): Promise<{ exists: boolean; data(): {
     customerId: string;
+    currency?: string;
     garmentLabel: string;
     depositFormatted: string;
     balanceFormatted: string;
@@ -110,6 +113,7 @@ export interface DraftMessageIO {
  */
 interface RawUserDoc {
   subscriptionTier?: Tier | 'premium';
+  country?: string;
   /** Welcome bonus seeded at signup; lifted into the usage doc on first Smart help call. */
   bonusCoins?: number;
 }
@@ -131,6 +135,7 @@ interface RawOrderDoc {
   customerId: string;
   customerName?: string;
   items?: RawOrderItemDoc[];
+  currency?: string;
   totalPrice?: number;
   discount?: number; // whole-order discount; payable = max(0, totalPrice - discount)
   payments?: RawPaymentDoc[];
@@ -158,7 +163,7 @@ export function productionIO(uid: string, customerId: string, orderId: string, d
         // from returning undefined.
         const rawTier = (raw.subscriptionTier as string | undefined) ?? 'free';
         const tier: Tier = rawTier === 'premium' ? 'pro' : (rawTier as Tier);
-        return { tier, welcomeBonusCoins: raw.bonusCoins ?? 0 };
+        return { tier, country: savedCountryCode(raw.country), welcomeBonusCoins: raw.bonusCoins ?? 0 };
       },
     })),
     reserveFreeTierSlot: async (now: Date, welcomeBonusToSeed: number = 0, tierLimit?: number): Promise<FreeTierReservation> => {
@@ -228,50 +233,55 @@ export function productionIO(uid: string, customerId: string, orderId: string, d
         return { firstName: first };
       },
     })),
-    orderGet: () => db.doc(`users/${uid}/orders/${orderId}`).get().then((snap) => ({
-      exists: snap.exists,
-      data: () => {
-        const raw = snap.data() as RawOrderDoc | undefined;
-        if (!raw) return undefined;
-        const total = raw.totalPrice ?? 0;
-        // Payable = subtotal minus the whole-order discount, floored at 0. Using the raw
-        // total here would draft a balance reminder for the pre-discount amount.
-        const payable = Math.max(0, total - (raw.discount ?? 0));
-        const paymentsSum = (raw.payments ?? []).reduce(
-          (sum, p) => sum + (p.amount ?? 0),
-          0,
-        );
-        // Fall back to legacy depositPaid when payments[] hasn't been written
-        // yet — otherwise existing orders draft with the full total as the
-        // outstanding balance.
-        const deposit = paymentsSum > 0 ? paymentsSum : (raw.depositPaid ?? 0);
-        const balance = Math.max(0, payable - deposit);
-        const firstItem = raw.items?.[0];
-        const garmentLabel =
-          (firstItem?.description?.trim() ||
-            (firstItem?.garmentType ? humanizeGarmentType(firstItem.garmentType) : '') ||
-            'Garment');
-        return {
+    orderGet: async () => {
+      // Every read remains rooted in the authenticated caller's tree. Staff never get
+      // an owner-id override or a path into another workshop's commercially private data.
+      const snap = await db.doc(`users/${uid}/orders/${orderId}`).get();
+      const raw = snap.data() as RawOrderDoc | undefined;
+      if (!snap.exists || !raw) return { exists: false, data: () => undefined };
+
+      const moneySnap = await db.doc(`users/${uid}/orders/${orderId}/private/money`).get();
+      const money = moneySnap.data();
+      const stamped = isStampedMoney(money);
+      // A base-only new order is not a zero-price order. Wait for its authoritative
+      // money write rather than inventing a zero balance; the handler has not reserved quota yet.
+      if (!stamped && typeof raw.totalPrice !== 'number') {
+        throw new functions.https.HttpsError('failed-precondition', 'money_not_available');
+      }
+      const amounts = moneyFromDoc(stamped ? money : raw);
+      const payable = Math.max(0, amounts.totalPrice - amounts.discount);
+      const paymentsSum = amounts.payments.reduce((sum, payment) => sum + payment.amount, 0);
+      // A stamped mirror is authoritative, including an intentionally cleared payment
+      // list. Legacy deposit fallback applies only to legacy base-doc money.
+      const deposit = stamped || paymentsSum > 0 ? paymentsSum : (raw.depositPaid ?? 0);
+      const balance = Math.max(0, payable - deposit);
+      const firstItem = raw.items?.[0];
+      const garmentLabel =
+        (firstItem?.description?.trim() ||
+          (firstItem?.garmentType ? humanizeGarmentType(firstItem.garmentType) : '') ||
+          'Garment');
+      const currency = notificationCurrency(amounts.currency);
+      return {
+        exists: true,
+        data: () => ({
           customerId: raw.customerId,
+          currency,
           garmentLabel,
-          depositFormatted: formatNaira(deposit),
-          balanceFormatted: formatNaira(balance),
+          depositFormatted: formatNotificationMoney(deposit, currency),
+          balanceFormatted: formatNotificationMoney(balance, currency),
           deadlineFormatted: raw.deadline ? formatDeadline(raw.deadline) : 'No deadline set',
           isOpen: raw.archivedAt == null && (raw.status ?? 'PENDING') !== 'DELIVERED',
-        };
-      },
-    })),
+        }),
+      };
+    },
   };
 }
 
-function formatNaira(amount: number): string {
-  const whole = Math.round(amount).toString();
-  const grouped = whole.split('').reverse().reduce<string[]>((acc, ch, i) => {
-    if (i > 0 && i % 3 === 0) acc.push(',');
-    acc.push(ch);
-    return acc;
-  }, []).reverse().join('');
-  return `₦${grouped}`;
+/** Saved country is prompt context, never a source of a historical order's currency. */
+function savedCountryCode(value: unknown): string {
+  const supported = ['NG', 'GH', 'KE', 'CI', 'SN', 'BJ', 'TG', 'ML', 'BF', 'NE', 'CM', 'GA', 'CG', 'GN', 'CD'];
+  const code = typeof value === 'string' ? value.trim().toUpperCase() : '';
+  return supported.includes(code) ? code : 'NG';
 }
 
 // The Android app stores order deadlines as local-zone start-of-day millis
@@ -404,6 +414,8 @@ export async function draftMessageHandler(
 
   // 4. Build prompts
   const draftCtx: DraftContext = {
+    country: savedCountryCode(profileSnap.data()?.country),
+    currency: notificationCurrency(order.currency),
     customerFirstName: customer.firstName,
     garmentLabel: order.garmentLabel,
     depositFormatted: order.depositFormatted,

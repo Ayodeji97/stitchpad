@@ -31,7 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.danzucker.stitchpad.feature.dashboard.presentation.formatNaira
+import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FirstOrderSetupUi
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -172,7 +172,7 @@ private fun SubtitleLine(setup: FirstOrderSetupUi) {
         stringResource(
             Res.string.order_setup_action_subtitle,
             setup.garmentLabel,
-            formatNaira(setup.totalAmount),
+            formatMoney(setup.totalAmount, setup.currency),
         )
     } else if (setup.garmentLabel.isNotBlank()) {
         setup.garmentLabel

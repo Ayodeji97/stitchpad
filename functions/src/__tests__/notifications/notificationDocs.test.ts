@@ -15,7 +15,7 @@ describe('notificationDocsFromModel', () => {
     expect(docs).toHaveLength(2);
     const overdue = docs.find((d) => d.id === 'o1__OVERDUE')!;
     expect(overdue.data).toEqual({
-      orderId: 'o1', type: 'OVERDUE', customerName: 'Ada', garmentSummary: 'Agbada', amount: null, deadline: 123, isOverdue: false,
+      orderId: 'o1', type: 'OVERDUE', customerName: 'Ada', garmentSummary: 'Agbada', amount: null, currency: 'NGN', deadline: 123, isOverdue: false,
     });
     const collect = docs.find((d) => d.id === 'o2__TO_COLLECT')!;
     expect(collect.data.amount).toBe(6000);

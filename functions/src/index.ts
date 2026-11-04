@@ -100,3 +100,6 @@ export { redeemStaffInvite } from './staff/redeemStaffInvite';
 export { approveStaffMember } from './staff/approveStaffMember';
 export { revokeStaffMember } from './staff/revokeStaffMember';
 export { cancelStaffMembership } from './staff/cancelStaffMembership';
+
+// Membership-checked market metadata; owner profiles remain private.
+export { getWorkshopMarket } from './staff/getWorkshopMarket';

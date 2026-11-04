@@ -75,6 +75,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderItem
@@ -83,7 +84,7 @@ import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
-import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.feature.dashboard.domain.model.PipelineStage
 import com.danzucker.stitchpad.feature.dashboard.domain.model.stageOf
 import com.danzucker.stitchpad.feature.order.presentation.garmentSummaryRes
@@ -881,6 +882,7 @@ private fun OrderListItem(
             Column(horizontalAlignment = Alignment.End) {
                 if (!hideAmounts) {
                     StrikethroughPrice(
+                        currency = order.currency,
                         grossPrice = order.totalPrice,
                         netPrice = order.payableTotal,
                         discount = order.discount,
@@ -891,13 +893,14 @@ private fun OrderListItem(
                     Spacer(Modifier.height(2.dp))
                 }
                 PaymentStatusText(
+                    currency = order.currency,
                     depositPaid = order.depositPaid,
                     amountOwed = order.payableTotal,
                     showAmounts = !hideAmounts,
                 )
                 if (!hideAmounts && order.hasCosts) {
                     Spacer(Modifier.height(2.dp))
-                    OrderRowProfit(profit = order.profit)
+                    OrderRowProfit(profit = order.profit, currency = order.currency)
                 }
             }
         }
@@ -931,7 +934,7 @@ private fun OrderRowAssignee(memberId: String?, memberName: String) {
 }
 
 @Composable
-private fun OrderRowProfit(profit: Double) {
+private fun OrderRowProfit(profit: Double, currency: Currency) {
     val isLoss = profit < 0.0
     val color = if (isLoss) {
         if (isSystemInDarkTheme()) DesignTokens.errorDarkText else DesignTokens.error500
@@ -951,7 +954,7 @@ private fun OrderRowProfit(profit: Double) {
             color = color,
         )
         Text(
-            text = "${if (isLoss) "−" else ""}₦${formatPrice(abs(profit))}",
+            text = "${if (isLoss) "−" else ""}${formatMoney(abs(profit), currency)}",
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.SemiBold,
             fontFamily = FontFamily.Monospace,

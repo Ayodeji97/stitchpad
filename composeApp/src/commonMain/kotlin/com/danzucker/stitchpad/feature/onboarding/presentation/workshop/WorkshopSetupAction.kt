@@ -9,6 +9,7 @@ sealed interface WorkshopSetupAction {
     data object OnWhatsAppNumberBlur : WorkshopSetupAction
 
     // Country picker
+    data class OnCountrySearchChange(val query: String) : WorkshopSetupAction
     data object OnCountryChipClick : WorkshopSetupAction
     data class OnCountrySelected(val country: Country) : WorkshopSetupAction
     data class OnTimeZoneSelected(val timeZone: String) : WorkshopSetupAction

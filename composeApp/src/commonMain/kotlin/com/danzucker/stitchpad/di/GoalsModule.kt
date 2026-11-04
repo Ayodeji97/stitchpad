@@ -16,7 +16,8 @@ val goalsPresentationModule = module {
     viewModel {
         GoalSetupViewModel(
             weeklyGoalRepository = get(),
-            authRepository = get()
+            authRepository = get(),
+            currentCountryProvider = get(),
         )
     }
 }

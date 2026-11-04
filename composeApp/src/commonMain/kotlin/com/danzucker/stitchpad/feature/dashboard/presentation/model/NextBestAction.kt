@@ -1,5 +1,7 @@
 package com.danzucker.stitchpad.feature.dashboard.presentation.model
 
+import com.danzucker.stitchpad.core.domain.model.Currency
+
 /**
  * Discrete action types ranked by revenue impact (lowest ordinal = highest priority).
  * The ordinal drives the carousel sort order; the type drives the card's icon, accent
@@ -33,7 +35,8 @@ data class NextBestAction(
     val customerPhone: String,
     val garmentLabel: String,
     val balanceAmount: Double,
-    val daysCount: Int
+    val daysCount: Int,
+    val currency: Currency = Currency.NGN,
 ) {
     val id: String get() = "${type.name}:$orderId"
 

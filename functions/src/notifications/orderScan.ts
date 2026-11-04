@@ -13,10 +13,12 @@
  */
 import type { DocumentData } from 'firebase-admin/firestore';
 import { OrderScanDoc } from './types';
+import { notificationCurrency } from './moneyDisplay';
 
 export function mapOrderScanDoc(id: string, d: DocumentData): OrderScanDoc {
   return {
     id,
+    currency: notificationCurrency(d.currency),
     customerName: d.customerName ?? '',
     status: d.status ?? 'PENDING',
     deadline: typeof d.deadline === 'number' ? d.deadline : null,

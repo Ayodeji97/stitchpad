@@ -8,7 +8,7 @@ data class Notification(
     val type: NotificationType,
     val customerName: String,
     val garmentSummary: String,
-    /** Naira owed; meaningful only for [NotificationType.TO_COLLECT]. */
+    /** Major units owed in [currency]; meaningful only for [NotificationType.TO_COLLECT]. */
     val amount: Double? = null,
     /** Epoch millis; meaningful only for OVERDUE / DUE_SOON. */
     val deadline: Long? = null,
@@ -20,4 +20,6 @@ data class Notification(
     val createdAt: Long = 0L,
     /** True when a TO_COLLECT item is >= 7 days since Ready/Delivered; false otherwise. */
     val isOverdue: Boolean = false,
+    /** Currency stamped on the order when the notification was produced. Legacy inbox docs are NGN. */
+    val currency: Currency = Currency.NGN,
 )

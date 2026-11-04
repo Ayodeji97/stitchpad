@@ -42,7 +42,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.core.domain.model.Notification
 import com.danzucker.stitchpad.core.domain.model.NotificationType
-import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.feature.notification.presentation.inbox.RelativeTime
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.JetBrainsMonoFamily
@@ -189,7 +189,7 @@ private fun rowTitle(notification: Notification): String = when (notification.ty
 /** Builds the accessibility sentence mirroring the old row. */
 @Composable
 private fun buildA11ySentence(notification: Notification, relativeTime: String): String {
-    val amountStr = if (notification.amount != null) "₦${formatPrice(notification.amount)}" else ""
+    val amountStr = notification.amount?.let { formatMoney(it, notification.currency) }.orEmpty()
     val base = when (notification.type) {
         NotificationType.OVERDUE -> stringResource(
             Res.string.notification_overdue,
@@ -277,7 +277,7 @@ private fun buildMetaString(
     monoFamily: FontFamily,
     muted: Color,
 ): AnnotatedString {
-    val amountStr = if (notification.amount != null) "₦${formatPrice(notification.amount)}" else ""
+    val amountStr = notification.amount?.let { formatMoney(it, notification.currency) }.orEmpty()
     val tagOverdue = stringResource(Res.string.notification_tag_overdue)
     val tagDueSoon = stringResource(Res.string.notification_tag_due_soon)
     val owesFull = if (notification.type == NotificationType.TO_COLLECT && notification.amount != null) {

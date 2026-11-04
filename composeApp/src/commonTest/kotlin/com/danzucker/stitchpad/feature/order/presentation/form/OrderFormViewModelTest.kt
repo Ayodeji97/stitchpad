@@ -103,11 +103,13 @@ class OrderFormViewModelTest {
 
     private fun TestScope.createViewModel(
         orderId: String? = null,
+        seedFromOrderId: String? = null,
         imageCompressor: ImageCompressor = FakeImageCompressor(),
         currentCountryProvider: CurrentCountryProvider = countryProvider,
     ): OrderFormViewModel {
         val savedStateHandle = SavedStateHandle().apply {
             if (orderId != null) set("orderId", orderId)
+            if (seedFromOrderId != null) set("seedFromOrderId", seedFromOrderId)
         }
         val vm = OrderFormViewModel(
             savedStateHandle = savedStateHandle,
@@ -316,6 +318,152 @@ class OrderFormViewModelTest {
         assertNotNull(updated)
         assertEquals("Rush this one", updated.notes)
         assertEquals(costs, updated.costs)
+    }
+
+    @Test
+    fun decimalOrderAmountsPreserveMajorUnitsAndExactCentSubtotal() = runTest {
+        val vm = createViewModel()
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        val itemId = vm.state.value.items.single().id
+        vm.onAction(OrderFormAction.OnItemGarmentTypeChange(itemId, GarmentType.AGBADA))
+        vm.onAction(OrderFormAction.OnItemPriceChange(itemId, "0.10"))
+        vm.onAction(OrderFormAction.OnItemQuantityChange(itemId, "3"))
+        vm.onAction(OrderFormAction.OnDiscountChange("0.01"))
+        vm.onAction(OrderFormAction.OnDepositChange("0.29"))
+        vm.onAction(OrderFormAction.OnSave)
+        val saved = assertNotNull(orderRepository.lastCreatedOrder)
+        assertEquals(0.10, saved.items.single().price)
+        assertEquals(0.30, saved.totalPrice)
+        assertEquals(0.01, saved.discount)
+        assertEquals(0.29, saved.depositPaid)
+        assertEquals(Currency.GHS, saved.currency)
+    }
+
+    @Test
+    fun largeDecimalPriceAndPaidInFullCompareInMinorUnitsWithoutFalseOverpayment() = runTest {
+        val vm = createViewModel()
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        val id = vm.state.value.items.single().id
+        vm.onAction(OrderFormAction.OnItemGarmentTypeChange(id, GarmentType.AGBADA))
+        vm.onAction(OrderFormAction.OnItemPriceChange(id, "10000000.03"))
+        vm.onAction(OrderFormAction.OnItemQuantityChange(id, "2"))
+        vm.onAction(OrderFormAction.OnDiscountChange("0.01"))
+        vm.onAction(OrderFormAction.OnDepositChange("20000000.05"))
+        vm.onAction(OrderFormAction.OnSave)
+        val saved = assertNotNull(orderRepository.lastCreatedOrder)
+        assertEquals(20000000.06, saved.totalPrice)
+        assertEquals(20000000.05, saved.depositPaid)
+    }
+
+    @Test
+    fun aggregateMinorUnitsThatCannotRoundTripThroughDoubleAreRejectedWithoutChangingPrices() = runTest {
+        val vm = createViewModel()
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        val first = vm.state.value.items.single().id
+        vm.onAction(OrderFormAction.OnItemGarmentTypeChange(first, GarmentType.AGBADA))
+        vm.onAction(OrderFormAction.OnItemPriceChange(first, "90071992547209.92"))
+        vm.onAction(OrderFormAction.OnAddItem)
+        val second = vm.state.value.items.last().id
+        vm.onAction(OrderFormAction.OnItemGarmentTypeChange(second, GarmentType.SENATOR))
+        vm.onAction(OrderFormAction.OnItemPriceChange(second, "0.01"))
+        vm.onAction(OrderFormAction.OnSave)
+        assertNull(orderRepository.lastCreatedOrder)
+        assertNotNull(vm.state.value.errorMessage)
+        assertEquals("90071992547209.92", vm.state.value.items.first().price)
+        assertEquals("0.01", vm.state.value.items.last().price)
+        assertFalse(vm.state.value.isSaving)
+    }
+
+    @Test
+    fun unsupportedAggregateDepositCannotBeSilentlyRebasedOnANotesEdit() = runTest {
+        val original = seedOrder(payments = listOf(depositPayment(90071992547209.92, "a"), depositPayment(0.01, "b")))
+        val vm = createViewModel(orderId = "order-1")
+        vm.onAction(OrderFormAction.OnNotesChange("Keep original payments"))
+        vm.onAction(OrderFormAction.OnSave)
+        assertNull(orderRepository.lastUpdatedOrder)
+        assertNotNull(vm.state.value.errorMessage)
+        assertNull(vm.state.value.depositReconciliationPrompt)
+        assertEquals(original.payments, orderRepository.ordersList.single().payments)
+    }
+
+    @Test
+    fun zeroDecimalMarketRejectsFractionalEditsRatherThanRemovingTheDot() = runTest {
+        countryProvider = FakeCurrentCountryProvider(Country.SN)
+        val vm = createViewModel()
+        val itemId = vm.state.value.items.single().id
+        vm.onAction(OrderFormAction.OnItemPriceChange(itemId, "12"))
+        vm.onAction(OrderFormAction.OnItemPriceChange(itemId, "12.34"))
+        vm.onAction(OrderFormAction.OnDepositChange("1.25"))
+        vm.onAction(OrderFormAction.OnDiscountChange("0.25"))
+        assertEquals("12", vm.state.value.items.single().price)
+        assertEquals("", vm.state.value.depositPaid)
+        assertEquals("", vm.state.value.discount)
+        assertEquals(Currency.XOF, vm.state.value.currency)
+    }
+
+    @Test
+    fun editingFractionalPricesDiscountAndDepositsKeepsValuesAndPaymentMetadata() = runTest {
+        val original = seedOrder(payments = listOf(depositPayment(0.1, "a"), depositPayment(0.2, "b"))).let {
+            it.copy(items = it.items.map { item -> item.copy(price = 12.34) }, totalPrice = 12.34, discount = 0.25)
+        }
+        orderRepository.ordersList = listOf(original)
+        val vm = createViewModel(orderId = "order-1")
+        assertEquals("12.34", vm.state.value.items.single().price)
+        assertEquals("0.25", vm.state.value.discount)
+        assertEquals("0.3", vm.state.value.depositPaid)
+        assertEquals(Currency.NGN, vm.state.value.currency)
+        vm.onAction(OrderFormAction.OnNotesChange("Keep amounts"))
+        vm.onAction(OrderFormAction.OnSave)
+        val saved = assertNotNull(orderRepository.lastUpdatedOrder)
+        assertEquals(original.payments, saved.payments)
+        assertEquals(12.34, saved.items.single().price)
+        assertEquals(0.25, saved.discount)
+    }
+
+    @Test
+    fun createRevalidatesCountryAndDoesNotRelabelEnteredPricesAfterMarketChange() = runTest {
+        val source = object : CurrentCountryProvider by countryProvider {
+            override suspend fun countryForWrite(): Country = Country.KE
+        }
+        val vm = createViewModel(currentCountryProvider = source)
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        val id = vm.state.value.items.single().id
+        vm.onAction(OrderFormAction.OnItemGarmentTypeChange(id, GarmentType.AGBADA))
+        vm.onAction(OrderFormAction.OnItemPriceChange(id, "100"))
+        vm.onAction(OrderFormAction.OnSave)
+        assertNull(orderRepository.lastCreatedOrder)
+        assertNotNull(vm.state.value.errorMessage)
+        assertEquals(Currency.GHS, vm.state.value.currency)
+        assertFalse(vm.state.value.isSaving)
+    }
+
+    @Test
+    fun failedFreshMarketCheckAndChangedWorkshopNeverCreateAnOrder() = runTest {
+        val source = object : CurrentCountryProvider by countryProvider {
+            override suspend fun countryForWrite(): Country? = null
+        }
+        val vm = createViewModel(currentCountryProvider = source)
+        vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
+        val id = vm.state.value.items.single().id
+        vm.onAction(OrderFormAction.OnItemGarmentTypeChange(id, GarmentType.AGBADA))
+        vm.onAction(OrderFormAction.OnItemPriceChange(id, "100"))
+        vm.onAction(OrderFormAction.OnSave)
+        assertNull(orderRepository.lastCreatedOrder)
+        assertNotNull(vm.state.value.errorMessage)
+        activeWorkshopProvider.setSession(WorkshopSession.ownerOfSelf("another-user"))
+        vm.onAction(OrderFormAction.OnSave)
+        assertNull(orderRepository.lastCreatedOrder)
+        assertFalse(vm.state.value.isSaving)
+    }
+
+    @Test
+    fun crossCurrencyDuplicateIsExplicitlyBlockedInsteadOfRelabellingCopiedPrices() = runTest {
+        seedOrder() // Existing NGN order; account is now Ghana.
+        val vm = createViewModel(seedFromOrderId = "order-1")
+        vm.onAction(OrderFormAction.OnSave)
+        assertNull(orderRepository.lastCreatedOrder)
+        assertNotNull(vm.state.value.errorMessage)
+        assertFalse(vm.state.value.isSaving)
     }
 
     @Test

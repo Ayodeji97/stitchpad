@@ -4,6 +4,7 @@
  * duplicated here intentionally so the two email types stay independent.
  */
 import { DigestItem, DigestModel } from './types';
+import { formatNotificationMoney, notificationCurrency } from './moneyDisplay';
 
 const INDIGO = '#2C3E7C';
 const WHITE = '#FFFFFF';
@@ -17,10 +18,6 @@ const LOGO_URL = 'https://firebasestorage.googleapis.com/v0/b/stitchpad-30607.fi
 
 function escapeHtml(v: string): string {
   return v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
-
-function naira(amount: number): string {
-  return `₦${Math.round(amount).toLocaleString('en-NG')}`;
 }
 
 /** CTA target + one-click unsubscribe. Shared shape with nudgeEmailTemplate.ts. */
@@ -49,12 +46,7 @@ export function buildDigestEmail(
   const sections: { title: string; items: DigestItem[]; total: number; line: (i: DigestItem) => string }[] = [
     { title: 'Overdue', items: model.overdue.slice(0, CAP), total: model.overdue.length, line: (i) => `${i.customerName} · ${i.garmentSummary}` },
     { title: 'Due soon', items: model.dueSoon.slice(0, CAP), total: model.dueSoon.length, line: (i) => `${i.customerName} · ${i.garmentSummary}` },
-    {
-      title: 'To collect',
-      items: model.outstanding.slice(0, CAP),
-      total: model.outstanding.length,
-      line: (i) => `${i.customerName} · ${i.garmentSummary} — ${naira(i.amount || 0)}${i.isOverdue ? ' (overdue)' : ''}`,
-    },
+    ...outstandingSections(model.outstanding, CAP),
   ];
 
   const htmlSections = sections.filter((s) => s.total > 0).map((s) => {
@@ -89,4 +81,23 @@ ${htmlSections}
   const text = `Good morning, ${name}\nHere's what needs your attention today.\n\n${textSections}\n\nOpen StitchPad: ${opts.ctaUrl}\n\nTurn off daily summaries any time under Settings → Preferences → Daily summary email, or unsubscribe: ${opts.unsubscribeUrl}`;
 
   return { subject, html, text };
+}
+
+/** Separate money sections preserve currency identity when an account has historical orders from different markets. */
+function outstandingSections(items: DigestItem[], cap: number): {
+  title: string; items: DigestItem[]; total: number; line: (item: DigestItem) => string;
+}[] {
+  const byCurrency = new Map<string, DigestItem[]>();
+  for (const item of items) {
+    const code = notificationCurrency(item.currency);
+    const group = byCurrency.get(code);
+    if (group) group.push(item);
+    else byCurrency.set(code, [item]);
+  }
+  return [...byCurrency.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([currency, entries]) => ({
+    title: byCurrency.size > 1 ? `To collect · ${currency}` : 'To collect',
+    items: entries.slice(0, cap),
+    total: entries.length,
+    line: (item) => `${item.customerName} · ${item.garmentSummary} — ${formatNotificationMoney(item.amount ?? 0, currency)}${item.isOverdue ? ' (overdue)' : ''}`,
+  }));
 }

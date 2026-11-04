@@ -1,5 +1,6 @@
 import { lagosDayIndex, DAY_MS } from './lagosTime';
 import { DigestItem, DigestModel, OrderScanDoc } from './types';
+import { notificationCurrency } from './moneyDisplay';
 
 const OVERDUE_THRESHOLD_DAYS = 7;
 
@@ -51,6 +52,7 @@ export function digestDetector(orders: OrderScanDoc[], now: number): DigestModel
       const day = lagosDayIndex(o.deadline);
       const item: DigestItem = {
         orderId: o.id,
+        currency: notificationCurrency(o.currency),
         customerName: o.customerName,
         garmentSummary: summariseGarments(o.items),
         deadline: o.deadline,
@@ -79,7 +81,8 @@ export function digestDetector(orders: OrderScanDoc[], now: number): DigestModel
           orderId: o.id,
           customerName: o.customerName,
           garmentSummary: summariseGarments(o.items),
-          amount: Math.round(bal),
+          amount: bal,
+          currency: notificationCurrency(o.currency),
           isOverdue: daysOwed >= OVERDUE_THRESHOLD_DAYS,
         });
       }
@@ -88,7 +91,9 @@ export function digestDetector(orders: OrderScanDoc[], now: number): DigestModel
 
   overdue.sort((a, b) => (a.deadline! - b.deadline!));  // ascending = oldest deadline first = most overdue
   dueSoon.sort((a, b) => (a.deadline! - b.deadline!));  // soonest first
-  outstanding.sort((a, b) => (b.amount! - a.amount!)); // biggest owed first
+  // No exchange rates: compare balances only within a currency, never rank francs against naira.
+  outstanding.sort((a, b) => notificationCurrency(a.currency).localeCompare(notificationCurrency(b.currency))
+    || (b.amount! - a.amount!));
 
   return { dueSoon, overdue, outstanding };
 }

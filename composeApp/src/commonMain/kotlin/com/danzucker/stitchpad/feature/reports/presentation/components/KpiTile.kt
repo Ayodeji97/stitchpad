@@ -29,7 +29,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.core.domain.model.Currency
+import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.feature.reports.domain.model.Kpi
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.JetBrainsMonoFamily
@@ -184,7 +185,7 @@ internal fun profitTrend(deltaAmount: Double): ProfitTrend = when {
  * ₦ amount driven by [profitTrend] instead of a percentage — see [profitTrend] for why.
  */
 @Composable
-private fun ProfitDeltaChip(kpi: Kpi, suffix: String, periodLabel: String) {
+private fun ProfitDeltaChip(kpi: Kpi, suffix: String, periodLabel: String, currency: Currency) {
     if (kpi.deltaPercent == null) {
         Text(
             text = periodLabel,
@@ -200,7 +201,7 @@ private fun ProfitDeltaChip(kpi: Kpi, suffix: String, periodLabel: String) {
         ProfitTrend.DOWN -> "▼" to deltaColor(positive = false)
         ProfitTrend.FLAT -> "—" to MaterialTheme.colorScheme.onSurfaceVariant
     }
-    val amountText = "₦${formatPrice(abs(kpi.deltaAmount))}"
+    val amountText = formatMoney(abs(kpi.deltaAmount), currency)
     Text(
         text = "$arrow $amountText  $suffix",
         style = MaterialTheme.typography.labelSmall,
@@ -238,7 +239,8 @@ fun ProfitKpiTile(
     deltaSuffix: String,
     periodLabel: String,
     modifier: Modifier = Modifier,
-    sparklineColor: Color = DesignTokens.success500
+    sparklineColor: Color = DesignTokens.success500,
+    currency: Currency = Currency.NGN,
 ) {
     val mono = JetBrainsMonoFamily()
     Column(
@@ -290,7 +292,7 @@ fun ProfitKpiTile(
             )
         } else {
             Text(
-                text = formatProfitAmount(kpi.current),
+                text = formatProfitAmount(kpi.current, currency),
                 fontFamily = mono,
                 fontWeight = FontWeight.Bold,
                 fontSize = 22.sp,
@@ -303,6 +305,7 @@ fun ProfitKpiTile(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 ProfitDeltaChip(
+                    currency = currency,
                     kpi = kpi,
                     suffix = deltaSuffix,
                     periodLabel = periodLabel
@@ -388,10 +391,9 @@ private fun profitValueColor(isLoss: Boolean): Color {
  * `ProfitBand` amount formatting (minus the profit-margin suffix, which the Reports tile
  * doesn't show inline). Pure and unit-tested — see `ProfitAmountFormatTest`.
  */
-internal fun formatProfitAmount(profit: Double): String = buildString {
+internal fun formatProfitAmount(profit: Double, currency: Currency = Currency.NGN): String = buildString {
     if (profit < 0.0) append('−')
-    append('₦')
-    append(formatPrice(abs(profit)))
+    append(formatMoney(abs(profit), currency))
 }
 
 private val previewProfitSpark = listOf(

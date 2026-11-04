@@ -12,6 +12,8 @@ import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.Currency
+import com.danzucker.stitchpad.core.domain.model.CurrencyAmount
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.Measurement
@@ -1085,6 +1087,21 @@ class DashboardViewModelTest {
     // "Outstanding" is now sourced from CollectionCalculator: only Ready/Delivered
     // orders with a positive balance are collectible money. Pending/In-progress
     // orders no longer count, even with a balance, because the work isn't done yet.
+
+    @Test
+    fun dashboardPublishesSeparateCurrencyTotalsAndStaffNeverReceivesThoseAmounts() = runTest {
+        signIn()
+        orderRepository.ordersList = listOf(
+            fakeOrder("ng", balanceRemaining = 900.0, status = OrderStatus.READY),
+            fakeOrder("gh", balanceRemaining = 150.0, status = OrderStatus.DELIVERED).copy(currency = Currency.GHS),
+        )
+        val vm = createViewModel()
+        assertEquals(listOf(CurrencyAmount(Currency.GHS, 150.0), CurrencyAmount(Currency.NGN, 900.0)), vm.state.value.outstandingAmounts)
+        assertEquals(2, vm.state.value.outstandingOrderCount)
+        becomeActiveStaff()
+        assertTrue(vm.state.value.outstandingAmounts.isEmpty())
+        assertEquals(0.0, vm.state.value.outstandingAmount)
+    }
 
     @Test
     fun outstandingAmount_sumsBalancesOfReadyAndDeliveredOrdersWithRemainingBalance() = runTest {

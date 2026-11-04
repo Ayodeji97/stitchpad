@@ -50,7 +50,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.presentation.UiText
-import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.feature.collection.domain.CollectibleOrder
 import com.danzucker.stitchpad.feature.collection.domain.CollectionFilter
 import com.danzucker.stitchpad.feature.collection.domain.CollectionSort
@@ -115,11 +115,13 @@ fun ToCollectScreen(
 private fun SummaryHeader(summary: CollectionSummary) {
     Column(Modifier.fillMaxWidth().padding(DesignTokens.space4)) {
         Text("Money to collect", style = MaterialTheme.typography.labelMedium)
-        Text(
-            "₦${formatPrice(summary.totalOutstanding)}",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-        )
+        summary.amountsByCurrency.forEach { total ->
+            Text(
+                formatMoney(total.amount, total.currency),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+            )
+        }
         val overdueSuffix = if (summary.overdueCount > 0) " · ${summary.overdueCount} overdue" else ""
         Text(
             "across ${summary.orderCount} orders$overdueSuffix",
@@ -273,7 +275,7 @@ private fun CollectibleRow(
                 )
             }
             Text(
-                "₦${formatPrice(row.balanceRemaining)}",
+                formatMoney(row.balanceRemaining, row.currency),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
             )

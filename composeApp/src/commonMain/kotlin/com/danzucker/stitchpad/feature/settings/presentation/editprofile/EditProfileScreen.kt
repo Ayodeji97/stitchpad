@@ -64,8 +64,8 @@ import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
 import com.danzucker.stitchpad.feature.settings.presentation.components.AvatarGradients
 import com.danzucker.stitchpad.feature.settings.presentation.components.avatarBrush
 import com.danzucker.stitchpad.ui.components.BrandLogo
-import com.danzucker.stitchpad.ui.components.CountryChip
 import com.danzucker.stitchpad.ui.components.CountryFieldColors
+import com.danzucker.stitchpad.ui.components.CountryPhoneField
 import com.danzucker.stitchpad.ui.components.CountryPickerSheet
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.components.StitchPadButton
@@ -112,7 +112,6 @@ import stitchpad.composeapp.generated.resources.edit_profile_save
 import stitchpad.composeapp.generated.resources.edit_profile_title
 
 /** Matches the outlined text field beside the chip so the two read as one row. */
-private val COUNTRY_CHIP_HEIGHT = 56.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -171,6 +170,8 @@ fun EditProfileScreen(
         if (state.isCountryPickerOpen) {
             CountryPickerSheet(
                 selected = state.country,
+                query = state.countrySearchQuery,
+                onQueryChange = { onAction(EditProfileAction.OnCountrySearchChange(it)) },
                 onSelect = { onAction(EditProfileAction.OnCountrySelected(it)) },
                 onDismiss = { onAction(EditProfileAction.OnDismissCountryPicker) },
             )
@@ -267,33 +268,24 @@ fun EditProfileScreen(
                 primaryText = MaterialTheme.colorScheme.onSurface,
                 secondaryText = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
-                CountryChip(
-                    country = state.country,
-                    onClick = { onAction(EditProfileAction.OnCountryChipClick) },
-                    modifier = Modifier.height(COUNTRY_CHIP_HEIGHT),
-                    colors = countryFieldColors,
-                )
-                ProfileTextField(
-                    value = state.whatsappNumber,
-                    onValueChange = { onAction(EditProfileAction.OnWhatsappChange(it)) },
-                    onBlur = { onAction(EditProfileAction.OnWhatsappBlur) },
-                    label = stringResource(Res.string.edit_profile_label_whatsapp),
-                    helper = stringResource(Res.string.edit_profile_helper_whatsapp),
-                    error = state.whatsappError?.let {
-                        stringResource(
-                            it,
-                            countryDisplayName(state.country),
-                            state.country.nationalLength,
-                            state.country.dialCode,
-                        )
-                    },
-                    keyboardType = KeyboardType.Phone,
-                    imeAction = ImeAction.Next,
-                    placeholder = state.country.exampleNational,
-                    modifier = Modifier.weight(1f),
-                )
-            }
+            CountryPhoneField(
+                country = state.country,
+                value = state.whatsappNumber,
+                onValueChange = { onAction(EditProfileAction.OnWhatsappChange(it)) },
+                onCountryClick = { onAction(EditProfileAction.OnCountryChipClick) },
+                onBlur = { onAction(EditProfileAction.OnWhatsappBlur) },
+                label = stringResource(Res.string.edit_profile_label_whatsapp),
+                helper = stringResource(Res.string.edit_profile_helper_whatsapp),
+                error = state.whatsappError?.let {
+                    stringResource(
+                        it,
+                        countryDisplayName(state.country),
+                        state.country.nationalLength,
+                        state.country.dialCode
+                    )
+                },
+                colors = countryFieldColors,
+            )
             if (state.country.timeZones.size > 1) {
                 Spacer(Modifier.height(DesignTokens.space3))
                 TimeZoneRow(

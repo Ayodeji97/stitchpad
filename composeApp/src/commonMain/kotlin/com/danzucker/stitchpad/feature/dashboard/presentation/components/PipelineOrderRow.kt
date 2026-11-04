@@ -30,7 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.danzucker.stitchpad.core.sharing.formatPrice
+import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.feature.dashboard.domain.PipelinePaymentStatus
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -223,7 +223,7 @@ private fun MetadataFooter(row: DashboardOrderRow) {
         if (row.paymentStatus != null && row.orderValue != null) MetaSeparator()
         row.orderValue?.let { value ->
             Text(
-                text = formatPrice(value),
+                text = formatMoney(value, row.currency),
                 style = MaterialTheme.typography.labelSmall,
                 color = scheme.onSurfaceVariant,
             )

@@ -25,7 +25,6 @@ import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material3.Icon
@@ -63,7 +62,8 @@ import com.danzucker.stitchpad.feature.auth.presentation.components.AuthCard
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthHero
 import com.danzucker.stitchpad.feature.auth.presentation.components.AuthTextField
 import com.danzucker.stitchpad.feature.branding.presentation.LogoUploadState
-import com.danzucker.stitchpad.ui.components.CountryChip
+import com.danzucker.stitchpad.ui.components.CountryFieldColors
+import com.danzucker.stitchpad.ui.components.CountryPhoneField
 import com.danzucker.stitchpad.ui.components.CountryPickerSheet
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.components.StitchPadButton
@@ -278,34 +278,23 @@ fun WorkshopSetupScreen(
                         }
                     }
 
-                    // 4b. Country chip (opens the picker) + number input row
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        CountryChip(
-                            country = state.country,
-                            onClick = { onAction(WorkshopSetupAction.OnCountryChipClick) },
-                        )
-                        // Number input — AuthTextField with empty label (skips label render)
-                        AuthTextField(
-                            label = "",
-                            value = state.whatsappNumber,
-                            onValueChange = { onAction(WorkshopSetupAction.OnWhatsAppNumberChange(it)) },
-                            leadingIcon = Icons.Outlined.Phone,
-                            keyboardType = KeyboardType.Phone,
-                            imeAction = ImeAction.Done,
-                            // A local example for the selected country (numbers only, not translated).
-                            placeholder = state.country.exampleNational,
-                            errorText = state.whatsappError?.let {
-                                stringResource(
-                                    it,
-                                    countryDisplayName(state.country),
-                                    state.country.nationalLength,
-                                    state.country.dialCode,
-                                )
-                            },
-                            onFocusLost = { onAction(WorkshopSetupAction.OnWhatsAppNumberBlur) },
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
+                    CountryPhoneField(
+                        country = state.country,
+                        value = state.whatsappNumber,
+                        onValueChange = { onAction(WorkshopSetupAction.OnWhatsAppNumberChange(it)) },
+                        onCountryClick = { onAction(WorkshopSetupAction.OnCountryChipClick) },
+                        onBlur = { onAction(WorkshopSetupAction.OnWhatsAppNumberBlur) },
+                        imeAction = ImeAction.Done,
+                        colors = CountryFieldColors(),
+                        error = state.whatsappError?.let {
+                            stringResource(
+                                it,
+                                countryDisplayName(state.country),
+                                state.country.nationalLength,
+                                state.country.dialCode
+                            )
+                        },
+                    )
 
                     // 4b'. Zone row, only for multi-zone countries (DR Congo)
                     if (state.country.timeZones.size > 1) {
@@ -440,6 +429,8 @@ fun WorkshopSetupScreen(
         if (state.isCountryPickerOpen) {
             CountryPickerSheet(
                 selected = state.country,
+                query = state.countrySearchQuery,
+                onQueryChange = { onAction(WorkshopSetupAction.OnCountrySearchChange(it)) },
                 onSelect = { onAction(WorkshopSetupAction.OnCountrySelected(it)) },
                 onDismiss = { onAction(WorkshopSetupAction.OnDismissCountryPicker) },
             )
