@@ -136,10 +136,10 @@ describe('Smart money is sourced from the authenticated order and its stamped mi
     expect(reads).toEqual(['users/staff/orders/order']);
   });
 
-  it('preserves the existing unsupported-French guard without reading data or consuming quota', async () => {
+  it('preserves the existing unsupported-language guard without reading data or consuming quota', async () => {
     const { db, reads } = database();
     const io = productionIO('owner', 'customer', 'order', db);
-    await expect(draftMessageHandler({ ...request, language: 'fr' as 'en' }, context, io)).rejects.toMatchObject({
+    await expect(draftMessageHandler({ ...request, language: 'es' as 'en' }, context, io)).rejects.toMatchObject({
       code: 'invalid-argument',
     });
     expect(reads).toEqual([]);

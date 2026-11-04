@@ -1,11 +1,16 @@
 package com.danzucker.stitchpad.feature.smart.presentation.draft
 
+import androidx.compose.ui.text.intl.Locale
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danzucker.stitchpad.core.analytics.domain.Analytics
 import com.danzucker.stitchpad.core.analytics.domain.AnalyticsEvent
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.Country
+import com.danzucker.stitchpad.core.domain.repository.WorkshopMarketRepository
+import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.smartinfra.domain.language.DraftLanguage
 import com.danzucker.stitchpad.core.smartinfra.domain.quota.SmartUsageStore
 import com.danzucker.stitchpad.feature.smart.domain.error.SmartError
 import com.danzucker.stitchpad.feature.smart.domain.model.CustomerSummary
@@ -36,11 +41,15 @@ class DraftMessageViewModel(
     private val connectivity: StateFlow<Boolean>,
     private val usageStore: SmartUsageStore,
     private val analytics: Analytics,
+    private val workshopMarketRepository: WorkshopMarketRepository? = null,
+    private val activeWorkshopProvider: ActiveWorkshopProvider? = null,
+    private val deviceLanguage: () -> String = { Locale.current.language },
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
         DraftMessageState(
             isOnline = connectivity.value,
+            language = DraftLanguage.fromLocale(deviceLanguage()),
             // Seed from the cross-feature cache so the chip is filled
             // immediately if the user has already drafted this session.
             remainingFreeQuota = usageStore.remainingFreeQuota.value,
@@ -52,9 +61,40 @@ class DraftMessageViewModel(
     val events = _events.receiveAsFlow()
 
     init {
+        observeMarketLanguages()
+
         viewModelScope.launch {
             connectivity.collectLatest { online ->
                 _state.update { it.copy(isOnline = online) }
+            }
+        }
+    }
+
+    private fun observeMarketLanguages() {
+        val provider = activeWorkshopProvider ?: return
+        val market = workshopMarketRepository ?: return
+        viewModelScope.launch {
+            provider.flow.collectLatest { session ->
+                _state.update {
+                    it.copy(
+                        availableLanguages = listOf(DraftLanguage.English, DraftLanguage.French),
+                        language = it.language.takeUnless { language -> language == DraftLanguage.Pidgin }
+                            ?: DraftLanguage.fromLocale(deviceLanguage()),
+                    ).clearStaleDraft()
+                }
+                if (session.workshopUid.isBlank()) return@collectLatest
+                val country = market.getCountry(session.workshopUid)
+                val languages = if (country is Result.Success && country.data == Country.NG) {
+                    DraftLanguage.entries
+                } else {
+                    listOf(DraftLanguage.English, DraftLanguage.French)
+                }
+                _state.update {
+                    it.copy(
+                        availableLanguages = languages,
+                        language = it.language.takeIf { selected -> selected in languages } ?: DraftLanguage.English,
+                    ).clearStaleDraft()
+                }
             }
         }
     }

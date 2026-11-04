@@ -111,6 +111,7 @@ function productionDigestIO(apiKey: string): DigestIO {
             uid,
             email,
             emailVerified: Boolean(authUser.email && authUser.emailVerified),
+            locale: typeof data?.locale === 'string' ? data.locale : undefined,
             name,
             digestEnabled: data.dailyDigestEmailEnabled !== false,
             // Push opt-out: honor an explicit dailyPushEnabled; otherwise inherit the email
@@ -199,6 +200,11 @@ function productionDigestIO(apiKey: string): DigestIO {
      * their notifications, not the workshop owner. Same inheritance as the owner's
      * push flag, so an existing opt-out is honoured without a migration.
      */
+    staffLocale: async (uid: string): Promise<string | undefined> => {
+      const doc = await db.collection('users').doc(uid).get();
+      const value = doc.data()?.locale;
+      return typeof value === 'string' ? value : undefined;
+    },
     isStaffPushEnabled: async (staffUid: string): Promise<boolean> => {
       const snap = await db.collection('users').doc(staffUid).get();
       const u = snap.data();
@@ -279,7 +285,7 @@ export const debugSendMyDigest = functions
     if (pushEnabled && !isDigestEmpty(model)) {
       const pushTokens = await io.loadPushTokens(uid);
       if (pushTokens.length > 0) {
-        const { successCount, invalidTokens } = await io.sendPush(pushTokens, pushSummary(model));
+        const { successCount, invalidTokens } = await io.sendPush(pushTokens, pushSummary(model, typeof data.locale === 'string' ? data.locale : undefined));
         if (invalidTokens.length > 0) await io.deletePushTokens(uid, invalidTokens);
         pushSent = successCount > 0;
       }
@@ -294,6 +300,7 @@ export const debugSendMyDigest = functions
       // sees the nudge users actually receive, not a blank digest.
       const secret = process.env.EMAIL_UNSUB_SECRET ?? '';
       const opts = {
+        locale: typeof data.locale === 'string' ? data.locale : undefined,
         // Same platform-neutral App Link the real run uses — see ctaUrl() in
         // runDailyDigest.ts for why this must not be a hardcoded store URL.
         ctaUrl: 'https://link.getstitchpad.com/r',

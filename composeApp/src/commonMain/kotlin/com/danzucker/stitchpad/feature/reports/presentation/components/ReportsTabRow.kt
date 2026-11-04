@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.feature.reports.domain.model.ReportsPeriod
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -79,6 +80,8 @@ private fun TabPill(
     Text(
         text = label,
         textAlign = TextAlign.Center,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
         fontWeight = FontWeight.SemiBold,
         color = textColor,
         style = MaterialTheme.typography.labelLarge,
@@ -86,6 +89,6 @@ private fun TabPill(
             .clip(RoundedCornerShape(DesignTokens.radiusFull))
             .background(background)
             .clickable(onClick = onClick)
-            .padding(vertical = 10.dp)
+            .padding(horizontal = DesignTokens.space2, vertical = 10.dp)
     )
 }

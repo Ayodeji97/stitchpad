@@ -11,6 +11,7 @@ import com.danzucker.stitchpad.core.smartinfra.domain.language.DraftLanguage
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.draft_message_language_english
+import stitchpad.composeapp.generated.resources.draft_message_language_french
 import stitchpad.composeapp.generated.resources.draft_message_language_pidgin
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -19,15 +20,16 @@ fun LanguageToggle(
     selectedLanguage: DraftLanguage,
     onLanguageChange: (DraftLanguage) -> Unit,
     modifier: Modifier = Modifier,
+    availableLanguages: List<DraftLanguage> = DraftLanguage.entries,
 ) {
     SingleChoiceSegmentedButtonRow(modifier = modifier) {
-        DraftLanguage.entries.forEachIndexed { index, language ->
+        availableLanguages.forEachIndexed { index, language ->
             SegmentedButton(
                 selected = selectedLanguage == language,
                 onClick = { onLanguageChange(language) },
                 shape = SegmentedButtonDefaults.itemShape(
                     index = index,
-                    count = DraftLanguage.entries.size,
+                    count = availableLanguages.size,
                 ),
                 label = { Text(languageLabel(language)) },
             )
@@ -38,5 +40,6 @@ fun LanguageToggle(
 @Composable
 private fun languageLabel(language: DraftLanguage): String = when (language) {
     DraftLanguage.English -> stringResource(Res.string.draft_message_language_english)
+    DraftLanguage.French -> stringResource(Res.string.draft_message_language_french)
     DraftLanguage.Pidgin -> stringResource(Res.string.draft_message_language_pidgin)
 }

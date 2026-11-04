@@ -13,6 +13,7 @@ data class DraftMessageState(
     val order: OrderSummary? = null,
     val intent: DraftIntent? = null,
     val language: DraftLanguage = DraftLanguage.English,
+    val availableLanguages: List<DraftLanguage> = listOf(DraftLanguage.English, DraftLanguage.French),
     val customNotes: String = "",
     val generationState: GenerationState = GenerationState.Idle,
     val remainingFreeQuota: Int? = null,

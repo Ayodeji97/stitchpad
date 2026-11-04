@@ -34,6 +34,9 @@ import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.dashboard_reconnect_label
 import stitchpad.composeapp.generated.resources.dashboard_reconnect_view_all
+import stitchpad.composeapp.generated.resources.relative_days_short
+import stitchpad.composeapp.generated.resources.relative_months_short
+import stitchpad.composeapp.generated.resources.relative_years_short
 
 private val LEADING_ICON_SIZE = 14.dp
 
@@ -136,12 +139,13 @@ private fun ReconnectChip(candidate: ReconnectCandidate, onClick: () -> Unit) {
 }
 
 /** Formats [days] into a compact relative-time label, e.g. "45d" or "2mo". */
+@Composable
 private fun formatDaysAgo(days: Int): String {
     val d = days.coerceAtLeast(0)
     return when {
-        d < 30 -> "${d}d"
-        d < 365 -> "${d / 30}mo"
-        else -> "${d / 365}y"
+        d < 30 -> stringResource(Res.string.relative_days_short, d)
+        d < 365 -> stringResource(Res.string.relative_months_short, d / 30)
+        else -> stringResource(Res.string.relative_years_short, d / 365)
     }
 }
 
