@@ -56,6 +56,21 @@ jobs:
           git fetch --no-tags origin "$BASE"
           bash scripts/crash-check.sh --diff "origin/$BASE"
 
+  # Offline research tools: no model downloads or customer photographs.
+  measurement-research:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: node --test tools/measurement_capture/test_engine.mjs
+      - run: python3 -m unittest discover -s tools/measurement_engine -p 'test_*.py'
+      - run: python3 -m unittest discover -s tools/measurement_validation -p 'test_*.py'
+
   # ── Android ───────────────────────────────────────────────
   build-android:
     runs-on: ubuntu-latest
