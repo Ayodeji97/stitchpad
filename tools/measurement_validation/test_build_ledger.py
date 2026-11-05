@@ -74,3 +74,33 @@ class BuildLedgerTests(unittest.TestCase):
         with self.assertRaises(ValueError): build_ledger(b)
         b = bundle(); b['outcomes'][0]['result']['estimates']['unknown'] = {'valueMm': 10}
         with self.assertRaises(ValueError): build_ledger(b)
+
+
+class AdjudicationTests(unittest.TestCase):
+    def case(self):
+        b = bundle()
+        b['participants'][0]['references']['waist'][0]['value_mm'] = 950
+        b['participants'][0]['adjudications'] = {'waist': {
+            'measurer_id': 'third-independent', 'blinded': True,
+            'reason': 'Disagreement reviewed without app output', 'readings_mm': [902, 904]}}
+        return b
+
+    def test_blinded_independent_repeats_resolve_without_changing_originals(self):
+        b = self.case(); before = copy.deepcopy(b)
+        ledger = build_ledger(b)
+        self.assertEqual(ledger['attempts'][0]['measurements']['waist_fixture_v1']['reference_mm'], 903)
+        self.assertEqual(b, before)
+
+    def test_original_measurer_or_unblinded_adjudication_rejected(self):
+        for key, value in [('measurer_id', 'a'), ('blinded', False), ('reason', '')]:
+            b = self.case(); b['participants'][0]['adjudications']['waist'][key] = value
+            with self.assertRaises(ValueError): build_ledger(b)
+
+    def test_adjudication_still_needs_repeated_consistent_values(self):
+        for values in [[900], [900, 950], [900, float('nan')]]:
+            b = self.case(); b['participants'][0]['adjudications']['waist']['readings_mm'] = values
+            with self.assertRaises(ValueError): build_ledger(b)
+
+    def test_unknown_adjudication_field_is_not_silently_ignored(self):
+        b = self.case(); b['participants'][0]['adjudications']['typo'] = {}
+        with self.assertRaises(ValueError): build_ledger(b)

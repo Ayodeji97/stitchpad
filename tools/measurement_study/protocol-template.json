@@ -1,0 +1,16 @@
+{
+  "unit": "mm",
+  "protocol": {
+    "protocol_id": "REPLACE_BEFORE_REAL_STUDY",
+    "frozen": false,
+    "approved_by": "",
+    "fields": {
+      "chest": {"definition_id": "chest_bust_fullest_v1", "tolerance_mm": null, "reference_spread_limit_mm": null},
+      "waist": {"definition_id": "waist_natural_v1", "tolerance_mm": null, "reference_spread_limit_mm": null},
+      "hips": {"definition_id": "hips_fullest_v1", "tolerance_mm": null, "reference_spread_limit_mm": null}
+    }
+  },
+  "participants": [],
+  "registered_attempts": [],
+  "outcomes": []
+}
