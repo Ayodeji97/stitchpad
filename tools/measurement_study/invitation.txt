@@ -1,0 +1,39 @@
+ENGLISH MESSAGE FOR DANIEL TO FORWARD
+
+Hi, I’m testing an experimental StitchPad feature that estimates body measurements
+from front and side photos. Could you help us check the capture instructions and
+compare the estimates with tape measurements?
+
+I’ll set up the laptop and provide the instructions and recording sheets. We’ll
+start with a supervised rehearsal using consenting adult volunteers. Photos are
+processed locally; we will not use the estimates to cut a garment or train a model.
+
+For an independent accuracy check, we need you and a second trained measurer. Each
+person measures chest/bust, natural waist and hips twice before seeing the app’s
+estimates. We’ll agree the exact body locations, poses and acceptable errors first.
+If only you are available initially, we can still test usability and plan the
+measurement session. Participation is voluntary.
+
+Please let me know whether you can help and whether a second trained measurer can
+join. I’ll arrange the location, time and participant information with you.
+
+MESSAGE EN FRANÇAIS À TRANSMETTRE PAR DANIEL
+
+Bonjour, je teste une fonctionnalité expérimentale de StitchPad qui estime les
+mensurations à partir de photos de face et de profil. Pourriez-vous nous aider à
+vérifier les consignes et à comparer les estimations avec le mètre ruban ?
+
+Je préparerai l’ordinateur, les instructions et les feuilles. Nous commencerons par
+une répétition supervisée avec des adultes volontaires. Les photos sont traitées
+localement ; les estimations ne serviront ni à couper un vêtement ni à entraîner
+un modèle.
+
+Pour vérifier la précision de manière indépendante, il faut deux personnes formées.
+Chacune mesure deux fois la poitrine, la taille naturelle et les hanches avant de
+voir les estimations. Nous définirons d’abord les repères, postures et erreurs
+acceptables. Si vous êtes seul au début, nous pouvons tester le parcours et préparer
+la séance de mesures. La participation est volontaire.
+
+Dites-moi si vous pouvez nous aider et si une seconde personne formée peut se
+joindre à nous. Nous conviendrons ensemble du lieu, de l’horaire et de l’information
+à donner aux participants.

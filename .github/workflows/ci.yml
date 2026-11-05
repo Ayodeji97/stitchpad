@@ -71,6 +71,7 @@ jobs:
       - run: python3 -m unittest discover -s tools/measurement_capture -p 'test_*.py'
       - run: python3 -m unittest discover -s tools/measurement_engine -p 'test_*.py'
       - run: python3 -m unittest discover -s tools/measurement_validation -p 'test_*.py'
+      - run: python3 -m unittest discover -s tools/measurement_study -p 'test_*.py'
 
   # ── Android ───────────────────────────────────────────────
   build-android:

@@ -1,0 +1,50 @@
+FOR THE COORDINATOR ONLY
+
+The printed booklet is enough to run and record the first supervised session.
+Do not ask the tailor or participant to edit JSON or run evaluation software.
+
+After the session, transcribe deidentified records into a PRIVATE copy of
+protocol-template.json. Keep raw paper forms; do not overwrite disagreements.
+
+1. Enter the protocol ID, approved_by, limits and frozen=true only after the lead
+   tailor has approved the protocol. Do not use guessed values. Use development
+   for rehearsal participants. Never move people into held-out evaluation after
+   seeing their results or place the same person in multiple partitions.
+2. Add participants with participant_id, split, consent_id and references for
+   chest, waist, hips. Each reading has measurer_id, repeat, value_mm and blinded.
+   The paper sheets use cm: multiply by 10 for value_mm. Never declare blinded=true
+   unless app estimates and the other measurer's results were actually hidden.
+3. Before each capture, registered_attempts needs attempt_id, participant_id and
+   engine_version from pipeline-plans.json for the planned A/E/M pair. Paper page 6
+   is the source initiation log. Include every started attempt. Do not rewrite an
+   earlier failed automatic attempt when doing an edited/manual fallback.
+4. outcomes bind attempt_id to completed/failed/abandoned. Completed attempts attach
+   the actual image-free export as result; failed/abandoned attempts attach no result.
+   Include the failure reason in the private source log even though the evaluator
+   output summarizes counts. Missing outcomes are treated as failed.
+5. If references disagree beyond their pre-agreed limit, preserve the raw sheets.
+   A third independent blinded measurer can repeat the disputed field twice on a
+   copy of page 4 labelled C. Record their ID and reason. Do not adjust the original
+   values to force agreement. If unresolved, stop that reference's analysis; do not
+   silently drop it from the study.
+6. An optional participant adjudications object maps the disputed field to:
+   measurer_id, blinded=true, reason and readings_mm (at least two independent values).
+   The third measurer must differ from the original measurers. The agreed spread
+   limit also applies to the new readings. The source records remain unchanged.
+7. Run the bundled code only on private files outside the kit or a Git checkout:
+   python3 coordinator/build_ledger.py /private/study.json /private/new-ledger.json
+   python3 coordinator/evaluate.py /private/new-ledger.json
+   Windows: use the Python 3 launcher and appropriate private filesystem paths.
+
+The evaluator intentionally reports held-out evaluation attempts only. A development
+rehearsal with no evaluation partition does not generate an accuracy certification.
+The paper comparison can still reveal issues to fix. Do not pretend a small pilot
+represents all body shapes, phones, countries or garment outcomes.
+
+CONSENT AND PRIVACY
+Fill the coordinator contact and actual withdrawal/deletion dates before participant
+agreement. Consent paperwork and the identity lookup stay with the coordinator.
+The return package to Daniel contains coded readings/attempts/exports/feedback only.
+Do not put names, signatures, raw photographs or participant data in the kit, GitHub,
+public links, email or chat. Arrange a private return channel with participants.
+This pack does not authorize model training or production measurement imports.

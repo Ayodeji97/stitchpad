@@ -1,0 +1,66 @@
+STITCHPAD TAILOR TESTING KIT
+Experimental local prototype - no garment decisions
+
+FOR DANIEL OR THE COORDINATOR
+1. Unzip the whole kit on a laptop. Do not run files inside the ZIP preview.
+2. Python 3 must be installed. The tailor does not need development tools.
+   Mac: run START-MAC.command, or run: python3 start_session.py
+   Windows: run START-WINDOWS.cmd, or run: py -3 start_session.py
+   If Python is unavailable, Daniel should set up the laptop before the session.
+3. A browser opens on THIS laptop. Keep the terminal window open. Ctrl+C stops it.
+   The random localhost address is not a remotely shareable or phone-accessible link.
+   All model assets are included, so an internet connection is not required for the test.
+4. Use Try a synthetic demo first. It tests the flow with an artificial drawing;
+   automatic detection may reject that drawing. This is expected. Mark a real
+   consenting capture only after reading the study booklet.
+5. Print the English or French booklet. Print extra copies of pages 3 to 8 for
+   each participant; keep pages 4 and 5 with different independent measurers.
+6. Read both PDF booklets as equivalent language options, not different protocols.
+
+BEFORE A VOLUNTEER STARTS
+- Name the coordinator and fill in contact, withdrawal and record-deletion dates.
+- Explain the local processing and get voluntary agreement from an adult.
+- Have the lead tailor agree the body locations, clothing, capture/reference poses,
+  maximum field errors and reference repeatability limits BEFORE seeing estimates.
+- One tailor can rehearse usability. Accuracy work requires two independent trained
+  measurers, each taking two readings per field without seeing app estimates.
+- Use participant codes only. Do not add names or signed agreements to shared results.
+
+PHOTOS AND RECORDS
+- Use JPEG, PNG or WebP, minimum 600 pixels on each side, maximum 15 MB / 40 megapixels.
+  HEIC is not supported. If needed, export to JPEG locally; never use a public image
+  conversion website for participant photos.
+- The phone can take the images. With permission, transfer them privately to the
+  coordinator's laptop for selection in the browser. Do not import them into a
+  shared/cloud photo library. Delete the coordinator's temporary copies at close.
+- Do not store participant files inside this kit, a Git checkout or a shared folder.
+  Use a separate private folder under the coordinator's control.
+- Before each capture, record its attempt ID and expected front/side modes on page 6.
+  A = automatic unedited; E = automatic edited; M = manual. All failures and retakes
+  remain recorded. A manual/edited fallback is a new planned attempt, not an overwrite.
+  The coordinator maps the planned pair to engine_version using pipeline-plans.json
+  BEFORE capture; do not retrospectively rewrite a failed attempt to match its result.
+- Leave synthetic/test-image flags on for artificial data. Do not put synthetic output
+  into real accuracy results. If uncertain, label it as test data.
+- Review every suggested point, especially natural waist and full hips. A model score
+  is not an accuracy score. Unclear/overlapping arms may cause a legitimate rejection.
+- After completion, Download research result (no photos). Rename it to the exact
+  attempt ID, for example P001-A01.json, before the next capture.
+- Do not enter unblinded app comparison values as the study's reference. Use the
+  independently sealed reference sheets. A coordinator can transcribe them later.
+
+RETURN TO DANIEL
+The coded protocol, original independent readings, complete attempt log, image-free
+JSON exports and feedback. Use the private channel agreed with participants. Keep
+names, signatures, identity lookup and raw photographs out of that return package.
+This is a first process/accuracy pilot, not a production release certificate.
+
+FRENCH QUICK START
+Décompressez le kit sur l'ordinateur du coordinateur. Python 3 est nécessaire.
+Lancez START-MAC.command ou START-WINDOWS.cmd, ou python3 start_session.py.
+Le lien localhost fonctionne seulement sur cet ordinateur, pas à distance.
+Lisez le dossier FR et imprimez une copie des pages 3 à 8 par participant.
+Renseignez le contact et les dates avant tout accord. Deux mesureurs indépendants
+prennent chacun deux lectures sans voir les estimations. Un couturier seul peut
+répéter le parcours, mais ne valide pas la précision. Toutes les tentatives restent
+notées. Aucun vêtement ne doit être réalisé à partir des estimations.

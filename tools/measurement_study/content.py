@@ -1,0 +1,162 @@
+"""Printable pilot instructions. Operational forms, not a release or accuracy certificate."""
+CONTENT = {
+'en': {
+ 'title':'StitchPad tailor testing pack', 'subtitle':'Guided body measurement pilot',
+ 'tag':'Experimental research only', 'footer':'StitchPad measurement pilot  |  5 November 2026',
+ 'pages':['Run the first session','Agree the measurement protocol','Participant information and agreement','Independent tape readings A','Independent tape readings B','Register every capture attempt','Review results after references are sealed','Close the session and return the records'],
+ 'intro':'Help us test whether guided photos can produce useful body measurements. The estimates are experimental. Do not cut, fit or price a garment using these estimates. A successful first session does not establish accuracy.',
+ 'roles_title':'People and equipment',
+ 'roles':[
+  'Coordinator: Daniel or a nominated operator runs the local prototype and keeps the records.',
+  'Measurers A and B: two independent people trained in the agreed tape technique. Each measures every field twice, without seeing the app estimates or the other person’s readings.',
+  'Participant: an adult volunteer who agrees freely. One tailor alone may test usability, but cannot complete this independent accuracy check.',
+  'Bring a nonstretch tape, a height measure and flat wall, a phone, a laptop with Python 3 and a modern browser, paper forms, a pen, a mirror and a private well-lit space.'
+ ],
+ 'first_title':'Use this order',
+ 'first':[
+  'The coordinator opens the supplied local kit and tests the synthetic demo before any volunteer joins. A localhost link works only on that laptop; it is not a remotely shareable website.',
+  'Complete the contact and deletion dates on page 3. Agree the definitions, clothing, poses and error limits on page 2 before viewing results.',
+  'Explain the study and obtain agreement. Assign a code such as P001. Keep names, contacts and signed agreements separate from measurement records.',
+  'A and B independently complete pages 4 and 5. Cover the first reading during the repeat. Sign and seal both sheets before showing app estimates.',
+  'Register a capture on page 6 before starting it. Take front and side photos, review outlines, and save each image-free result under its attempt ID. Record failures and retakes too.',
+  'Only after references are sealed, complete page 7. Follow page 8 for deletion and the deidentified return package.'
+ ],
+ 'start_note':'Start with a supervised process rehearsal. Rehearsal data belongs to development, not a held-out accuracy evaluation. A broader study size and population coverage must be planned separately.',
+ 'protocol_intro':'The lead tailor and coordinator must agree the exact locations and pose before collecting accuracy data. The proposed locations below are starting definitions, not an approved standard. Use the same definition in the tape reference and both images.',
+ 'protocol_fields':[
+  ['Chest or bust','Horizontal circumference at the fullest chest or bust level. Exclude arms. Keep clothing and support consistent.'],
+  ['Natural waist','The tailor’s explicitly agreed natural waist location. Mark and describe it. Do not substitute a trouser waistband or a clinical waist protocol.'],
+  ['Full hips','Horizontal circumference at the fullest hips and seat level. Record and repeat the agreed foot position.']
+ ],
+ 'protocol_headers':['Field and location','Maximum error mm','Reference spread mm'],
+ 'protocol_note':'Maximum error is the acceptable absolute estimate-versus-reference difference. One centimetre equals ten millimetres. Reference spread is the largest allowed difference across repeated tape readings before adjudication. Leave neither limit blank for an accuracy evaluation; do not invent limits after seeing errors.',
+ 'protocol_lines':['Protocol ID and version','Lead tailor and coordinator approval and date','Garment scope and exact waist landmark','Clothing and support to keep consistent','Front pose and side pose','Tape reference pose and foot position'],
+ 'pose_note':'Raised or overlapping arms can change the outline and the body itself. Agree one comparable pose with the tailor. If it cannot be matched without arm obstruction, record a failed capture. Do not change the tape pose just to make the app pass. Record any pose mismatch and do not pool it into the same protocol.',
+ 'height_note':'Height: measure barefoot against a suitable height measure; do not guess from a photograph. Resolve conflicting height readings before capture; never change height to improve an estimate. Tape readings: record centimetres to one decimal place, without garment ease. Keep the tape level, snug and not compressing the body; use a normal relaxed breath. Reposition completely between repeats.',
+ 'agreement_intro':'Please read this with the coordinator. You may decline any part or stop at any time without losing your ordinary tailoring service. This is a test of software, not a medical assessment or a promise of correctly fitting clothing.',
+ 'agreement_lines':['Coordinator name and contact','Participant code and agreement reference','Date of session','Latest date to request withdrawal','Date measurement records will be deleted'],
+ 'agreement_checks':[
+  'I confirm I am an adult under the rules where this session takes place, and I agree voluntarily.',
+  'I understand that full-body front and side photos, including my head, will be processed locally in this browser. The prototype does not upload my photos.',
+  'I agree to the agreed tape measurements and to deidentified readings, results and test feedback being reviewed by the named coordinator and StitchPad development team.',
+  'I understand that the prototype is not approved for tailoring decisions. I may decline clothing or poses that make me uncomfortable; nudity is not required.',
+  'No permission is given here for model training, advertising, publication or sharing raw photographs. A separate agreement would be needed for any such purpose.',
+  'The coordinator will delete their temporary photo copies at session close and confirm this. My own camera originals remain under my control. Measurement records follow the dates written above.'
+ ],
+ 'agreement_end':'Contact the coordinator before the withdrawal date using your participant code. The coordinator must explain any limits before you agree. Do not begin if contact details or dates are blank. Keep this signed page privately; do not include it in a shared result package.',
+ 'signature':['Participant signature or agreed mark and date','Coordinator signature and date'],
+ 'reference_intro':'Do not look at app estimates or the other measurer’s sheet. Use the approved protocol. Measure once, remove and reposition the tape, then repeat. Cover your first reading while taking the repeat. Do not adjust a reading to agree with the app.',
+ 'reference_lines':['Participant code','Protocol ID and date','Measurer ID and initials','Clothing and reference pose'],
+ 'reference_headers':['Measurement','Reading 1 cm','Reading 2 cm'],
+ 'reference_rows':['Barefoot height','Chest or bust','Natural waist','Full hips'],
+ 'reference_checks':['I used the agreed locations and pose without adding garment ease.','I took new measurements for each repeat.','I have not seen the app estimates or the other measurer’s values.'],
+ 'reference_note':'If locating a field is uncertain, write the reason below and ask for adjudication. Do not invent or silently omit a reading. Stop if the participant is uncomfortable. Accuracy analysis needs independent readings from both A and B.',
+ 'notes':'Notes and deviations', 'sealed':'Measurer signature and time sealed',
+ 'capture_intro':'Use one sheet per participant. Write an attempt ID and planned modes BEFORE capture. Every retake, failure and abandonment stays in the log. A manual fallback or edited automatic outline is a separate pipeline and must not replace a failed automatic attempt.',
+ 'capture_lines':['Participant code and protocol ID','Journey existing customer or designer discovery','Phone model and browser','Capture pose lighting and clothing'],
+ 'mode_note':'Mode codes per view: A = automatic with no point edits; E = automatic then edited; M = manually marked. Record front/side, for example A/A or M/M. If an A/A attempt requires edits, record that attempt as failed and register the E/E or mixed attempt before continuing. The coordinator checks the exported pipeline version against the planned modes.',
+ 'capture_headers':['Attempt ID','Start time','Front / side plan','Outcome','Result filename or failure reason'],
+ 'capture_note':'Outcomes: completed, failed, abandoned. Include incomplete results and every retry. Images must show head and bare feet with room around the body. Use fitted clothing, even light and a level camera. If arms, clothing or pose obscure a contour, retake or record failure. Do not force points to match a tape reading.',
+ 'filename_note':'Rename each downloaded JSON result to the exact attempt ID, for example P001-A01.json, before the next capture. Never type names into filenames. The file contains estimates, not photographs. Mark any synthetic/test image as synthetic and exclude it from real studies.',
+ 'review_intro':'Open this page only after both independent reference sheets are complete and sealed. The coordinator checks repeatability first. A reading spread above the agreed limit needs adjudication; keep the original readings and reason. Do not silently average an unresolved disagreement. If needed, a third independent measurer, still blind to the app, repeats the disputed field twice on a copy of page 4 labelled C. Keep the originals; if C is unavailable, leave the reference unresolved.',
+ 'review_lines':['Participant code and attempt ID','References A and B sealed before estimate review yes or no','Reference pose matches capture protocol yes or no'],
+ 'review_headers':['Field','App cm','Resolved tape cm','Difference cm'],
+ 'review_rows':['Chest or bust','Natural waist','Full hips'],
+ 'review_note':'Difference = app minus independent resolved tape. Compare its absolute value with the agreed limit after converting units. A positive value means the app is larger. The reference is formed from blinded tape readings, never from the comparison box beside the app estimate. Evaluate each field; a good average must not conceal a bad field or failed scan.',
+ 'feedback':['Which instructions or body locations were unclear','Were clothing arms pose lighting or device a problem','Were any outlines edited and why','Was the participant comfortable and able to stop','What should change before the next session'],
+ 'close_intro':'The first session checks the process and exposes errors. It does not approve the engine, a garment type, any body group or automatic customer import.',
+ 'close_checks':[
+  'All started attempts are logged, including missing exports, failures and abandonments. Manual and edited fallbacks remain separate.',
+  'Both raw reference sheets are preserved, with protocol, measurer IDs, repeat readings and any adjudication. No app values were used as reference.',
+  'Names, signed agreements and the identity lookup are stored separately from coded measurements and are not returned with the test results.',
+  'Temporary participant images on the coordinator’s device have been deleted as agreed. The browser session is cleared. Downloads contain JSON only; do not send raw body photos by chat or email.',
+  'Return to Daniel only the coded protocol, reference readings, complete attempt log, image-free JSON exports and feedback using the private channel agreed with participants.',
+  'The coordinator has checked deletion/withdrawal dates and named who can access the coded records. No training, production release or customer-record update is authorized by this test.'
+ ],
+ 'return_lines':['Return folder or agreed private channel','Coordinator initials and session close time','Temporary photo deletion confirmed and time'],
+ 'sources_title':'Technique and software references',
+ 'sources_note':'CDC/NHANES supports the general tape technique, not our proposed tailoring waist definition. Pose detection is not a metric-accuracy certificate. The lead tailor must approve the study’s anatomical definitions and poses.',
+ 'sources':[
+  'CDC NHANES Anthropometry Procedures Manual 2021: wwwn.cdc.gov/nchs/data/nhanes/public/2021/manuals/2021-Anthropometry-Procedures-Manual-508.pdf',
+  'Google Pose Landmarker: developers.google.com/edge/mediapipe/solutions/vision/pose_landmarker',
+  'BlazePose model card: storage.googleapis.com/mediapipe-assets/Model%20Card%20BlazePose%20GHUM%203D.pdf'
+ ]
+},
+'fr': {
+ 'title':'Dossier de test couturier StitchPad','subtitle':'Pilote de mensurations à partir de photos','tag':'Recherche expérimentale uniquement','footer':'Pilote de mensurations StitchPad  |  5 novembre 2026',
+ 'pages':['Organiser la première séance','Définir le protocole de mesure','Information et accord du participant','Mesures indépendantes au ruban A','Mesures indépendantes au ruban B','Enregistrer chaque tentative','Examiner les résultats après les mesures','Clôturer la séance et remettre les documents'],
+ 'intro':'Aidez-nous à tester si des photos guidées peuvent fournir des mensurations utiles. Les estimations sont expérimentales. Ne coupez, n’ajustez et ne chiffrez aucun vêtement à partir de ces valeurs. Une première séance réussie ne démontre pas la précision.',
+ 'roles_title':'Personnes et matériel',
+ 'roles':[
+  'Coordinateur : Daniel ou une personne désignée lance le prototype local et conserve les documents.',
+  'Mesureurs A et B : deux personnes indépendantes formées à la technique convenue. Chacune mesure chaque zone deux fois sans voir les estimations ni les valeurs de l’autre.',
+  'Participant : un adulte volontaire. Un couturier seul peut tester le parcours, mais ne peut pas réaliser cette vérification indépendante de précision.',
+  'Prévoir un ruban non extensible, une toise ou un dispositif de taille adapté et un mur plat, un téléphone, un ordinateur avec Python 3 et un navigateur récent, des formulaires, un stylo, un miroir et un lieu privé bien éclairé.'
+ ],
+ 'first_title':'Respecter cet ordre',
+ 'first':[
+  'Le coordinateur ouvre le kit local et teste la démonstration synthétique avant l’arrivée d’un volontaire. Un lien localhost ne fonctionne que sur cet ordinateur ; ce n’est pas un site partageable à distance.',
+  'Renseigner le contact et les dates de suppression en page 3. Convenir des repères, vêtements, postures et limites d’erreur en page 2 avant de voir les résultats.',
+  'Expliquer le test et obtenir l’accord. Attribuer un code tel que P001. Conserver noms, contacts et accords signés séparément des mensurations.',
+  'A et B remplissent indépendamment les pages 4 et 5. Masquer la première valeur lors de la répétition. Signer et fermer les deux feuilles avant de montrer les estimations.',
+  'Enregistrer la tentative en page 6 avant de commencer. Prendre les vues de face et de profil, vérifier les contours et enregistrer chaque résultat sans photo sous son identifiant. Noter aussi échecs et reprises.',
+  'Après fermeture des feuilles de référence, remplir la page 7. Suivre la page 8 pour la suppression et le retour des données codées.'
+ ],
+ 'start_note':'Commencer par une répétition supervisée du parcours. Ces données servent au développement, pas à une évaluation indépendante finale. La taille et la diversité d’une étude plus large restent à définir.',
+ 'protocol_intro':'Le couturier référent et le coordinateur définissent les repères et la posture avant toute collecte de précision. Les repères proposés ci-dessous sont un point de départ, pas une norme approuvée. Employer la même définition au ruban et sur les deux vues.',
+ 'protocol_fields':[
+  ['Poitrine','Tour horizontal au niveau le plus fort de la poitrine, sans les bras. Garder les mêmes vêtements et le même maintien.'],
+  ['Taille naturelle','Repère exact de taille naturelle convenu avec le couturier. Le marquer et le décrire. Ne pas le remplacer par la ceinture du pantalon ni par un protocole clinique.'],
+  ['Tour de hanches','Tour horizontal au niveau le plus fort des hanches et du bassin. Noter et reproduire la position convenue des pieds.']
+ ],
+ 'protocol_headers':['Zone et repère','Erreur maximale mm','Écart des références mm'],
+ 'protocol_note':'L’erreur maximale est l’écart absolu acceptable entre estimation et référence. Un centimètre vaut dix millimètres. L’écart des références est la différence maximale entre lectures au ruban avant arbitrage. Renseigner ces limites avant une évaluation ; ne pas les choisir après avoir vu les erreurs.',
+ 'protocol_lines':['Identifiant et version du protocole','Accord du couturier référent et du coordinateur et date','Type de vêtement et repère exact de taille','Vêtements et maintien à conserver','Posture de face et de profil','Posture au ruban et position des pieds'],
+ 'pose_note':'Des bras levés ou superposés au buste peuvent modifier le contour et le corps lui-même. Convenir d’une posture comparable avec le couturier. Si elle est impossible sans obstruction, noter un échec. Ne pas changer la posture au ruban pour faire réussir l’application. Noter tout écart de posture et ne pas le mélanger au même protocole.',
+ 'height_note':'Taille corporelle : mesurer pieds nus avec un dispositif adapté, sans l’estimer sur photo. Résoudre les désaccords avant capture ; ne jamais changer la taille pour améliorer une estimation. Ruban : noter les centimètres avec une décimale, sans aisance de vêtement. Garder le ruban horizontal et ajusté sans comprimer, à respiration normale et détendue. Le retirer et le replacer à chaque répétition.',
+ 'agreement_intro':'Lire cette page avec le coordinateur. Vous pouvez refuser une étape ou arrêter à tout moment sans perdre votre service habituel de couture. Il s’agit d’un test logiciel, pas d’un examen médical ni d’une garantie d’ajustement.',
+ 'agreement_lines':['Nom et contact du coordinateur','Code participant et référence de l’accord','Date de la séance','Dernière date pour demander le retrait','Date de suppression des mensurations'],
+ 'agreement_checks':[
+  'Je confirme être adulte selon les règles applicables au lieu de la séance et participer volontairement.',
+  'Je comprends que des photos de face et de profil du corps entier, tête comprise, seront traitées localement dans ce navigateur. Le prototype ne transmet pas mes photos.',
+  'J’accepte les mesures convenues au ruban et l’examen des lectures, résultats et retours sans nom par le coordinateur désigné et l’équipe de développement StitchPad.',
+  'Je comprends que le prototype n’est pas approuvé pour des décisions de confection. Je peux refuser des vêtements ou postures inconfortables ; la nudité n’est pas nécessaire.',
+  'Cet accord n’autorise ni entraînement de modèle, ni publicité, ni publication, ni partage de photos brutes. Tout autre usage nécessiterait un accord distinct.',
+  'Le coordinateur supprimera ses copies temporaires des photos à la clôture et le confirmera. Mes originaux restent sous mon contrôle. Les mensurations suivent les dates indiquées ci-dessus.'
+ ],
+ 'agreement_end':'Contacter le coordinateur avec votre code avant la date de retrait. Il doit expliquer toute limite avant votre accord. Ne pas commencer si le contact ou les dates sont vides. Conserver cette page signée en privé ; ne pas la joindre aux résultats partagés.',
+ 'signature':['Signature ou marque convenue du participant et date','Signature du coordinateur et date'],
+ 'reference_intro':'Ne pas consulter les estimations ni la feuille de l’autre mesureur. Suivre le protocole. Mesurer, retirer et replacer le ruban, puis répéter. Masquer la première lecture lors de la seconde. Ne pas modifier une valeur pour l’aligner sur l’application.',
+ 'reference_lines':['Code participant','Identifiant du protocole et date','Identifiant et initiales du mesureur','Vêtements et posture de référence'],
+ 'reference_headers':['Mesure','Lecture 1 cm','Lecture 2 cm'],'reference_rows':['Taille pieds nus','Poitrine','Taille naturelle','Tour de hanches'],
+ 'reference_checks':['J’ai utilisé les repères et la posture convenus, sans aisance de vêtement.','J’ai repris chaque mesure après avoir replacé le ruban.','Je n’ai vu ni les estimations ni les valeurs de l’autre mesureur.'],
+ 'reference_note':'Si un repère est incertain, noter la raison ci-dessous et demander un arbitrage. Ne pas inventer ni omettre silencieusement une valeur. Arrêter en cas d’inconfort. L’analyse de précision exige les lectures indépendantes de A et B.',
+ 'notes':'Notes et écarts au protocole','sealed':'Signature du mesureur et heure de fermeture',
+ 'capture_intro':'Une feuille par participant. Écrire l’identifiant et les modes prévus AVANT la capture. Conserver reprises, échecs et abandons. Un marquage manuel ou automatique corrigé constitue une autre méthode et ne remplace pas une tentative automatique échouée.',
+ 'capture_lines':['Code participant et identifiant du protocole','Parcours client existant ou recherche de couturier','Modèle du téléphone et navigateur','Posture éclairage et vêtements'],
+ 'mode_note':'Modes par vue : A = automatique sans correction ; E = automatique puis corrigé ; M = manuel. Noter face/profil, par exemple A/A ou M/M. Si A/A nécessite des corrections, noter l’échec puis enregistrer E/E ou le mode mixte avant de continuer. Le coordinateur vérifie la version exportée par rapport au plan.',
+ 'capture_headers':['Tentative','Début','Plan face / profil','Résultat','Fichier ou motif d’échec'],
+ 'capture_note':'Résultats : terminé, échec, abandon. Inclure les résultats incomplets et toutes les reprises. Montrer tête et pieds nus avec une marge, des vêtements ajustés, une lumière uniforme et un appareil horizontal. Si un contour est masqué par un bras, un vêtement ou une posture, reprendre ou noter l’échec. Ne pas ajuster les repères aux valeurs du ruban.',
+ 'filename_note':'Renommer chaque JSON téléchargé avec l’identifiant exact, par exemple P001-A01.json, avant la capture suivante. Ne jamais utiliser un nom personnel. Le fichier contient des estimations, pas des photos. Identifier toute image synthétique ou de test et l’exclure des études réelles.',
+ 'review_intro':'Ouvrir cette page après achèvement et fermeture des deux feuilles indépendantes. Le coordinateur vérifie d’abord la répétabilité. Un écart supérieur à la limite exige un arbitrage ; conserver les lectures initiales et la raison. Ne pas faire la moyenne d’un désaccord non résolu. Si nécessaire, une troisième personne indépendante, sans voir l’application, reprend deux fois la zone sur une copie de la page 4 notée C. Garder les originaux ; sans C, la référence reste non résolue.',
+ 'review_lines':['Code participant et tentative','Feuilles A et B fermées avant examen oui ou non','Posture de référence conforme au protocole oui ou non'],
+ 'review_headers':['Zone','Application cm','Référence résolue cm','Écart cm'],'review_rows':['Poitrine','Taille naturelle','Tour de hanches'],
+ 'review_note':'Écart = application moins référence indépendante. Comparer sa valeur absolue à la limite convenue après conversion des unités. Un nombre positif signifie que l’application est plus grande. La référence provient des lectures indépendantes, jamais de la case de comparaison de l’application. Examiner chaque zone : une bonne moyenne ne doit pas cacher une erreur ou une capture échouée.',
+ 'feedback':['Quelles consignes ou quels repères étaient peu clairs','Vêtements bras posture éclairage ou appareil ont-ils posé problème','Quels contours ont été corrigés et pourquoi','Le participant était-il à l’aise et libre d’arrêter','Que faut-il changer avant la prochaine séance'],
+ 'close_intro':'La première séance vérifie le parcours et révèle des erreurs. Elle n’approuve ni le moteur, ni un vêtement, ni un groupe de personnes, ni l’import automatique dans un dossier client.',
+ 'close_checks':[
+  'Toutes les tentatives sont notées, même sans export, ainsi que les échecs et abandons. Les méthodes manuelles et corrigées restent distinctes.',
+  'Les deux feuilles brutes sont conservées avec protocole, identifiants, répétitions et arbitrage éventuel. Aucune valeur de l’application n’a servi de référence.',
+  'Noms, accords signés et table de correspondance restent séparés des mensurations codées et ne sont pas joints aux résultats.',
+  'Les copies temporaires des photos sur l’appareil du coordinateur ont été supprimées comme convenu. La session navigateur est effacée. Les téléchargements sont des JSON ; ne pas envoyer de photos du corps par messagerie ou courriel.',
+  'Remettre à Daniel uniquement le protocole codé, les lectures, le registre complet, les JSON sans photo et les retours, par le canal privé convenu avec les participants.',
+  'Le coordinateur a vérifié les dates de retrait et de suppression et désigné les personnes ayant accès aux données. Ce test n’autorise ni entraînement, ni publication en production, ni mise à jour d’un dossier client.'
+ ],
+ 'return_lines':['Dossier de retour ou canal privé convenu','Initiales du coordinateur et heure de clôture','Suppression des photos temporaires confirmée et heure'],
+ 'sources_title':'Références techniques','sources_note':'CDC/NHANES étaye la technique générale au ruban, pas notre définition de taille naturelle. La détection de pose ne garantit pas la précision métrique. Le couturier référent approuve les repères et postures de l’étude.',
+ 'sources':[
+  'CDC NHANES Anthropometry Procedures Manual 2021 : wwwn.cdc.gov/nchs/data/nhanes/public/2021/manuals/2021-Anthropometry-Procedures-Manual-508.pdf',
+  'Google Pose Landmarker : developers.google.com/edge/mediapipe/solutions/vision/pose_landmarker',
+  'Fiche du modèle BlazePose : storage.googleapis.com/mediapipe-assets/Model%20Card%20BlazePose%20GHUM%203D.pdf'
+ ]
+}}

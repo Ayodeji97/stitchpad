@@ -45,6 +45,8 @@ def build_ledger(bundle):
                 'Each participant requires a partition and consent reference')
         references = participant.get('references', {})
         require(set(references) == set(FIELDS), 'Independent references required for every field')
+        adjudications = participant.get('adjudications', {})
+        require(isinstance(adjudications, dict) and set(adjudications) <= set(FIELDS), 'Unknown adjudication field')
         consensus = {}
         for field in FIELDS:
             readings = references[field]
@@ -62,10 +64,23 @@ def build_ledger(bundle):
             require(len(measurers) >= 2 and all(len(values) >= 2 for values in measurers.values()),
                     'Need repeated readings from at least two independent measurers')
             values = [reading['value_mm'] for reading in readings]
-            require(max(values) - min(values) <= fields[field]['reference_spread_limit_mm'],
-                    'Reference readings require adjudication; do not silently drop the participant')
-            # Equal weight per measurer; repeated measurements do not create extra people.
-            consensus[field] = statistics.mean(statistics.mean(values) for values in measurers.values())
+            spread_limit = fields[field]['reference_spread_limit_mm']
+            adjudication = adjudications.get(field)
+            if adjudication is not None:
+                require(isinstance(adjudication, dict) and identifier(adjudication.get('reason')) and
+                        identifier(adjudication.get('measurer_id')) and adjudication['measurer_id'] not in measurers and
+                        adjudication.get('blinded') is True,
+                        'Adjudication needs a new independent blinded measurer and a reason')
+                resolved = adjudication.get('readings_mm')
+                require(isinstance(resolved, list) and len(resolved) >= 2 and all(map(number, resolved)),
+                        'Adjudication needs repeated finite readings; keep the original references')
+                require(max(resolved) - min(resolved) <= spread_limit, 'Adjudication readings still disagree')
+                consensus[field] = statistics.mean(resolved)
+            else:
+                require(max(values) - min(values) <= spread_limit,
+                        'Reference readings require adjudication; do not silently drop the participant')
+                # Equal weight per measurer; repeated measurements do not create extra people.
+                consensus[field] = statistics.mean(statistics.mean(values) for values in measurers.values())
         participants[pid] = (participant['split'], consensus)
     registry = {}
     for item in bundle.get('registered_attempts', []):

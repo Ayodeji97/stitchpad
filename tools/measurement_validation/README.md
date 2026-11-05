@@ -107,3 +107,12 @@ python3 tools/measurement_validation/evaluate.py /private/new-ledger.json
 - Equal weight is given to each measurer's mean. This initial consensus rule still needs
   a trained tailor's approved measurement protocol and adjudication process.
 - Output creation is exclusive; existing ledgers are never silently overwritten.
+
+If references need adjudication, keep every original reading. The participant may
+include `adjudications` keyed by `chest`, `waist` or `hips`. Each resolution needs a
+new `measurer_id` not used in the originals, `blinded: true`, a nonblank `reason`, and
+at least two consistent positive `readings_mm`. Their mean becomes the resolved
+reference. The same pre-agreed spread limit still applies. Do not show app estimates
+to the adjudicator or change limits after inspecting errors. If no independent
+resolution is available, keep the original records unresolved rather than silently
+excluding the participant from the study. The printed study pack includes this step.
