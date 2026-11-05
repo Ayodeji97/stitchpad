@@ -1,5 +1,5 @@
 /** Owned, unvalidated two-view ellipse baseline. No learned model or customer writes. */
-export const ENGINE_VERSION = "two-view-ellipse-v0.1";
+export const ENGINE_VERSION = "two-view-ellipse-v0.2";
 export const FIELDS = ["chest", "waist", "hips"];
 export const POINTS = [
     "top",
@@ -85,6 +85,22 @@ export function estimateCapture(capture) {
         fail("height");
     const front = viewDimensions(capture.front, capture.heightMm);
     const side = viewDimensions(capture.side, capture.heightMm);
+    const sources = Object.fromEntries(
+        ["front", "side"].map((view) => [
+            view,
+            capture[view].provenance
+                ? { ...capture[view].provenance }
+                : { method: "manual" },
+        ]),
+    );
+    const pipelineVersion =
+        ENGINE_VERSION +
+        ["front", "side"]
+            .map((view) => {
+                const source = sources[view];
+                return `|${view}=${source.method}:${source.sdk ?? "none"}:${source.modelSha256 ?? "none"}:${source.edited ? "edited" : "original"}`;
+            })
+            .join("");
     const estimates = {};
     for (const field of FIELDS) {
         if (Math.abs(front[field].level - side[field].level) > 0.04)
@@ -104,6 +120,7 @@ export function estimateCapture(capture) {
     return {
         schemaVersion: 1,
         engineVersion: ENGINE_VERSION,
+        pipelineVersion,
         journey: capture.journey,
         synthetic:
             capture.front.synthetic === true || capture.side.synthetic === true,
@@ -111,9 +128,10 @@ export function estimateCapture(capture) {
         validatedForTailoring: false,
         canSaveToCustomer: false,
         confidence: null,
+        outlineSources: sources,
         estimates,
         limitations: [
-            "manual_outline",
+            "reviewed_outline",
             "ellipse_assumption",
             "uncalibrated_camera",
             "clothing_bias",

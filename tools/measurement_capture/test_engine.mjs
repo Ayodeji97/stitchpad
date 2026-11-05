@@ -119,3 +119,24 @@ test("does not convert invalid numeric strings or infinite points", () => {
     c.side.points.chestLeft.x = Infinity;
     fails(c, "framing");
 });
+
+test("automatic source versions stay distinct from manual and edited pipelines", () => {
+    const c = capture(),
+        manual = estimateCapture(c);
+    c.front.provenance = {
+        method: "pose-mask-candidates-v1",
+        sdk: "pinned-sdk",
+        modelSha256: "fixture-sha",
+        inferenceMs: 20,
+    };
+    const automatic = estimateCapture(c);
+    assert.notEqual(automatic.pipelineVersion, manual.pipelineVersion);
+    c.front.provenance.inferenceMs = 100;
+    assert.equal(estimateCapture(c).pipelineVersion, automatic.pipelineVersion);
+    c.front.provenance.edited = true;
+    assert.notEqual(
+        estimateCapture(c).pipelineVersion,
+        automatic.pipelineVersion,
+    );
+    assert.equal(automatic.outlineSources.front.edited, undefined);
+});

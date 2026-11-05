@@ -1,5 +1,6 @@
 import { COPY } from "./copy.mjs";
 import { POINTS, FIELDS, estimateCapture, viewDimensions } from "./engine.mjs";
+import { detectOutline, closeDetector } from "./detector.mjs";
 const $ = (id) => document.getElementById(id);
 let lang = navigator.language.startsWith("fr") ? "fr" : "en";
 let state = fresh();
@@ -15,6 +16,7 @@ function fresh() {
         tape: {},
         result: null,
         revision: 0,
+        automaticRun: null,
     };
 }
 const t = (key) => COPY[lang][key] ?? key;
@@ -152,6 +154,7 @@ function checkbox(key, checked, update) {
         input = document.createElement("input");
     input.type = "checkbox";
     input.checked = checked;
+    if (key === "checks") input.dataset.captureConfirmation = "true";
     input.onchange = () => update(input.checked);
     label.append(input, text("span", t(key)));
     return label;
@@ -185,6 +188,22 @@ function capture(root) {
     label.append(file);
     root.append(label);
     if (view) {
+        const auto = button(
+            state.automaticRun ? "detecting" : "autoOutline",
+            runAutomatic,
+            true,
+        );
+        auto.disabled = state.automaticRun !== null;
+        root.append(auto, text("p", t("autoHelp"), "small"));
+        if (view.provenance) root.append(text("p", t("autoReview"), "notice"));
+        if (!view.syntheticLocked)
+            root.append(
+                checkbox("syntheticImage", view.synthetic, (value) => {
+                    view.synthetic = value;
+                    changed();
+                    render();
+                }),
+            );
         if (view.synthetic) root.append(text("p", t("synthetic"), "synthetic"));
         const work = text("div", "", "workspace"),
             imageArea = text("div", "", "image-area");
@@ -244,7 +263,7 @@ function capture(root) {
                     const value = n.valueAsNumber;
                     if (!Number.isFinite(value)) {
                         delete view.points[name];
-                        changed();
+                        invalidateOutline(view);
                         draw();
                         return;
                     }
@@ -263,6 +282,7 @@ function capture(root) {
                 () => {
                     const last = view.history.pop();
                     if (last) {
+                        view.qualityConfirmed = false;
                         if (last.before) view.points[last.name] = last.before;
                         else delete view.points[last.name];
                         state.active = last.name;
@@ -313,7 +333,7 @@ function setPoint(view, name, point) {
         before: view.points[name] ? { ...view.points[name] } : null,
     });
     view.points[name] = point;
-    changed();
+    invalidateOutline(view);
 }
 function draw() {
     const canvas = $("photo-canvas");
@@ -536,11 +556,13 @@ function demo() {
             history: [],
             qualityConfirmed: false,
             synthetic: true,
+            syntheticLocked: true,
         };
     }
     advance(0);
 }
 function reset() {
+    closeDetector();
     for (const key of ["front", "side"])
         if (state[key]) state[key].image.width = 0;
     const revision = state.revision + 1;
@@ -554,3 +576,63 @@ $("language").onchange = (event) => {
 };
 window.addEventListener("pagehide", reset);
 render();
+
+async function runAutomatic() {
+    const key = currentKey(),
+        view = state[key],
+        step = state.step;
+    if (!view || state.automaticRun !== null) return;
+    state.result = null;
+    view.points = {};
+    view.history = [];
+    view.qualityConfirmed = false;
+    view.provenance = null;
+    const revision = ++state.revision;
+    state.automaticRun = revision;
+    render();
+    // Paint loading state before synchronous WASM inference.
+    await new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(resolve)),
+    );
+    let failure = null;
+    try {
+        if (
+            state.revision !== revision ||
+            state[key] !== view ||
+            state.step !== step
+        )
+            return;
+        const answer = await detectOutline(view.image, key);
+        if (
+            state.revision !== revision ||
+            state[key] !== view ||
+            state.step !== step
+        )
+            return;
+        view.points = answer.points;
+        view.provenance = answer.provenance;
+    } catch (error) {
+        if (
+            state.revision === revision &&
+            state[key] === view &&
+            state.step === step
+        )
+            failure = COPY[lang][error.code] ? error.code : "modelUnavailable";
+    } finally {
+        if (state.automaticRun === revision) {
+            state.automaticRun = null;
+            render();
+            if (failure) error(failure);
+        }
+    }
+}
+
+function invalidateOutline(view) {
+    view.qualityConfirmed = false;
+    const confirmation = document.querySelector(
+        "input[data-capture-confirmation]",
+    );
+    if (confirmation) confirmation.checked = false;
+    if (view.provenance) view.provenance.edited = true;
+    changed();
+}

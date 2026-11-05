@@ -7,7 +7,8 @@ python3 -m http.server 8765 --bind 127.0.0.1 --directory tools/measurement_captu
 ```
 
 Open <http://127.0.0.1:8765>. The server serves this folder only. There is no upload
-endpoint, paid API, image persistence, analytics, external font or trained ML model.
+endpoint, paid API, image persistence, analytics or external font. Optional pose ML
+runs locally after installing the pinned assets below.
 The prototype deliberately runs outside the production app until accuracy is established.
 Camera capture is a browser hint, not a guarantee; file selection remains available.
 Do not expose this development server on a public network or use it as a pilot backend.
@@ -33,7 +34,7 @@ Nothing is saved to customer records. Do not use these estimates to cut a garmen
 
 ## What the owned baseline actually does
 
-`engine.mjs` normalizes each manually marked front/side diameter by known barefoot
+`engine.mjs` normalizes each reviewed front/side diameter by known barefoot
 height, then approximates each horizontal body cross-section as an ellipse using
 Ramanujan's perimeter approximation. Each view is independently scaled; image
 resizing must not change output. It does **not** infer height from pixels, reconstruct
@@ -78,13 +79,13 @@ French mobile flow, comparison/export and reset.
 
 ## Next accuracy gate
 
-Replace manual annotation only after a commercially usable segmentation/landmark
-baseline is selected and evaluated. Collect explicitly consented repeated captures
+Keep human anatomical review until the automatic segmentation/landmark baseline
+has been validated independently. Collect explicitly consented repeated captures
 and independent blinded tape readings with an experienced tailor. Use one anatomical
 protocol across marking and tape measurement. Keep participant partitions separate,
 record retakes/failures, and publish field-specific error and subgroup coverage.
-This export is **not** directly accepted by the validation ledger: a supervised
-adapter must supply attempt IDs, participant/partition provenance and failure records.
+This export requires the supervised `build_ledger.py` adapter with attempt IDs,
+participant/partition provenance, independent tape readings and failure records.
 Do not drop failed attempts or mix synthetic and real test cohorts.
 
 Production invite identity, public designer discovery, authenticated storage,
@@ -93,3 +94,74 @@ by this research surface. The two choices model capture entry points, not live s
 
 Browser API references: [capture](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Attributes/capture),
 [object URL cleanup](https://developer.mozilla.org/en-US/docs/Web/API/URL/revokeObjectURL_static).
+
+## Automatic outline baseline (5 November 2026)
+
+Install/check the pinned local detector before starting the server:
+
+```sh
+python3 tools/measurement_capture/setup_assets.py
+python3 tools/measurement_capture/setup_assets.py --check
+```
+
+The lock pins MediaPipe Tasks Vision **0.10.32**, the full pose model
+`pose_landmarker_full/float16/1`, SHA-256 digests, sizes, model card and licence.
+Eight ignored assets total 33,457,739 bytes. No floating `latest` dependency and no
+runtime CDN. The source model card identifies Apache 2.0; do not substitute a GHUM
+mesh licence or claim the detector is validated for metric body dimensions.
+
+**Suggest outlines automatically** runs local CPU inference, uses the connected person
+mask around the torso, and proposes chest/waist/hip rows from pose landmarks. Those
+rows are heuristics, especially natural waist/full hips: review every point. The
+mask excludes detached noise, rejects frame contact and unstable contours and checks
+for arm overlap. Side captures with arms covering the torso are refused; arrange a
+clear silhouette and review posture with a designer rather than accepting arm width.
+These gates can reject legitimate bodies/poses and do not establish population coverage.
+
+Missing assets, zero/multiple detected people, poor pose or ambiguous masks leave
+manual marking available. A model score is not measurement accuracy. Reset cancels
+stale UI results and closes the detector. Editing points clears the capture-confirmation
+checkbox. The SDK runs synchronously after loading; worker/native inference and actual
+low-end-phone responsiveness remain future work.
+
+For file uploads, mark **synthetic image or test fixture** when appropriate. The built-in
+synthetic demo is permanently marked synthetic. Uploaded image origin is a declaration,
+not forensic verification. No real accuracy claims may be based on synthetic outputs.
+Exports include a `pipelineVersion` that separates automatic/manual/edited sources and
+a model checksum for automatic sources. The fitter is still the reviewed two-view
+ellipse baseline, **not** Anny photo reconstruction or automatic anatomical truth.
+
+### Repeatable browser verification
+
+With the local server running, use Playwright CLI:
+
+```sh
+playwright-cli open http://127.0.0.1:8765
+playwright-cli run-code --filename=tools/measurement_capture/verify_browser.cjs
+```
+
+This covers both journeys, consent/height/check gates, point-edit invalidation,
+comparison/export, real detector rejection on a nonhuman drawing, corrupted file
+replacement, reset during model loading, French mobile layout and blocked external
+requests. It uses no real photographs.
+
+Optional positive detector integration uses native Anny synthetic renders:
+
+```sh
+# In a separate Python 3.12 environment:
+pip install -r tools/measurement_engine/requirements.txt Pillow==12.1.1
+python3 tools/measurement_capture/generate_fixtures.py
+playwright-cli run-code --filename=tools/measurement_capture/verify_detector.cjs
+```
+
+Fixtures/weights remain in ignored `assets/`; no binaries are committed. Both real
+WASM detector views, source checksums, reviewed fitting and synthetic export passed
+on Chromium and WebKit with mobile viewport emulation. An overlapping-arm side pose was correctly rejected;
+a clear-arm synthetic pose passed. These tests verify plumbing and selected failure
+gates, **not** real-person accuracy, pose invariance, demographic coverage or Safari.
+Measured local synthetic inference-plus-outline runs were about 105 ms front / 53 ms
+side in one run; these are not mobile latency or production cost guarantees.
+
+Use `node --test tools/measurement_capture/test_*.mjs` for all baseline/outline tests.
+The companion study importer is `tools/measurement_validation/build_ledger.py`.
+Actual cohort references must be blinded; the UI comparison fields are not ground truth.
