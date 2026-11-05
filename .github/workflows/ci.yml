@@ -67,7 +67,8 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - run: node --test tools/measurement_capture/test_engine.mjs
+      - run: node --test tools/measurement_capture/test_*.mjs
+      - run: python3 -m unittest discover -s tools/measurement_capture -p 'test_*.py'
       - run: python3 -m unittest discover -s tools/measurement_engine -p 'test_*.py'
       - run: python3 -m unittest discover -s tools/measurement_validation -p 'test_*.py'
 

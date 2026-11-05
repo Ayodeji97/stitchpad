@@ -70,3 +70,40 @@ or approved tolerances):
   clustered uncertainty, repeated-measure agreement analysis, subgroup/device reports,
   independently audited reference readings and actual garment/alteration outcomes.
   No sample size or observed passing percentage here automatically approves a release.
+
+## Reconcile captures and independent references before evaluation
+
+`build_ledger.py` converts a private study bundle into the ledger above. Its input has
+`unit: "mm"`, a frozen `protocol`, `participants`, `registered_attempts` and `outcomes`.
+See `test_build_ledger.py` for **fabricated schema examples only**; the example limits
+are not approved tailoring tolerances. Never commit a real bundle or exported study result.
+
+```sh
+python3 tools/measurement_validation/build_ledger.py /private/study-bundle.json /private/new-ledger.json
+python3 tools/measurement_validation/evaluate.py /private/new-ledger.json
+```
+
+- `protocol` needs `frozen: true`, a nonblank `approved_by`, and fields `chest`, `waist`,
+  `hips`. Each needs a distinct `definition_id`, approved `tolerance_mm` and
+  `reference_spread_limit_mm`. These declarations do not prove external approval.
+- Each participant needs one `participant_id`, one `split`, a `consent_id` referencing
+  the independently maintained consent record, and `references` for every field.
+  Each reference reading contains `measurer_id`, positive integer `repeat`, `value_mm`
+  and `blinded: true`. At least two readings from each of two independent measurers
+  are required. Excessive spread stops import for adjudication, not silent exclusion.
+- Register **every initiated attempt**, including failed/abandoned ones, with unique
+  `attempt_id`, `participant_id` and `engine_version`. Use the export's full
+  `pipelineVersion`, which includes front/side manual/automatic/edited provenance.
+  The importer rejects a changed pipeline rather than mixing it into that group.
+- `outcomes` bind registered attempt IDs to `status` and (for completed attempts only)
+  the image-free capture `result`. Missing outcomes become failed attempts. Unknown or
+  duplicate outcomes are rejected. Incomplete completed estimates retain missing fields.
+- Synthetic results and outputs claiming verified/customer-save status are rejected.
+  A false synthetic flag is not proof an image was real: a study operator must independently
+  verify sources and consent. The tool cannot authenticate participant identity or find
+  captures omitted from the initiation registry. Audit that registry against source records.
+- Tape references are computed from independent readings, **not** the tape comparison
+  box beside the displayed estimate. Do not use unblinded UI entries as ground truth.
+- Equal weight is given to each measurer's mean. This initial consensus rule still needs
+  a trained tailor's approved measurement protocol and adjudication process.
+- Output creation is exclusive; existing ledgers are never silently overwritten.

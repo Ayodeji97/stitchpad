@@ -1,12 +1,32 @@
 export const COPY = {
     en: {
+        autoOutline: "Suggest outlines automatically",
+        syntheticImage:
+            "This is a synthetic image or a test fixture (exclude from real accuracy studies).",
+        detecting: "Detecting locally…",
+        autoHelp:
+            "Optional on-device detector. Assets must be installed locally. No photo is uploaded. Manual marking remains available.",
+        autoReview:
+            "These are suggested contours and approximate levels. Review every point, especially natural waist and full hips. Detection scores do not indicate measurement accuracy.",
+        modelUnavailable:
+            "Automatic detection is unavailable. Check local model setup or mark the outline manually.",
+        personCount:
+            "Use an image with one clearly visible person. No usable single-person detection was found.",
+        poseUncertain:
+            "The full upright pose could not be established. Retake or mark the outline manually.",
+        maskUncertain:
+            "The body contour is unclear or unstable. Improve contrast and lighting, or mark it manually.",
+        wrongView:
+            "The detected orientation does not match this view. Check front versus side.",
+        armOcclusion:
+            "An arm may overlap the torso outline. Retake with the arms clear, or mark only the torso manually.",
         language: "Language",
         footer: "Local research prototype · Photos stay in this browser. Closing or resetting clears the session. No customer records are changed.",
         steps: ["Prepare", "Front view", "Side view", "Compare"],
         title: "A better fit starts with a careful capture.",
         intro: "Two views, your known height, and clear body outlines. Test the process with a designer before relying on any estimate.",
         warning:
-            "Experimental estimates. This prototype uses manually marked outlines and an ellipse model. It is not validated for tailoring and cannot replace tape measurements.",
+            "Experimental estimates. This prototype uses reviewed outlines and an ellipse model. It is not validated for tailoring and cannot replace tape measurements.",
         existing: "With my designer",
         existingHelp: "An existing customer tests a capture for their tailor.",
         discovery: "Find a designer",
@@ -85,13 +105,33 @@ export const COPY = {
         unknown: "Unable to calculate. Check your inputs and try again.",
     },
     fr: {
+        autoOutline: "Proposer les contours automatiquement",
+        syntheticImage:
+            "Image synthétique ou image de test (à exclure des études de précision réelles).",
+        detecting: "Détection locale…",
+        autoHelp:
+            "Détecteur facultatif sur l’appareil. Les fichiers du modèle doivent être installés localement. Aucune photo n’est envoyée. Le marquage manuel reste disponible.",
+        autoReview:
+            "Ces contours et niveaux sont des suggestions. Vérifiez chaque repère, surtout la taille naturelle et le tour de hanches. Les scores de détection n’indiquent pas la précision des mensurations.",
+        modelUnavailable:
+            "Détection automatique indisponible. Vérifiez l’installation locale du modèle ou marquez les contours manuellement.",
+        personCount:
+            "Utilisez une image avec une seule personne bien visible. Aucune détection unique exploitable n’a été trouvée.",
+        poseUncertain:
+            "La posture droite et complète n’a pas pu être établie. Reprenez la photo ou marquez les contours manuellement.",
+        maskUncertain:
+            "Le contour du corps est incertain ou instable. Améliorez le contraste et l’éclairage, ou marquez-le manuellement.",
+        wrongView:
+            "L’orientation détectée ne correspond pas à cette vue. Vérifiez face et profil.",
+        armOcclusion:
+            "Un bras semble chevaucher le contour du buste. Reprenez la photo avec les bras dégagés ou marquez le buste manuellement.",
         language: "Langue",
         footer: "Prototype de recherche local · Les photos restent dans ce navigateur. Fermer ou réinitialiser efface la session. Aucun dossier client n’est modifié.",
         steps: ["Préparation", "Vue de face", "Vue de profil", "Comparaison"],
         title: "Une bonne prise de vue pour mieux mesurer.",
         intro: "Deux vues, votre taille connue et des contours précis. Testez le parcours avec un couturier avant de vous fier aux estimations.",
         warning:
-            "Estimations expérimentales. Ce prototype utilise des contours marqués manuellement et un modèle elliptique. Il n’est pas validé pour la confection et ne remplace pas le mètre ruban.",
+            "Estimations expérimentales. Ce prototype utilise des contours vérifiés et un modèle elliptique. Il n’est pas validé pour la confection et ne remplace pas le mètre ruban.",
         existing: "Avec mon couturier",
         existingHelp:
             "Un client existant teste une prise de vue pour son couturier.",
