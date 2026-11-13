@@ -101,7 +101,7 @@ class AndroidMeasurementSharer(private val context: Context) : MeasurementSharer
         // Header row: wordmark left, card label right
         var y = padding + 26f
         canvas.drawText("StitchPad", padding, y, wordmarkPaint)
-        canvas.drawText("MEASUREMENT CARD", width - padding, y - 6f, cardLabelPaint)
+        canvas.drawText(data.chrome.cardTitle, width - padding, y - 6f, cardLabelPaint)
         y += 36f // header-to-divider gap (was 24f)
         canvas.drawLine(padding, y, width - padding, y, dividerPaint)
         y += 46f // divider-to-customer gap (was 30f)
@@ -115,7 +115,7 @@ class AndroidMeasurementSharer(private val context: Context) : MeasurementSharer
             add(data.measurementName)
             add(data.genderLabel)
             add(data.unitLabel)
-            data.dateFormatted?.let { add("Taken $it") }
+            data.dateFormatted?.let { add(data.chrome.taken(it)) }
             data.businessName?.let { add(it) }
         }
         canvas.drawText(metaParts.joinToString(" · "), padding, y, metaPaint)
@@ -148,7 +148,7 @@ class AndroidMeasurementSharer(private val context: Context) : MeasurementSharer
         y += 32f
         canvas.drawLine(padding, y, width - padding, y, dividerPaint)
         y += 32f
-        canvas.drawText(FOOTER_TEXT, width / 2f, y, footerPaint)
+        canvas.drawText(data.chrome.cardFooter, width / 2f, y, footerPaint)
 
         // Crop to actual content height
         val finalHeight = (y + padding).toInt().coerceAtMost(height)
@@ -230,7 +230,7 @@ class AndroidMeasurementSharer(private val context: Context) : MeasurementSharer
 
         var y = padding + 13f
         canvas.drawText("StitchPad", padding, y, wordmarkPaint)
-        canvas.drawText("MEASUREMENT CARD", pageWidth - padding, y - 3f, cardLabelPaint)
+        canvas.drawText(data.chrome.cardTitle, pageWidth - padding, y - 3f, cardLabelPaint)
         y += 18f // header-to-divider gap (was 12f)
         canvas.drawLine(padding, y, pageWidth - padding, y, dividerPaint)
         y += 23f // divider-to-customer gap (was 15f)
@@ -242,7 +242,7 @@ class AndroidMeasurementSharer(private val context: Context) : MeasurementSharer
             add(data.measurementName)
             add(data.genderLabel)
             add(data.unitLabel)
-            data.dateFormatted?.let { add("Taken $it") }
+            data.dateFormatted?.let { add(data.chrome.taken(it)) }
             data.businessName?.let { add(it) }
         }
         canvas.drawText(metaParts.joinToString(" · "), padding, y, metaPaint)
@@ -272,7 +272,7 @@ class AndroidMeasurementSharer(private val context: Context) : MeasurementSharer
         y += 16f
         canvas.drawLine(padding, y, pageWidth - padding, y, dividerPaint)
         y += 16f
-        canvas.drawText(FOOTER_TEXT, pageWidth / 2f, y, footerPaint)
+        canvas.drawText(data.chrome.cardFooter, pageWidth / 2f, y, footerPaint)
 
         doc.finishPage(page)
 
@@ -375,6 +375,5 @@ class AndroidMeasurementSharer(private val context: Context) : MeasurementSharer
 
     private companion object {
         const val CACHE_LIMIT = 10
-        const val FOOTER_TEXT = "Made with StitchPad — the smart work pad for tailors · getstitchpad.com"
     }
 }

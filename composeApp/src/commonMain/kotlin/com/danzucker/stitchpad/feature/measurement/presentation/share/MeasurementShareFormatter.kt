@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.measurement.presentation.share
 
 import com.danzucker.stitchpad.core.domain.model.Measurement
+import com.danzucker.stitchpad.core.sharing.MeasurementShareChrome
 import com.danzucker.stitchpad.core.sharing.MeasurementShareData
 import com.danzucker.stitchpad.core.sharing.MeasurementShareRow
 import com.danzucker.stitchpad.core.sharing.MeasurementShareSection
@@ -20,6 +21,8 @@ data class MeasurementShareLabels(
     val businessName: String?,
     val sectionTitles: Map<String, String>,
     val customSectionTitle: String,
+    /** Card title / "Taken …" / footers. English defaults keep tests and previews resource-free. */
+    val chrome: MeasurementShareChrome = MeasurementShareChrome(),
 )
 
 /**
@@ -55,6 +58,7 @@ object MeasurementShareFormatter {
             businessName = labels.businessName,
             sections = sections,
             notes = measurement.notes?.takeIf { it.isNotBlank() },
+            chrome = labels.chrome,
         )
     }
 
@@ -74,7 +78,7 @@ object MeasurementShareFormatter {
             append("_").append(it).appendLine("_")
         }
         appendLine()
-        append("_Sent from StitchPad · getstitchpad.com_")
+        append("_").append(data.chrome.whatsAppFooter).append("_")
     }
 
     /** "12 Jun 2026"; null for the 0L legacy sentinel — same policy as the detail screen's Taken chip. */

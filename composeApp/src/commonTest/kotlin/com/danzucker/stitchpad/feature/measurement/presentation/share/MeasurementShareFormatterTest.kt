@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.measurement.presentation.share
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
+import com.danzucker.stitchpad.core.sharing.MeasurementShareChrome
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -90,5 +91,23 @@ class MeasurementShareFormatterTest {
         assertNull(MeasurementShareFormatter.formatShareDate(0L))
         // noon UTC — date is stable across UTC-12..+12 system timezones
         assertEquals("12 Jun 2026", MeasurementShareFormatter.formatShareDate(1_781_265_600_000L))
+    }
+
+    @Test
+    fun `localized chrome replaces whatsapp footer and card copy`() {
+        val chrome = MeasurementShareChrome(
+            cardTitle = "FICHE DE MESURES",
+            takenTemplate = "Prises le %1\$s",
+            cardFooter = "Fait avec StitchPad",
+            whatsAppFooter = "Envoyé depuis StitchPad · getstitchpad.com",
+        )
+        val base = format()
+        val data = base.copy(chrome = chrome)
+        val text = MeasurementShareFormatter.buildWhatsAppText(data)
+        assertTrue(text.trimEnd().endsWith("_Envoyé depuis StitchPad · getstitchpad.com_"))
+        assertFalse(text.contains("Sent from"))
+        assertEquals("Prises le 12 juin 2026", chrome.taken("12 juin 2026"))
+        assertEquals("Taken 12 Jun 2026", base.chrome.taken("12 Jun 2026"))
+        assertEquals("MEASUREMENT CARD", base.chrome.cardTitle)
     }
 }
