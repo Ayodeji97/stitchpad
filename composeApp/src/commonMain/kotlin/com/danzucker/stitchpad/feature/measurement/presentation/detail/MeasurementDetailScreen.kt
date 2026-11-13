@@ -71,6 +71,7 @@ import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
+import com.danzucker.stitchpad.core.presentation.localizedMonthName
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.feature.measurement.presentation.measurementSectionTitle
 import com.danzucker.stitchpad.ui.components.StitchPadButton
@@ -504,10 +505,11 @@ private fun MetaChip(
     }
 }
 
+@Composable
 private fun formatTakenDate(epochMillis: Long): String {
     val date = Instant.fromEpochMilliseconds(epochMillis)
         .toLocalDateTime(TimeZone.currentSystemDefault()).date
-    val month = date.month.name.lowercase().replaceFirstChar(Char::uppercase).take(3)
+    val month = localizedMonthName(date.monthNumber, short = true)
     return "${date.dayOfMonth} $month ${date.year}"
 }
 

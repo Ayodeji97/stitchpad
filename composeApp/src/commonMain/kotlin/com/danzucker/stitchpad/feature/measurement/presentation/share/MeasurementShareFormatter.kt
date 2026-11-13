@@ -6,6 +6,7 @@ import com.danzucker.stitchpad.core.sharing.MeasurementShareRow
 import com.danzucker.stitchpad.core.sharing.MeasurementShareSection
 import com.danzucker.stitchpad.feature.measurement.presentation.detail.measurementDetailSections
 import kotlinx.datetime.Instant
+import kotlinx.datetime.Month
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
@@ -77,11 +78,16 @@ object MeasurementShareFormatter {
     }
 
     /** "12 Jun 2026"; null for the 0L legacy sentinel — same policy as the detail screen's Taken chip. */
-    fun formatShareDate(epochMillis: Long): String? {
+    fun formatShareDate(epochMillis: Long, monthNames: List<String> = DEFAULT_SHORT_MONTH_NAMES): String? {
         if (epochMillis <= 0L) return null
         val date = Instant.fromEpochMilliseconds(epochMillis)
             .toLocalDateTime(TimeZone.currentSystemDefault()).date
-        val month = date.month.name.lowercase().replaceFirstChar(Char::uppercase).take(3)
+        val month = monthNames.getOrNull(date.monthNumber - 1) ?: date.month.englishShortName()
         return "${date.day} $month ${date.year}"
     }
+
+    /** English abbreviations used when the caller supplies no localized names (tests, previews). */
+    private val DEFAULT_SHORT_MONTH_NAMES = Month.entries.map { it.englishShortName() }
+
+    private fun Month.englishShortName(): String = name.lowercase().replaceFirstChar(Char::uppercase).take(3)
 }

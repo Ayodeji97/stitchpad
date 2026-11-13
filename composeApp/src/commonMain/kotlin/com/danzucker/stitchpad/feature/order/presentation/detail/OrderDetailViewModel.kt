@@ -38,6 +38,7 @@ import com.danzucker.stitchpad.core.domain.staff.TeamMemberStatus
 import com.danzucker.stitchpad.core.domain.staff.repository.TeamRosterRepository
 import com.danzucker.stitchpad.core.domain.staff.resolveClaimDisplayName
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.presentation.localizedMonthNamesAsync
 import com.danzucker.stitchpad.core.presentation.moneyInputAfterEdit
 import com.danzucker.stitchpad.core.presentation.moneyInputForAmount
 import com.danzucker.stitchpad.core.presentation.moneyInputValue
@@ -788,6 +789,7 @@ class OrderDetailViewModel(
                     garmentNames = garmentNames,
                     businessLogoBytes = logoBytes,
                     forceDocumentType = choice,
+                    monthNames = localizedMonthNamesAsync(short = true),
                 )
                 share(receiptData)
                 analytics.logEvent(

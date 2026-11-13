@@ -23,6 +23,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
+import com.danzucker.stitchpad.core.presentation.localizedMonthName
 import com.danzucker.stitchpad.feature.measurement.presentation.filledPreviewFields
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -155,10 +156,11 @@ private fun MeasurementDetailSheetContent(
     }
 }
 
+@Composable
 private fun formatShortDate(epochMillis: Long): String {
     val date = Instant.fromEpochMilliseconds(epochMillis)
         .toLocalDateTime(TimeZone.currentSystemDefault()).date
-    val month = date.month.name.lowercase().replaceFirstChar(Char::uppercase).take(3)
+    val month = localizedMonthName(date.monthNumber, short = true)
     return "${date.dayOfMonth} $month ${date.year}"
 }
 

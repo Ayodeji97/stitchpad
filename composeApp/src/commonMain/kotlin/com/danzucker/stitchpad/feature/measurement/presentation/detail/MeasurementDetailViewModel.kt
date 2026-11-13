@@ -17,6 +17,7 @@ import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.workshopUidOrNull
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.presentation.localizedMonthNamesAsync
 import com.danzucker.stitchpad.core.sharing.MeasurementShareData
 import com.danzucker.stitchpad.core.sharing.MeasurementSharer
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
@@ -385,7 +386,10 @@ private fun defaultShareLabelsResolver(
             },
         ),
         unitSuffix = if (measurement.unit == MeasurementUnit.INCHES) "″" else "cm",
-        dateFormatted = MeasurementShareFormatter.formatShareDate(measurement.dateTaken),
+        dateFormatted = MeasurementShareFormatter.formatShareDate(
+            measurement.dateTaken,
+            localizedMonthNamesAsync(short = true),
+        ),
         businessName = authRepository.getCurrentUser()?.businessName?.takeIf { it.isNotBlank() },
         sectionTitles = defaultLocalizedSectionTitles(),
         customSectionTitle = getString(Res.string.custom_field_section_title),
