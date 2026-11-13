@@ -36,6 +36,7 @@ import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.presentation.localizedMonthName
 import com.danzucker.stitchpad.feature.measurement.presentation.filledPreviewFields
+import com.danzucker.stitchpad.feature.measurement.presentation.measurementFieldLabels
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import kotlinx.datetime.Instant
@@ -187,7 +188,11 @@ private fun MeasurementRow(
             // Preview the fields the tailor actually filled (top 3), so similar
             // measurements are distinguishable when linking — not just a count.
             val unitSuffix = if (measurement.unit == MeasurementUnit.INCHES) "″" else "cm"
-            val preview = measurement.filledPreviewFields(customFieldLabels, max = PICKER_PREVIEW_FIELDS)
+            val preview = measurement.filledPreviewFields(
+                customFieldLabels,
+                max = PICKER_PREVIEW_FIELDS,
+                templateLabels = measurementFieldLabels(),
+            )
             if (preview.isNotEmpty()) {
                 Spacer(Modifier.height(2.dp))
                 Text(

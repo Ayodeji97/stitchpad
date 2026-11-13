@@ -75,6 +75,7 @@ import com.danzucker.stitchpad.core.sharing.DialerLauncher
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.feature.customer.presentation.detail.components.AddMeasurementSheet
 import com.danzucker.stitchpad.feature.measurement.presentation.measurementDisplayName
+import com.danzucker.stitchpad.feature.measurement.presentation.measurementFieldLabels
 import com.danzucker.stitchpad.ui.components.CustomerAvatar
 import com.danzucker.stitchpad.ui.components.StitchPadFab
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -907,8 +908,10 @@ private fun MeasurementListItem(
                 } else {
                     listOf("chest" to "Chest", "trouser_waist" to "Waist")
                 }
+                val templateLabels = measurementFieldLabels()
                 val templatePreview = previewKeys
-                    .mapNotNull { (key, label) ->
+                    .mapNotNull { (key, fallback) ->
+                        val label = templateLabels[key] ?: fallback
                         measurement.fields[key]?.let { "$label: $it" }
                     }
                     .joinToString("  ")

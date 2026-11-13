@@ -1,5 +1,9 @@
 package com.danzucker.stitchpad.core.domain.model
 
+/**
+ * Field labels below are English fallbacks only; display goes through the
+ * measurement_field_<labelKey> string resources (measurementFieldLabel).
+ */
 object BodyProfileTemplate {
 
     fun sectionsFor(gender: CustomerGender): List<MeasurementSection> = when (gender) {
@@ -55,7 +59,7 @@ object BodyProfileTemplate {
                 MeasurementField("shirt_length", "Length of kaftan", isEssential = true),
                 MeasurementField("long_sleeve_length", "Sleeve length", isEssential = true),
                 MeasurementField("elbow_circumference", "Elbow circumference", isEssential = true),
-                MeasurementField("neck_circumference", "Neck", isEssential = false),
+                MeasurementField("neck_circumference", "Neck", isEssential = false, labelKey = "neck"),
                 MeasurementField("tummy", "Tummy", isEssential = false),
             )
         ),

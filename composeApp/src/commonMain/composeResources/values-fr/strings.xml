@@ -1779,4 +1779,34 @@
     <string name="measurement_share_card_footer">Fait avec StitchPad — le carnet intelligent des tailleurs · getstitchpad.com</string>
     <string name="smart_order_no_deadline">Aucune date limite</string>
     <string name="smart_order_garment_fallback">Vêtement</string>
+    <!-- Draft tailoring terms: needs review by a French-speaking tailor -->
+    <string name="measurement_field_shoulder_width">Épaule</string>
+    <string name="measurement_field_bust_circumference">Tour de poitrine</string>
+    <string name="measurement_field_bust_point">Hauteur de poitrine</string>
+    <string name="measurement_field_shoulder_to_underbust">Hauteur sous-poitrine</string>
+    <string name="measurement_field_bust_span">Écart de poitrine</string>
+    <string name="measurement_field_waist">Tour de taille</string>
+    <string name="measurement_field_neck_circumference">Tour de cou</string>
+    <string name="measurement_field_neck">Tour de cou</string>
+    <string name="measurement_field_underbust_circumference">Tour sous-poitrine</string>
+    <string name="measurement_field_shoulder_to_waist">Épaule à la taille</string>
+    <string name="measurement_field_hip_circumference">Tour de hanches</string>
+    <string name="measurement_field_full_length_gown">Longueur de robe</string>
+    <string name="measurement_field_sleeve_length">Longueur de manche</string>
+    <string name="measurement_field_wrist_circumference">Tour de poignet</string>
+    <string name="measurement_field_nape_to_waist">Nuque à la taille</string>
+    <string name="measurement_field_full_front_length">Longueur devant</string>
+    <string name="measurement_field_arm_length">Longueur de bras</string>
+    <string name="measurement_field_trouser_waist">Tour de taille</string>
+    <string name="measurement_field_trouser_length">Longueur de pantalon</string>
+    <string name="measurement_field_trouser_hip">Tour de hanches</string>
+    <string name="measurement_field_thigh_circumference">Tour de cuisse</string>
+    <string name="measurement_field_inseam">Entrejambe</string>
+    <string name="measurement_field_shoulder_back">Carrure dos</string>
+    <string name="measurement_field_chest">Tour de poitrine</string>
+    <string name="measurement_field_shirt_length">Longueur du caftan</string>
+    <string name="measurement_field_long_sleeve_length">Longueur de manche</string>
+    <string name="measurement_field_elbow_circumference">Tour de coude</string>
+    <string name="measurement_field_tummy">Tour de ventre</string>
+    <string name="measurement_field_knee_circumference">Tour de genou</string>
 </resources>

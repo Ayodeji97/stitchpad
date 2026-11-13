@@ -2119,4 +2119,34 @@
     <string name="measurement_share_card_footer">Made with StitchPad — the smart work pad for tailors · getstitchpad.com</string>
     <string name="smart_order_no_deadline">No deadline set</string>
     <string name="smart_order_garment_fallback">Garment</string>
+    <!-- Measurement field names, keyed by BodyProfileTemplate labelKey -->
+    <string name="measurement_field_shoulder_width">Shoulder</string>
+    <string name="measurement_field_bust_circumference">Bust</string>
+    <string name="measurement_field_bust_point">Shoulder to nipple point</string>
+    <string name="measurement_field_shoulder_to_underbust">Shoulder to underbust</string>
+    <string name="measurement_field_bust_span">Bust span</string>
+    <string name="measurement_field_waist">Waist</string>
+    <string name="measurement_field_neck_circumference">Neck circumference</string>
+    <string name="measurement_field_neck">Neck</string>
+    <string name="measurement_field_underbust_circumference">Underbust</string>
+    <string name="measurement_field_shoulder_to_waist">Shoulder to waist</string>
+    <string name="measurement_field_hip_circumference">Hip</string>
+    <string name="measurement_field_full_length_gown">Full length of gown</string>
+    <string name="measurement_field_sleeve_length">Sleeve length</string>
+    <string name="measurement_field_wrist_circumference">Wrist</string>
+    <string name="measurement_field_nape_to_waist">Nape to waist</string>
+    <string name="measurement_field_full_front_length">Full front length</string>
+    <string name="measurement_field_arm_length">Arm length</string>
+    <string name="measurement_field_trouser_waist">Waist</string>
+    <string name="measurement_field_trouser_length">Length</string>
+    <string name="measurement_field_trouser_hip">Hip</string>
+    <string name="measurement_field_thigh_circumference">Thigh</string>
+    <string name="measurement_field_inseam">Inseam</string>
+    <string name="measurement_field_shoulder_back">Back</string>
+    <string name="measurement_field_chest">Chest</string>
+    <string name="measurement_field_shirt_length">Length of kaftan</string>
+    <string name="measurement_field_long_sleeve_length">Sleeve length</string>
+    <string name="measurement_field_elbow_circumference">Elbow circumference</string>
+    <string name="measurement_field_tummy">Tummy</string>
+    <string name="measurement_field_knee_circumference">Knee</string>
 </resources>

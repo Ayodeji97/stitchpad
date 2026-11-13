@@ -34,6 +34,7 @@ import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.presentation.localizedMonthName
 import com.danzucker.stitchpad.feature.measurement.presentation.filledPreviewFields
+import com.danzucker.stitchpad.feature.measurement.presentation.measurementFieldLabels
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import kotlinx.datetime.Instant
@@ -99,7 +100,11 @@ fun OrderMeasurementsPreviewCard(
                 val unitSuffix = if (measurement.unit == MeasurementUnit.INCHES) "″" else "cm"
                 // Show the fields the tailor actually filled (top 3), template-first
                 // then custom — never the garment's expected-but-empty fields.
-                val preview = measurement.filledPreviewFields(customFieldLabels, max = MAX_PREVIEW_FIELDS)
+                val preview = measurement.filledPreviewFields(
+                    customFieldLabels,
+                    max = MAX_PREVIEW_FIELDS,
+                    templateLabels = measurementFieldLabels(),
+                )
 
                 if (preview.isNotEmpty()) {
                     Row(

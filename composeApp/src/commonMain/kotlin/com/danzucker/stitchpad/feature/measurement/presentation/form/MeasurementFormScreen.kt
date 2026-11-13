@@ -92,6 +92,7 @@ import com.danzucker.stitchpad.feature.measurement.presentation.form.components.
 import com.danzucker.stitchpad.feature.measurement.presentation.form.components.ConfirmArchiveDialog
 import com.danzucker.stitchpad.feature.measurement.presentation.form.components.rememberSanitizedTextFieldValue
 import com.danzucker.stitchpad.feature.measurement.presentation.isPersistableMeasurementValue
+import com.danzucker.stitchpad.feature.measurement.presentation.measurementFieldLabel
 import com.danzucker.stitchpad.feature.measurement.presentation.measurementSectionTitle
 import com.danzucker.stitchpad.feature.measurement.presentation.sanitizeMeasurementInput
 import com.danzucker.stitchpad.ui.components.StitchPadButton
@@ -778,7 +779,7 @@ private fun MeasurementFieldInput(
         // keys reachable for segmented lengths ("40, 45, 56") and half sizes ("16.5").
         onValueChange = onValueChange,
         sanitize = ::sanitizeMeasurementInput,
-        label = field.label,
+        label = measurementFieldLabel(field),
         placeholder = "0",
         suffix = unitSuffix,
         singleLine = true,
