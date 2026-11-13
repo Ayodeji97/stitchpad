@@ -8,6 +8,7 @@ import com.danzucker.stitchpad.core.domain.model.OrderPriority
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.feature.dashboard.domain.model.Buckets
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
+import com.danzucker.stitchpad.feature.dashboard.domain.model.GarmentSummary
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FocusVariant
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestAction
@@ -33,7 +34,7 @@ class FocusResolverTest {
     )
 
     private fun row(id: String = "o", name: String = "Customer"): DashboardOrderRow =
-        DashboardOrderRow(orderId = id, customerName = name, primaryLabel = "Agbada")
+        DashboardOrderRow(orderId = id, customerName = name, garment = GarmentSummary(GarmentType.AGBADA))
 
     private fun customer(name: String = "Test", id: String = "c1"): Customer =
         Customer(id = id, userId = "u", name = name, phone = "08011112222")
@@ -64,7 +65,7 @@ class FocusResolverTest {
             customerId = "c1",
             customerName = customer,
             customerPhone = "08011112222",
-            garmentLabel = "Agbada",
+            garment = GarmentSummary(GarmentType.AGBADA),
             balanceAmount = 0.0,
             daysCount = 0
         )

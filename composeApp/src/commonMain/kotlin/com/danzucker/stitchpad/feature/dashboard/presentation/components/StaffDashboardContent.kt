@@ -48,16 +48,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.feature.dashboard.domain.FocusQueue
 import com.danzucker.stitchpad.feature.dashboard.domain.StaffPipelineCounts
 import com.danzucker.stitchpad.feature.dashboard.domain.UrgencyLevel
 import com.danzucker.stitchpad.feature.dashboard.domain.computeFocusQueue
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
+import com.danzucker.stitchpad.feature.dashboard.domain.model.GarmentSummary
 import com.danzucker.stitchpad.feature.dashboard.domain.model.PipelineStage
 import com.danzucker.stitchpad.feature.dashboard.domain.orderCodeFor
 import com.danzucker.stitchpad.feature.dashboard.domain.resolveUrgencyLevel
 import com.danzucker.stitchpad.feature.dashboard.presentation.DashboardAction
 import com.danzucker.stitchpad.feature.dashboard.presentation.DashboardState
+import com.danzucker.stitchpad.feature.dashboard.presentation.model.garmentSummaryLabel
 import com.danzucker.stitchpad.ui.components.LoadingDots
 import com.danzucker.stitchpad.ui.components.StageDots
 import com.danzucker.stitchpad.ui.components.StitchPadButton
@@ -611,7 +614,7 @@ private fun UpNextHero(
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                         Text(
-                            text = row.primaryLabel,
+                            text = garmentSummaryLabel(row.garment),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -797,7 +800,7 @@ private fun TicketRow(
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        text = row.primaryLabel,
+                        text = garmentSummaryLabel(row.garment),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -976,14 +979,14 @@ private fun StaffAllCaughtUp() {
 private fun previewRow(
     orderId: String,
     customerName: String,
-    primaryLabel: String,
+    garment: GarmentSummary,
     stage: PipelineStage,
     daysLate: Int? = null,
     daysUntilDeadline: Int? = null,
 ) = DashboardOrderRow(
     orderId = orderId,
     customerName = customerName,
-    primaryLabel = primaryLabel,
+    garment = garment,
     daysLate = daysLate,
     daysUntilDeadline = daysUntilDeadline,
     assignedMemberId = "uid-gabby",
@@ -991,21 +994,21 @@ private fun previewRow(
     stage = stage,
 )
 
-// Garment labels mirror BucketCalculator.garmentLabel()'s real production format
-// (plain name, "· Qty N" only when N > 1) — a preview must render what production
+// Garment summaries mirror BucketCalculator's real production data
+// (rendered as plain name, "· Qty N" only when N > 1) — a preview must render what production
 // can actually produce, not a hand-typed shape it can't (design review, PR #366).
 private val previewStaffOpenQueue = listOf(
     previewRow(
         orderId = "ord-c3d4",
         customerName = "Chidi Okafor",
-        primaryLabel = "Agbada",
+        garment = GarmentSummary(GarmentType.AGBADA),
         stage = PipelineStage.CUTTING,
         daysLate = 2,
     ),
     previewRow(
         orderId = "ord-a1b2",
         customerName = "Amaka Nwosu",
-        primaryLabel = "Kaftan · Qty 2",
+        garment = GarmentSummary(GarmentType.KAFTAN, quantity = 2),
         stage = PipelineStage.SEWING,
         daysUntilDeadline = 1,
     ),
@@ -1014,14 +1017,14 @@ private val previewStaffOpenQueue = listOf(
     previewRow(
         orderId = "ord-9f8e",
         customerName = "Tunde Bakare",
-        primaryLabel = "Senator suit",
+        garment = GarmentSummary(GarmentType.OTHER, customName = "Senator suit"),
         stage = PipelineStage.FITTING,
         daysUntilDeadline = 6,
     ).copy(assignedMemberId = "uid-tunde", assignedMemberName = "Tunde B."),
     previewRow(
         orderId = "ord-7c6d",
         customerName = "Bola Adeyemi",
-        primaryLabel = "Gown",
+        garment = GarmentSummary(GarmentType.OTHER, customName = "Gown"),
         stage = PipelineStage.PENDING,
     ).copy(assignedMemberId = null, assignedMemberName = null),
 )
@@ -1038,7 +1041,7 @@ private val previewStaffState = DashboardState(
         previewRow(
             orderId = "1",
             customerName = "Chidi O.",
-            primaryLabel = "Agbada",
+            garment = GarmentSummary(GarmentType.AGBADA),
             stage = PipelineStage.CUTTING,
             daysLate = 2,
         ),

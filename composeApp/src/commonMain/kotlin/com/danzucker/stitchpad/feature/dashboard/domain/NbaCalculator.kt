@@ -3,9 +3,9 @@ package com.danzucker.stitchpad.feature.dashboard.domain
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
-import com.danzucker.stitchpad.core.domain.model.displayGarmentName
-import com.danzucker.stitchpad.feature.dashboard.domain.internal.simpleLabel
 import com.danzucker.stitchpad.feature.dashboard.domain.internal.toLocalDate
+import com.danzucker.stitchpad.feature.dashboard.domain.model.GarmentSummary
+import com.danzucker.stitchpad.feature.dashboard.domain.model.toGarmentSummary
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestAction
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestActionType
 import kotlinx.datetime.LocalDate
@@ -48,7 +48,7 @@ object NbaCalculator {
             if (order.status == OrderStatus.DELIVERED) return@forEach
             val customer = customersById[order.customerId] ?: return@forEach
             if (customer.phone.isBlank()) return@forEach
-            val garment = order.items.firstOrNull()?.displayGarmentName { it.simpleLabel() }.orEmpty()
+            val garment = order.items.firstOrNull()?.toGarmentSummary()
             val deadlineDate = order.deadline?.toLocalDate(timeZone)
             val daysUntilDeadline = deadlineDate?.let { today.daysUntil(it) }
             // Computed once per order — only READY / IN_PROGRESS branches consume it. Avoids the
@@ -137,7 +137,7 @@ object NbaCalculator {
         type: NextBestActionType,
         order: Order,
         customer: Customer,
-        garment: String,
+        garment: GarmentSummary?,
         balance: Double,
         days: Int
     ): NextBestAction = NextBestAction(
@@ -146,7 +146,7 @@ object NbaCalculator {
         customerId = customer.id,
         customerName = order.customerName.ifBlank { customer.name },
         customerPhone = customer.phone,
-        garmentLabel = garment,
+        garment = garment,
         balanceAmount = balance,
         currency = order.currency,
         daysCount = days

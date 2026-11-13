@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.dashboard.presentation.model
 
 import com.danzucker.stitchpad.core.domain.model.Currency
+import com.danzucker.stitchpad.feature.dashboard.domain.model.GarmentSummary
 
 /**
  * Discrete action types ranked by revenue impact (lowest ordinal = highest priority).
@@ -33,7 +34,8 @@ data class NextBestAction(
     val customerId: String,
     val customerName: String,
     val customerPhone: String,
-    val garmentLabel: String,
+    /** Lead garment; the card renders its localized name (quantity is not shown here). */
+    val garment: GarmentSummary?,
     val balanceAmount: Double,
     val daysCount: Int,
     val currency: Currency = Currency.NGN,

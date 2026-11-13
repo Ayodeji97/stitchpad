@@ -31,8 +31,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.sharing.formatMoney
+import com.danzucker.stitchpad.feature.dashboard.domain.model.GarmentSummary
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FirstOrderSetupUi
+import com.danzucker.stitchpad.feature.dashboard.presentation.model.garmentSummaryName
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
@@ -168,14 +171,15 @@ private fun AvatarBadge(initials: String) {
 
 @Composable
 private fun SubtitleLine(setup: FirstOrderSetupUi) {
-    val text = if (setup.garmentLabel.isNotBlank() && setup.totalAmount > 0.0) {
+    val garmentLabel = garmentSummaryName(setup.garment)
+    val text = if (garmentLabel.isNotBlank() && setup.totalAmount > 0.0) {
         stringResource(
             Res.string.order_setup_action_subtitle,
-            setup.garmentLabel,
+            garmentLabel,
             formatMoney(setup.totalAmount, setup.currency),
         )
-    } else if (setup.garmentLabel.isNotBlank()) {
-        setup.garmentLabel
+    } else if (garmentLabel.isNotBlank()) {
+        garmentLabel
     } else {
         // Fallback when garment label / total are unavailable — render nothing
         // useful here, so let the missing-fields line do the talking instead.
@@ -223,7 +227,7 @@ private fun OrderSetupActionCardBothMissingPreview() {
                 hasOrder = true,
                 hasDueDate = false,
                 hasDeposit = false,
-                garmentLabel = "Aso Oke blouse",
+                garment = GarmentSummary(GarmentType.OTHER, customName = "Aso Oke blouse"),
                 totalAmount = 200_000.0,
             ),
             onClick = {},
@@ -244,7 +248,7 @@ private fun OrderSetupActionCardMissingDepositPreview() {
                 hasOrder = true,
                 hasDueDate = true,
                 hasDeposit = false,
-                garmentLabel = "Senator",
+                garment = GarmentSummary(GarmentType.SENATOR),
                 totalAmount = 200_000.0,
             ),
             onClick = {},

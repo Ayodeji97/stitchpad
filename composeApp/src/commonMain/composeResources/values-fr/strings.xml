@@ -811,6 +811,7 @@
     <string name="dashboard_nba_cta_view_order">Voir la commande</string>
     <string name="dashboard_nba_cta_collect_deposit">Encaisser l'acompte</string>
     <string name="dashboard_nba_cta_open_order">Ouvrir la commande</string>
+    <string name="dashboard_garment_with_qty">%1$s · Qté %2$d</string>
     <string name="dashboard_nba_card_cd">%1$s. %2$s. Touchez %3$s.</string>
     <string name="dashboard_whatsapp_collect_ready">Bonjour %1$s, votre commande (%2$s) est prête à récupérer. Solde : %3$s. — %4$s</string>
     <string name="dashboard_whatsapp_collect_overdue">Bonjour %1$s, votre commande (%2$s) a %3$d j de retard sur la date de livraison. Solde restant : %4$s. — %5$s</string>

@@ -991,6 +991,7 @@
     <string name="dashboard_nba_cta_view_order">View order</string>
     <string name="dashboard_nba_cta_collect_deposit">Collect deposit</string>
     <string name="dashboard_nba_cta_open_order">Open order</string>
+    <string name="dashboard_garment_with_qty">%1$s · Qty %2$d</string>
     <string name="dashboard_nba_card_cd">%1$s. %2$s. Tap %3$s.</string>
     <!-- WhatsApp message templates -->
     <string name="dashboard_whatsapp_collect_ready">Hi %1$s, your %2$s order is ready for collection. Balance: %3$s. — %4$s</string>

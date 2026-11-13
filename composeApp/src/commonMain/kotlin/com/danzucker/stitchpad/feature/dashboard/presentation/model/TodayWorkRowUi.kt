@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.dashboard.presentation.model
 
 import androidx.compose.ui.graphics.Color
+import com.danzucker.stitchpad.feature.dashboard.domain.model.GarmentSummary
 
 /**
  * Triage bucket the row belongs to. Drives bucket-specific visual treatment
@@ -21,7 +22,7 @@ enum class TodayWorkBucket {
 data class TodayWorkRowUi(
     val orderId: String,
     val customerName: String,
-    val primaryLabel: String,
+    val garment: GarmentSummary?,
     val accentColor: Color,
     val chipText: String,
     val chipTextColor: Color,
@@ -50,14 +51,14 @@ data class TodayWorkRowUi(
         fun preview(
             orderId: String,
             customerName: String,
-            primaryLabel: String,
+            garment: GarmentSummary?,
             accent: Color,
             chip: String,
             bucket: TodayWorkBucket = TodayWorkBucket.Overdue,
         ) = TodayWorkRowUi(
             orderId = orderId,
             customerName = customerName,
-            primaryLabel = primaryLabel,
+            garment = garment,
             accentColor = accent,
             chipText = chip,
             chipTextColor = accent,

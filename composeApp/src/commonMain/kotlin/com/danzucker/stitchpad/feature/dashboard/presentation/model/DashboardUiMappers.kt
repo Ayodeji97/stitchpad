@@ -37,7 +37,7 @@ internal fun buildTodayWorkRows(
         TodayWorkRowUi(
             orderId = row.orderId,
             customerName = row.customerName,
-            primaryLabel = row.primaryLabel,
+            garment = row.garment,
             accentColor = accent,
             chipText = chipTextFor(row, label),
             chipTextColor = accent,

@@ -65,6 +65,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.presentation.localizedMonthName
 import com.danzucker.stitchpad.core.presentation.localizedWeekdayShort
@@ -72,6 +73,7 @@ import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.core.sharing.formatCompactMoney
 import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
+import com.danzucker.stitchpad.feature.dashboard.domain.model.GarmentSummary
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.BellButton
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.CommunityStrip
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.CustomerReadyCard
@@ -101,6 +103,8 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.model.NextBestActi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.WeeklyGoalPace
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.WeeklyGoalUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.buildTodayWorkRows
+import com.danzucker.stitchpad.feature.dashboard.presentation.model.garmentSummaryName
+import com.danzucker.stitchpad.feature.dashboard.presentation.model.garmentSummaryNameAsync
 import com.danzucker.stitchpad.feature.freemium.presentation.welcome.WelcomeEndingBanner
 import com.danzucker.stitchpad.feature.notification.push.PushPermissionController
 import com.danzucker.stitchpad.feature.onboarding.data.OnboardingPreferencesStore
@@ -1318,6 +1322,7 @@ private data class NbaPresentation(
 @Composable
 private fun nbaPresentationFor(action: NextBestAction): NbaPresentation {
     val isDark = LocalIsDarkTheme.current
+    val garment = garmentSummaryName(action.garment)
     val amount = formatMoney(action.balanceAmount, action.currency)
     return when (action.type) {
         NextBestActionType.CollectOverdue -> NbaPresentation(
@@ -1334,12 +1339,12 @@ private fun nbaPresentationFor(action: NextBestAction): NbaPresentation {
             secondaryLine = if (action.daysCount == 1) {
                 stringResource(
                     Res.string.dashboard_nba_collect_overdue_sub_one,
-                    action.garmentLabel
+                    garment
                 )
             } else {
                 stringResource(
                     Res.string.dashboard_nba_collect_overdue_sub,
-                    action.garmentLabel,
+                    garment,
                     action.daysCount
                 )
             },
@@ -1360,15 +1365,15 @@ private fun nbaPresentationFor(action: NextBestAction): NbaPresentation {
             secondaryLine = when (action.daysCount) {
                 0 -> stringResource(
                     Res.string.dashboard_nba_collect_ready_sub_today,
-                    action.garmentLabel
+                    garment
                 )
                 1 -> stringResource(
                     Res.string.dashboard_nba_collect_ready_sub_one,
-                    action.garmentLabel
+                    garment
                 )
                 else -> stringResource(
                     Res.string.dashboard_nba_collect_ready_sub,
-                    action.garmentLabel,
+                    garment,
                     action.daysCount
                 )
             },
@@ -1384,7 +1389,7 @@ private fun nbaPresentationFor(action: NextBestAction): NbaPresentation {
             primaryLine = stringResource(
                 Res.string.dashboard_nba_finish_stale_title,
                 firstNameOf(action.customerName).ifBlank { action.customerName },
-                action.garmentLabel
+                garment
             ),
             secondaryLine = stringResource(
                 Res.string.dashboard_nba_finish_stale_sub,
@@ -1404,7 +1409,7 @@ private fun nbaPresentationFor(action: NextBestAction): NbaPresentation {
             ),
             secondaryLine = stringResource(
                 Res.string.dashboard_nba_deliver_stale_sub,
-                action.garmentLabel,
+                garment,
                 action.daysCount
             ),
             ctaLabel = stringResource(Res.string.dashboard_nba_cta_view_order)
@@ -1426,7 +1431,7 @@ private fun nbaPresentationFor(action: NextBestAction): NbaPresentation {
             ),
             secondaryLine = stringResource(
                 Res.string.dashboard_nba_collect_deposit_sub,
-                action.garmentLabel,
+                garment,
                 amount
             ),
             ctaLabel = stringResource(Res.string.dashboard_nba_cta_collect_deposit),
@@ -1441,7 +1446,7 @@ private fun nbaPresentationFor(action: NextBestAction): NbaPresentation {
             primaryLine = stringResource(
                 Res.string.dashboard_nba_start_soon_title,
                 firstNameOf(action.customerName).ifBlank { action.customerName },
-                action.garmentLabel
+                garment
             ),
             secondaryLine = if (action.daysCount == 0) {
                 stringResource(Res.string.dashboard_nba_start_soon_sub_today)
@@ -1526,19 +1531,20 @@ private fun DashboardHeader(
 
 private suspend fun buildWhatsAppMessage(action: NextBestAction, signature: String): String {
     val firstName = firstNameOf(action.customerName).ifBlank { action.customerName }
+    val garment = garmentSummaryNameAsync(action.garment)
     val amount = formatMoney(action.balanceAmount, action.currency)
     return when (action.type) {
         NextBestActionType.CollectOnReady -> getString(
             Res.string.dashboard_whatsapp_collect_ready,
             firstName,
-            action.garmentLabel,
+            garment,
             amount,
             signature
         )
         NextBestActionType.CollectOverdue -> getString(
             Res.string.dashboard_whatsapp_collect_overdue,
             firstName,
-            action.garmentLabel,
+            garment,
             action.daysCount,
             amount,
             signature
@@ -1577,7 +1583,7 @@ private fun DashboardScreenFilledPreview() {
                     DashboardOrderRow(
                         orderId = "1",
                         customerName = "Fola Sunday",
-                        primaryLabel = "Corset",
+                        garment = GarmentSummary(GarmentType.CORSET),
                         daysLate = 4,
                         assignedMemberId = "staff-bisi",
                         assignedMemberName = "Bisi Adeyemi",
@@ -1587,13 +1593,13 @@ private fun DashboardScreenFilledPreview() {
                     DashboardOrderRow(
                         orderId = "2",
                         customerName = "Bimbo Dann",
-                        primaryLabel = "Dress",
+                        garment = GarmentSummary(GarmentType.DRESS),
                         assignedMemberId = "owner-1",
                         assignedMemberName = "Ade",
                     )
                 ),
                 ready = listOf(
-                    DashboardOrderRow("3", "Mr Tunde", "Senator")
+                    DashboardOrderRow("3", "Mr Tunde", GarmentSummary(GarmentType.SENATOR))
                 ),
                 outstandingAmount = 480_000.0,
                 outstandingOrderCount = 1,
@@ -1601,32 +1607,32 @@ private fun DashboardScreenFilledPreview() {
                     sampleNba(
                         type = NextBestActionType.CollectOverdue,
                         customer = "Mrs Adebayo",
-                        garment = "Senator",
+                        garment = GarmentSummary(GarmentType.SENATOR),
                         balance = 480_000.0,
                         days = 4
                     ),
                     sampleNba(
                         type = NextBestActionType.CollectOnReady,
                         customer = "Mr Tunde",
-                        garment = "Senator",
+                        garment = GarmentSummary(GarmentType.SENATOR),
                         balance = 120_000.0,
                         days = 2
                     ),
                     sampleNba(
                         type = NextBestActionType.CollectDeposit,
                         customer = "Mrs Ibe",
-                        garment = "Blouse",
+                        garment = GarmentSummary(GarmentType.BLOUSE),
                         balance = 60_000.0,
                         days = 1
                     )
                 ),
                 pipelineInProgress = listOf(
-                    DashboardOrderRow("p1", "Mr Femi", "Suit", daysUntilDeadline = 5),
-                    DashboardOrderRow("p2", "Mrs Chika", "Bridal Gown", daysUntilDeadline = 12)
+                    DashboardOrderRow("p1", "Mr Femi", GarmentSummary(GarmentType.SUIT), daysUntilDeadline = 5),
+                    DashboardOrderRow("p2", "Mrs Chika", GarmentSummary(GarmentType.BRIDAL_GOWN), daysUntilDeadline = 12)
                 ),
                 pipelineInProgressTotal = 2,
                 pipelinePending = listOf(
-                    DashboardOrderRow("p3", "Mr Kola", "Agbada", daysUntilDeadline = 9)
+                    DashboardOrderRow("p3", "Mr Kola", GarmentSummary(GarmentType.AGBADA), daysUntilDeadline = 9)
                 ),
                 pipelinePendingTotal = 4
             ),
@@ -1651,7 +1657,7 @@ private fun DashboardScreenAllNbaTypesPreview() {
                     sampleNba(
                         type = type,
                         customer = "Sample Customer",
-                        garment = "Senator",
+                        garment = GarmentSummary(GarmentType.SENATOR),
                         balance = 250_000.0,
                         days = 3
                     )
@@ -1675,14 +1681,14 @@ private fun DashboardScreenPipelineOnlyPreview() {
                 greeting = Greeting.MORNING,
                 todayDate = LocalDate(2026, 4, 22),
                 pipelineInProgress = listOf(
-                    DashboardOrderRow("p1", "Mrs Funke", "Senator", daysUntilDeadline = 6),
-                    DashboardOrderRow("p2", "Mr Tope", "Suit", daysUntilDeadline = 10)
+                    DashboardOrderRow("p1", "Mrs Funke", GarmentSummary(GarmentType.SENATOR), daysUntilDeadline = 6),
+                    DashboardOrderRow("p2", "Mr Tope", GarmentSummary(GarmentType.SUIT), daysUntilDeadline = 10)
                 ),
                 pipelineInProgressTotal = 2,
                 pipelinePending = listOf(
-                    DashboardOrderRow("p3", "Mrs Chika", "Dress", daysUntilDeadline = 14),
-                    DashboardOrderRow("p4", "Mr Kola", "Agbada"),
-                    DashboardOrderRow("p5", "Bimbo D.", "Two Piece", daysUntilDeadline = 21)
+                    DashboardOrderRow("p3", "Mrs Chika", GarmentSummary(GarmentType.DRESS), daysUntilDeadline = 14),
+                    DashboardOrderRow("p4", "Mr Kola", GarmentSummary(GarmentType.AGBADA)),
+                    DashboardOrderRow("p5", "Bimbo D.", GarmentSummary(GarmentType.OTHER, customName = "Two Piece"), daysUntilDeadline = 21)
                 ),
                 pipelinePendingTotal = 5
             ),
@@ -1722,7 +1728,7 @@ private fun DashboardScreenReadyForPickupPreview() {
                 greeting = Greeting.MORNING,
                 todayDate = LocalDate(2026, 4, 22),
                 ready = listOf(
-                    DashboardOrderRow("r1", "Ade Yinka", "Senator")
+                    DashboardOrderRow("r1", "Ade Yinka", GarmentSummary(GarmentType.SENATOR))
                 ),
                 outstandingAmount = 60_000.0,
                 outstandingOrderCount = 1,
@@ -1737,7 +1743,7 @@ private fun DashboardScreenReadyForPickupPreview() {
                     "Open Ade Yinka"
                 ),
                 pipelineInProgress = listOf(
-                    DashboardOrderRow("p1", "Mr Femi", "Suit", daysUntilDeadline = 5)
+                    DashboardOrderRow("p1", "Mr Femi", GarmentSummary(GarmentType.SUIT), daysUntilDeadline = 5)
                 ),
                 pipelineInProgressTotal = 1
             ),
@@ -1779,12 +1785,12 @@ private fun DashboardScreenEmptyNbaPreview() {
                 // nextBestActions is empty — exercises EmptyIllustrationCard for the NBA section
                 nextBestActions = emptyList(),
                 pipelineInProgress = listOf(
-                    DashboardOrderRow("p1", "Mr Femi", "Suit", daysUntilDeadline = 5),
-                    DashboardOrderRow("p2", "Mrs Chika", "Bridal Gown", daysUntilDeadline = 12)
+                    DashboardOrderRow("p1", "Mr Femi", GarmentSummary(GarmentType.SUIT), daysUntilDeadline = 5),
+                    DashboardOrderRow("p2", "Mrs Chika", GarmentSummary(GarmentType.BRIDAL_GOWN), daysUntilDeadline = 12)
                 ),
                 pipelineInProgressTotal = 2,
                 pipelinePending = listOf(
-                    DashboardOrderRow("p3", "Mr Kola", "Agbada", daysUntilDeadline = 9)
+                    DashboardOrderRow("p3", "Mr Kola", GarmentSummary(GarmentType.AGBADA), daysUntilDeadline = 9)
                 ),
                 pipelinePendingTotal = 3
             ),
@@ -1796,7 +1802,7 @@ private fun DashboardScreenEmptyNbaPreview() {
 private fun sampleNba(
     type: NextBestActionType,
     customer: String,
-    garment: String,
+    garment: GarmentSummary,
     balance: Double,
     days: Int
 ) = NextBestAction(
@@ -1805,7 +1811,7 @@ private fun sampleNba(
     customerId = "c-${type.name}",
     customerName = customer,
     customerPhone = "+2348012345678",
-    garmentLabel = garment,
+    garment = garment,
     balanceAmount = balance,
     daysCount = days
 )

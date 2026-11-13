@@ -6,7 +6,8 @@ import com.danzucker.stitchpad.feature.dashboard.domain.PipelinePaymentStatus
 data class DashboardOrderRow(
     val orderId: String,
     val customerName: String,
-    val primaryLabel: String,
+    /** Lead garment (first item). Null when the order has no items. Localized in presentation. */
+    val garment: GarmentSummary? = null,
     /** Positive number of days the order is overdue, or null when not overdue. */
     val daysLate: Int? = null,
     /** Positive number of days until the deadline (future only). Null otherwise. */

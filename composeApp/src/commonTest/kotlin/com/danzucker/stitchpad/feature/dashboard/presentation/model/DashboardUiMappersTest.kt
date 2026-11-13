@@ -1,6 +1,8 @@
 package com.danzucker.stitchpad.feature.dashboard.presentation.model
 
+import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
+import com.danzucker.stitchpad.feature.dashboard.domain.model.GarmentSummary
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -12,7 +14,7 @@ class DashboardUiMappersTest {
     private fun row(
         id: String = "o",
         customerName: String = "Test Customer",
-        primaryLabel: String = "Senator",
+        garment: GarmentSummary? = GarmentSummary(GarmentType.SENATOR),
         daysLate: Int? = null,
         daysUntilDeadline: Int? = null,
         assignedMemberId: String? = null,
@@ -20,7 +22,7 @@ class DashboardUiMappersTest {
     ) = DashboardOrderRow(
         orderId = id,
         customerName = customerName,
-        primaryLabel = primaryLabel,
+        garment = garment,
         daysLate = daysLate,
         daysUntilDeadline = daysUntilDeadline,
         assignedMemberId = assignedMemberId,
@@ -115,15 +117,15 @@ class DashboardUiMappersTest {
     }
 
     @Test
-    fun buildTodayWorkRowsPreservesCustomerNameAndPrimaryLabel() {
+    fun buildTodayWorkRowsPreservesCustomerNameAndGarment() {
         val rows = buildTodayWorkRows(
-            overdue = listOf(row("o1", customerName = "Ada Obi", primaryLabel = "Bridal Gown", daysLate = 1)),
+            overdue = listOf(row("o1", customerName = "Ada Obi", garment = GarmentSummary(GarmentType.BRIDAL_GOWN), daysLate = 1)),
             dueToday = emptyList(),
             ready = emptyList(),
         )
         val single = rows.single()
         assertEquals("Ada Obi", single.customerName)
-        assertEquals("Bridal Gown", single.primaryLabel)
+        assertEquals(GarmentSummary(GarmentType.BRIDAL_GOWN), single.garment)
     }
 
     // — assignee resolution —
