@@ -116,6 +116,17 @@ class CustomerFormViewModelTest {
         assertEquals(Country.KE, vm.state.value.country)
     }
 
+    @Test
+    fun capSheetProPriceIsLabelledForTheWorkshopCurrency() = runTest {
+        countryProvider = FakeCurrentCountryProvider(Country.NG)
+        val vm = createViewModel()
+        assertEquals("₦2,000", vm.state.value.upgradeCtaPrice)
+
+        // Outside Nigeria the real Paystack amount stays in Naira, labelled by ISO code.
+        countryProvider.load(Country.SN)
+        assertEquals("NGN 2,000", vm.state.value.upgradeCtaPrice)
+    }
+
     /**
      * Minimal [EntitlementsProvider] stub for tests that don't exercise the
      * cap-reached path. Defaults to FREE / 15-cap so the values are

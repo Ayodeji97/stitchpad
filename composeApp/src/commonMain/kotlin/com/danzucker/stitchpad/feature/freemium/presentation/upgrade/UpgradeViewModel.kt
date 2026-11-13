@@ -8,11 +8,15 @@ import com.danzucker.stitchpad.core.config.domain.repository.AppConfigRepository
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.legal.LegalUrls
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
+import com.danzucker.stitchpad.core.domain.session.CurrentCountryProvider
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.freemium.domain.BillingCadence
 import com.danzucker.stitchpad.feature.freemium.domain.CheckoutOutcome
 import com.danzucker.stitchpad.feature.freemium.domain.PaymentRepository
+import com.danzucker.stitchpad.feature.freemium.presentation.isBilledInForeignCurrency
+import com.danzucker.stitchpad.feature.freemium.presentation.paystackPlanPriceText
 import com.danzucker.stitchpad.feature.freemium.presentation.toUiText
 import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 import com.danzucker.stitchpad.util.Platform
@@ -32,6 +36,7 @@ class UpgradeViewModel(
     pendingDeepLink: PendingDeepLinkHolder,
     private val analytics: Analytics,
     appConfigRepository: AppConfigRepository,
+    currentCountryProvider: CurrentCountryProvider,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(initialState(entitlements, pendingDeepLink))
@@ -73,12 +78,28 @@ class UpgradeViewModel(
         // Track the server billing kill switch so the Paystack CTA flips from
         // "Coming soon" to live the moment config/app.billingEnabled is set true —
         // no app release. Default AppConfig.Disabled keeps billingEnabled false.
+        // Paystack prices are NGN-only; re-format them whenever the active workshop's
+        // country (and so its currency) resolves or changes.
+        viewModelScope.launch {
+            currentCountryProvider.country.collect { country ->
+                _state.update { it.withPaystackPrices(country.currency) }
+            }
+        }
+
         viewModelScope.launch {
             appConfigRepository.config.collect { cfg ->
                 _state.update { it.copy(billingEnabled = cfg.billingEnabled) }
             }
         }
     }
+
+    private fun UpgradeState.withPaystackPrices(workshopCurrency: Currency): UpgradeState = copy(
+        paystackPrices = SubscriptionTier.entries
+            .mapNotNull { tier -> paystackPlanPriceText(tier, workshopCurrency)?.let { tier to it } }
+            .toMap(),
+        showBillingCurrencyNote = checkoutProvider == CheckoutProvider.PAYSTACK &&
+            isBilledInForeignCurrency(workshopCurrency),
+    )
 
     private fun SubscriptionTier.isHigherThan(other: SubscriptionTier): Boolean =
         ordinal > other.ordinal

@@ -217,7 +217,7 @@
     <string name="cap_reached_sheet_title">Prêt(e) à développer votre atelier ?</string>
     <string name="cap_reached_sheet_stat">Clients actifs : %1$d sur %2$d</string>
     <string name="cap_reached_sheet_pro_tier">Tailor Pro</string>
-    <string name="cap_reached_sheet_price">₦2 000/mois</string>
+    <string name="cap_reached_sheet_price">%1$s/mois</string>
     <string name="cap_reached_sheet_benefit_unlimited">Clients illimités</string>
     <string name="cap_reached_sheet_benefit_drafts">50 Smart drafts par mois</string>
     <string name="cap_reached_sheet_benefit_cancel">Annuler à tout moment</string>
@@ -692,7 +692,6 @@
     <string name="order_record_payment_confirm">Enregistrer</string>
     <string name="order_record_payment_cancel">Annuler</string>
     <string name="order_record_payment_snackbar_success">Paiement enregistré</string>
-    <string name="currency_naira">₦%1$s</string>
     <string name="cd_notifications">Notifications</string>
     <string name="cd_notifications_with_count">Notifications, %1$s non lues</string>
     <string name="cd_open_settings">Ouvrir les paramètres</string>
@@ -1284,7 +1283,7 @@
     <string name="plan_card_title_locked">Vous ne pouvez pas ajouter de nouveaux clients</string>
     <string name="plan_card_subtitle_locked">Passez à l'offre supérieure pour continuer à grandir — vos clients actuels restent en sécurité, sans changement.</string>
     <string name="plan_card_cta_upgrade">Passer à l'offre supérieure</string>
-    <string name="plan_card_cta_upgrade_priced">Passer à l'offre supérieure — ₦%1$s/mois</string>
+    <string name="plan_card_cta_upgrade_priced">Passer à l'offre supérieure — %1$s/mois</string>
     <string name="plan_card_cta_upgrade_now">Passer à l'offre supérieure</string>
     <string name="plan_card_cta_compare">Comparer les offres</string>
     <string name="plan_card_first_month_pill_one">Premier mois · 1 jour restant</string>
@@ -1329,11 +1328,7 @@
     <string name="plan_card_customer_unlimited">Clients illimités</string>
     <string name="upgrade_screen_title">Changer d'offre</string>
     <string name="upgrade_pro_name">Tailor Pro</string>
-    <string name="upgrade_pro_price">₦2 000 / mois</string>
-    <string name="upgrade_pro_annual">ou ₦20 000 / an (₦4 000 d'économie)</string>
     <string name="upgrade_atelier_name">Tailor Atelier</string>
-    <string name="upgrade_atelier_price">₦4 000 / mois</string>
-    <string name="upgrade_atelier_annual">ou ₦40 000 / an (₦8 000 d'économie)</string>
     <string name="upgrade_cadence_monthly">Mensuel</string>
     <string name="upgrade_cadence_annual">Annuel</string>
     <string name="upgrade_pay_with_paystack">Payer avec Paystack</string>
@@ -1344,6 +1339,9 @@
     <string name="upgrade_terms_apple">Abonnement renouvelé automatiquement, facturé via votre identifiant Apple. Résiliable à tout moment dans les Réglages de l'appareil.</string>
     <string name="upgrade_purchase_pending">Votre achat est en attente de validation. Votre offre sera débloquée dès sa confirmation.</string>
     <string name="upgrade_price_loading">Chargement du prix…</string>
+    <string name="upgrade_price_monthly">%1$s / mois</string>
+    <string name="upgrade_price_annual_hint">ou %1$s / an (%2$s d'économie)</string>
+    <string name="upgrade_billing_currency_note">Les abonnements sont facturés en naira nigérian (NGN).</string>
     <string name="upgrade_billed_monthly">Facturé chaque mois, renouvellement automatique</string>
     <string name="upgrade_billed_annually">Facturé chaque année, renouvellement automatique</string>
     <string name="upgrade_restore">Restaurer les achats</string>

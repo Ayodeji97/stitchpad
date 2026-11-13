@@ -142,7 +142,7 @@ fun PlanCard(
     welcomeDaysLeft: Int?,
     onUpgradeClick: () -> Unit,
     modifier: Modifier = Modifier,
-    upgradePriceNgn: String = "2,000",
+    upgradePrice: String? = null,
     subscriptionStatus: SubscriptionStatus? = null,
 ) {
     // Any paid tier short-circuits to the "you're on Pro/Atelier" card regardless of
@@ -176,7 +176,7 @@ fun PlanCard(
             aiRatio > WARN_THRESHOLD_RATIO -> PlanCardAiWarn(
                 isFirstMonth = true,
                 aiDraftsLeft = (aiDraftLimit ?: 0) - aiDraftsUsed,
-                upgradePriceNgn = upgradePriceNgn,
+                upgradePrice = upgradePrice,
                 onUpgradeClick = onUpgradeClick,
                 modifier = modifier,
             )
@@ -216,14 +216,14 @@ fun PlanCard(
         aiRatio > WARN_THRESHOLD_RATIO && aiRatio >= customerRatio -> PlanCardAiWarn(
             isFirstMonth = false,
             aiDraftsLeft = (aiDraftLimit ?: 0) - aiDraftsUsed,
-            upgradePriceNgn = upgradePriceNgn,
+            upgradePrice = upgradePrice,
             onUpgradeClick = onUpgradeClick,
             modifier = modifier,
         )
         customerRatio > WARN_THRESHOLD_RATIO -> PlanCardCustomerWarn(
             customersLeft = (customerLimit ?: 0) - customerCount,
             onUpgradeClick = onUpgradeClick,
-            upgradePriceNgn = upgradePriceNgn,
+            upgradePrice = upgradePrice,
             modifier = modifier,
         )
         else -> PlanCardInline(
@@ -233,6 +233,14 @@ fun PlanCard(
             modifier = modifier,
         )
     }
+}
+
+/** "Upgrade — ₦2,000/mo" when a price applies to this workshop, else the neutral "Upgrade". */
+@Composable
+private fun upgradeCtaText(upgradePrice: String?): String = if (upgradePrice != null) {
+    stringResource(Res.string.plan_card_cta_upgrade_priced, upgradePrice)
+} else {
+    stringResource(Res.string.plan_card_cta_upgrade)
 }
 
 private fun ratioOf(used: Int, limit: Int?): Float = limit?.let {
@@ -471,7 +479,7 @@ private fun PlanCardPaid(
 private fun PlanCardCustomerWarn(
     customersLeft: Int,
     onUpgradeClick: () -> Unit,
-    upgradePriceNgn: String,
+    upgradePrice: String?,
     modifier: Modifier = Modifier,
 ) {
     PlanHeroFrame(
@@ -495,7 +503,7 @@ private fun PlanCardCustomerWarn(
             customersLeft,
         ),
         subtitle = stringResource(Res.string.plan_card_subtitle_warn),
-        primaryCtaText = stringResource(Res.string.plan_card_cta_upgrade_priced, upgradePriceNgn),
+        primaryCtaText = upgradeCtaText(upgradePrice),
         onPrimaryCta = onUpgradeClick,
         ghostCtaText = stringResource(Res.string.plan_card_cta_compare),
         onGhostCta = onUpgradeClick,
@@ -539,7 +547,7 @@ private fun PlanCardCustomerLocked(
 private fun PlanCardAiWarn(
     isFirstMonth: Boolean,
     aiDraftsLeft: Int,
-    upgradePriceNgn: String,
+    upgradePrice: String?,
     onUpgradeClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -576,7 +584,7 @@ private fun PlanCardAiWarn(
                 Res.string.plan_card_subtitle_ai_warn_free
             },
         ),
-        primaryCtaText = stringResource(Res.string.plan_card_cta_upgrade_priced, upgradePriceNgn),
+        primaryCtaText = upgradeCtaText(upgradePrice),
         onPrimaryCta = onUpgradeClick,
         ghostCtaText = stringResource(Res.string.plan_card_cta_compare),
         onGhostCta = onUpgradeClick,

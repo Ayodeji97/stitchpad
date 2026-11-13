@@ -36,9 +36,11 @@ import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
 import com.danzucker.stitchpad.feature.auth.domain.SignInProvider
 import com.danzucker.stitchpad.feature.auth.domain.SignOutUseCase
 import com.danzucker.stitchpad.feature.auth.presentation.toUiText
+import com.danzucker.stitchpad.feature.freemium.presentation.upgradeCtaPrice
 import com.danzucker.stitchpad.feature.notification.push.PushPermissionController
 import com.danzucker.stitchpad.feature.review.domain.StoreReviewLauncher
 import com.danzucker.stitchpad.feature.settings.domain.resolveSubscriptionStatus
+import com.danzucker.stitchpad.util.Platform
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -170,8 +172,19 @@ class SettingsViewModel(
     private val appVersionLabel: String =
         currentAppBuildNumber?.let { "$currentAppVersion ($it)" } ?: currentAppVersion
 
-    val state = combine(settingsStateFlow(), hubEnabledFlow, isOwnerFlow) { settings, hubEnabled, isOwner ->
-        settings.copy(settingsHubEnabled = hubEnabled, isOwner = isOwner, appVersionLabel = appVersionLabel)
+    val state = combine(
+        settingsStateFlow(),
+        hubEnabledFlow,
+        isOwnerFlow,
+        currentCountryProvider.country,
+    ) { settings, hubEnabled, isOwner, country ->
+        settings.copy(
+            settingsHubEnabled = hubEnabled,
+            isOwner = isOwner,
+            appVersionLabel = appVersionLabel,
+            // Paystack prices are NGN-only and never converted; iOS bills via Apple.
+            upgradeCtaPrice = upgradeCtaPrice(isAppleCheckout = Platform.isIos, workshopCurrency = country.currency),
+        )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),

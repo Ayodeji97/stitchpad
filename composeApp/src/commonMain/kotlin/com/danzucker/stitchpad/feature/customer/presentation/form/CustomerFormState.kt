@@ -21,4 +21,9 @@ data class CustomerFormState(
     val isPhoneCountrySelected: Boolean = false,
     /** Defaults to the tailor country; selecting a customer prefix never updates the workshop. */
     val country: Country = Country.DEFAULT,
+    /**
+     * Pro monthly price for the customer-cap sheet, formatted for the WORKSHOP's currency
+     * (not [country], which may be a customer's phone prefix). Null hides it (iOS).
+     */
+    val upgradeCtaPrice: String? = null,
 )

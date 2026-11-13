@@ -250,6 +250,7 @@ private fun SettingsLandingLegacy(
             welcomeDaysLeft = state.welcomeDaysLeft,
             onUpgradeClick = { onAction(SettingsAction.OnUpgradeClick) },
             modifier = Modifier,
+            upgradePrice = state.upgradeCtaPrice,
             subscriptionStatus = state.subscriptionStatus,
         )
     }
@@ -588,6 +589,7 @@ private fun SettingsLandingHub(
             welcomeDaysLeft = state.welcomeDaysLeft,
             onUpgradeClick = { onAction(SettingsAction.OnUpgradeClick) },
             modifier = Modifier,
+            upgradePrice = state.upgradeCtaPrice,
             subscriptionStatus = state.subscriptionStatus,
         )
     }
