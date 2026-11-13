@@ -1628,7 +1628,12 @@ private fun DashboardScreenFilledPreview() {
                 ),
                 pipelineInProgress = listOf(
                     DashboardOrderRow("p1", "Mr Femi", GarmentSummary(GarmentType.SUIT), daysUntilDeadline = 5),
-                    DashboardOrderRow("p2", "Mrs Chika", GarmentSummary(GarmentType.BRIDAL_GOWN), daysUntilDeadline = 12)
+                    DashboardOrderRow(
+                        "p2",
+                        "Mrs Chika",
+                        GarmentSummary(GarmentType.BRIDAL_GOWN),
+                        daysUntilDeadline = 12
+                    )
                 ),
                 pipelineInProgressTotal = 2,
                 pipelinePending = listOf(
@@ -1688,7 +1693,12 @@ private fun DashboardScreenPipelineOnlyPreview() {
                 pipelinePending = listOf(
                     DashboardOrderRow("p3", "Mrs Chika", GarmentSummary(GarmentType.DRESS), daysUntilDeadline = 14),
                     DashboardOrderRow("p4", "Mr Kola", GarmentSummary(GarmentType.AGBADA)),
-                    DashboardOrderRow("p5", "Bimbo D.", GarmentSummary(GarmentType.OTHER, customName = "Two Piece"), daysUntilDeadline = 21)
+                    DashboardOrderRow(
+                        "p5",
+                        "Bimbo D.",
+                        GarmentSummary(GarmentType.OTHER, customName = "Two Piece"),
+                        daysUntilDeadline = 21
+                    )
                 ),
                 pipelinePendingTotal = 5
             ),
@@ -1786,7 +1796,12 @@ private fun DashboardScreenEmptyNbaPreview() {
                 nextBestActions = emptyList(),
                 pipelineInProgress = listOf(
                     DashboardOrderRow("p1", "Mr Femi", GarmentSummary(GarmentType.SUIT), daysUntilDeadline = 5),
-                    DashboardOrderRow("p2", "Mrs Chika", GarmentSummary(GarmentType.BRIDAL_GOWN), daysUntilDeadline = 12)
+                    DashboardOrderRow(
+                        "p2",
+                        "Mrs Chika",
+                        GarmentSummary(GarmentType.BRIDAL_GOWN),
+                        daysUntilDeadline = 12
+                    )
                 ),
                 pipelineInProgressTotal = 2,
                 pipelinePending = listOf(

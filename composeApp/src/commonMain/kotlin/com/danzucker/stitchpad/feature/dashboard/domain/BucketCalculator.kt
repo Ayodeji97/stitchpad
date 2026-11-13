@@ -7,8 +7,8 @@ import com.danzucker.stitchpad.feature.dashboard.domain.internal.toLocalDate
 import com.danzucker.stitchpad.feature.dashboard.domain.model.Buckets
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
 import com.danzucker.stitchpad.feature.dashboard.domain.model.GarmentSummary
-import com.danzucker.stitchpad.feature.dashboard.domain.model.toGarmentSummary
 import com.danzucker.stitchpad.feature.dashboard.domain.model.stageOf
+import com.danzucker.stitchpad.feature.dashboard.domain.model.toGarmentSummary
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.daysUntil

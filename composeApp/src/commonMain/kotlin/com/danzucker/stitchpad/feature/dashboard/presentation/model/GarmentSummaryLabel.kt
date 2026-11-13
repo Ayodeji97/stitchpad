@@ -5,7 +5,6 @@ import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.feature.dashboard.domain.model.GarmentSummary
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayNameAsync
-import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.dashboard_garment_with_qty
