@@ -13,6 +13,8 @@ Rules:
 
 LANGUAGE RULES (critical):
 - If the user asks for English, write in standard professional English.
+- If the user asks for French, write the ENTIRE message in natural professional French.
+  Use clear tailoring vocabulary, address the customer with vous, and preserve all supplied amounts and currencies.
 - If the user asks for Nigerian Pidgin, write the ENTIRE message in casual
   Nigerian Pidgin — NOT polished English with a Nigerian accent. Use real
   Pidgin grammar and markers: "don" (have/has), "dey" (is/are/-ing),
@@ -35,6 +37,7 @@ const INTENT_LABELS: Record<IntentType, string> = {
 
 const LANGUAGE_LABELS: Record<Language, string> = {
   en: 'English',
+  fr: 'French',
   pcm: 'Pidgin (Nigerian)',
 };
 

@@ -1,3 +1,4 @@
+import { serverLanguage } from '../localization/language';
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { buildVerificationEmailHtml } from './verificationEmailTemplate';
@@ -23,7 +24,7 @@ export interface SendVerificationResult {
 export interface VerificationEmailIO {
   getUser(uid: string): Promise<{ email?: string; displayName?: string; emailVerified: boolean }>;
   generateLink(email: string): Promise<string>;
-  sendEmail(params: { to: string; displayName?: string; verifyLink: string }): Promise<void>;
+  sendEmail(params: { to: string; displayName?: string; verifyLink: string; locale?: string }): Promise<void>;
   /**
    * Atomically reserves a send for this uid, returning false if one happened
    * within the throttle window. The server-side rate limit.
@@ -41,6 +42,7 @@ export interface VerificationEmailIO {
 export async function sendVerificationEmailHandler(
   context: functions.https.CallableContext,
   io: VerificationEmailIO,
+  locale?: unknown,
 ): Promise<SendVerificationResult> {
   const uid = context.auth?.uid;
   if (!uid) {
@@ -62,7 +64,8 @@ export async function sendVerificationEmailHandler(
 
   try {
     const verifyLink = rewriteActionLinkHost(await io.generateLink(user.email));
-    await io.sendEmail({ to: user.email, displayName: user.displayName, verifyLink });
+    await io.sendEmail({ to: user.email, displayName: user.displayName, verifyLink,
+      ...(serverLanguage(locale) === 'fr' ? { locale: 'fr' } : {}), });
   } catch (err) {
     // Release the reservation so a genuine delivery failure doesn't lock the
     // user out of retrying for the full throttle window.
@@ -79,10 +82,10 @@ export async function sendVerificationEmailHandler(
 
 async function sendViaResend(
   apiKey: string,
-  params: { to: string; displayName?: string; verifyLink: string },
+  params: { to: string; displayName?: string; verifyLink: string; locale?: string },
 ): Promise<void> {
-  const html = buildVerificationEmailHtml({ displayName: params.displayName, verifyLink: params.verifyLink });
-  await sendResendEmail(apiKey, { to: params.to, subject: SUBJECT, html });
+  const html = buildVerificationEmailHtml({ displayName: params.displayName, verifyLink: params.verifyLink, locale: params.locale });
+  await sendResendEmail(apiKey, { to: params.to, subject: serverLanguage(params.locale) === 'fr' ? 'Confirmez votre adresse e-mail StitchPad' : SUBJECT, html });
 }
 
 function productionIO(apiKey: string): VerificationEmailIO {
@@ -128,11 +131,11 @@ function productionIO(apiKey: string): VerificationEmailIO {
 export const sendVerificationEmail = functions
   .region(REGION)
   .runWith({ secrets: ['RESEND_API_KEY'] })
-  .https.onCall(async (_data, context) => {
+  .https.onCall(async (data, context) => {
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) {
       functions.logger.error('RESEND_API_KEY secret is not configured');
       throw new functions.https.HttpsError('failed-precondition', 'email_not_configured');
     }
-    return sendVerificationEmailHandler(context, productionIO(apiKey));
+    return sendVerificationEmailHandler(context, productionIO(apiKey), data?.locale);
   });

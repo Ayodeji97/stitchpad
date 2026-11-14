@@ -174,7 +174,7 @@ describe('draftMessageHandler', () => {
   it('rejects with invalid-argument when language is unsupported (no quota burned)', async () => {
     const fs = fakeFirestore({});
     await expect(
-      handler({ ...validRequest, language: 'fr' as any }, baseContext as any, fs),
+      handler({ ...validRequest, language: 'es' as any }, baseContext as any, fs),
     ).rejects.toMatchObject({ code: 'invalid-argument' });
     expect(fs.reserveFreeTierSlot).not.toHaveBeenCalled();
     expect(fakeVertex.generateText).not.toHaveBeenCalled();

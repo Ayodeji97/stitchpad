@@ -122,6 +122,13 @@ class MeasurementPreviewTest {
     }
 
     @Test
+    fun sanitizeMeasurementInput_keepsSlashSeparatorAndDecimalComma() {
+        // Slash separates segments so the comma is free to be a French decimal mark.
+        assertEquals("40 / 38,5", sanitizeMeasurementInput("40 / 38,5"))
+        assertEquals("16,5", sanitizeMeasurementInput("16,5cm"))
+    }
+
+    @Test
     fun isPersistableMeasurementValue_matchesTheOldPositiveNumberGate() {
         assertTrue(isPersistableMeasurementValue("36"))
         assertTrue(isPersistableMeasurementValue("0.5"))
@@ -130,5 +137,14 @@ class MeasurementPreviewTest {
         assertFalse(isPersistableMeasurementValue("."))
         assertFalse(isPersistableMeasurementValue("0"))
         assertFalse(isPersistableMeasurementValue("0.0"))
+    }
+
+    @Test
+    fun isPersistableMeasurementValue_acceptsDecimalCommaAndSlashSegments() {
+        assertTrue(isPersistableMeasurementValue("0,5"))
+        assertTrue(isPersistableMeasurementValue("16,5"))
+        assertTrue(isPersistableMeasurementValue("40 / 38"))
+        assertFalse(isPersistableMeasurementValue("0,0"))
+        assertFalse(isPersistableMeasurementValue("/"))
     }
 }

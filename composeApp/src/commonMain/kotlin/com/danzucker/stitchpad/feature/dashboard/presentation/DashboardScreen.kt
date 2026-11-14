@@ -66,6 +66,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danzucker.stitchpad.core.logging.AppLogger
+import com.danzucker.stitchpad.core.presentation.localizedMonthName
+import com.danzucker.stitchpad.core.presentation.localizedWeekdayShort
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.core.sharing.formatCompactMoney
 import com.danzucker.stitchpad.core.sharing.formatMoney
@@ -89,6 +91,7 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupSt
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.SetupStepStatus
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.StaffDashboardContent
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.TodayWorkCard
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.WorkshopEarningsCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.YoureOwedCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.FirstOrderSetupUi
@@ -163,6 +166,12 @@ import stitchpad.composeapp.generated.resources.dashboard_nba_quiet_title
 import stitchpad.composeapp.generated.resources.dashboard_nba_start_soon_sub
 import stitchpad.composeapp.generated.resources.dashboard_nba_start_soon_sub_today
 import stitchpad.composeapp.generated.resources.dashboard_nba_start_soon_title
+import stitchpad.composeapp.generated.resources.dashboard_nba_type_in_progress
+import stitchpad.composeapp.generated.resources.dashboard_nba_type_no_deposit
+import stitchpad.composeapp.generated.resources.dashboard_nba_type_overdue
+import stitchpad.composeapp.generated.resources.dashboard_nba_type_ready_to_deliver
+import stitchpad.composeapp.generated.resources.dashboard_nba_type_ready_unpaid
+import stitchpad.composeapp.generated.resources.dashboard_nba_type_starting_soon
 import stitchpad.composeapp.generated.resources.dashboard_quick_action_customer
 import stitchpad.composeapp.generated.resources.dashboard_quick_action_inspiration
 import stitchpad.composeapp.generated.resources.dashboard_quick_action_order
@@ -823,9 +832,19 @@ private fun DashboardContent(
             onInspirationClick = { onAction(DashboardAction.OnInspirationClick) },
         )
 
-        // 2. Illustrated focus card (null headline means no card to show)
+        val showEarnings = state.workshopEarnings.isNotEmpty() && !state.earningsCardDismissed
+        if (showEarnings) {
+            WorkshopEarningsCard(
+                earnings = state.workshopEarnings,
+                onDismiss = { onAction(DashboardAction.OnDismissEarningsCard) },
+                onViewOrders = { onAction(DashboardAction.OnViewAllOrdersClick) },
+            )
+        }
+
+        // Keep urgent/pickup guidance visible; other hero variants return after dismissal.
         val focusTitle = state.focusHeadline?.asString()
-        if (focusTitle != null) {
+        val keepFocusReminder = state.focusVariant == FocusVariant.Focus || state.focusVariant == FocusVariant.Pickup
+        if (focusTitle != null && (!showEarnings || keepFocusReminder)) {
             IllustratedFocusCard(
                 variant = state.focusVariant,
                 title = focusTitle,
@@ -1306,7 +1325,7 @@ private fun nbaPresentationFor(action: NextBestAction): NbaPresentation {
             accentBackground = if (isDark) DesignTokens.errorDarkBg else DesignTokens.error50,
             typeIcon = Icons.Default.Error,
             ctaIcon = Icons.Default.Notifications,
-            typeLabel = "Overdue",
+            typeLabel = stringResource(Res.string.dashboard_nba_type_overdue),
             primaryLine = stringResource(
                 Res.string.dashboard_nba_collect_overdue_title,
                 amount,
@@ -1332,7 +1351,7 @@ private fun nbaPresentationFor(action: NextBestAction): NbaPresentation {
             accentBackground = MaterialTheme.colorScheme.primaryContainer,
             typeIcon = Icons.Default.Payments,
             ctaIcon = Icons.Default.Notifications,
-            typeLabel = "Ready · Unpaid",
+            typeLabel = stringResource(Res.string.dashboard_nba_type_ready_unpaid),
             primaryLine = stringResource(
                 Res.string.dashboard_nba_collect_ready_title,
                 amount,
@@ -1361,7 +1380,7 @@ private fun nbaPresentationFor(action: NextBestAction): NbaPresentation {
             accentBackground = if (isDark) DesignTokens.warningDarkBg else DesignTokens.warning50,
             typeIcon = Icons.Default.Edit,
             ctaIcon = Icons.Default.Edit,
-            typeLabel = "In progress",
+            typeLabel = stringResource(Res.string.dashboard_nba_type_in_progress),
             primaryLine = stringResource(
                 Res.string.dashboard_nba_finish_stale_title,
                 firstNameOf(action.customerName).ifBlank { action.customerName },
@@ -1378,7 +1397,7 @@ private fun nbaPresentationFor(action: NextBestAction): NbaPresentation {
             accentBackground = if (isDark) DesignTokens.successDarkBg else DesignTokens.success50,
             typeIcon = Icons.Default.CheckCircle,
             ctaIcon = Icons.Default.CheckCircle,
-            typeLabel = "Ready to deliver",
+            typeLabel = stringResource(Res.string.dashboard_nba_type_ready_to_deliver),
             primaryLine = stringResource(
                 Res.string.dashboard_nba_deliver_stale_title,
                 action.customerName
@@ -1400,7 +1419,7 @@ private fun nbaPresentationFor(action: NextBestAction): NbaPresentation {
             accentBackground = MaterialTheme.colorScheme.primaryContainer,
             typeIcon = Icons.Default.Payments,
             ctaIcon = Icons.Default.Payments,
-            typeLabel = "No deposit",
+            typeLabel = stringResource(Res.string.dashboard_nba_type_no_deposit),
             primaryLine = stringResource(
                 Res.string.dashboard_nba_collect_deposit_title,
                 action.customerName
@@ -1418,7 +1437,7 @@ private fun nbaPresentationFor(action: NextBestAction): NbaPresentation {
             accentBackground = if (isDark) DesignTokens.warningDarkBg else DesignTokens.warning50,
             typeIcon = Icons.Default.Today,
             ctaIcon = Icons.Default.Today,
-            typeLabel = "Starting soon",
+            typeLabel = stringResource(Res.string.dashboard_nba_type_starting_soon),
             primaryLine = stringResource(
                 Res.string.dashboard_nba_start_soon_title,
                 firstNameOf(action.customerName).ifBlank { action.customerName },
@@ -1528,11 +1547,9 @@ private suspend fun buildWhatsAppMessage(action: NextBestAction, signature: Stri
     }
 }
 
-private fun LocalDate.formatFriendly(): String {
-    val day = dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }
-    val mon = month.name.lowercase().take(3).replaceFirstChar { it.uppercase() }
-    return "$day, $dayOfMonth $mon"
-}
+@Composable
+private fun LocalDate.formatFriendly(): String =
+    "${localizedWeekdayShort(dayOfWeek)}, $dayOfMonth ${localizedMonthName(monthNumber, short = true)}"
 
 @Suppress("UnusedPrivateMember")
 @Composable

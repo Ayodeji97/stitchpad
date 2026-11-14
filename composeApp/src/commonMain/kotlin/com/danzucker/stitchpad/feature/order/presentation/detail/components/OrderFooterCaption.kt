@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import com.danzucker.stitchpad.core.presentation.localizedMonthName
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import kotlinx.datetime.Instant
@@ -43,10 +44,11 @@ fun OrderFooterCaption(
     )
 }
 
+@Composable
 private fun formatShortDate(epochMillis: Long): String {
     val date = Instant.fromEpochMilliseconds(epochMillis)
         .toLocalDateTime(TimeZone.currentSystemDefault()).date
-    val month = date.month.name.lowercase().replaceFirstChar(Char::uppercase).take(3)
+    val month = localizedMonthName(date.monthNumber, short = true)
     return "${date.dayOfMonth} $month ${date.year}"
 }
 

@@ -40,22 +40,25 @@ fun Measurement.filledPreviewFields(
 
 /**
  * Keeps only the characters valid in a measurement value: digits, decimal points,
- * commas, and spaces. Tailors enter segmented lengths ("40, 45, 56") and half
- * sizes ("16.5"), so commas and multiple decimal points must survive — everything
- * else (letters, other punctuation) is stripped as the tailor types.
+ * commas, slashes, and spaces. Tailors enter segmented lengths ("40 / 45 / 56",
+ * or the older "40, 45, 56") and half sizes ("16.5", or "16,5" where the comma is
+ * the decimal mark, as in French), so these must survive — everything else
+ * (letters, other punctuation) is stripped as the tailor types. The slash is the
+ * unambiguous segment separator because a comma can also be a decimal mark.
  */
 fun sanitizeMeasurementInput(raw: String): String =
-    raw.filter { it.isDigit() || it == '.' || it == ',' || it == ' ' }
+    raw.filter { it.isDigit() || it == '.' || it == ',' || it == '/' || it == ' ' }
 
 /**
  * True when a measurement value is worth persisting / showing. Mirrors the old
  * "> 0.0" gate for plain numbers (drops "", ".", "0", "0.0", keeps "0.5", "36")
- * while accepting free-form segmented values ("40, 45, 56") — anything that
+ * while accepting free-form segmented values ("40 / 45 / 56", "40, 45, 56") — anything that
  * carries at least one meaningful digit.
  */
 fun isPersistableMeasurementValue(value: String): Boolean {
     val trimmed = value.trim()
     if (trimmed.isEmpty()) return false
-    val asNumber = trimmed.toDoubleOrNull()
+    // Accept the comma as a decimal mark ("0,5", "16,5") so French values pass the same gate.
+    val asNumber = trimmed.replace(',', '.').toDoubleOrNull()
     return if (asNumber != null) asNumber > 0.0 else trimmed.any { it.isDigit() }
 }

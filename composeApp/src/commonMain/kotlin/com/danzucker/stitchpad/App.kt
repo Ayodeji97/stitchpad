@@ -27,6 +27,7 @@ fun App() {
     // ensureRunning() is a no-op call that guarantees the side effect of Koin
     // instantiating the object. See ReconcileCoordinator for the full rationale
     // (V1.0 design spec decision #4).
+    koinInject<com.danzucker.stitchpad.core.data.FirebaseDeviceLanguageSync>().ensureRunning()
     koinInject<ReconcileCoordinator>().ensureRunning()
     koinInject<OfflineUploadOutbox>().ensureRunning()
     koinInject<ReviewController>().ensureRunning()

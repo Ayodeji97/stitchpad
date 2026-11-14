@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.feature.auth.data
 
+import androidx.compose.ui.text.intl.Locale
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.logging.AppLogger
@@ -17,7 +18,7 @@ class GitLiveVerificationEmailSender(
 
     override suspend fun send(): EmptyResult<AuthError> {
         return try {
-            functions.httpsCallable("sendVerificationEmail").invoke()
+            functions.httpsCallable("sendVerificationEmail").invoke(VerificationEmailRequest(Locale.current.language))
             Result.Success(Unit)
         } catch (e: FirebaseFunctionsException) {
             AppLogger.e(tag = TAG, throwable = e) {

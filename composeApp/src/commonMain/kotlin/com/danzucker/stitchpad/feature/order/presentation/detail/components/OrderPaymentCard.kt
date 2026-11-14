@@ -37,6 +37,7 @@ import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
+import com.danzucker.stitchpad.core.presentation.localizedMonthName
 import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
@@ -337,10 +338,11 @@ private fun paymentMethodLabel(method: PaymentMethod): String = when (method) {
     PaymentMethod.OTHER -> stringResource(Res.string.payment_method_other)
 }
 
+@Composable
 private fun formatPaymentDate(epochMillis: Long): String {
     val date = Instant.fromEpochMilliseconds(epochMillis)
         .toLocalDateTime(TimeZone.currentSystemDefault()).date
-    val month = date.month.name.lowercase().replaceFirstChar(Char::uppercase).take(3)
+    val month = localizedMonthName(date.monthNumber, short = true)
     return "${date.dayOfMonth} $month"
 }
 

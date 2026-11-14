@@ -12,6 +12,7 @@ import com.danzucker.stitchpad.core.domain.model.PaymentType
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.model.User
 import kotlinx.datetime.Instant
+import kotlinx.datetime.Month
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
@@ -20,6 +21,9 @@ object ReceiptFormatter {
 
     private const val FALLBACK_BUSINESS_NAME = "StitchPad"
     private const val ORDER_ID_PREFIX_LENGTH = 4
+    private val DEFAULT_SHORT_MONTH_NAMES = Month.entries.map { it.englishShortName() }
+
+    private fun Month.englishShortName(): String = name.lowercase().replaceFirstChar { it.uppercase() }.take(3)
 
     /**
      * Build a [ReceiptData] from an order + user.
@@ -44,10 +48,14 @@ object ReceiptFormatter {
         // fallback (StitchPad mark + full footer). Production share path in
         // OrderDetailViewModel passes the real tier from EntitlementsProvider.
         tier: SubscriptionTier = SubscriptionTier.FREE,
+        // Localized short month names (index 0 = January), resolved by the caller
+        // from calendar_months_short so this formatter stays resource-free.
+        // Defaults to the English abbreviations the receipt has always printed.
+        monthNames: List<String> = DEFAULT_SHORT_MONTH_NAMES,
     ): ReceiptData {
         val tz = TimeZone.currentSystemDefault()
-        val dateFormatted = formatDate(order.createdAt, tz)
-        val deadlineFormatted = order.deadline?.let { formatDate(it, tz) }
+        val dateFormatted = formatDate(order.createdAt, tz, monthNames)
+        val deadlineFormatted = order.deadline?.let { formatDate(it, tz, monthNames) }
 
         val groupedItems = groupReceiptItems(order.items, garmentNames, order.currency)
         val shortId = order.id.take(ORDER_ID_PREFIX_LENGTH).uppercase()
@@ -64,7 +72,7 @@ object ReceiptFormatter {
 
         val paymentRows = order.payments
             .sortedBy { it.recordedAt }
-            .map { it.toRow(tz, order.currency) }
+            .map { it.toRow(tz, order.currency, monthNames) }
 
         // Bank block hidden when nothing is owed (no point asking for transfer).
         // Otherwise shown only when all three fields are set — group-required is
@@ -187,8 +195,8 @@ object ReceiptFormatter {
         return BankBlock(name, accountName, accountNumber)
     }
 
-    private fun Payment.toRow(tz: TimeZone, currency: Currency): PaymentRow = PaymentRow(
-        dateFormatted = formatDate(recordedAt, tz),
+    private fun Payment.toRow(tz: TimeZone, currency: Currency, monthNames: List<String>): PaymentRow = PaymentRow(
+        dateFormatted = formatDate(recordedAt, tz, monthNames),
         typeLabel = type.label(),
         methodLabel = method.label(),
         formattedAmount = formatMoney(amount, currency),
@@ -207,9 +215,9 @@ object ReceiptFormatter {
         PaymentMethod.OTHER -> "Other"
     }
 
-    private fun formatDate(epochMillis: Long, tz: TimeZone): String {
+    private fun formatDate(epochMillis: Long, tz: TimeZone, monthNames: List<String>): String {
         val d = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(tz).date
-        val month = d.month.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)
+        val month = monthNames.getOrNull(d.monthNumber - 1) ?: d.month.englishShortName()
         return "${d.dayOfMonth} $month ${d.year}"
     }
 

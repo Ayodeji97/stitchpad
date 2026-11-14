@@ -34,7 +34,7 @@ function requiresAtelier(intentType: string): boolean {
   return (ATELIER_ONLY_INTENTS as readonly string[]).includes(intentType);
 }
 
-const SUPPORTED_LANGUAGES: readonly Language[] = ['en', 'pcm'];
+const SUPPORTED_LANGUAGES: readonly Language[] = ['en', 'fr', 'pcm'];
 // Mirrors NOTES_MAX_CHARS in DraftMessageScreen.kt; keep the two in sync.
 const CUSTOM_NOTES_MAX_LENGTH = 200;
 
@@ -391,6 +391,10 @@ export async function draftMessageHandler(
   // selection doesn't generate a draft for an already-closed order.
   if (!order.isOpen) {
     throw new functions.https.HttpsError('invalid-argument', 'invalid_input: order is not open');
+  }
+
+  if (data.language === 'pcm' && savedCountryCode(profileSnap.data()?.country) !== 'NG') {
+    throw new functions.https.HttpsError('invalid-argument', 'invalid_input: pidgin is available for Nigeria only');
   }
 
   // 3. Reserve a quota slot for non-Atelier tiers. Pro consumes coins

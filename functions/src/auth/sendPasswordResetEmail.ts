@@ -1,3 +1,4 @@
+import { serverLanguage } from '../localization/language';
 import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { getFunctions } from 'firebase-admin/functions';
@@ -38,7 +39,7 @@ export interface PasswordResetEnqueuerIO {
   /** Releases a reservation so a failed enqueue doesn't block retries. */
   releaseSend(emailKey: string): Promise<void>;
   /** Hands the actual send off to the worker queue. */
-  enqueue(email: string): Promise<void>;
+  enqueue(email: string, locale?: string): Promise<void>;
 }
 
 // Hash the email so the throttle doc id isn't a plaintext address sitting in a
@@ -72,7 +73,9 @@ export async function sendPasswordResetEmailHandler(
   }
 
   try {
-    await io.enqueue(email);
+    const locale = serverLanguage((data as { locale?: unknown })?.locale);
+    if (locale === 'fr') await io.enqueue(email, locale);
+    else await io.enqueue(email);
     return ACK;
   } catch (err) {
     // Enqueue failed before any work happened (e.g. IAM/quota) — release the
@@ -113,8 +116,8 @@ function productionIO(): PasswordResetEnqueuerIO {
     async releaseSend(key) {
       await throttleRef(key).delete();
     },
-    async enqueue(email) {
-      await getFunctions().taskQueue(WORKER_RESOURCE).enqueue({ email });
+    async enqueue(email, locale) {
+      await getFunctions().taskQueue(WORKER_RESOURCE).enqueue({ email, ...(locale ? { locale } : {}) });
     },
   };
 }

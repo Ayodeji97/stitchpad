@@ -82,6 +82,7 @@ import com.danzucker.stitchpad.core.domain.model.StyleImageSource
 import com.danzucker.stitchpad.core.domain.model.User
 import com.danzucker.stitchpad.core.media.rememberImageCaptureLauncher
 import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.core.presentation.localizedMonthName
 import com.danzucker.stitchpad.core.sharing.DialerLauncher
 import com.danzucker.stitchpad.core.sharing.ReceiptDocumentType
 import com.danzucker.stitchpad.core.sharing.ReceiptFormatter
@@ -1444,7 +1445,7 @@ private fun formatDueLabel(order: Order, isOverdue: Boolean): UiText? {
         Instant.fromEpochMilliseconds(it).toLocalDateTime(TimeZone.currentSystemDefault()).date
     }
     val readableDeadline = deadlineDate?.let {
-        val month = it.month.name.take(3).lowercase().replaceFirstChar(Char::uppercase)
+        val month = localizedMonthName(it.monthNumber, short = true)
         "${it.dayOfMonth} $month"
     }
     // Ready always shows "Pickup today" regardless of deadline; other states need

@@ -10,5 +10,15 @@ package com.danzucker.stitchpad.core.smartinfra.domain.language
  */
 enum class DraftLanguage(val wireName: String) {
     English("en"),
-    Pidgin("pcm"),
+    French("fr"),
+    Pidgin("pcm");
+
+    companion object {
+        fun fromLocale(locale: String): DraftLanguage =
+            if (locale.substringBefore("-").substringBefore("_").equals("fr", ignoreCase = true)) {
+                French
+            } else {
+                English
+            }
+    }
 }

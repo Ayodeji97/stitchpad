@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.danzucker.stitchpad.core.presentation.localizedMonthName
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
@@ -45,6 +46,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.calendar_weekdays_short
 import stitchpad.composeapp.generated.resources.common_cancel
 import stitchpad.composeapp.generated.resources.common_ok
 import stitchpad.composeapp.generated.resources.date_picker_eyebrow
@@ -183,7 +185,7 @@ private fun MonthNavigator(
         )
         Text(
             modifier = Modifier.weight(1f),
-            text = "${MONTH_NAMES[yearMonth.month - 1]} ${yearMonth.year}",
+            text = "${localizedMonthName(yearMonth.month)} ${yearMonth.year}",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
@@ -239,7 +241,7 @@ private fun WeekdayHeader() {
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 4.dp)
     ) {
-        WEEKDAYS.forEach { letter ->
+        stringResource(Res.string.calendar_weekdays_short).split("|").forEach { letter ->
             Text(
                 modifier = Modifier.weight(1f),
                 text = letter,
@@ -447,18 +449,12 @@ private fun monthAtMost(target: YearMonth, maxDate: LocalDate?): Boolean =
         target.year < maxDate.year ||
         (target.year == maxDate.year && target.month <= maxDate.monthNumber)
 
+@Composable
 private fun formatLong(date: LocalDate): String =
-    "${MONTH_NAMES[date.monthNumber - 1]} ${date.dayOfMonth}, ${date.year}"
+    "${date.dayOfMonth} ${localizedMonthName(date.monthNumber)} ${date.year}"
 
 private const val DAYS_PER_WEEK = 7
 private const val WEEKS_PER_GRID = 6
-
-private val WEEKDAYS = listOf("S", "M", "T", "W", "T", "F", "S")
-
-private val MONTH_NAMES = listOf(
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-)
 
 private fun lengthOfMonth(year: Int, month: Int): Int = when (month) {
     1, 3, 5, 7, 8, 10, 12 -> 31

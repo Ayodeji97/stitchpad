@@ -57,6 +57,34 @@ import com.danzucker.stitchpad.feature.collection.domain.CollectionSort
 import com.danzucker.stitchpad.feature.collection.domain.CollectionSummary
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
+import org.jetbrains.compose.resources.stringResource
+import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.collection_all
+import stitchpad.composeapp.generated.resources.collection_back
+import stitchpad.composeapp.generated.resources.collection_biggest
+import stitchpad.composeapp.generated.resources.collection_chase
+import stitchpad.composeapp.generated.resources.collection_customer
+import stitchpad.composeapp.generated.resources.collection_customer_name
+import stitchpad.composeapp.generated.resources.collection_delivered
+import stitchpad.composeapp.generated.resources.collection_filter_empty
+import stitchpad.composeapp.generated.resources.collection_filter_hint
+import stitchpad.composeapp.generated.resources.collection_load_error
+import stitchpad.composeapp.generated.resources.collection_money
+import stitchpad.composeapp.generated.resources.collection_newest
+import stitchpad.composeapp.generated.resources.collection_oldest
+import stitchpad.composeapp.generated.resources.collection_overdue
+import stitchpad.composeapp.generated.resources.collection_owed_day
+import stitchpad.composeapp.generated.resources.collection_owed_days
+import stitchpad.composeapp.generated.resources.collection_owed_overdue
+import stitchpad.composeapp.generated.resources.collection_owed_today
+import stitchpad.composeapp.generated.resources.collection_paid_body
+import stitchpad.composeapp.generated.resources.collection_paid_title
+import stitchpad.composeapp.generated.resources.collection_ready
+import stitchpad.composeapp.generated.resources.collection_show_all
+import stitchpad.composeapp.generated.resources.collection_sort
+import stitchpad.composeapp.generated.resources.collection_summary_orders
+import stitchpad.composeapp.generated.resources.collection_summary_overdue
+import stitchpad.composeapp.generated.resources.collection_title
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,10 +96,13 @@ fun ToCollectScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("To collect") },
+                title = { Text(stringResource(Res.string.collection_title)) },
                 navigationIcon = {
                     IconButton(onClick = { onAction(ToCollectAction.OnBackClick) }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(Res.string.collection_back)
+                        )
                     }
                 },
                 actions = {
@@ -114,7 +145,7 @@ fun ToCollectScreen(
 @Composable
 private fun SummaryHeader(summary: CollectionSummary) {
     Column(Modifier.fillMaxWidth().padding(DesignTokens.space4)) {
-        Text("Money to collect", style = MaterialTheme.typography.labelMedium)
+        Text(stringResource(Res.string.collection_money), style = MaterialTheme.typography.labelMedium)
         summary.amountsByCurrency.forEach { total ->
             Text(
                 formatMoney(total.amount, total.currency),
@@ -122,9 +153,13 @@ private fun SummaryHeader(summary: CollectionSummary) {
                 fontWeight = FontWeight.Bold,
             )
         }
-        val overdueSuffix = if (summary.overdueCount > 0) " · ${summary.overdueCount} overdue" else ""
+        val overdueSuffix = if (summary.overdueCount > 0) {
+            stringResource(Res.string.collection_summary_overdue, summary.overdueCount)
+        } else {
+            ""
+        }
         Text(
-            "across ${summary.orderCount} orders$overdueSuffix",
+            stringResource(Res.string.collection_summary_orders, summary.orderCount, overdueSuffix),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -137,7 +172,7 @@ private fun SortMenuButton(sort: CollectionSort, onAction: (ToCollectAction) -> 
     var expanded by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { expanded = true }) {
-            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Sort")
+            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = stringResource(Res.string.collection_sort))
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             CollectionSort.entries.forEach { option ->
@@ -158,12 +193,12 @@ private fun SortMenuButton(sort: CollectionSort, onAction: (ToCollectAction) -> 
     }
 }
 
-// TODO: localize via compose.resources — inline for now, consistent with the rest of this screen.
+@Composable
 private fun CollectionSort.sortLabel(): String = when (this) {
-    CollectionSort.OLDEST_OWED -> "Oldest owed"
-    CollectionSort.BIGGEST_BALANCE -> "Biggest balance"
-    CollectionSort.NEWEST -> "Newest"
-    CollectionSort.CUSTOMER_NAME -> "Customer name"
+    CollectionSort.OLDEST_OWED -> stringResource(Res.string.collection_oldest)
+    CollectionSort.BIGGEST_BALANCE -> stringResource(Res.string.collection_biggest)
+    CollectionSort.NEWEST -> stringResource(Res.string.collection_newest)
+    CollectionSort.CUSTOMER_NAME -> stringResource(Res.string.collection_customer_name)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -183,22 +218,22 @@ private fun FilterRow(
         FilterChip(
             selected = filter == CollectionFilter.None,
             onClick = { onAction(ToCollectAction.OnFilterSelected(CollectionFilter.None)) },
-            label = { Text("All") },
+            label = { Text(stringResource(Res.string.collection_all)) },
         )
         FilterChip(
             selected = filter == CollectionFilter.OverdueOnly,
             onClick = { onAction(ToCollectAction.OnFilterSelected(CollectionFilter.OverdueOnly)) },
-            label = { Text("Overdue") },
+            label = { Text(stringResource(Res.string.collection_overdue)) },
         )
         FilterChip(
             selected = filter == CollectionFilter.ByStatus(OrderStatus.DELIVERED),
             onClick = { onAction(ToCollectAction.OnFilterSelected(CollectionFilter.ByStatus(OrderStatus.DELIVERED))) },
-            label = { Text("Delivered") },
+            label = { Text(stringResource(Res.string.collection_delivered)) },
         )
         FilterChip(
             selected = filter == CollectionFilter.ByStatus(OrderStatus.READY),
             onClick = { onAction(ToCollectAction.OnFilterSelected(CollectionFilter.ByStatus(OrderStatus.READY))) },
-            label = { Text("Ready") },
+            label = { Text(stringResource(Res.string.collection_ready)) },
         )
         if (customerOptions.isNotEmpty()) {
             CustomerFilterChip(filter, customerOptions, onAction)
@@ -222,7 +257,7 @@ private fun CustomerFilterChip(
             selected = selectedCustomer != null,
             onClick = { expanded = true },
             leadingIcon = { Icon(Icons.Filled.Person, contentDescription = null) },
-            label = { Text(selectedCustomer?.name ?: "Customer") },
+            label = { Text(selectedCustomer?.name ?: stringResource(Res.string.collection_customer)) },
         )
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             customerOptions.forEach { option ->
@@ -258,11 +293,15 @@ private fun CollectibleRow(
             Column(Modifier.weight(1f)) {
                 Text(row.customerName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
                 val owedText = when (row.daysOwed) {
-                    0 -> "owed today"
-                    1 -> "owed 1 day"
-                    else -> "owed ${row.daysOwed} days"
+                    0 -> stringResource(Res.string.collection_owed_today)
+                    1 -> stringResource(Res.string.collection_owed_day)
+                    else -> stringResource(Res.string.collection_owed_days, row.daysOwed)
                 }
-                val owedLabel = if (row.isOverdue) "Overdue · $owedText" else owedText
+                val owedLabel = if (row.isOverdue) {
+                    stringResource(Res.string.collection_owed_overdue, owedText)
+                } else {
+                    owedText
+                }
                 val owedColor = if (row.isOverdue) {
                     MaterialTheme.colorScheme.error
                 } else {
@@ -279,7 +318,7 @@ private fun CollectibleRow(
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
             )
-            TextButton(onClick = onChase) { Text("Chase") }
+            TextButton(onClick = onChase) { Text(stringResource(Res.string.collection_chase)) }
         }
     }
 }
@@ -306,7 +345,7 @@ private fun EmptyState() {
         }
         Spacer(Modifier.height(DesignTokens.space3))
         Text(
-            "You're all paid up",
+            stringResource(Res.string.collection_paid_title),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
@@ -314,7 +353,7 @@ private fun EmptyState() {
         )
         Spacer(Modifier.height(DesignTokens.space1))
         Text(
-            "Every finished order has been paid for. Nice work!",
+            stringResource(Res.string.collection_paid_body),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -336,7 +375,7 @@ private fun ErrorState(message: UiText) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Text("Couldn't load", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(Res.string.collection_load_error), style = MaterialTheme.typography.titleMedium)
         Text(
             message.asString(),
             style = MaterialTheme.typography.bodyMedium,
@@ -352,14 +391,14 @@ private fun FilteredEmptyState(onAction: (ToCollectAction) -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Text("No orders match this filter", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(Res.string.collection_filter_empty), style = MaterialTheme.typography.titleMedium)
         Text(
-            "You still have money to collect — clear the filter to see it.",
+            stringResource(Res.string.collection_filter_hint),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         TextButton(onClick = { onAction(ToCollectAction.OnFilterSelected(CollectionFilter.None)) }) {
-            Text("Show all")
+            Text(stringResource(Res.string.collection_show_all))
         }
     }
 }

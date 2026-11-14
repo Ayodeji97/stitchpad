@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.danzucker.stitchpad.core.presentation.localizedMonthName
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.feature.reports.domain.model.CappedList
@@ -283,7 +284,7 @@ private fun ReportsContent(
     // over the generic 'Custom range' label — the chip up top already shows
     // the full range, but echoing the dates inside each tile reinforces
     // what the value represents at the point of reading.
-    val customRangeLabel = customRange?.let(::formatTileRangeLabel)
+    val customRangeLabel = formatOptionalTileRangeLabel(customRange)
     val periodLabel = when (effectivePeriod) {
         ReportsPeriod.WEEK -> stringResource(Res.string.reports_period_this_week)
         ReportsPeriod.MONTH -> stringResource(Res.string.reports_period_this_month)
@@ -351,16 +352,13 @@ private fun reportsDeltaSuffix(period: ReportsPeriod): String = stringResource(
 //   same month       -> "Apr 14 – 23"
 //   different months -> "Apr 28 – May 5"
 //   different years  -> "Dec 28, 2025 – Jan 3, 2026" (rare; keep year)
-private val MONTH_ABBREV = listOf(
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-)
 
+@Composable
 private fun formatTileRangeLabel(range: CustomRange): String {
     val start = range.start
     val end = range.end
-    val startMonth = MONTH_ABBREV[start.monthNumber - 1]
-    val endMonth = MONTH_ABBREV[end.monthNumber - 1]
+    val startMonth = localizedMonthName(start.monthNumber, short = true)
+    val endMonth = localizedMonthName(end.monthNumber, short = true)
     return when {
         start.year == end.year && start.monthNumber == end.monthNumber ->
             "$startMonth ${start.dayOfMonth} – ${end.dayOfMonth}"
@@ -576,3 +574,7 @@ private fun ReportsScreenEmptyPreview() {
         )
     }
 }
+
+@Composable
+private fun formatOptionalTileRangeLabel(range: CustomRange?): String? =
+    range?.let { formatTileRangeLabel(it) }

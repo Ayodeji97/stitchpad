@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.danzucker.stitchpad.core.presentation.localizedMonthName
 import com.danzucker.stitchpad.feature.reports.domain.model.CustomRange
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import kotlinx.datetime.LocalDate
@@ -92,6 +93,7 @@ private fun ClearButton(
     }
 }
 
+@Composable
 private fun formatRange(range: CustomRange, separator: String): String {
     val start = range.start
     val end = range.end
@@ -107,9 +109,5 @@ private fun formatRange(range: CustomRange, separator: String): String {
     }
 }
 
-private fun monthAbbrev(date: LocalDate): String = MONTH_ABBREV[date.monthNumber - 1]
-
-private val MONTH_ABBREV = listOf(
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-)
+@Composable
+private fun monthAbbrev(date: LocalDate): String = localizedMonthName(date.monthNumber, short = true)
