@@ -13,10 +13,15 @@ import com.danzucker.stitchpad.core.domain.model.Measurement
  * Custom-field keys (UUIDs) resolve via [customFieldLabels]; keys absent from the
  * template and from [customFieldLabels] are skipped. When [max] is non-null the
  * result is capped to that many fields (the "top N" preview).
+ *
+ * Template fields show their localized name from [templateLabels] (keyed by
+ * labelKey — see [measurementFieldLabels]); a missing entry falls back to the
+ * template's English label, which is what tests and previews get by default.
  */
 fun Measurement.filledPreviewFields(
     customFieldLabels: Map<String, String>,
     max: Int? = null,
+    templateLabels: Map<String, String> = emptyMap(),
 ): List<MeasurementPreviewField> {
     val templateFields = BodyProfileTemplate.sectionsFor(gender).flatMap { it.fields }
     val templateKeys = templateFields.mapTo(mutableSetOf()) { it.key }
@@ -24,7 +29,7 @@ fun Measurement.filledPreviewFields(
     val templatePreview = templateFields.mapNotNull { field ->
         fields[field.key]
             ?.takeIf { isPersistableMeasurementValue(it) }
-            ?.let { MeasurementPreviewField(field.label, it) }
+            ?.let { MeasurementPreviewField(field.displayLabel(templateLabels), it) }
     }
 
     val customPreview = fields

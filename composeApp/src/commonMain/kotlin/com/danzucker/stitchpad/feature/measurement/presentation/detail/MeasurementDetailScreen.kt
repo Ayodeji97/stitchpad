@@ -73,6 +73,7 @@ import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.presentation.localizedMonthName
 import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
+import com.danzucker.stitchpad.feature.measurement.presentation.measurementFieldLabels
 import com.danzucker.stitchpad.feature.measurement.presentation.measurementSectionTitle
 import com.danzucker.stitchpad.ui.components.StitchPadButton
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -365,8 +366,9 @@ private fun MeasurementDetailContent(
     customFieldLabels: Map<String, String>,
     modifier: Modifier = Modifier,
 ) {
-    val sections = remember(measurement, customFieldLabels) {
-        measurementDetailSections(measurement, customFieldLabels)
+    val templateLabels = measurementFieldLabels()
+    val sections = remember(measurement, customFieldLabels, templateLabels) {
+        measurementDetailSections(measurement, customFieldLabels, templateLabels)
     }
     LazyColumn(
         modifier = modifier.fillMaxSize(),

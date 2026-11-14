@@ -3,6 +3,7 @@ package com.danzucker.stitchpad.feature.measurement.presentation.detail
 import com.danzucker.stitchpad.core.domain.model.BodyProfileTemplate
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.feature.measurement.presentation.MeasurementPreviewField
+import com.danzucker.stitchpad.feature.measurement.presentation.displayLabel
 import com.danzucker.stitchpad.feature.measurement.presentation.isPersistableMeasurementValue
 
 /**
@@ -21,10 +22,13 @@ data class MeasurementDetailSection(
  * [customFieldLabels]. Sections with no filled values are dropped. Keys that
  * are neither template fields nor resolvable custom fields are skipped —
  * the same policy as [com.danzucker.stitchpad.feature.measurement.presentation.filledPreviewFields].
+ * Template rows use [templateLabels] (localized, keyed by labelKey) and fall back
+ * to the English template label when absent.
  */
 fun measurementDetailSections(
     measurement: Measurement,
     customFieldLabels: Map<String, String>,
+    templateLabels: Map<String, String> = emptyMap(),
 ): List<MeasurementDetailSection> {
     val templateSections = BodyProfileTemplate.sectionsFor(measurement.gender)
     val templateKeys = templateSections.flatMap { it.fields }.mapTo(mutableSetOf()) { it.key }
@@ -33,7 +37,7 @@ fun measurementDetailSections(
         val rows = section.fields.mapNotNull { field ->
             measurement.fields[field.key]
                 ?.takeIf { isPersistableMeasurementValue(it) }
-                ?.let { MeasurementPreviewField(field.label, it) }
+                ?.let { MeasurementPreviewField(field.displayLabel(templateLabels), it) }
         }
         if (rows.isEmpty()) null else MeasurementDetailSection(section.titleKey, rows)
     }

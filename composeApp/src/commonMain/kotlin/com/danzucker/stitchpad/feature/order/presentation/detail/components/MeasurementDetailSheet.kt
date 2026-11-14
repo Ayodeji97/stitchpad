@@ -25,6 +25,7 @@ import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.presentation.localizedMonthName
 import com.danzucker.stitchpad.feature.measurement.presentation.filledPreviewFields
+import com.danzucker.stitchpad.feature.measurement.presentation.measurementFieldLabels
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import kotlinx.datetime.Instant
@@ -81,7 +82,7 @@ private fun MeasurementDetailSheetContent(
             CustomerGender.FEMALE -> Res.string.gender_female
         },
     )
-    val fields = measurement.filledPreviewFields(customFieldLabels)
+    val fields = measurement.filledPreviewFields(customFieldLabels, templateLabels = measurementFieldLabels())
 
     Column(
         modifier = Modifier

@@ -22,6 +22,7 @@ import com.danzucker.stitchpad.core.sharing.MeasurementShareChrome
 import com.danzucker.stitchpad.core.sharing.MeasurementShareData
 import com.danzucker.stitchpad.core.sharing.MeasurementSharer
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
+import com.danzucker.stitchpad.feature.measurement.presentation.measurementFieldLabelsAsync
 import com.danzucker.stitchpad.feature.measurement.presentation.share.MeasurementShareFormatter
 import com.danzucker.stitchpad.feature.measurement.presentation.share.MeasurementShareLabels
 import com.danzucker.stitchpad.feature.measurement.presentation.toMeasurementUiText
@@ -404,6 +405,7 @@ private fun defaultShareLabelsResolver(
             cardFooter = getString(Res.string.measurement_share_card_footer),
             whatsAppFooter = getString(Res.string.measurement_share_whatsapp_footer),
         ),
+        fieldLabels = measurementFieldLabelsAsync(),
     )
 }
 

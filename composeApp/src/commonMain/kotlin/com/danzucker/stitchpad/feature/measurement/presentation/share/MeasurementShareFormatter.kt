@@ -23,6 +23,8 @@ data class MeasurementShareLabels(
     val customSectionTitle: String,
     /** Card title / "Taken …" / footers. English defaults keep tests and previews resource-free. */
     val chrome: MeasurementShareChrome = MeasurementShareChrome(),
+    /** Localized template field names keyed by labelKey; empty = English template labels (tests, previews). */
+    val fieldLabels: Map<String, String> = emptyMap(),
 )
 
 /**
@@ -39,7 +41,7 @@ object MeasurementShareFormatter {
         labels: MeasurementShareLabels,
         customFieldLabels: Map<String, String>,
     ): MeasurementShareData {
-        val sections = measurementDetailSections(measurement, customFieldLabels).map { section ->
+        val sections = measurementDetailSections(measurement, customFieldLabels, labels.fieldLabels).map { section ->
             MeasurementShareSection(
                 title = when (section.titleKey) {
                     null -> labels.customSectionTitle
