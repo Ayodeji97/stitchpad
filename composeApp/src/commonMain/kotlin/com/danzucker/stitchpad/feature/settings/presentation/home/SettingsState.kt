@@ -23,6 +23,12 @@ data class SettingsState(
     val maskedSignInIdentifier: String = "",
     val subscriptionTier: SubscriptionTier = SubscriptionTier.FREE,
     val subscriptionStatus: SubscriptionStatus? = null,
+    /**
+     * Pro monthly price for the PlanCard's priced upgrade CTA (e.g. "₦2,000", or
+     * "NGN 2,000" outside Nigeria), or null for the neutral "Upgrade" CTA (iOS,
+     * where Apple's storefront price applies).
+     */
+    val upgradeCtaPrice: String? = null,
     val customerCount: Int = 0,
     /** null means unlimited (Pro / Atelier tier). */
     val customerLimit: Int? = null,

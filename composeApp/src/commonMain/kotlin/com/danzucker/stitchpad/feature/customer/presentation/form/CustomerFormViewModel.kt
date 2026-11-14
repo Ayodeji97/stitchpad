@@ -21,6 +21,8 @@ import com.danzucker.stitchpad.core.sharing.applyImpliedCountryCode
 import com.danzucker.stitchpad.core.sharing.normalisePhone
 import com.danzucker.stitchpad.feature.auth.domain.PatternValidator
 import com.danzucker.stitchpad.feature.customer.presentation.toCustomerUiText
+import com.danzucker.stitchpad.feature.freemium.presentation.upgradeCtaPrice
+import com.danzucker.stitchpad.util.Platform
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -70,12 +72,25 @@ class CustomerFormViewModel(
             initialValue = CustomerFormState(isEditMode = customerId != null)
         )
 
-    /** Keeps the phone placeholder on the tailor's own country's example number. */
+    /**
+     * Keeps the phone placeholder on the tailor's own country's example number, and the
+     * cap sheet's Pro price labelled for the workshop's currency.
+     */
     private fun observeCountry() {
         viewModelScope.launch {
             currentCountryProvider.country.collect { country ->
                 _state.update {
-                    if (it.isPhoneCountrySelected || it.phone.trim().startsWith("+")) it else it.copy(country = country)
+                    val priced = it.copy(
+                        upgradeCtaPrice = upgradeCtaPrice(
+                            isAppleCheckout = Platform.isIos,
+                            workshopCurrency = country.currency,
+                        ),
+                    )
+                    if (priced.isPhoneCountrySelected || priced.phone.trim().startsWith("+")) {
+                        priced
+                    } else {
+                        priced.copy(country = country)
+                    }
                 }
             }
         }

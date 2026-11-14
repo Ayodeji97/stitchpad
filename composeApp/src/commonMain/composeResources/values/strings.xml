@@ -275,7 +275,7 @@
     <string name="cap_reached_sheet_title">Ready to grow your workshop?</string>
     <string name="cap_reached_sheet_stat">%1$d of %2$d active customers</string>
     <string name="cap_reached_sheet_pro_tier">Tailor Pro</string>
-    <string name="cap_reached_sheet_price">₦2,000/mo</string>
+    <string name="cap_reached_sheet_price">%1$s/mo</string>
     <string name="cap_reached_sheet_benefit_unlimited">Unlimited customers</string>
     <string name="cap_reached_sheet_benefit_drafts">50 Smart drafts a month</string>
     <string name="cap_reached_sheet_benefit_cancel">Cancel anytime</string>
@@ -840,7 +840,6 @@
     <string name="order_record_payment_snackbar_success">Payment recorded</string>
 
     <!-- Currency -->
-    <string name="currency_naira">₦%1$s</string>
 
     <!-- Dashboard header buttons -->
     <string name="cd_notifications">Notifications</string>
@@ -1557,7 +1556,7 @@
     <string name="plan_card_title_locked">You can&apos;t add new customers</string>
     <string name="plan_card_subtitle_locked">Upgrade to keep growing — your existing customers are safe and unchanged.</string>
     <string name="plan_card_cta_upgrade">Upgrade</string>
-    <string name="plan_card_cta_upgrade_priced">Upgrade — ₦%1$s/mo</string>
+    <string name="plan_card_cta_upgrade_priced">Upgrade — %1$s/mo</string>
     <string name="plan_card_cta_upgrade_now">Upgrade now</string>
     <string name="plan_card_cta_compare">Compare plans</string>
 
@@ -1616,11 +1615,7 @@
     <!-- Freemium — Upgrade screen -->
     <string name="upgrade_screen_title">Upgrade your plan</string>
     <string name="upgrade_pro_name">Tailor Pro</string>
-    <string name="upgrade_pro_price">₦2,000 / month</string>
-    <string name="upgrade_pro_annual">or ₦20,000 / year (save ₦4,000)</string>
     <string name="upgrade_atelier_name">Tailor Atelier</string>
-    <string name="upgrade_atelier_price">₦4,000 / month</string>
-    <string name="upgrade_atelier_annual">or ₦40,000 / year (save ₦8,000)</string>
     <string name="upgrade_cadence_monthly">Monthly</string>
     <string name="upgrade_cadence_annual">Annual</string>
     <string name="upgrade_pay_with_paystack">Pay with Paystack</string>
@@ -1631,6 +1626,9 @@
     <string name="upgrade_terms_apple">Auto-renewing subscription billed through your Apple ID. Cancel anytime in your device Settings.</string>
     <string name="upgrade_purchase_pending">Your purchase is pending approval. We&apos;ll unlock your plan once it&apos;s confirmed.</string>
     <string name="upgrade_price_loading">Loading price…</string>
+    <string name="upgrade_price_monthly">%1$s / month</string>
+    <string name="upgrade_price_annual_hint">or %1$s / year (save %2$s)</string>
+    <string name="upgrade_billing_currency_note">Plans are billed in Nigerian naira (NGN).</string>
     <string name="upgrade_billed_monthly">Billed monthly, renews automatically</string>
     <string name="upgrade_billed_annually">Billed annually, renews automatically</string>
     <string name="upgrade_restore">Restore purchases</string>

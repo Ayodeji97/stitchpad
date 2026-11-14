@@ -42,36 +42,38 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.feature.freemium.domain.AppleProductIds
 import com.danzucker.stitchpad.feature.freemium.domain.BillingCadence
+import com.danzucker.stitchpad.feature.freemium.presentation.PlanPriceText
+import com.danzucker.stitchpad.feature.freemium.presentation.paystackPlanPriceText
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
 import stitchpad.composeapp.generated.resources.Res
-import stitchpad.composeapp.generated.resources.upgrade_atelier_annual
 import stitchpad.composeapp.generated.resources.upgrade_atelier_benefit_drafts
 import stitchpad.composeapp.generated.resources.upgrade_atelier_benefit_everything
 import stitchpad.composeapp.generated.resources.upgrade_atelier_name
-import stitchpad.composeapp.generated.resources.upgrade_atelier_price
 import stitchpad.composeapp.generated.resources.upgrade_back_content_description
 import stitchpad.composeapp.generated.resources.upgrade_billed_annually
 import stitchpad.composeapp.generated.resources.upgrade_billed_monthly
+import stitchpad.composeapp.generated.resources.upgrade_billing_currency_note
 import stitchpad.composeapp.generated.resources.upgrade_cadence_annual
 import stitchpad.composeapp.generated.resources.upgrade_cadence_monthly
 import stitchpad.composeapp.generated.resources.upgrade_coming_soon
 import stitchpad.composeapp.generated.resources.upgrade_current_plan
 import stitchpad.composeapp.generated.resources.upgrade_link_separator
 import stitchpad.composeapp.generated.resources.upgrade_pay_with_paystack
+import stitchpad.composeapp.generated.resources.upgrade_price_annual_hint
 import stitchpad.composeapp.generated.resources.upgrade_price_loading
+import stitchpad.composeapp.generated.resources.upgrade_price_monthly
 import stitchpad.composeapp.generated.resources.upgrade_privacy_policy
-import stitchpad.composeapp.generated.resources.upgrade_pro_annual
 import stitchpad.composeapp.generated.resources.upgrade_pro_benefit_customers
 import stitchpad.composeapp.generated.resources.upgrade_pro_benefit_drafts
 import stitchpad.composeapp.generated.resources.upgrade_pro_benefit_measurements
 import stitchpad.composeapp.generated.resources.upgrade_pro_benefit_reports
 import stitchpad.composeapp.generated.resources.upgrade_pro_name
-import stitchpad.composeapp.generated.resources.upgrade_pro_price
 import stitchpad.composeapp.generated.resources.upgrade_restore
 import stitchpad.composeapp.generated.resources.upgrade_screen_title
 import stitchpad.composeapp.generated.resources.upgrade_starting_checkout
@@ -130,13 +132,13 @@ fun UpgradeScreen(
 
             // Tier picker. On iOS the price + hint come from StoreKit (the price
             // Apple actually charges for the selected cadence); on Android they are
-            // the bundled NGN Paystack strings.
+            // the NGN Paystack prices, formatted by the ViewModel for the workshop.
             val isApple = state.checkoutProvider == CheckoutProvider.APPLE
             Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space3)) {
                 TierCard(
                     name = stringResource(Res.string.upgrade_pro_name),
-                    monthlyPrice = tierPriceText(isApple, state, SubscriptionTier.PRO, Res.string.upgrade_pro_price),
-                    annualHint = tierHintText(isApple, state.billingCadence, Res.string.upgrade_pro_annual),
+                    monthlyPrice = tierPriceText(isApple, state, SubscriptionTier.PRO),
+                    annualHint = tierHintText(isApple, state, SubscriptionTier.PRO),
                     benefits = listOf(
                         stringResource(Res.string.upgrade_pro_benefit_customers),
                         stringResource(Res.string.upgrade_pro_benefit_reports),
@@ -149,13 +151,8 @@ fun UpgradeScreen(
                 )
                 TierCard(
                     name = stringResource(Res.string.upgrade_atelier_name),
-                    monthlyPrice = tierPriceText(
-                        isApple,
-                        state,
-                        SubscriptionTier.ATELIER,
-                        Res.string.upgrade_atelier_price
-                    ),
-                    annualHint = tierHintText(isApple, state.billingCadence, Res.string.upgrade_atelier_annual),
+                    monthlyPrice = tierPriceText(isApple, state, SubscriptionTier.ATELIER),
+                    annualHint = tierHintText(isApple, state, SubscriptionTier.ATELIER),
                     benefits = listOf(
                         stringResource(Res.string.upgrade_atelier_benefit_everything),
                         stringResource(Res.string.upgrade_atelier_benefit_drafts),
@@ -227,6 +224,16 @@ fun UpgradeScreen(
 
             Spacer(Modifier.height(DesignTokens.space3))
 
+            if (state.showBillingCurrencyNote) {
+                Text(
+                    text = stringResource(Res.string.upgrade_billing_currency_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                )
+                Spacer(Modifier.height(DesignTokens.space1))
+            }
+
             Text(
                 text = stringResource(
                     if (state.checkoutProvider == CheckoutProvider.APPLE) {
@@ -282,33 +289,41 @@ fun UpgradeScreen(
 
 /**
  * The price shown on a tier card: the StoreKit price for the selected cadence on
- * iOS (a loading placeholder until products resolve), or the bundled NGN Paystack
- * string on Android.
+ * iOS, or the Paystack monthly price (NGN, formatted for the workshop) on Android.
+ * A loading placeholder covers either source until it resolves.
  */
 @Composable
 private fun tierPriceText(
     isApple: Boolean,
     state: UpgradeState,
     tier: SubscriptionTier,
-    paystackPrice: org.jetbrains.compose.resources.StringResource,
 ): String {
-    if (!isApple) return stringResource(paystackPrice)
-    val productId = AppleProductIds.idFor(tier, state.billingCadence)
-    return state.appleDisplayPrices[productId] ?: stringResource(Res.string.upgrade_price_loading)
+    val price = if (isApple) {
+        state.appleDisplayPrices[AppleProductIds.idFor(tier, state.billingCadence)]
+    } else {
+        state.paystackPrices[tier]?.let { stringResource(Res.string.upgrade_price_monthly, it.monthly) }
+    }
+    return price ?: stringResource(Res.string.upgrade_price_loading)
 }
 
-/** The secondary hint: the auto-renew cadence on iOS, or the bundled annual hint on Android. */
+/** The secondary hint: the auto-renew cadence on iOS, or the Paystack annual offer on Android. */
 @Composable
 private fun tierHintText(
     isApple: Boolean,
-    cadence: BillingCadence,
-    paystackHint: org.jetbrains.compose.resources.StringResource,
+    state: UpgradeState,
+    tier: SubscriptionTier,
 ): String = if (isApple) {
     stringResource(
-        if (cadence == BillingCadence.ANNUAL) Res.string.upgrade_billed_annually else Res.string.upgrade_billed_monthly,
+        if (state.billingCadence == BillingCadence.ANNUAL) {
+            Res.string.upgrade_billed_annually
+        } else {
+            Res.string.upgrade_billed_monthly
+        },
     )
 } else {
-    stringResource(paystackHint)
+    state.paystackPrices[tier]
+        ?.let { stringResource(Res.string.upgrade_price_annual_hint, it.annual, it.annualSaving) }
+        .orEmpty()
 }
 
 @Composable
@@ -425,6 +440,7 @@ private fun UpgradeScreenProSelectedPreview() {
                 currentTier = SubscriptionTier.FREE,
                 selectedTier = SubscriptionTier.PRO,
                 billingCadence = BillingCadence.MONTHLY,
+                paystackPrices = previewPaystackPrices(Currency.NGN),
             ),
             snackbarHostState = SnackbarHostState(),
             onAction = {},
@@ -443,6 +459,7 @@ private fun UpgradeScreenAtelierAnnualPreview() {
                 currentTier = SubscriptionTier.PRO,
                 selectedTier = SubscriptionTier.ATELIER,
                 billingCadence = BillingCadence.ANNUAL,
+                paystackPrices = previewPaystackPrices(Currency.NGN),
             ),
             snackbarHostState = SnackbarHostState(),
             onAction = {},
@@ -480,6 +497,7 @@ private fun UpgradeScreenDarkPreview() {
                 currentTier = SubscriptionTier.FREE,
                 selectedTier = SubscriptionTier.PRO,
                 billingCadence = BillingCadence.ANNUAL,
+                paystackPrices = previewPaystackPrices(Currency.NGN),
             ),
             snackbarHostState = SnackbarHostState(),
             onAction = {},
@@ -487,3 +505,29 @@ private fun UpgradeScreenDarkPreview() {
         )
     }
 }
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun UpgradeScreenGhanaPreview() {
+    StitchPadTheme {
+        UpgradeScreen(
+            state = UpgradeState(
+                currentTier = SubscriptionTier.FREE,
+                selectedTier = SubscriptionTier.PRO,
+                billingCadence = BillingCadence.MONTHLY,
+                paystackPrices = previewPaystackPrices(Currency.GHS),
+                showBillingCurrencyNote = true,
+                billingEnabled = true,
+            ),
+            snackbarHostState = SnackbarHostState(),
+            onAction = {},
+            onBack = {},
+        )
+    }
+}
+
+private fun previewPaystackPrices(workshopCurrency: Currency): Map<SubscriptionTier, PlanPriceText> =
+    SubscriptionTier.entries
+        .mapNotNull { tier -> paystackPlanPriceText(tier, workshopCurrency)?.let { tier to it } }
+        .toMap()

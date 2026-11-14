@@ -66,7 +66,7 @@ import stitchpad.composeapp.generated.resources.cap_reached_sheet_upgrade_cta
  *  - Copper eyebrow: "CUSTOMER LIMIT REACHED"
  *  - Fraunces-serif headline: "Ready to grow your workshop?"
  *  - Mono stat line: "15 of 15 active customers"
- *  - Elevated card with Tailor Pro + ₦2,000/mo + 3 benefit rows
+ *  - Elevated card with Tailor Pro + its monthly price (when one applies) + 3 benefit rows
  *  - Primary CTA: star icon + "Upgrade to Pro"
  *  - Secondary text link: "or swap a customer to stay on Free"
  *
@@ -79,6 +79,7 @@ import stitchpad.composeapp.generated.resources.cap_reached_sheet_upgrade_cta
 fun CustomerCapReachedSheet(
     activeCount: Int,
     customerCap: Int,
+    proMonthlyPrice: String?,
     onUpgradeClick: () -> Unit,
     onSwapClick: () -> Unit,
     onDismiss: () -> Unit,
@@ -90,6 +91,7 @@ fun CustomerCapReachedSheet(
         CustomerCapReachedSheetContent(
             activeCount = activeCount,
             customerCap = customerCap,
+            proMonthlyPrice = proMonthlyPrice,
             onUpgradeClick = onUpgradeClick,
             onSwapClick = onSwapClick,
         )
@@ -104,6 +106,7 @@ fun CustomerCapReachedSheet(
 private fun CustomerCapReachedSheetContent(
     activeCount: Int,
     customerCap: Int,
+    proMonthlyPrice: String?,
     onUpgradeClick: () -> Unit,
     onSwapClick: () -> Unit,
 ) {
@@ -149,7 +152,7 @@ private fun CustomerCapReachedSheetContent(
 
         Spacer(Modifier.height(DesignTokens.space3))
 
-        ProBenefitsCard()
+        ProBenefitsCard(proMonthlyPrice = proMonthlyPrice)
 
         Spacer(Modifier.height(DesignTokens.space3))
 
@@ -184,12 +187,14 @@ private fun CustomerCapReachedSheetContent(
 }
 
 /**
- * Elevated card with Tailor Pro + ₦2,000/mo header and three benefit rows.
+ * Elevated card with a Tailor Pro header and three benefit rows. The header shows
+ * [proMonthlyPrice] (e.g. "₦2,000/mo", "NGN 2,000/mo" outside Nigeria) when the
+ * caller has one; null (iOS, where Apple's storefront price applies) shows the name only.
  * Borders + surface use Material3 outline / surfaceVariant so it inherits
  * the proper dark/light treatment without hardcoding hex.
  */
 @Composable
-private fun ProBenefitsCard() {
+private fun ProBenefitsCard(proMonthlyPrice: String?) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -216,12 +221,14 @@ private fun ProBenefitsCard() {
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.primary,
             )
-            Text(
-                text = stringResource(Res.string.cap_reached_sheet_price),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
+            if (proMonthlyPrice != null) {
+                Text(
+                    text = stringResource(Res.string.cap_reached_sheet_price, proMonthlyPrice),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         BenefitRow(stringResource(Res.string.cap_reached_sheet_benefit_unlimited))
@@ -317,6 +324,7 @@ private fun CustomerCapReachedSheetContentPreview() {
         CustomerCapReachedSheetContent(
             activeCount = 15,
             customerCap = 15,
+            proMonthlyPrice = "₦2,000",
             onUpgradeClick = {},
             onSwapClick = {},
         )
@@ -331,6 +339,7 @@ private fun CustomerCapReachedSheetContentDarkPreview() {
         CustomerCapReachedSheetContent(
             activeCount = 15,
             customerCap = 15,
+            proMonthlyPrice = "NGN 2,000",
             onUpgradeClick = {},
             onSwapClick = {},
         )

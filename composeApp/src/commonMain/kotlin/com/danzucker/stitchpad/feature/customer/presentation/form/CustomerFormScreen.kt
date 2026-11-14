@@ -138,6 +138,7 @@ fun CustomerFormRoot(
         CustomerCapReachedSheet(
             activeCount = pending.activeCount,
             customerCap = pending.customerCap,
+            proMonthlyPrice = state.upgradeCtaPrice,
             onUpgradeClick = {
                 capSheet = null
                 onNavigateToUpgrade()

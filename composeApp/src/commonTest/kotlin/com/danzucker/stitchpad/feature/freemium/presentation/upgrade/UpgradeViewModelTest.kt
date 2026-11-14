@@ -6,7 +6,9 @@ import com.danzucker.stitchpad.core.config.domain.model.AppConfig
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.error.Result
+import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
+import com.danzucker.stitchpad.core.domain.session.FakeCurrentCountryProvider
 import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.freemium.domain.BillingCadence
@@ -281,9 +283,54 @@ class UpgradeViewModelTest {
         assertEquals(SubscriptionTier.ATELIER, vm.state.value.selectedTier)
     }
 
+    @Test
+    fun paystackPrices_nigerianWorkshop_showsNairaSymbolAndNoCurrencyNote() = runTest {
+        val vm = newVm(country = Country.NG)
+        runCurrent()
+
+        val state = vm.state.value
+        assertEquals("₦2,000", state.paystackPrices.getValue(SubscriptionTier.PRO).monthly)
+        assertEquals("₦20,000", state.paystackPrices.getValue(SubscriptionTier.PRO).annual)
+        assertEquals("₦4,000", state.paystackPrices.getValue(SubscriptionTier.PRO).annualSaving)
+        assertEquals("₦4,000", state.paystackPrices.getValue(SubscriptionTier.ATELIER).monthly)
+        assertNull(state.paystackPrices[SubscriptionTier.FREE])
+        assertFalse(state.showBillingCurrencyNote)
+    }
+
+    @Test
+    fun paystackPrices_ghanaianWorkshop_keepsRealNairaAmountLabelledWithIsoCode() = runTest {
+        val vm = newVm(country = Country.GH)
+        runCurrent()
+
+        val state = vm.state.value
+        // Never converted into cedis, never a bare ₦: the charge really is NGN 2,000.
+        assertEquals("NGN 2,000", state.paystackPrices.getValue(SubscriptionTier.PRO).monthly)
+        assertEquals("NGN 40,000", state.paystackPrices.getValue(SubscriptionTier.ATELIER).annual)
+        assertEquals("NGN 8,000", state.paystackPrices.getValue(SubscriptionTier.ATELIER).annualSaving)
+        assertTrue(state.showBillingCurrencyNote)
+    }
+
+    @Test
+    fun paystackPrices_followWorkshopCountryChange() = runTest {
+        val countries = FakeCurrentCountryProvider(Country.NG)
+        val vm = newVm(countryProvider = countries)
+        runCurrent()
+        assertEquals("₦2,000", vm.state.value.paystackPrices.getValue(SubscriptionTier.PRO).monthly)
+
+        countries.load(Country.SN)
+        runCurrent()
+
+        assertEquals("NGN 2,000", vm.state.value.paystackPrices.getValue(SubscriptionTier.PRO).monthly)
+        assertTrue(vm.state.value.showBillingCurrencyNote)
+    }
+
     // billingEnabled defaults true so the existing Paystack-checkout tests exercise
     // the live path; the gate tests pass false explicitly.
-    private fun newVm(billingEnabled: Boolean = true): UpgradeViewModel = UpgradeViewModel(
+    private fun newVm(
+        billingEnabled: Boolean = true,
+        country: Country = Country.DEFAULT,
+        countryProvider: FakeCurrentCountryProvider = FakeCurrentCountryProvider(country),
+    ): UpgradeViewModel = UpgradeViewModel(
         entitlements = entitlements,
         paymentRepository = payments,
         pendingDeepLink = pendingDeepLink,
@@ -295,6 +342,7 @@ class UpgradeViewModelTest {
                 billingEnabled = billingEnabled,
             ),
         ),
+        currentCountryProvider = countryProvider,
     )
 
     private class FakePaymentRepository : PaymentRepository {

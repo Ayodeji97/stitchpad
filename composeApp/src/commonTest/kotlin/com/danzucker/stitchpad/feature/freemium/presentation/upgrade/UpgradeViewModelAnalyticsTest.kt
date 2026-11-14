@@ -7,6 +7,7 @@ import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.entitlement.UserEntitlements
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
+import com.danzucker.stitchpad.core.domain.session.FakeCurrentCountryProvider
 import com.danzucker.stitchpad.feature.freemium.domain.BillingCadence
 import com.danzucker.stitchpad.feature.freemium.domain.CheckoutOutcome
 import com.danzucker.stitchpad.feature.freemium.domain.PaymentError
@@ -105,6 +106,7 @@ class UpgradeViewModelAnalyticsTest {
         pendingDeepLink = pendingDeepLink,
         analytics = analytics,
         appConfigRepository = FakeAppConfigRepository(),
+        currentCountryProvider = FakeCurrentCountryProvider(),
     )
 
     private class FakePaymentRepository : PaymentRepository {
