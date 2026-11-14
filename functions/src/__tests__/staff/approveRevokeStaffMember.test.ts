@@ -254,6 +254,22 @@ describe('revokeStaffMemberHandler', () => {
     });
   });
 
+  it('does NOT turn a revoked staffer with a past end date into an endless grant', async () => {
+    const prior = {
+      subscriptionTier: 'free',
+      subscriptionStatus: 'expired',
+      subscriptionEndsAt: new Date('2026-10-01T00:00:00Z'),
+      subscriptionRenews: false,
+      subscriptionSource: 'paystack',
+    };
+    const { db, store } = makeStaffDb({
+      'users/alice/memberships/chidi': { status: 'active' },
+      'users/chidi': { ...prior },
+    });
+    await revokeStaffMemberHandler({ staffAuthUid: 'chidi' }, authedCtx('alice'), revokeDeps(db));
+    expect(store.get('users/chidi')).toEqual(prior);
+  });
+
   it('skips the grant when the launch-free flag is off', async () => {
     const { db, store } = makeStaffDb({ 'users/alice/memberships/chidi': { status: 'active' } });
     await revokeStaffMemberHandler(
