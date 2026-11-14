@@ -111,7 +111,7 @@ class IosMeasurementSharer : MeasurementSharer {
             var y = padding + 26.0
             drawText("StitchPad", padding, y, boldFont(34.0), cardColor("#2C3E7C"))
             drawTextRight(
-                "MEASUREMENT CARD",
+                data.chrome.cardTitle,
                 width - padding,
                 y - 6.0,
                 regularFont(18.0),
@@ -166,7 +166,13 @@ class IosMeasurementSharer : MeasurementSharer {
             y += 32.0
             drawDivider(padding, y, width - padding, cardColor("#E5E3DF"))
             y += 32.0
-            drawCentered(FOOTER_TEXT, y = y, width = width, font = regularFont(18.0), color = cardColor("#7D7970"))
+            drawCentered(
+                data.chrome.cardFooter,
+                y = y,
+                width = width,
+                font = regularFont(18.0),
+                color = cardColor("#7D7970")
+            )
             // Paranoid check: y here should land within a few px of layoutHeight(data) —
             // the renderer above was sized to exactly that height with no post-crop step,
             // unlike the Android bitmap renderer which crops to actual content.
@@ -218,7 +224,7 @@ class IosMeasurementSharer : MeasurementSharer {
             var y = padding + 13.0
             drawText("StitchPad", padding, y, boldFont(17.0), cardColor("#2C3E7C"))
             drawTextRight(
-                "MEASUREMENT CARD",
+                data.chrome.cardTitle,
                 pageWidth - padding,
                 y - 3.0,
                 regularFont(9.0),
@@ -273,7 +279,13 @@ class IosMeasurementSharer : MeasurementSharer {
             y += 16.0
             drawDivider(padding, y, pageWidth - padding, cardColor("#E5E3DF"))
             y += 16.0
-            drawCentered(FOOTER_TEXT, y = y, width = pageWidth, font = regularFont(9.0), color = cardColor("#7D7970"))
+            drawCentered(
+                data.chrome.cardFooter,
+                y = y,
+                width = pageWidth,
+                font = regularFont(9.0),
+                color = cardColor("#7D7970")
+            )
         }
 
         if (!pdfData.writeToURL(fileUrl, atomically = true)) {
@@ -291,7 +303,7 @@ class IosMeasurementSharer : MeasurementSharer {
             add(data.measurementName)
             add(data.genderLabel)
             add(data.unitLabel)
-            data.dateFormatted?.let { add("Taken $it") }
+            data.dateFormatted?.let { add(data.chrome.taken(it)) }
             data.businessName?.let { add(it) }
         }
         return parts.joinToString(" · ")
@@ -452,7 +464,6 @@ class IosMeasurementSharer : MeasurementSharer {
         const val SHARE_PRESENT_DELAY_MS = 450L
         const val HEADER_LABEL_KERN_EM = 0.15
         const val SECTION_TITLE_KERN_EM = 0.12
-        const val FOOTER_TEXT = "Made with StitchPad — the smart work pad for tailors · getstitchpad.com"
     }
 
     // endregion

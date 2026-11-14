@@ -40,8 +40,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.danzucker.stitchpad.core.domain.model.GarmentType
+import com.danzucker.stitchpad.feature.dashboard.domain.model.GarmentSummary
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.TodayWorkBucket
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.TodayWorkRowUi
+import com.danzucker.stitchpad.feature.dashboard.presentation.model.garmentSummaryLabel
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
@@ -112,7 +115,7 @@ fun TodayWorkRichRow(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        GarmentRowSlim(label = row.primaryLabel)
+                        GarmentRowSlim(label = garmentSummaryLabel(row.garment))
                         AssigneeRowSlim(assigneeName = row.assigneeName, isAssignedToViewer = row.isAssignedToViewer)
                     }
                     StatusChip(
@@ -335,7 +338,7 @@ private fun TodayWorkRichRowOverduePreview() {
             row = TodayWorkRowUi.preview(
                 orderId = "1",
                 customerName = "Gose Wale",
-                primaryLabel = "Agbada",
+                garment = GarmentSummary(GarmentType.AGBADA),
                 accent = DesignTokens.error500,
                 chip = "1 day late",
                 bucket = TodayWorkBucket.Overdue,
@@ -355,7 +358,7 @@ private fun TodayWorkRichRowReadyPreview() {
             row = TodayWorkRowUi.preview(
                 orderId = "2",
                 customerName = "Adaeze Okoro",
-                primaryLabel = "Buba & Skirt",
+                garment = GarmentSummary(GarmentType.OTHER, customName = "Buba & Skirt"),
                 accent = DesignTokens.success500,
                 chip = "Ready",
                 bucket = TodayWorkBucket.Ready,

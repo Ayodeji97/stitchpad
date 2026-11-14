@@ -2,13 +2,13 @@ package com.danzucker.stitchpad.feature.dashboard.domain
 
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.OrderStatus
-import com.danzucker.stitchpad.core.domain.model.displayGarmentName
 import com.danzucker.stitchpad.core.domain.model.sumByCurrency
-import com.danzucker.stitchpad.feature.dashboard.domain.internal.simpleLabel
 import com.danzucker.stitchpad.feature.dashboard.domain.internal.toLocalDate
 import com.danzucker.stitchpad.feature.dashboard.domain.model.Buckets
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
+import com.danzucker.stitchpad.feature.dashboard.domain.model.GarmentSummary
 import com.danzucker.stitchpad.feature.dashboard.domain.model.stageOf
+import com.danzucker.stitchpad.feature.dashboard.domain.model.toGarmentSummary
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.daysUntil
@@ -97,20 +97,17 @@ object BucketCalculator {
 }
 
 /**
- * "‹Garment name›" — or "‹Garment name› · Qty ‹N›" when the first item's
- * quantity is more than 1. Shared by every row builder below so the staff
- * dashboard's focus-queue tickets (and every other row that surfaces
- * `primaryLabel`) render a real, production-derived qty instead of a
- * hand-typed preview string.
+ * Structured summary of the order's first item (type, custom name, quantity).
+ * Shared by every row builder below so the staff dashboard's focus-queue
+ * tickets (and every other row that surfaces `garment`) render a real,
+ * production-derived qty. The presentation layer turns this into the
+ * localized "‹Garment name› · Qty ‹N›" label — the domain never builds
+ * display strings.
  */
-private fun Order.garmentLabel(): String {
-    val item = items.firstOrNull() ?: return ""
-    val name = item.displayGarmentName { it.simpleLabel() }
-    return if (item.quantity > 1) "$name · Qty ${item.quantity}" else name
-}
+private fun Order.garmentSummary(): GarmentSummary? = items.firstOrNull()?.toGarmentSummary()
 
 private fun Order.toRow(today: LocalDate, tz: TimeZone): DashboardOrderRow {
-    val garment = garmentLabel()
+    val garment = garmentSummary()
     val deadlineDate = deadline?.toLocalDate(tz)
     val daysLate = deadlineDate
         ?.takeIf { it < today }
@@ -118,7 +115,7 @@ private fun Order.toRow(today: LocalDate, tz: TimeZone): DashboardOrderRow {
     return DashboardOrderRow(
         orderId = id,
         customerName = customerName,
-        primaryLabel = garment,
+        garment = garment,
         daysLate = daysLate,
         orderValue = payableTotal,
         currency = currency,
@@ -130,7 +127,7 @@ private fun Order.toRow(today: LocalDate, tz: TimeZone): DashboardOrderRow {
 }
 
 private fun Order.toPipelineRow(today: LocalDate, tz: TimeZone): DashboardOrderRow {
-    val garment = garmentLabel()
+    val garment = garmentSummary()
     val deadlineDate = deadline?.toLocalDate(tz)
     val daysUntil = deadlineDate
         ?.takeIf { it > today }
@@ -138,7 +135,7 @@ private fun Order.toPipelineRow(today: LocalDate, tz: TimeZone): DashboardOrderR
     return DashboardOrderRow(
         orderId = id,
         customerName = customerName,
-        primaryLabel = garment,
+        garment = garment,
         daysUntilDeadline = daysUntil,
         createdAtEpochMillis = createdAt,
         orderValue = payableTotal,
@@ -158,7 +155,7 @@ private fun Order.toPipelineRow(today: LocalDate, tz: TimeZone): DashboardOrderR
  * today" (so the urgency calibration's `soon` tier can render "Due today").
  */
 private fun Order.toQueueRow(today: LocalDate, tz: TimeZone): DashboardOrderRow {
-    val garment = garmentLabel()
+    val garment = garmentSummary()
     val deadlineDate = deadline?.toLocalDate(tz)
     val daysLate = deadlineDate
         ?.takeIf { it < today }
@@ -169,7 +166,7 @@ private fun Order.toQueueRow(today: LocalDate, tz: TimeZone): DashboardOrderRow 
     return DashboardOrderRow(
         orderId = id,
         customerName = customerName,
-        primaryLabel = garment,
+        garment = garment,
         daysLate = daysLate,
         daysUntilDeadline = daysUntilDeadline,
         createdAtEpochMillis = createdAt,

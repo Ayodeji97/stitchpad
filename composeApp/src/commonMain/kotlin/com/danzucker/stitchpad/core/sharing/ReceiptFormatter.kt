@@ -37,6 +37,9 @@ object ReceiptFormatter {
      * silently ignored. This guarantees the label can never contradict the
      * totals — a "RECEIPT" with ₦70,000 outstanding would mislead the customer.
      */
+    // Every parameter past `user` is an optional, defaulted knob (tier, localization,
+    // logo, override) — a parameter object would only move the same list elsewhere.
+    @Suppress("LongParameterList")
     fun format(
         order: Order,
         user: User,
@@ -52,6 +55,10 @@ object ReceiptFormatter {
         // from calendar_months_short so this formatter stays resource-free.
         // Defaults to the English abbreviations the receipt has always printed.
         monthNames: List<String> = DEFAULT_SHORT_MONTH_NAMES,
+        // Localized fixed copy (doc type, statuses, payment labels, renderer
+        // section labels), resolved by the caller via resolveReceiptLabels().
+        // Defaults to the English the receipt has always printed.
+        labels: ReceiptLabels = ReceiptLabels(),
     ): ReceiptData {
         val tz = TimeZone.currentSystemDefault()
         val dateFormatted = formatDate(order.createdAt, tz, monthNames)
@@ -72,7 +79,7 @@ object ReceiptFormatter {
 
         val paymentRows = order.payments
             .sortedBy { it.recordedAt }
-            .map { it.toRow(tz, order.currency, monthNames) }
+            .map { it.toRow(tz, order.currency, monthNames, labels) }
 
         // Bank block hidden when nothing is owed (no point asking for transfer).
         // Otherwise shown only when all three fields are set — group-required is
@@ -88,7 +95,7 @@ object ReceiptFormatter {
             // slot for users onboarded before the WhatsApp field existed.
             businessPhone = user.whatsappNumber ?: user.phoneNumber,
             documentType = docType,
-            documentTypeLabel = docType.label(),
+            documentTypeLabel = docType.label(labels),
             customerName = order.customerName,
             dateFormatted = dateFormatted,
             items = groupedItems,
@@ -101,18 +108,19 @@ object ReceiptFormatter {
             isFullyPaid = fullyPaid,
             paymentRows = paymentRows,
             bankBlock = bankBlock,
-            statusLabel = statusToLabel(order.status),
+            statusLabel = statusToLabel(order.status, labels),
             statusColorHex = statusToColorHex(order.status),
             deadlineFormatted = deadlineFormatted,
             priorityLabel = when (order.priority) {
                 OrderPriority.NORMAL -> null
-                OrderPriority.URGENT -> "URGENT"
-                OrderPriority.RUSH -> "RUSH"
+                OrderPriority.URGENT -> labels.priorityUrgent
+                OrderPriority.RUSH -> labels.priorityRush
             },
             orderIdShort = "ORD-$shortId",
             attribution = attribution,
             watermark = watermark,
             businessLogoBytes = businessLogoBytes,
+            labels = labels,
         )
     }
 
@@ -181,10 +189,10 @@ object ReceiptFormatter {
         else -> force
     }
 
-    private fun ReceiptDocumentType.label(): String = when (this) {
-        ReceiptDocumentType.INVOICE -> "INVOICE"
-        ReceiptDocumentType.DEPOSIT_RECEIPT -> "DEPOSIT RECEIPT"
-        ReceiptDocumentType.RECEIPT -> "RECEIPT"
+    private fun ReceiptDocumentType.label(labels: ReceiptLabels): String = when (this) {
+        ReceiptDocumentType.INVOICE -> labels.documentInvoice
+        ReceiptDocumentType.DEPOSIT_RECEIPT -> labels.documentDepositReceipt
+        ReceiptDocumentType.RECEIPT -> labels.documentReceipt
     }
 
     private fun User.toBankBlock(): BankBlock? {
@@ -195,24 +203,29 @@ object ReceiptFormatter {
         return BankBlock(name, accountName, accountNumber)
     }
 
-    private fun Payment.toRow(tz: TimeZone, currency: Currency, monthNames: List<String>): PaymentRow = PaymentRow(
+    private fun Payment.toRow(
+        tz: TimeZone,
+        currency: Currency,
+        monthNames: List<String>,
+        labels: ReceiptLabels,
+    ): PaymentRow = PaymentRow(
         dateFormatted = formatDate(recordedAt, tz, monthNames),
-        typeLabel = type.label(),
-        methodLabel = method.label(),
+        typeLabel = type.label(labels),
+        methodLabel = method.label(labels),
         formattedAmount = formatMoney(amount, currency),
     )
 
-    private fun PaymentType.label(): String = when (this) {
-        PaymentType.DEPOSIT -> "Deposit"
-        PaymentType.PROGRESS -> "Progress"
-        PaymentType.FINAL -> "Final"
+    private fun PaymentType.label(labels: ReceiptLabels): String = when (this) {
+        PaymentType.DEPOSIT -> labels.paymentDeposit
+        PaymentType.PROGRESS -> labels.paymentProgress
+        PaymentType.FINAL -> labels.paymentFinal
     }
 
-    private fun PaymentMethod.label(): String = when (this) {
-        PaymentMethod.CASH -> "Cash"
-        PaymentMethod.TRANSFER -> "Transfer"
-        PaymentMethod.POS -> "POS"
-        PaymentMethod.OTHER -> "Other"
+    private fun PaymentMethod.label(labels: ReceiptLabels): String = when (this) {
+        PaymentMethod.CASH -> labels.methodCash
+        PaymentMethod.TRANSFER -> labels.methodTransfer
+        PaymentMethod.POS -> labels.methodPos
+        PaymentMethod.OTHER -> labels.methodOther
     }
 
     private fun formatDate(epochMillis: Long, tz: TimeZone, monthNames: List<String>): String {
@@ -267,11 +280,11 @@ object ReceiptFormatter {
             )
         }
 
-    private fun statusToLabel(status: OrderStatus): String = when (status) {
-        OrderStatus.PENDING -> "Pending"
-        OrderStatus.IN_PROGRESS -> "In Progress"
-        OrderStatus.READY -> "Ready"
-        OrderStatus.DELIVERED -> "Delivered"
+    private fun statusToLabel(status: OrderStatus, labels: ReceiptLabels): String = when (status) {
+        OrderStatus.PENDING -> labels.statusPending
+        OrderStatus.IN_PROGRESS -> labels.statusInProgress
+        OrderStatus.READY -> labels.statusReady
+        OrderStatus.DELIVERED -> labels.statusDelivered
     }
 
     // Hex values mirror DesignTokens status colors used in StatusBadge so receipts

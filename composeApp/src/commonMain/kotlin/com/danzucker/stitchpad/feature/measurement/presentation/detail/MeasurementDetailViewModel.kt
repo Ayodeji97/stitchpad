@@ -18,6 +18,7 @@ import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.workshopUidOrNull
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.presentation.localizedMonthNamesAsync
+import com.danzucker.stitchpad.core.sharing.MeasurementShareChrome
 import com.danzucker.stitchpad.core.sharing.MeasurementShareData
 import com.danzucker.stitchpad.core.sharing.MeasurementSharer
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
@@ -39,7 +40,11 @@ import stitchpad.composeapp.generated.resources.custom_field_section_title
 import stitchpad.composeapp.generated.resources.measurement_detail_title
 import stitchpad.composeapp.generated.resources.measurement_gender_men
 import stitchpad.composeapp.generated.resources.measurement_gender_women
+import stitchpad.composeapp.generated.resources.measurement_share_card_footer
+import stitchpad.composeapp.generated.resources.measurement_share_card_taken
+import stitchpad.composeapp.generated.resources.measurement_share_card_title
 import stitchpad.composeapp.generated.resources.measurement_share_error
+import stitchpad.composeapp.generated.resources.measurement_share_whatsapp_footer
 import stitchpad.composeapp.generated.resources.measurement_unit_cm
 import stitchpad.composeapp.generated.resources.measurement_unit_inches
 import stitchpad.composeapp.generated.resources.section_arms
@@ -393,6 +398,12 @@ private fun defaultShareLabelsResolver(
         businessName = authRepository.getCurrentUser()?.businessName?.takeIf { it.isNotBlank() },
         sectionTitles = defaultLocalizedSectionTitles(),
         customSectionTitle = getString(Res.string.custom_field_section_title),
+        chrome = MeasurementShareChrome(
+            cardTitle = getString(Res.string.measurement_share_card_title),
+            takenTemplate = getString(Res.string.measurement_share_card_taken),
+            cardFooter = getString(Res.string.measurement_share_card_footer),
+            whatsAppFooter = getString(Res.string.measurement_share_whatsapp_footer),
+        ),
     )
 }
 

@@ -42,6 +42,7 @@ import com.danzucker.stitchpad.core.presentation.localizedMonthNamesAsync
 import com.danzucker.stitchpad.core.presentation.moneyInputAfterEdit
 import com.danzucker.stitchpad.core.presentation.moneyInputForAmount
 import com.danzucker.stitchpad.core.presentation.moneyInputValue
+import com.danzucker.stitchpad.core.presentation.resolveReceiptLabels
 import com.danzucker.stitchpad.core.sharing.OrderReceiptSharer
 import com.danzucker.stitchpad.core.sharing.ReceiptData
 import com.danzucker.stitchpad.core.sharing.ReceiptFormatter
@@ -790,6 +791,7 @@ class OrderDetailViewModel(
                     businessLogoBytes = logoBytes,
                     forceDocumentType = choice,
                     monthNames = localizedMonthNamesAsync(short = true),
+                    labels = resolveReceiptLabels(),
                 )
                 share(receiptData)
                 analytics.logEvent(

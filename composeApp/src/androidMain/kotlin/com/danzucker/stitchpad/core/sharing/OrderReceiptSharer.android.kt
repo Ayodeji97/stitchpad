@@ -192,8 +192,8 @@ actual class OrderReceiptSharer(private val context: Context) {
         y += 30f
 
         // Customer & Date row
-        canvas.drawText("CUSTOMER", padding, y, labelPaint)
-        canvas.drawText("DATE", width - padding - labelPaint.measureText("DATE"), y, labelPaint)
+        canvas.drawText(data.labels.customer, padding, y, labelPaint)
+        canvas.drawText(data.labels.date, width - padding - labelPaint.measureText(data.labels.date), y, labelPaint)
         y += 22f
         canvas.drawText(data.customerName, padding, y, bodyBoldPaint)
         val dateWidth = bodyPaint.measureText(data.dateFormatted)
@@ -205,7 +205,7 @@ actual class OrderReceiptSharer(private val context: Context) {
         y += 20f
 
         // Items
-        canvas.drawText("ITEMS", padding, y, labelPaint)
+        canvas.drawText(data.labels.items, padding, y, labelPaint)
         y += 24f
         data.items.forEach { item ->
             if (item.quantity == 1) {
@@ -219,7 +219,7 @@ actual class OrderReceiptSharer(private val context: Context) {
                 canvas.drawText(item.formattedPrice, width - padding, y, priceRightPaint)
                 y += 24f
                 // Row 2 (caption): "<unit price> each", muted.
-                canvas.drawText("${item.formattedUnitPrice} each", padding, y, labelPaint)
+                canvas.drawText(data.labels.unitPriceEach(item.formattedUnitPrice), padding, y, labelPaint)
                 y += 28f
             }
         }
@@ -231,10 +231,10 @@ actual class OrderReceiptSharer(private val context: Context) {
 
         // Subtotal + Discount rows (only when a discount is applied)
         data.discountFormatted?.let { discount ->
-            canvas.drawText("Subtotal", padding, y, bodyPaint)
+            canvas.drawText(data.labels.subtotal, padding, y, bodyPaint)
             canvas.drawText(data.subtotalFormatted, width - padding, y, priceRightPaint)
             y += 26f
-            canvas.drawText("Discount", padding, y, bodyPaint)
+            canvas.drawText(data.labels.discount, padding, y, bodyPaint)
             canvas.drawText(discount, width - padding, y, depositPaint)
             y += 24f
             data.discountReason?.let { reason ->
@@ -245,19 +245,19 @@ actual class OrderReceiptSharer(private val context: Context) {
 
         // Deposit — drawn before Total so the customer reads what they've paid
         // first, then the Total it offsets, then the Balance still due.
-        canvas.drawText("Deposit Paid", padding, y, bodyPaint)
+        canvas.drawText(data.labels.depositPaid, padding, y, bodyPaint)
         canvas.drawText(data.depositFormatted, width - padding, y, depositPaint)
         y += 26f
 
         // Total
-        canvas.drawText("Total", padding, y, totalLabelPaint)
+        canvas.drawText(data.labels.total, padding, y, totalLabelPaint)
         canvas.drawText(data.totalFormatted, width - padding, y, totalPaint)
         y += 26f
 
         // Balance
-        canvas.drawText("Balance", padding, y, bodyPaint)
+        canvas.drawText(data.labels.balance, padding, y, bodyPaint)
         if (data.isFullyPaid) {
-            val paidText = "✓ PAID IN FULL"
+            val paidText = data.labels.paidInFull
             val paidPaint = makePaint(green, 17f, bold = true)
             val tw = paidPaint.measureText(paidText)
             val rx = width - padding - tw - 14f
@@ -265,7 +265,7 @@ actual class OrderReceiptSharer(private val context: Context) {
             canvas.drawRoundRect(RectF(rx, ry, rx + tw + 14f, ry + 24f), 8f, 8f, paidBgPaint)
             canvas.drawText(paidText, rx + 7f, y, paidPaint)
         } else {
-            val dueText = "${data.balanceFormatted} DUE"
+            val dueText = data.labels.amountDue(data.balanceFormatted)
             val tw = balancePaint.measureText(dueText)
             val rx = width - padding - tw - 14f
             val ry = y - 16f
@@ -282,16 +282,16 @@ actual class OrderReceiptSharer(private val context: Context) {
             y += 16f
             canvas.drawLine(padding, y, width - padding, y, linePaint)
             y += 24f
-            canvas.drawText("PAY VIA TRANSFER", padding, y, labelPaint)
+            canvas.drawText(data.labels.payViaTransfer, padding, y, labelPaint)
             y += 26f
             val valueX = padding + 140f
-            canvas.drawText("Bank", padding, y, bodyPaint)
+            canvas.drawText(data.labels.bank, padding, y, bodyPaint)
             canvas.drawText(bank.bankName, valueX, y, bodyBoldPaint)
             y += 26f
-            canvas.drawText("Account name", padding, y, bodyPaint)
+            canvas.drawText(data.labels.accountName, padding, y, bodyPaint)
             canvas.drawText(bank.accountName, valueX, y, bodyBoldPaint)
             y += 26f
-            canvas.drawText("Account number", padding, y, bodyPaint)
+            canvas.drawText(data.labels.accountNumber, padding, y, bodyPaint)
             canvas.drawText(bank.accountNumber, valueX, y, bodyBoldPaint)
             y += 32f
         }
@@ -301,9 +301,14 @@ actual class OrderReceiptSharer(private val context: Context) {
         y += 22f
 
         // Status
-        canvas.drawText("STATUS", padding, y, labelPaint)
+        canvas.drawText(data.labels.status, padding, y, labelPaint)
         if (data.deadlineFormatted != null) {
-            canvas.drawText("DEADLINE", width - padding - labelPaint.measureText("DEADLINE"), y, labelPaint)
+            canvas.drawText(
+                data.labels.deadline,
+                width - padding - labelPaint.measureText(data.labels.deadline),
+                y,
+                labelPaint
+            )
         }
         y += 22f
         canvas.drawText("● ${data.statusLabel}", padding, y, statusPaint)
@@ -336,8 +341,8 @@ actual class OrderReceiptSharer(private val context: Context) {
         y += 24f
         canvas.drawLine(padding, y, width - padding, y, linePaint)
         y += 20f
-        canvas.drawText("Order #${data.orderIdShort}", width / 2f, y, footerPaint)
-        val attributionText = data.attribution.footerText
+        canvas.drawText(data.labels.orderNumber(data.orderIdShort), width / 2f, y, footerPaint)
+        val attributionText = data.labels.footerFor(data.attribution)
         if (attributionText != null) {
             y += 18f
             canvas.drawText(attributionText, width / 2f, y, footerPaint)
@@ -500,8 +505,13 @@ actual class OrderReceiptSharer(private val context: Context) {
         y += 22f
 
         // Customer & Date
-        canvas.drawText("CUSTOMER", padding, y, labelPaintPdf)
-        canvas.drawText("DATE", pageWidth - padding - labelPaintPdf.measureText("DATE"), y, labelPaintPdf)
+        canvas.drawText(data.labels.customer, padding, y, labelPaintPdf)
+        canvas.drawText(
+            data.labels.date,
+            pageWidth - padding - labelPaintPdf.measureText(data.labels.date),
+            y,
+            labelPaintPdf
+        )
         y += 16f
         canvas.drawText(data.customerName, padding, y, bodyBoldPdf)
         canvas.drawText(
@@ -517,7 +527,7 @@ actual class OrderReceiptSharer(private val context: Context) {
         y += 16f
 
         // Items
-        canvas.drawText("ITEMS", padding, y, labelPaintPdf)
+        canvas.drawText(data.labels.items, padding, y, labelPaintPdf)
         y += 18f
         data.items.forEach { item ->
             if (item.quantity == 1) {
@@ -531,7 +541,7 @@ actual class OrderReceiptSharer(private val context: Context) {
                 canvas.drawText(item.formattedPrice, pageWidth - padding, y, priceRightPdf)
                 y += 16f
                 // Row 2 (caption): "<unit price> each", muted.
-                canvas.drawText("${item.formattedUnitPrice} each", padding, y, labelPaintPdf)
+                canvas.drawText(data.labels.unitPriceEach(item.formattedUnitPrice), padding, y, labelPaintPdf)
                 y += 20f
             }
         }
@@ -543,10 +553,10 @@ actual class OrderReceiptSharer(private val context: Context) {
 
         // Subtotal + Discount rows (only when a discount is applied)
         data.discountFormatted?.let { discount ->
-            canvas.drawText("Subtotal", padding, y, bodyPaintPdf)
+            canvas.drawText(data.labels.subtotal, padding, y, bodyPaintPdf)
             canvas.drawText(data.subtotalFormatted, pageWidth - padding, y, priceRightPdf)
             y += 20f
-            canvas.drawText("Discount", padding, y, bodyPaintPdf)
+            canvas.drawText(data.labels.discount, padding, y, bodyPaintPdf)
             canvas.drawText(discount, pageWidth - padding, y, depositPricePdf)
             y += 20f
             data.discountReason?.let { reason ->
@@ -557,19 +567,19 @@ actual class OrderReceiptSharer(private val context: Context) {
 
         // Deposit — drawn before Total so the customer reads what they've paid
         // first, then the Total it offsets, then the Balance still due.
-        canvas.drawText("Deposit Paid", padding, y, bodyPaintPdf)
+        canvas.drawText(data.labels.depositPaid, padding, y, bodyPaintPdf)
         canvas.drawText(data.depositFormatted, pageWidth - padding, y, depositPricePdf)
         y += 20f
 
         // Total
-        canvas.drawText("Total", padding, y, totalLabelPdf)
+        canvas.drawText(data.labels.total, padding, y, totalLabelPdf)
         canvas.drawText(data.totalFormatted, pageWidth - padding, y, totalPricePdf)
         y += 20f
 
         // Balance
-        canvas.drawText("Balance", padding, y, bodyPaintPdf)
+        canvas.drawText(data.labels.balance, padding, y, bodyPaintPdf)
         if (data.isFullyPaid) {
-            val paidText = "✓ PAID IN FULL"
+            val paidText = data.labels.paidInFull
             val pp = makePaint(green, 13f, bold = true)
             val tw = pp.measureText(paidText)
             val rx = pageWidth - padding - tw - 12f
@@ -581,7 +591,7 @@ actual class OrderReceiptSharer(private val context: Context) {
             canvas.drawRoundRect(RectF(rx, y - 12f, rx + tw + 12f, y + 6f), 6f, 6f, bgp)
             canvas.drawText(paidText, rx + 6f, y, pp)
         } else {
-            val dueText = "${data.balanceFormatted} DUE"
+            val dueText = data.labels.amountDue(data.balanceFormatted)
             val tw = balancePdf.measureText(dueText)
             val rx = pageWidth - padding - tw - 12f
             val bgp = Paint().apply {
@@ -600,16 +610,16 @@ actual class OrderReceiptSharer(private val context: Context) {
             y += 12f
             canvas.drawLine(padding, y, pageWidth - padding, y, linePdf)
             y += 18f
-            canvas.drawText("PAY VIA TRANSFER", padding, y, labelPaintPdf)
+            canvas.drawText(data.labels.payViaTransfer, padding, y, labelPaintPdf)
             y += 20f
             val valueX = padding + 104f
-            canvas.drawText("Bank", padding, y, bodyPaintPdf)
+            canvas.drawText(data.labels.bank, padding, y, bodyPaintPdf)
             canvas.drawText(bankPdf.bankName, valueX, y, bodyBoldPdf)
             y += 20f
-            canvas.drawText("Account name", padding, y, bodyPaintPdf)
+            canvas.drawText(data.labels.accountName, padding, y, bodyPaintPdf)
             canvas.drawText(bankPdf.accountName, valueX, y, bodyBoldPdf)
             y += 20f
-            canvas.drawText("Account number", padding, y, bodyPaintPdf)
+            canvas.drawText(data.labels.accountNumber, padding, y, bodyPaintPdf)
             canvas.drawText(bankPdf.accountNumber, valueX, y, bodyBoldPdf)
             y += 24f
         }
@@ -619,9 +629,14 @@ actual class OrderReceiptSharer(private val context: Context) {
         y += 16f
 
         // Status & Deadline
-        canvas.drawText("STATUS", padding, y, labelPaintPdf)
+        canvas.drawText(data.labels.status, padding, y, labelPaintPdf)
         if (data.deadlineFormatted != null) {
-            canvas.drawText("DEADLINE", pageWidth - padding - labelPaintPdf.measureText("DEADLINE"), y, labelPaintPdf)
+            canvas.drawText(
+                data.labels.deadline,
+                pageWidth - padding - labelPaintPdf.measureText(data.labels.deadline),
+                y,
+                labelPaintPdf
+            )
         }
         y += 16f
         canvas.drawText("● ${data.statusLabel}", padding, y, statusPdf)
@@ -652,8 +667,8 @@ actual class OrderReceiptSharer(private val context: Context) {
         y += 30f
         canvas.drawLine(padding, y, pageWidth - padding, y, linePdf)
         y += 16f
-        canvas.drawText("Order #${data.orderIdShort}", pageWidth / 2f, y, footerPdf)
-        val attributionTextPdf = data.attribution.footerText
+        canvas.drawText(data.labels.orderNumber(data.orderIdShort), pageWidth / 2f, y, footerPdf)
+        val attributionTextPdf = data.labels.footerFor(data.attribution)
         if (attributionTextPdf != null) {
             y += 14f
             canvas.drawText(attributionTextPdf, pageWidth / 2f, y, footerPdf)

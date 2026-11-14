@@ -40,4 +40,48 @@ class MoneyFormatterTest {
         assertEquals("5,000", formatMoney(5000.0, Currency.NGN, includeSymbol = false))
         assertEquals("5,000.50", formatPrice(5000.5))
     }
+
+    // --- Per-language display conventions (device / app language) ---
+
+    private val nnbsp = '\u202F'
+    private val nbsp = '\u00A0'
+
+    @Test
+    fun englishStyleIsTheHistoricalFormat() {
+        val en = MoneyStyle.ENGLISH
+        assertEquals("₦100,000", formatMoney(100_000.0, Currency.NGN, style = en))
+        assertEquals("₦1,234.50", formatMoney(1234.5, Currency.NGN, style = en))
+        assertEquals("₦310K", formatCompactMoney(310_000.0, Currency.NGN, style = en))
+        assertEquals("GH₵1.5M", formatCompactMoney(1_500_000.0, Currency.GHS, style = en))
+        assertEquals("5,000.50", formatPrice(5000.5, style = en))
+    }
+
+    @Test
+    fun frenchStyleUsesNarrowSpaceGroupingAndDecimalComma() {
+        val fr = MoneyStyle.FRENCH
+        assertEquals("₦100${nnbsp}000", formatMoney(100_000.0, Currency.NGN, style = fr))
+        assertEquals("₦1${nnbsp}234,50", formatMoney(1234.5, Currency.NGN, style = fr))
+        assertEquals("F CFA 1${nnbsp}235", formatMoney(1234.5, Currency.XOF, style = fr))
+        assertEquals("-GH₵0,50", formatMoney(-0.5, Currency.GHS, style = fr))
+        assertEquals("₦1${nnbsp}000${nnbsp}000", formatMoney(1_000_000.0, Currency.NGN, style = fr))
+        assertEquals("5${nnbsp}000,50", formatPrice(5000.5, style = fr))
+    }
+
+    @Test
+    fun frenchCompactUsesLowercaseKAndDecimalComma() {
+        val fr = MoneyStyle.FRENCH
+        assertEquals("₦310${nbsp}k", formatCompactMoney(310_000.0, Currency.NGN, style = fr))
+        assertEquals("F CFA 1,2${nbsp}k", formatCompactMoney(1200.0, Currency.XOF, style = fr))
+        assertEquals("GH₵1,5${nbsp}M", formatCompactMoney(1_500_000.0, Currency.GHS, style = fr))
+        assertEquals("-KSh 1,2${nbsp}k", formatCompactMoney(-1200.0, Currency.KES, style = fr))
+        assertEquals("₦999", formatCompactMoney(999.0, Currency.NGN, style = fr))
+    }
+
+    @Test
+    fun styleFollowsLanguageCode() {
+        assertEquals(MoneyStyle.FRENCH, MoneyStyle.forLanguage("fr"))
+        assertEquals(MoneyStyle.FRENCH, MoneyStyle.forLanguage("fr-CI"))
+        assertEquals(MoneyStyle.ENGLISH, MoneyStyle.forLanguage("en"))
+        assertEquals(MoneyStyle.ENGLISH, MoneyStyle.forLanguage(""))
+    }
 }

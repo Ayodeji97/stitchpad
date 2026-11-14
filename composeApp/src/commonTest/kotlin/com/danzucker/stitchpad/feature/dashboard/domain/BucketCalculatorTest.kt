@@ -11,6 +11,7 @@ import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.model.PaymentMethod
 import com.danzucker.stitchpad.core.domain.model.PaymentType
+import com.danzucker.stitchpad.feature.dashboard.domain.model.GarmentSummary
 import com.danzucker.stitchpad.feature.dashboard.domain.model.PipelineStage
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
@@ -441,21 +442,21 @@ class BucketCalculatorTest {
     // --- Garment label + quantity (design review, PR #366) ---
 
     @Test
-    fun primaryLabelOmitsQuantityWhenOne() {
+    fun garmentCarriesStructuredDataWithQuantityOne() {
         val orders = listOf(order(id = "o1", garment = GarmentType.AGBADA, quantity = 1))
 
         val buckets = BucketCalculator.compute(orders, today, tz)
 
-        assertEquals("Agbada", buckets.openQueue.single().primaryLabel)
+        assertEquals(GarmentSummary(GarmentType.AGBADA, quantity = 1), buckets.openQueue.single().garment)
     }
 
     @Test
-    fun primaryLabelIncludesQuantityWhenGreaterThanOne() {
+    fun garmentCarriesQuantityWhenGreaterThanOne() {
         val orders = listOf(order(id = "o1", garment = GarmentType.AGBADA, quantity = 3))
 
         val buckets = BucketCalculator.compute(orders, today, tz)
 
-        assertEquals("Agbada · Qty 3", buckets.openQueue.single().primaryLabel)
+        assertEquals(GarmentSummary(GarmentType.AGBADA, quantity = 3), buckets.openQueue.single().garment)
     }
 
     @Test
@@ -464,7 +465,7 @@ class BucketCalculatorTest {
 
         val buckets = BucketCalculator.compute(orders, today, tz)
 
-        assertEquals("Agbada · Qty 2", buckets.overdue.single().primaryLabel)
+        assertEquals(GarmentSummary(GarmentType.AGBADA, quantity = 2), buckets.overdue.single().garment)
     }
 
     private fun LocalDate.minusDays(n: Long): LocalDate =

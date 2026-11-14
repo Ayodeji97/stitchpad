@@ -17,4 +17,22 @@ data class MeasurementShareData(
     val businessName: String?,
     val sections: List<MeasurementShareSection>,
     val notes: String?,
+    /** Localized fixed copy (card title, "Taken …", footers). Defaults to English. */
+    val chrome: MeasurementShareChrome = MeasurementShareChrome(),
 )
+
+/**
+ * Fixed, non-measurement copy printed on the shared card / WhatsApp text,
+ * pre-localized by the caller. Defaults are the English strings the share has
+ * always used, so tests and unlocalized callers stay byte-identical.
+ */
+data class MeasurementShareChrome(
+    val cardTitle: String = "MEASUREMENT CARD",
+    /** Raw positional template, e.g. "Taken %1$s"; filled by [taken]. */
+    val takenTemplate: String = "Taken %1\$s",
+    val cardFooter: String = "Made with StitchPad — the smart work pad for tailors · getstitchpad.com",
+    /** WhatsApp sign-off, without the `_…_` italic markup (added by the text builder). */
+    val whatsAppFooter: String = "Sent from StitchPad · getstitchpad.com",
+) {
+    fun taken(dateFormatted: String): String = fillTemplate(takenTemplate, dateFormatted)
+}

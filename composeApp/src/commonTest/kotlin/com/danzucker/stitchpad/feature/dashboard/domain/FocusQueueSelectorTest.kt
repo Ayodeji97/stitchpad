@@ -1,6 +1,8 @@
 package com.danzucker.stitchpad.feature.dashboard.domain
 
+import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
+import com.danzucker.stitchpad.feature.dashboard.domain.model.GarmentSummary
 import com.danzucker.stitchpad.feature.dashboard.domain.model.PipelineStage
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -20,7 +22,7 @@ class FocusQueueSelectorTest {
     ) = DashboardOrderRow(
         orderId = orderId,
         customerName = "Customer $orderId",
-        primaryLabel = "Garment",
+        garment = GarmentSummary(GarmentType.OTHER),
         daysLate = daysLate,
         daysUntilDeadline = daysUntilDeadline,
         createdAtEpochMillis = createdAtEpochMillis,

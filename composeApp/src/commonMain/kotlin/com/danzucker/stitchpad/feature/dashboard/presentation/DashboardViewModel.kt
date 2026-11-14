@@ -14,7 +14,6 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.User
-import com.danzucker.stitchpad.core.domain.model.displayGarmentName
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.NotificationRepository
@@ -35,9 +34,9 @@ import com.danzucker.stitchpad.feature.dashboard.domain.ReconnectCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.StaffPipelineCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.WeeklyGoalCalculator
 import com.danzucker.stitchpad.feature.dashboard.domain.computeFocusQueue
-import com.danzucker.stitchpad.feature.dashboard.domain.internal.simpleLabel
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
 import com.danzucker.stitchpad.feature.dashboard.domain.model.PipelineStage
+import com.danzucker.stitchpad.feature.dashboard.domain.model.toGarmentSummary
 import com.danzucker.stitchpad.feature.dashboard.domain.model.toOrderStatusAndSubStatus
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.CustomerReadyUi
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.DashboardUiState
@@ -1069,7 +1068,7 @@ class DashboardViewModel(
                 hasOrder = hasOrder,
                 hasDueDate = hasDueDate,
                 hasDeposit = hasDeposit,
-                garmentLabel = firstOrder?.items?.firstOrNull()?.displayGarmentName { it.simpleLabel() }.orEmpty(),
+                garment = firstOrder?.items?.firstOrNull()?.toGarmentSummary(),
                 totalAmount = firstOrder?.payableTotal ?: 0.0,
                 currency = firstOrder?.currency ?: com.danzucker.stitchpad.core.domain.model.Currency.NGN,
             )

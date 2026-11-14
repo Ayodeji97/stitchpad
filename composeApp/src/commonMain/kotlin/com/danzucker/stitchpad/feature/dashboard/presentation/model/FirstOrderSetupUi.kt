@@ -1,6 +1,7 @@
 package com.danzucker.stitchpad.feature.dashboard.presentation.model
 
 import com.danzucker.stitchpad.core.domain.model.Currency
+import com.danzucker.stitchpad.feature.dashboard.domain.model.GarmentSummary
 
 /**
  * Drives the persistent "Order setup" checklist that follows a tailor from
@@ -27,8 +28,8 @@ data class FirstOrderSetupUi(
     val hasOrder: Boolean,
     val hasDueDate: Boolean,
     val hasDeposit: Boolean,
-    /** Garment label for the order (e.g. "Senator"). Empty when no order yet. */
-    val garmentLabel: String = "",
+    /** Lead garment of the order (e.g. Senator). Null when no order yet. Localized at render time. */
+    val garment: GarmentSummary? = null,
     /** Order total in naira. 0.0 when no order yet. */
     val totalAmount: Double = 0.0,
     val currency: Currency = Currency.NGN,

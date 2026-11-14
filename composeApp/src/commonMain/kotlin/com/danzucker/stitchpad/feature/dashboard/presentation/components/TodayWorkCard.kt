@@ -20,6 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.danzucker.stitchpad.core.domain.model.GarmentType
+import com.danzucker.stitchpad.feature.dashboard.domain.model.GarmentSummary
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.TodayWorkBucket
 import com.danzucker.stitchpad.feature.dashboard.presentation.model.TodayWorkRowUi
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -94,14 +96,14 @@ private fun TodayWorkCardPreview() {
                 TodayWorkRowUi.preview(
                     orderId = "1",
                     customerName = "Adaeze Okoro",
-                    primaryLabel = "Buba & Skirt · Due 4 PM",
+                    garment = GarmentSummary(GarmentType.OTHER, customName = "Buba & Skirt · Due 4 PM"),
                     accent = DesignTokens.error500,
                     chip = "Due today",
                 ),
                 TodayWorkRowUi.preview(
                     orderId = "2",
                     customerName = "Kunle Adeyemi",
-                    primaryLabel = "Senator Wear · Ready",
+                    garment = GarmentSummary(GarmentType.OTHER, customName = "Senator Wear · Ready"),
                     accent = DesignTokens.success500,
                     chip = "Ready pickup",
                     bucket = TodayWorkBucket.Ready,
@@ -109,7 +111,7 @@ private fun TodayWorkCardPreview() {
                 TodayWorkRowUi.preview(
                     orderId = "3",
                     customerName = "Ifeoma Balogun",
-                    primaryLabel = "Bridesmaid Dress · Fitting 2 PM",
+                    garment = GarmentSummary(GarmentType.OTHER, customName = "Bridesmaid Dress · Fitting 2 PM"),
                     accent = DesignTokens.warning500,
                     chip = "Fitting today",
                     bucket = TodayWorkBucket.DueToday,
@@ -131,7 +133,7 @@ private fun TodayWorkCardOverflowPreview() {
                 TodayWorkRowUi.preview(
                     orderId = i.toString(),
                     customerName = "Customer $i",
-                    primaryLabel = "Garment · today",
+                    garment = GarmentSummary(GarmentType.OTHER, customName = "Garment · today"),
                     accent = DesignTokens.warning500,
                     chip = "Due today",
                     bucket = TodayWorkBucket.DueToday,
@@ -153,14 +155,14 @@ private fun TodayWorkCardDarkPreview() {
                 TodayWorkRowUi.preview(
                     orderId = "1",
                     customerName = "Adaeze Okoro",
-                    primaryLabel = "Buba & Skirt · Due 4 PM",
+                    garment = GarmentSummary(GarmentType.OTHER, customName = "Buba & Skirt · Due 4 PM"),
                     accent = DesignTokens.error500,
                     chip = "Due today",
                 ),
                 TodayWorkRowUi.preview(
                     orderId = "2",
                     customerName = "Kunle Adeyemi",
-                    primaryLabel = "Senator Wear · Ready",
+                    garment = GarmentSummary(GarmentType.OTHER, customName = "Senator Wear · Ready"),
                     accent = DesignTokens.success500,
                     chip = "Ready pickup",
                     bucket = TodayWorkBucket.Ready,

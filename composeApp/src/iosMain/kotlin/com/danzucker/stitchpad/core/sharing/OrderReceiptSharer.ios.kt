@@ -165,8 +165,8 @@ actual class OrderReceiptSharer {
             y += 28.0
 
             // Customer & Date
-            drawText("CUSTOMER", padding, y, labelFont(), darkColor("#7D7970"))
-            drawTextRight("DATE", width - padding, y, labelFont(), darkColor("#7D7970"))
+            drawText(data.labels.customer, padding, y, labelFont(), darkColor("#7D7970"))
+            drawTextRight(data.labels.date, width - padding, y, labelFont(), darkColor("#7D7970"))
             y += 18.0
             drawText(data.customerName, padding, y, boldFont(15.0), darkColor(palette.bodyTextHex))
             drawTextRight(data.dateFormatted, width - padding, y, regularFont(14.0), darkColor(palette.bodyTextHex))
@@ -176,7 +176,7 @@ actual class OrderReceiptSharer {
             y += 18.0
 
             // Items
-            drawText("ITEMS", padding, y, labelFont(), darkColor("#7D7970"))
+            drawText(data.labels.items, padding, y, labelFont(), darkColor("#7D7970"))
             y += 20.0
             data.items.forEach { item ->
                 if (item.quantity == 1) {
@@ -208,7 +208,13 @@ actual class OrderReceiptSharer {
                     )
                     y += 22.0
                     // Row 2 (caption): "<unit price> each", muted, no right-column figure.
-                    drawText("${item.formattedUnitPrice} each", padding, y, regularFont(12.0), darkColor("#7D7970"))
+                    drawText(
+                        data.labels.unitPriceEach(item.formattedUnitPrice),
+                        padding,
+                        y,
+                        regularFont(12.0),
+                        darkColor("#7D7970")
+                    )
                     y += 26.0
                 }
             }
@@ -219,7 +225,7 @@ actual class OrderReceiptSharer {
 
             // Payment
             data.discountFormatted?.let { discount ->
-                drawText("Subtotal", padding, y, regularFont(13.0), darkColor("#7D7970"))
+                drawText(data.labels.subtotal, padding, y, regularFont(13.0), darkColor("#7D7970"))
                 drawTextRight(
                     data.subtotalFormatted,
                     width - padding,
@@ -228,7 +234,7 @@ actual class OrderReceiptSharer {
                     darkColor(palette.bodyTextHex)
                 )
                 y += 22.0
-                drawText("Discount", padding, y, regularFont(13.0), darkColor("#7D7970"))
+                drawText(data.labels.discount, padding, y, regularFont(13.0), darkColor("#7D7970"))
                 drawTextRight(discount, width - padding, y, boldFont(13.0), darkColor("#2D9E6B"))
                 y += 20.0
                 data.discountReason?.let { reason ->
@@ -238,18 +244,18 @@ actual class OrderReceiptSharer {
             }
             // Deposit drawn before Total so the customer reads what they've paid
             // first, then the Total it offsets, then the Balance still due.
-            drawText("Deposit Paid", padding, y, regularFont(13.0), darkColor("#7D7970"))
+            drawText(data.labels.depositPaid, padding, y, regularFont(13.0), darkColor("#7D7970"))
             drawTextRight(data.depositFormatted, width - padding, y, regularFont(13.0), darkColor("#2D9E6B"))
             y += 24.0
-            drawText("Total", padding, y, boldFont(16.0), darkColor(palette.bodyTextHex))
+            drawText(data.labels.total, padding, y, boldFont(16.0), darkColor(palette.bodyTextHex))
             drawTextRight(data.totalFormatted, width - padding, y, boldFont(16.0), darkColor(palette.accentHex))
             y += 24.0
-            drawText("Balance", padding, y, regularFont(13.0), darkColor("#7D7970"))
+            drawText(data.labels.balance, padding, y, regularFont(13.0), darkColor("#7D7970"))
             if (data.isFullyPaid) {
-                drawTextRight("✓ PAID IN FULL", width - padding, y, boldFont(14.0), darkColor("#2D9E6B"))
+                drawTextRight(data.labels.paidInFull, width - padding, y, boldFont(14.0), darkColor("#2D9E6B"))
             } else {
                 drawTextRight(
-                    "${data.balanceFormatted} DUE",
+                    data.labels.amountDue(data.balanceFormatted),
                     width - padding,
                     y,
                     boldFont(14.0),
@@ -266,16 +272,16 @@ actual class OrderReceiptSharer {
                 y += 16.0
                 drawDivider(padding, y, width - padding, darkColor(palette.dividerHex))
                 y += 24.0
-                drawText("PAY VIA TRANSFER", padding, y, labelFont(), darkColor("#7D7970"))
+                drawText(data.labels.payViaTransfer, padding, y, labelFont(), darkColor("#7D7970"))
                 y += 26.0
                 val valueX = padding + 140.0
-                drawText("Bank", padding, y, regularFont(13.0), darkColor("#7D7970"))
+                drawText(data.labels.bank, padding, y, regularFont(13.0), darkColor("#7D7970"))
                 drawText(bank.bankName, valueX, y, boldFont(14.0), darkColor(palette.bodyTextHex))
                 y += 26.0
-                drawText("Account name", padding, y, regularFont(13.0), darkColor("#7D7970"))
+                drawText(data.labels.accountName, padding, y, regularFont(13.0), darkColor("#7D7970"))
                 drawText(bank.accountName, valueX, y, boldFont(14.0), darkColor(palette.bodyTextHex))
                 y += 26.0
-                drawText("Account number", padding, y, regularFont(13.0), darkColor("#7D7970"))
+                drawText(data.labels.accountNumber, padding, y, regularFont(13.0), darkColor("#7D7970"))
                 drawText(bank.accountNumber, valueX, y, boldFont(14.0), darkColor(palette.bodyTextHex))
                 y += 32.0
             }
@@ -284,9 +290,9 @@ actual class OrderReceiptSharer {
             y += 18.0
 
             // Status & Deadline
-            drawText("STATUS", padding, y, labelFont(), darkColor("#7D7970"))
+            drawText(data.labels.status, padding, y, labelFont(), darkColor("#7D7970"))
             if (data.deadlineFormatted != null) {
-                drawTextRight("DEADLINE", width - padding, y, labelFont(), darkColor("#7D7970"))
+                drawTextRight(data.labels.deadline, width - padding, y, labelFont(), darkColor("#7D7970"))
             }
             y += 18.0
             drawText(
@@ -323,13 +329,13 @@ actual class OrderReceiptSharer {
             drawDivider(padding, y, width - padding, darkColor(palette.dividerHex))
             y += 16.0
             drawCentered(
-                "Order #${data.orderIdShort}",
+                data.labels.orderNumber(data.orderIdShort),
                 y = y,
                 width = width,
                 font = regularFont(11.0),
                 color = darkColor(palette.footerHex)
             )
-            val attributionText = data.attribution.footerText
+            val attributionText = data.labels.footerFor(data.attribution)
             if (attributionText != null) {
                 y += 16.0
                 drawCentered(
@@ -457,8 +463,8 @@ actual class OrderReceiptSharer {
             y += 20.0
 
             // Customer & Date
-            drawText("CUSTOMER", padding, y, labelFont(8.0), darkColor("#7D7970"))
-            drawTextRight("DATE", pageWidth - padding, y, labelFont(8.0), darkColor("#7D7970"))
+            drawText(data.labels.customer, padding, y, labelFont(8.0), darkColor("#7D7970"))
+            drawTextRight(data.labels.date, pageWidth - padding, y, labelFont(8.0), darkColor("#7D7970"))
             y += 14.0
             drawText(data.customerName, padding, y, boldFont(12.0), darkColor("#1E1C1A"))
             drawTextRight(data.dateFormatted, pageWidth - padding, y, regularFont(11.0), darkColor("#1E1C1A"))
@@ -468,7 +474,7 @@ actual class OrderReceiptSharer {
             y += 14.0
 
             // Items
-            drawText("ITEMS", padding, y, labelFont(8.0), darkColor("#7D7970"))
+            drawText(data.labels.items, padding, y, labelFont(8.0), darkColor("#7D7970"))
             y += 16.0
             data.items.forEach { item ->
                 if (item.quantity == 1) {
@@ -482,7 +488,13 @@ actual class OrderReceiptSharer {
                     drawTextRight(item.formattedPrice, pageWidth - padding, y, boldFont(11.0), darkColor("#1E1C1A"))
                     y += 16.0
                     // Row 2 (caption): "<unit price> each", muted, no right-column figure.
-                    drawText("${item.formattedUnitPrice} each", padding, y, regularFont(10.0), darkColor("#7D7970"))
+                    drawText(
+                        data.labels.unitPriceEach(item.formattedUnitPrice),
+                        padding,
+                        y,
+                        regularFont(10.0),
+                        darkColor("#7D7970")
+                    )
                     y += 14.0
                 }
             }
@@ -493,10 +505,10 @@ actual class OrderReceiptSharer {
 
             // Payment
             data.discountFormatted?.let { discount ->
-                drawText("Subtotal", padding, y, regularFont(11.0), darkColor("#7D7970"))
+                drawText(data.labels.subtotal, padding, y, regularFont(11.0), darkColor("#7D7970"))
                 drawTextRight(data.subtotalFormatted, pageWidth - padding, y, regularFont(11.0), darkColor("#1E1C1A"))
                 y += 18.0
-                drawText("Discount", padding, y, regularFont(11.0), darkColor("#7D7970"))
+                drawText(data.labels.discount, padding, y, regularFont(11.0), darkColor("#7D7970"))
                 drawTextRight(discount, pageWidth - padding, y, boldFont(11.0), darkColor("#2D9E6B"))
                 y += 18.0
                 data.discountReason?.let { reason ->
@@ -506,18 +518,18 @@ actual class OrderReceiptSharer {
             }
             // Deposit drawn before Total so the customer reads what they've paid
             // first, then the Total it offsets, then the Balance still due.
-            drawText("Deposit Paid", padding, y, regularFont(11.0), darkColor("#7D7970"))
+            drawText(data.labels.depositPaid, padding, y, regularFont(11.0), darkColor("#7D7970"))
             drawTextRight(data.depositFormatted, pageWidth - padding, y, regularFont(11.0), darkColor("#2D9E6B"))
             y += 18.0
-            drawText("Total", padding, y, boldFont(13.0), darkColor("#1E1C1A"))
+            drawText(data.labels.total, padding, y, boldFont(13.0), darkColor("#1E1C1A"))
             drawTextRight(data.totalFormatted, pageWidth - padding, y, boldFont(13.0), darkColor("#C48E00"))
             y += 18.0
-            drawText("Balance", padding, y, regularFont(11.0), darkColor("#7D7970"))
+            drawText(data.labels.balance, padding, y, regularFont(11.0), darkColor("#7D7970"))
             if (data.isFullyPaid) {
-                drawTextRight("✓ PAID IN FULL", pageWidth - padding, y, boldFont(11.0), darkColor("#2D9E6B"))
+                drawTextRight(data.labels.paidInFull, pageWidth - padding, y, boldFont(11.0), darkColor("#2D9E6B"))
             } else {
                 drawTextRight(
-                    "${data.balanceFormatted} DUE",
+                    data.labels.amountDue(data.balanceFormatted),
                     pageWidth - padding,
                     y,
                     boldFont(11.0),
@@ -532,16 +544,16 @@ actual class OrderReceiptSharer {
                 y += 12.0
                 drawDivider(padding, y, pageWidth - padding, darkColor("#E8E6E3"))
                 y += 18.0
-                drawText("PAY VIA TRANSFER", padding, y, labelFont(8.0), darkColor("#7D7970"))
+                drawText(data.labels.payViaTransfer, padding, y, labelFont(8.0), darkColor("#7D7970"))
                 y += 20.0
                 val valueX = padding + 104.0
-                drawText("Bank", padding, y, regularFont(11.0), darkColor("#7D7970"))
+                drawText(data.labels.bank, padding, y, regularFont(11.0), darkColor("#7D7970"))
                 drawText(bankPdf.bankName, valueX, y, boldFont(11.0), darkColor("#1E1C1A"))
                 y += 20.0
-                drawText("Account name", padding, y, regularFont(11.0), darkColor("#7D7970"))
+                drawText(data.labels.accountName, padding, y, regularFont(11.0), darkColor("#7D7970"))
                 drawText(bankPdf.accountName, valueX, y, boldFont(11.0), darkColor("#1E1C1A"))
                 y += 20.0
-                drawText("Account number", padding, y, regularFont(11.0), darkColor("#7D7970"))
+                drawText(data.labels.accountNumber, padding, y, regularFont(11.0), darkColor("#7D7970"))
                 drawText(bankPdf.accountNumber, valueX, y, boldFont(11.0), darkColor("#1E1C1A"))
                 y += 24.0
             }
@@ -550,9 +562,9 @@ actual class OrderReceiptSharer {
             y += 14.0
 
             // Status & Deadline
-            drawText("STATUS", padding, y, labelFont(8.0), darkColor("#7D7970"))
+            drawText(data.labels.status, padding, y, labelFont(8.0), darkColor("#7D7970"))
             if (data.deadlineFormatted != null) {
-                drawTextRight("DEADLINE", pageWidth - padding, y, labelFont(8.0), darkColor("#7D7970"))
+                drawTextRight(data.labels.deadline, pageWidth - padding, y, labelFont(8.0), darkColor("#7D7970"))
             }
             y += 14.0
             drawText(
@@ -589,13 +601,13 @@ actual class OrderReceiptSharer {
             drawDivider(padding, y, pageWidth - padding, darkColor("#E8E6E3"))
             y += 14.0
             drawCentered(
-                "Order #${data.orderIdShort}",
+                data.labels.orderNumber(data.orderIdShort),
                 y = y,
                 width = pageWidth,
                 font = regularFont(9.0),
                 color = darkColor("#A8A49D")
             )
-            val attributionTextPdf = data.attribution.footerText
+            val attributionTextPdf = data.labels.footerFor(data.attribution)
             if (attributionTextPdf != null) {
                 y += 14.0
                 drawCentered(

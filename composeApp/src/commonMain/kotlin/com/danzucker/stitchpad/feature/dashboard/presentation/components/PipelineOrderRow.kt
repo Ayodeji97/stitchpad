@@ -30,9 +30,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.danzucker.stitchpad.core.domain.model.GarmentType
 import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.feature.dashboard.domain.PipelinePaymentStatus
 import com.danzucker.stitchpad.feature.dashboard.domain.model.DashboardOrderRow
+import com.danzucker.stitchpad.feature.dashboard.domain.model.GarmentSummary
+import com.danzucker.stitchpad.feature.dashboard.presentation.model.garmentSummaryLabel
 import com.danzucker.stitchpad.ui.theme.DesignTokens
 import com.danzucker.stitchpad.ui.theme.StitchPadTheme
 import org.jetbrains.compose.resources.stringResource
@@ -88,7 +91,7 @@ fun PipelineOrderRow(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    GarmentRow(label = row.primaryLabel)
+                    GarmentRow(label = garmentSummaryLabel(row.garment))
                 }
                 if (row.daysUntilDeadline != null) {
                     DueInPill(days = row.daysUntilDeadline)
@@ -249,7 +252,7 @@ private fun PipelineOrderRowPreview() {
             row = DashboardOrderRow(
                 orderId = "1",
                 customerName = "Omobolanle Johnson",
-                primaryLabel = "Kaftan",
+                garment = GarmentSummary(GarmentType.KAFTAN),
                 daysUntilDeadline = 17,
                 createdAtEpochMillis = 1746144000000L,
                 orderValue = 40000.0,
