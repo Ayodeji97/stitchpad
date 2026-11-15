@@ -13,40 +13,61 @@ export const LAUNCH_GRANT_TIER = 'atelier';
 export interface UserSubscriptionFields {
   subscriptionTier?: string;
   subscriptionStatus?: string;
+  /** Any end date (Timestamp/Date) — past or future. null/undefined means "no end date". */
+  subscriptionEndsAt?: unknown;
+  /** `launch_free` once a launch grant has ever been written to this doc. */
+  grantSource?: string;
 }
 
 /**
  * True when a user should receive the launch-free grant.
  *
- * Skips anyone already on an ACTIVE paid tier — that is real Apple/Paystack
- * subscribers, gift recipients, and manual tester grants, none of which we want
- * to relabel as `launch_free`. Everyone else (free, expired, or brand-new docs
- * with no subscription fields) is granted.
+ * INVARIANT — the launch grant is FIRST-TIME ONLY and can never extend or remove
+ * an existing end date. Re-applying it (staff departure, a replayed trigger, a
+ * later backfill) must leave the user's prior access window exactly as it was.
+ * Without this, a re-grant turned an EXPIRED or time-limited user (a lapsed
+ * Paystack/gift/Apple payer, or a launch_free user after the trial cutoff sets
+ * subscriptionEndsAt and the expiry cron lapses them) into an endless Atelier
+ * user, silently defeating the paywall/trial cutoff.
  *
- * A launch grant itself writes tier=atelier + status=active, so this predicate
- * also makes the backfill idempotent: a second run sees the granted user as
- * active-paid and skips it, preserving the original grantedAt.
+ * Skips:
+ *  - anyone already on an ACTIVE paid tier — real Apple/Paystack subscribers,
+ *    gift recipients, manual tester grants and existing launch grants. A launch
+ *    grant writes tier=atelier + status=active, so this also keeps the trigger
+ *    and backfill idempotent (original grantedAt preserved).
+ *  - anyone who has EVER had a launch grant (`grantSource === 'launch_free'`),
+ *    whatever their current status: a lapsed launch grant stays lapsed.
+ *  - anyone with ANY subscriptionEndsAt (past or future): their billing history
+ *    owns their access window; past stays expired, future stays as-is.
+ *
+ * Everyone else (brand-new docs with no subscription fields, or free users with
+ * no end date and no prior launch grant) is granted. Users who hold an endless
+ * launch grant today are untouched: they read as active-paid and are skipped.
  */
 export function shouldGrantLaunchFree(user: UserSubscriptionFields | undefined): boolean {
   const tier = user?.subscriptionTier;
   const isPaidTier = tier === 'pro' || tier === 'atelier';
   const isActive = user?.subscriptionStatus === 'active';
-  return !(isPaidTier && isActive);
+  if (isPaidTier && isActive) return false;
+  if (user?.grantSource === LAUNCH_GRANT_SOURCE) return false;
+  if (user?.subscriptionEndsAt != null) return false;
+  return true;
 }
 
 /**
  * The exact fields a launch grant writes (merge-set).
  *
- * Explicitly CLEARS (deletes) subscriptionEndsAt, subscriptionRenews,
- * subscriptionSource, subscriptionFallbackTier, subscriptionFallbackEndsAt,
- * appleOriginalTransactionId and appleLastSignedDate. merge:true does NOT
- * remove fields by omission, so a user whose real Paystack/gift/Apple
- * subscription had lapsed would otherwise keep a past subscriptionEndsAt +
- * subscriptionRenews:false (or a stale subscriptionSource/appleOriginalTransactionId)
- * and get silently reverted back to Free within 24h by the nightly
- * expirePrepaidSubscriptions / reconcileAppleSubscriptions crons, which
- * re-select docs by those leftover fields. Explicit deletes make the grant
- * genuinely invisible to every billing cron, not just to a merge-omission.
+ * NEVER touches subscriptionEndsAt — see the invariant on [shouldGrantLaunchFree].
+ * A launch grant only ever lands on a doc with no end date (the predicate
+ * guarantees it), so there is nothing to clear; and if a purchase races in
+ * between the eligibility read and this write, its end date survives and the
+ * expiry cron still ends access on time instead of the grant making it endless.
+ *
+ * Still CLEARS (deletes) subscriptionRenews, subscriptionSource,
+ * subscriptionFallbackTier, subscriptionFallbackEndsAt, appleOriginalTransactionId
+ * and appleLastSignedDate. merge:true does NOT remove fields by omission, and a
+ * stale subscriptionSource/appleOriginalTransactionId would let the nightly
+ * reconcileAppleSubscriptions cron re-select the doc and revert it to Free.
  */
 export function buildLaunchGrantFields(now: Date) {
   const ts = admin.firestore.Timestamp.fromDate(now);
@@ -57,12 +78,9 @@ export function buildLaunchGrantFields(now: Date) {
     grantSource: LAUNCH_GRANT_SOURCE,
     grantedAt: ts,
     updatedAt: ts,
-    // Clear any leftover billing fields from a prior (now-lapsed) subscription.
-    // merge:true does NOT remove fields by omission, so a lapsed subscriber would
-    // keep a past subscriptionEndsAt + subscriptionRenews:false and get reverted to
-    // Free by the nightly expire / apple-reconcile crons within 24h. Explicit
-    // deletes make the grant genuinely invisible to every billing cron.
-    subscriptionEndsAt: del,
+    // Clear leftover billing provenance so the nightly billing crons can't re-select
+    // this doc. subscriptionEndsAt is deliberately NOT here: a launch grant must
+    // never extend or remove an existing end date (see shouldGrantLaunchFree).
     subscriptionRenews: del,
     subscriptionSource: del,
     subscriptionFallbackTier: del,
@@ -114,6 +132,11 @@ export function productionLaunchGrantDeps(
  * [shouldGrantLaunchFree] predicate so an active paid subscriber is left alone,
  * and is idempotent — a doc already granted reads as active/atelier and is
  * skipped on any later call (owner re-invites, revokes again, etc).
+ *
+ * It only ever mints a FIRST-TIME grant. A staffer whose own doc already has an
+ * end date (past or future) or a prior, possibly lapsed, launch grant is left in
+ * exactly their prior state: departure must not turn an expired or time-limited
+ * account into an endless one.
  *
  * Callers must wrap this in their own try/catch: a throw here (e.g. Firestore
  * hiccup) must never fail the revocation/cancel it is attached to.

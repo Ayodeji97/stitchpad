@@ -140,6 +140,23 @@ describe('cancelStaffMembershipHandler', () => {
     });
   });
 
+  it('does NOT turn a departing staffer with a past end date into an endless grant', async () => {
+    const endsAt = new Date('2026-10-01T00:00:00Z');
+    const prior = {
+      subscriptionTier: 'free',
+      subscriptionStatus: 'expired',
+      subscriptionEndsAt: endsAt,
+      subscriptionRenews: false,
+      grantSource: LAUNCH_GRANT_SOURCE,
+    };
+    const { db, store } = makeStaffDb({
+      'users/alice/memberships/chidi': { status: 'active' },
+      'users/chidi': { ...prior },
+    });
+    await cancelStaffMembershipHandler({ workshopUid: 'alice' }, authedCtx('chidi'), cancelDeps(db));
+    expect(store.get('users/chidi')).toEqual(prior);
+  });
+
   it('skips the grant when the launch-free flag is off', async () => {
     const { db, store } = makeStaffDb({ 'users/alice/memberships/chidi': { status: 'active' } });
     await cancelStaffMembershipHandler(
