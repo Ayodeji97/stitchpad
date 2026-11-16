@@ -1,5 +1,29 @@
 # Questions for Daniel
 
+## Customer acquisition / StitchPad Connect research — 4 November 2026
+
+Research recommendations only; no feature implementation or rollout is approved.
+
+- **Q9 — Initial buyer and fulfilment segment:** Should the first concierge pilot serve
+  diaspora visitors ordering ahead for fitting/pickup in Nigeria, domestic Nigerian buyers,
+  or customers requiring international delivery? Recommendation: test domestic and diaspora
+  visitor requests in one Nigerian supply cluster first, and validate one export route separately.
+- **Q10 — Product and operating scope:** Should StitchPad initially provide introductions
+  and structured quotes, or operate managed transactions with support and remedies?
+  Recommendation: manually supported matching with explicit responsibility boundaries before
+  a public transactional marketplace. Payment splits are not escrow; Paystack's published
+  unsupported categories include escrow services. Confirm any proposed funds flow with the
+  provider and appropriate advisers before promising payment protection.
+- **Q11 — Pilot commitment:** What budget and named support capacity can be allocated to
+  designer vetting, buyer acquisition and exception handling? Proposed research target:
+  10–15 designers, 30 qualified requests, and at least 10 completed paid orders, with
+  separately reported acquisition channels and fulfilment routes. These are proposed
+  learning targets, not demand forecasts or approved spending.
+- **Q12 — Initial garment scope:** Which garment categories should be included based on
+  the specialties and spare capacity of willing existing StitchPad designers? Recommendation:
+  repeatable styles with clear specifications; defer complex bridal and large group orders.
+
+
 ## Africa expansion — 2 November 2026
 
 ### Q1. Mixed-currency dashboard and report totals — decided
@@ -39,17 +63,27 @@ server-template, AI-draft and store-listing work; do not present English fallbac
 French support. This language decision alone does not authorize opening new store territories
 or bypassing the remaining billing, currency, QA and launch prerequisites.
 
-### Q5. Trial conversion and older free accounts — future trial-stage decisions
+### Q5. Trial conversion and older free accounts — decided
 
-Trial agent found two additional transition cases for the PR3 design:
+Daniel approved a 30-day notice period for older FREE accounts without grant/expiry
+metadata on 4 November 2026. The period starts after **both the App Store and Google
+Play approve the updated app**. Users receive notice explaining the change and the
+need to update; unpaid accounts become read-only after the notice period. Existing
+paid subscriptions remain protected. Store closure or removal was a verbal mistake
+and is not requested.
 
-- How should older FREE accounts without grant/expiry metadata transition?
-- When someone buys Pro during an Atelier trial, should purchased Pro apply immediately,
-  or should they retain Atelier access for the remaining trial while billing begins on
-  the store's schedule?
+Rollout implementation must persist a fixed notice start/cutoff, ensure the approved
+update is available and notices can be delivered, and never silently restart the
+30-day clock. Store approval alone does not authorize an agent deployment or migration.
+Q2's existing launch-free grant policy remains recorded separately; reconcile the
+coordinated rollout timing before activation rather than introducing separate clocks.
 
-Details are in the trial worktree's PR3 plan. No production changes until resolved; these
-have not yet been asked in chat, keeping current clarification focused on Q1 and Q2.
+Daniel approved **switching to Pro immediately** when Pro is purchased during an
+Atelier trial, in chat on 4 November 2026. Apply the verified paid Pro entitlement
+immediately rather than retaining Atelier trial access until its original end.
+The remaining trial must not override the purchase or be restored by a delayed
+signup/expiry event. This decision concerns access precedence; store billing dates
+remain governed by the verified purchase. No production activation has occurred.
 
 ### Q6. VIP spending threshold outside Nigeria — future currency-stage decision
 
@@ -76,3 +110,53 @@ prices after a country/currency change would silently relabel money. Choose eith
 but clearing money fields with notice (recommended), or explicitly blocking cross-currency duplication.
 Until answered, the implementation blocks the cross-currency save with a clear message; same-currency
 duplication is unchanged. No elapsed waiting time counts as approval.
+
+## Q9 — customer acquisition and diaspora commerce research (4 November 2026)
+
+Research discussion only; no marketplace implementation, launch, pricing, payment custody,
+partner outreach, or change to the expansion build order is approved.
+
+Decisions for Daniel after reviewing the research:
+
+- Initial buyer journey: Nigeria-based customers, diaspora visitors collecting in Nigeria,
+  or diaspora customers receiving international shipments? Recommendation: test the first
+  two together in one supply city; validate one export corridor separately.
+- Initial garment category and city: which have enough willing, dependable StitchPad
+  workshops? Lagos and repeatable native outfits are research hypotheses, not decisions.
+- Service scope: introductions and structured quotes, or managed orders with human
+  support? Recommendation: manually supported matching before broad marketplace work.
+- Who can own buyer recruitment, workshop vetting, follow-up and complaints, and what
+  time/budget can the pilot use? Engineering alone cannot validate customer acquisition.
+- Monetization and responsibility: what fee model and remedies should be tested, and
+  who contracts with the buyer? Payment-provider acceptance, custody arrangements and
+  destination obligations require validation before promises of escrow/protection.
+
+Public profiles, portfolio publication and any use of existing customer records require
+explicit opt-in and appropriate permissions; historical private app records are not
+automatically public reviews or verified marketplace transactions.
+
+## Remote body measurements — 4 November 2026
+
+Daniel approved both journeys from the first release: a tailor requests measurements
+from an existing customer, and a new customer finds/connects with a designer and
+shares measurements. Accuracy takes priority over one-photo convenience; guided
+multi-view photos/video may be evaluated. Explore a low-cost engine StitchPad owns;
+expensive API dependence is undesirable. This is not approval of any paid provider,
+budget, specific model, accuracy claim, training data reuse or marketplace payments.
+
+Research and the offline validation harness are in draft PR381. No actual body
+measurement accuracy is established by the harness's synthetic tests.
+
+Pending questions presented through the async UI:
+
+- Initial garments, essential dimensions and acceptable error per field/garment;
+  availability of tailors/customers for blinded tape and garment-fit validation.
+- Numeric pilot/monthly/per-usable-scan spending ceiling. Owned engine preferred,
+  but its compute, data and maintenance still need measured economics.
+- Adults-only pilot and customer-controlled measurement sharing/raw-photo deletion.
+- French policy: device language (existing expansion plan), explicit language setting,
+  or a country default with an override. Persisted locale alone does not translate UI.
+
+Preserve unanswered choices; no preselected option counts as approval. Research
+worktree `/private/tmp/stitchpad-remote-measurement-research` is separate from trial
+implementation and the approved UI follow-up.
