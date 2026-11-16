@@ -7,8 +7,8 @@ Decided by Daniel 2026-11-15:
   Existing grants are untouched by that switch.
 
 ## Blockers before anything is sent
-1. **T-0 date and prices.** The email must name the date and the price. These come from the paywall decisions
-   (artifact D5NQ3bduBVzaxjobp7HGor). The founder offer, if any, goes in the email.
+1. **T-0 date.** The email must name the date and the price. Decided 2026-11-16: Option A, one date for everyone,
+   **no founder offer**, and read-only still allows recording payments and status changes. Only the date is still open.
 2. **Read-only enforcement must exist by T-0.** Q5 (approved 2026-11-04) says 30 days' notice **after both stores
    approve the updated app**, then unpaid accounts become read-only. Sending the notice before the read-only build
    is approved promises a date we may not be able to keep. So the order is: build enforcement, get store approval, send email, wait 30 days, T-0.
@@ -17,7 +17,7 @@ Decided by Daniel 2026-11-15:
 
 ## Audience query (one-off script, read-only)
 - Firestore: owners (not staff) with any `orders` or `customers` doc whose `updatedAt` or `createdAt` falls within the last 30 days.
-- Exclude: accounts already on a paid plan (Paystack/Apple active), deleted users, unverified or bounced emails, and staff-only accounts.
+- Exclude: accounts already on a real paid plan (the June test payments don't count) (Paystack/Apple active), deleted users, unverified or bounced emails, and staff-only accounts.
 - Output a CSV (uid, email, name, country, language, plan, last activity) to `~/StitchPad Analytics Data/local/` (PII, never commit).
   Daniel reviews the list and the count before sending.
 
@@ -33,7 +33,8 @@ Decided by Daniel 2026-11-15:
 - Subject: "Your free StitchPad access ends on {T-0 date}"
 - Thank them for being early. Their records are safe and stay viewable (read-only, never deleted).
 - What changes on {date}: without a plan you can view but can't add or edit orders, customers or measurements.
-- Price in their currency, plus the founder offer if Daniel picks one.
+- Price in their currency. No founder offer.
+- Say that you can still record payments and update order status on existing jobs.
 - Two steps: update the app, then subscribe in the app. Include store links.
 - Reply-to goes to a monitored inbox for questions.
 
