@@ -50,22 +50,18 @@ class SyncStatusObserver(
             // emits SYNCED (fail to invisible: a possibly-false "Offline" is worse
             // than showing nothing) and then resubscribes after a capped backoff.
             //
-            // Confirmed permanent case: staff accounts can never read
-            // users/{ownerUid} (firestore.rules:146 is `allow read: if isOwner(uid)`),
-            // so this fires for every staff user. It settles into one quiet retry per
-            // MAX_RETRY_BACKOFF_MS and stays correctly invisible — logged, so it is
-            // discoverable rather than silent if it ever starts affecting owners too.
+            // Owner-only gating happens at the collection site. Permission denial
+            // is terminal; a role/session change creates a fresh collection.
             .retryWithFallback(
                 fallback = SyncStatus.SYNCED,
                 initialBackoffMs = INITIAL_RETRY_BACKOFF_MS,
                 maxBackoffMs = MAX_RETRY_BACKOFF_MS,
             ) { cause, attempt ->
                 AppLogger.w(tag = TAG, throwable = cause) {
-                    "observe(userId=$userId) failed; hiding banner and retrying (attempt ${attempt + 1})"
+                    "observe(userId=$userId) failed; hiding banner (failure ${attempt + 1})"
                 }
             }
-            // Safety net only — retryWithFallback never completes exceptionally, so
-            // this covers anything thrown outside the retried chain.
+            // Safety net for failures outside the retried chain.
             .catch { throwable ->
                 AppLogger.e(tag = TAG, throwable = throwable) {
                     "observe(userId=$userId) failed outside the retry path; hiding banner"

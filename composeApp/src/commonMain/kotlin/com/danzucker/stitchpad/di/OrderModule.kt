@@ -17,6 +17,7 @@ val orderDataModule = module {
     single<OrderRepository> {
         FirebaseOrderRepository(
             firestore = get(),
+            activeWorkshopProvider = get(),
             storage = get(),
             offlineWrites = get(),
             photoStore = get(),

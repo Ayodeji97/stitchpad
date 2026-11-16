@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.main.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.data.ownerOnlyListener
 import com.danzucker.stitchpad.core.data.sync.SyncStatusObserver
 import com.danzucker.stitchpad.core.domain.model.SyncStatus
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
@@ -28,7 +29,9 @@ class SyncStatusViewModel(
     init {
         viewModelScope.launch {
             val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
-            syncStatusObserver.observe(userId).collect { _state.value = it }
+            activeWorkshopProvider.ownerOnlyListener(userId, SyncStatus.SYNCED) {
+                syncStatusObserver.observe(userId)
+            }.collect { _state.value = it }
         }
     }
 }
