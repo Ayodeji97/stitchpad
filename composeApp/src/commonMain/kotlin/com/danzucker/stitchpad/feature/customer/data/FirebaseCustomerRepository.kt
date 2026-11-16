@@ -8,6 +8,7 @@ import com.danzucker.stitchpad.core.data.mapper.toCustomerBaseDto
 import com.danzucker.stitchpad.core.data.mapper.toCustomerContactDto
 import com.danzucker.stitchpad.core.data.mapper.toCustomerDto
 import com.danzucker.stitchpad.core.data.mapper.withContact
+import com.danzucker.stitchpad.core.data.ownerOnlyListener
 import com.danzucker.stitchpad.core.data.retryWithFallback
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.DataError
@@ -16,6 +17,7 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
+import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.offline.OfflineWriteDispatcher
 import dev.gitlive.firebase.firestore.FieldValue
@@ -89,6 +91,7 @@ internal fun customerBaseUpdateFields(dto: CustomerDto): Map<String, Any?> = map
 
 class FirebaseCustomerRepository(
     private val firestore: FirebaseFirestore,
+    private val activeWorkshopProvider: ActiveWorkshopProvider,
     private val entitlements: EntitlementsProvider,
     private val offlineWrites: OfflineWriteDispatcher,
 ) : CustomerRepository {
@@ -110,38 +113,44 @@ class FirebaseCustomerRepository(
     // collection-group query). On failure, degrade to an empty map so customers
     // fall back to base contact rather than losing contact display.
     private fun contactByCustomerId(userId: String): Flow<Map<String, CustomerContactDto>> =
-        firestore.collectionGroup("private")
-            .where { "ownerId" equalTo userId }
-            .snapshots()
-            .map { snapshot ->
-                snapshot.documents
-                    .filter { it.id == "contact" }
-                    .mapNotNull { doc -> decodeDocOrLog(tag = TAG, docId = doc.id) { doc.data<CustomerContactDto>() } }
-                    .associateBy { it.customerId }
-            }
-            .retryWithFallback(fallback = emptyMap()) { throwable, attempt ->
-                AppLogger.w(tag = TAG, throwable = throwable) {
-                    "observeCustomers contact collection-group failed; falling back to base contact; " +
-                        "retrying (attempt ${attempt + 1})"
+        activeWorkshopProvider.ownerOnlyListener(userId, emptyMap()) {
+            firestore.collectionGroup("private")
+                .where { "ownerId" equalTo userId }
+                .snapshots()
+                .map { snapshot ->
+                    snapshot.documents
+                        .filter { it.id == "contact" }
+                        .mapNotNull { doc ->
+                            decodeDocOrLog(tag = TAG, docId = doc.id) { doc.data<CustomerContactDto>() }
+                        }
+                        .associateBy { it.customerId }
                 }
-            }
+                .retryWithFallback(fallback = emptyMap()) { throwable, attempt ->
+                    AppLogger.w(tag = TAG, throwable = throwable) {
+                        "observeCustomers contact collection-group failed; falling back to base contact; " +
+                            "listener failure ${attempt + 1}"
+                    }
+                }
+        }
 
     private fun customerContactFlow(userId: String, customerId: String): Flow<CustomerContactDto?> =
-        contactDoc(userId, customerId)
-            .snapshots
-            .map { snapshot ->
-                if (snapshot.exists) {
-                    decodeDocOrLog(tag = TAG, docId = customerId) { snapshot.data<CustomerContactDto>() }
-                } else {
-                    null
+        activeWorkshopProvider.ownerOnlyListener(userId, null) {
+            contactDoc(userId, customerId)
+                .snapshots
+                .map { snapshot ->
+                    if (snapshot.exists) {
+                        decodeDocOrLog(tag = TAG, docId = customerId) { snapshot.data<CustomerContactDto>() }
+                    } else {
+                        null
+                    }
                 }
-            }
-            .retryWithFallback(fallback = null) { throwable, attempt ->
-                AppLogger.w(tag = TAG, throwable = throwable) {
-                    "observeCustomer contact sub-doc failed customerId=$customerId; falling back to base " +
-                        "contact; retrying (attempt ${attempt + 1})"
+                .retryWithFallback(fallback = null) { throwable, attempt ->
+                    AppLogger.w(tag = TAG, throwable = throwable) {
+                        "observeCustomer contact sub-doc failed customerId=$customerId; falling back to base " +
+                            "contact; listener failure ${attempt + 1}"
+                    }
                 }
-            }
+        }
 
     override fun observeCustomers(userId: String): Flow<Result<List<Customer>, DataError.Network>> =
         combine(
@@ -166,7 +175,7 @@ class FirebaseCustomerRepository(
         }
             .retryWithFallback(fallback = Result.Error(DataError.Network.UNKNOWN)) { throwable, attempt ->
                 AppLogger.w(tag = TAG, throwable = throwable) {
-                    "observeCustomers failed; retrying (attempt ${attempt + 1})"
+                    "observeCustomers failed; listener failure ${attempt + 1}"
                 }
             }
             .flowOn(Dispatchers.Default)
@@ -195,7 +204,7 @@ class FirebaseCustomerRepository(
         }
             .retryWithFallback(fallback = Result.Error(DataError.Network.UNKNOWN)) { throwable, attempt ->
                 AppLogger.w(tag = TAG, throwable = throwable) {
-                    "observeCustomer failed customerId=$customerId; retrying (attempt ${attempt + 1})"
+                    "observeCustomer failed customerId=$customerId; listener failure ${attempt + 1}"
                 }
             }
             .flowOn(Dispatchers.Default)

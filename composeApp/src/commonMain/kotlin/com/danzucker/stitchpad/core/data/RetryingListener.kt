@@ -1,8 +1,12 @@
 package com.danzucker.stitchpad.core.data
 
 import com.danzucker.stitchpad.core.data.sync.backoffDelayMs
+import dev.gitlive.firebase.firestore.FirebaseFirestoreException
+import dev.gitlive.firebase.firestore.FirestoreExceptionCode
+import dev.gitlive.firebase.firestore.code
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onEach
@@ -17,15 +21,12 @@ const val LISTENER_RETRY_MAX_BACKOFF_MS = 60_000L
  * anything it can no longer verify, waits with capped exponential backoff,
  * then resubscribes — indefinitely.
  *
- * This exists because `.catch { emit(fallback) }` TERMINATES the flow: one
- * transient permission-denied during a workshop session flip would freeze the
- * screen's live data for the rest of the ViewModel's life (documented
- * independently at four call sites before this was extracted; generalized from
- * the SyncStatus-typed original in SyncStatusMapper).
+ * Permission denial is terminal for this collection: emit the fallback and stop.
+ * A session change creates a fresh collection through the role-aware gate.
  *
- * A permanently-failing listener retries forever, and [onError] fires on every
+ * Other persistent failures retry indefinitely, and [onError] fires on every
  * single attempt (desired — that is the diagnosability signal), receiving the
- * RUN-LOCAL attempt number (0-based, reset to 0 after each successful upstream
+ * RUN-LOCAL attempt number (0-based, reset to 0 after each changed upstream
  * emission) — the count of consecutive failures since the upstream last
  * produced real data, which is what "retrying (attempt N+1)"-style logging
  * actually intends. Without deduping the downstream emission too, a screen
@@ -46,21 +47,36 @@ fun <T> Flow<T>.retryWithFallback(
     onError: (cause: Throwable, attempt: Long) -> Unit,
 ): Flow<T> = flow {
     // Per-collection state: a failure run's backoff must restart at
-    // initialBackoffMs once the upstream has recovered, not resume from the
+    // initialBackoffMs once the upstream produces fresh data, not resume from the
     // lifetime error count — a listener that hiccuped at breakfast shouldn't
     // pay a 60s recovery penalty for an unrelated hiccup at dinner. Declared
     // inside this flow{} builder so each collector gets its own instance;
     // retryWhen's `attempt` counter, by contrast, is cumulative for the
     // collection's lifetime and is deliberately not used here.
     var errorsSinceLastEmission = 0L
+    var hasUpstreamValue = false
+    var lastUpstreamValue: T? = null
     this@retryWithFallback
-        .onEach { errorsSinceLastEmission = 0L }
+        .onEach { value ->
+            // Firestore can replay the same cached snapshot on every subscription.
+            // That replay is not recovery and must not reset exponential backoff.
+            if (!hasUpstreamValue || value != lastUpstreamValue) errorsSinceLastEmission = 0L
+            hasUpstreamValue = true
+            lastUpstreamValue = value
+        }
         .retryWhen { cause, _ ->
+            if (cause is FirebaseFirestoreException && cause.code == FirestoreExceptionCode.PERMISSION_DENIED) {
+                return@retryWhen false
+            }
             onError(cause, errorsSinceLastEmission)
             emit(fallback)
             delay(backoffDelayMs(errorsSinceLastEmission, initialBackoffMs, maxBackoffMs))
             errorsSinceLastEmission += 1
             true
+        }
+        .catch { cause ->
+            onError(cause, errorsSinceLastEmission)
+            emit(fallback)
         }
         // A permanently-failing listener retries forever; without this, every retry
         // re-emits the fallback and error-snackbar screens re-show it on each cycle.
