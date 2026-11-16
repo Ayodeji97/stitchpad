@@ -44,6 +44,9 @@ fun <T> Flow<T>.retryWithFallback(
     fallback: T,
     initialBackoffMs: Long = LISTENER_RETRY_INITIAL_BACKOFF_MS,
     maxBackoffMs: Long = LISTENER_RETRY_MAX_BACKOFF_MS,
+    shouldRetry: (Throwable) -> Boolean = { cause ->
+        cause !is FirebaseFirestoreException || retryableFirestoreCode(cause.code)
+    },
     onError: (cause: Throwable, attempt: Long) -> Unit,
 ): Flow<T> = flow {
     // Per-collection state: a failure run's backoff must restart at
@@ -65,7 +68,7 @@ fun <T> Flow<T>.retryWithFallback(
             lastUpstreamValue = value
         }
         .retryWhen { cause, _ ->
-            if (cause is FirebaseFirestoreException && cause.code == FirestoreExceptionCode.PERMISSION_DENIED) {
+            if (!shouldRetry(cause)) {
                 return@retryWhen false
             }
             onError(cause, errorsSinceLastEmission)
@@ -88,3 +91,7 @@ fun <T> Flow<T>.retryWithFallback(
         .distinctUntilChanged { old, new -> old == new && new == fallback }
         .collect { value -> emit(value) }
 }
+
+/** Permission denial needs a new authorized session, never a timed resubscription. */
+internal fun retryableFirestoreCode(code: FirestoreExceptionCode): Boolean =
+    code != FirestoreExceptionCode.PERMISSION_DENIED
