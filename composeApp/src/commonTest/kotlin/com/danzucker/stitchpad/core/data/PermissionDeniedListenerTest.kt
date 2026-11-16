@@ -8,15 +8,19 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class PermissionDeniedListenerTest {
-    private class Denied : Exception()
+    // The Android SDK exception constructor needs Android's TextUtils. Use a
+    // coded listener failure here and the same code policy as the SDK adapter.
+    private class ListenerFailure(val code: FirestoreExceptionCode) : Exception()
+
+    private fun shouldRetry(cause: Throwable) = retryableFirestoreCode((cause as ListenerFailure).code)
 
     @Test
     fun deniedInnerListenerDoesNotRestartThroughAnOuterRetry() = runTest {
         var subscriptions = 0
         val values = flow<Int> {
             subscriptions++
-            throw Denied()
-        }.retryWithFallback(fallback = -1, shouldRetry = { retryableFirestoreCode(FirestoreExceptionCode.PERMISSION_DENIED) }) { _, _ -> }
+            throw ListenerFailure(FirestoreExceptionCode.PERMISSION_DENIED)
+        }.retryWithFallback(fallback = -1, shouldRetry = ::shouldRetry) { _, _ -> }
             .retryWithFallback(fallback = -2) { _, _ -> }
             .toList()
 
@@ -31,8 +35,8 @@ class PermissionDeniedListenerTest {
         val values = flow {
             subscriptions++
             emit(7)
-            throw Denied()
-        }.retryWithFallback(fallback = -1, shouldRetry = { retryableFirestoreCode(FirestoreExceptionCode.PERMISSION_DENIED) }) { _, _ -> }.toList()
+            throw ListenerFailure(FirestoreExceptionCode.PERMISSION_DENIED)
+        }.retryWithFallback(fallback = -1, shouldRetry = ::shouldRetry) { _, _ -> }.toList()
 
         assertEquals(listOf(7, -1), values)
         assertEquals(1, subscriptions)
