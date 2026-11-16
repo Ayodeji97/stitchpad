@@ -38,6 +38,11 @@ Currency implementation notes are in the dated PR2 plan and
 - End existing indefinite launch-free grants 30 days after the complete trial/read-only
   rollout deployment, with advance notice. Persist a fixed cutoff so replays do not extend it.
   Preserve paid entitlements. Unpaid accounts retain read-only record access afterwards.
+- Older FREE accounts without grant/expiry metadata receive 30 days’ notice after both
+  App Store and Google Play approve the updated app, then become read-only if unpaid.
+  Notices explain the change and required update. See Q5 for rollout constraints.
+- A verified Pro purchase during an Atelier trial switches access to Pro immediately;
+  do not retain or later restore the remaining Atelier trial.
 - English is allowed temporarily while full French support is completed.
 
 Other decisions remain in QUESTIONS.md; do not treat recommendations as approval.
