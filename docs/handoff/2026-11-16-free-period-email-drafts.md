@@ -1,5 +1,7 @@
 # Free-period-ending email — drafts (2026-11-16)
 
+> **Superseded for sending by `2026-11-30-launch-kit.md` (2026-11-22).** The final copy lives in the sender script. Two changes from below: the button links to `https://link.getstitchpad.com/upgrade?tier=pro&cadence=monthly` (Atelier users can't reach Upgrade from Settings), and the email adds "your paid month starts on the day you pay, so there's no need to pay before 30 December".
+
 Dates decided by Daniel on 2026-11-16:
 
 | Moment | Date | What happens |
