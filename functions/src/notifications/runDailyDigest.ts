@@ -46,8 +46,11 @@ export async function runDailyDigest(io: DigestIO, now: number): Promise<DigestR
     considered: recipients.length, sent: 0, staffPushed: 0, suppressedEmpty: 0,
     nudged: 0, skippedOptedOut: 0, skippedBounced: 0,
     skippedDisabled: 0, skippedUnverified: 0, skippedAlreadySent: 0,
-    skippedNotAllowed: 0, failed: 0,
+    skippedNotAllowed: 0, skippedEmailUnavailable: 0, failed: 0,
   };
+  // Set once Resend refuses the ACCOUNT (quota, key, domain). Every later send this
+  // run would fail the same way, so stop emailing; inbox and push still run.
+  let emailUnavailable = false;
 
   for (const r of recipients) {
     try {
@@ -127,6 +130,7 @@ export async function runDailyDigest(io: DigestIO, now: number): Promise<DigestR
       // none of it depends on the address being reachable.
       if (!r.emailVerified) { result.skippedUnverified++; continue; }
       if (!io.isAllowed(r.uid, r.email)) { result.skippedNotAllowed++; continue; }
+      if (emailUnavailable) { result.skippedEmailUnavailable++; continue; }
       if ((await io.getLastSentDate(r.uid)) === todayKey) { result.skippedAlreadySent++; continue; }
 
       // A quiet morning used to `continue` here and send nothing at all, which on the
@@ -153,13 +157,21 @@ export async function runDailyDigest(io: DigestIO, now: number): Promise<DigestR
           to: r.email, subject, html, text, headers: unsubscribeHeaders(r.unsubscribeUrl),
         });
       } catch (sendErr) {
-        // A permanent 4xx means the address itself is bad — suppress it for good.
-        // 5xx / network errors are transient and must stay retryable tomorrow.
-        if (sendErr instanceof ResendError && sendErr.status !== undefined
-            && sendErr.status >= 400 && sendErr.status < 500) {
+        // Only a 422 (Resend validation error on this recipient) means the ADDRESS is
+        // bad — suppress it for good. 401/403/429 are about the ACCOUNT (key, domain,
+        // quota): on 21 Nov 2026 a 429 monthly_quota_exceeded was read as a bounce and
+        // suppressed 190 good addresses. Those stop the run's email instead.
+        // 5xx / network errors are transient and stay retryable tomorrow.
+        const status = sendErr instanceof ResendError ? sendErr.status : undefined;
+        if (isAddressRejection(status)) {
           await io.markHardBounce(r.uid);
           functions.logger.warn('daily digest: address hard-bounced, suppressed', {
-            uid: r.uid, status: sendErr.status,
+            uid: r.uid, status,
+          });
+        } else if (isAccountRejection(status)) {
+          emailUnavailable = true;
+          functions.logger.error('daily digest: Resend refused the account; no more email this run', {
+            uid: r.uid, status, error: sendErr instanceof Error ? sendErr.message : String(sendErr),
           });
         }
         throw sendErr;
@@ -176,4 +188,14 @@ export async function runDailyDigest(io: DigestIO, now: number): Promise<DigestR
 
   functions.logger.info('daily digest run complete', { ...result });
   return result;
+}
+
+/** Resend rejected THIS recipient (invalid address): safe to suppress permanently. */
+export function isAddressRejection(status: number | undefined): boolean {
+  return status === 422;
+}
+
+/** Resend rejected the whole account (auth, unverified domain, rate/quota limit). */
+export function isAccountRejection(status: number | undefined): boolean {
+  return status === 401 || status === 403 || status === 429;
 }
