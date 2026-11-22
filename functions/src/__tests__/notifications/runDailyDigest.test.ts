@@ -220,7 +220,7 @@ describe('runDailyDigest', () => {
       expect(r.skippedBounced).toBe(1);
     });
 
-    it('suppresses an address permanently on a 4xx from Resend', async () => {
+    it('suppresses an address permanently on a 422 from Resend', async () => {
       const { io, bounced } = fakeIO({
         recipients: [recip()], ordersByUid: { u1: [] },
         emailError: new ResendError('bad address', 422),
@@ -236,6 +236,31 @@ describe('runDailyDigest', () => {
       const { io, bounced } = fakeIO({
         recipients: [recip()], ordersByUid: { u1: [] },
         emailError: new ResendError('upstream down', 503),
+      });
+      await runDailyDigest(io, NOW);
+      expect(bounced).toEqual([]);
+    });
+
+    // 21 Nov 2026: Resend's 429 monthly_quota_exceeded was treated as a bounce and
+    // permanently suppressed 190 good addresses.
+    it.each([429, 401, 403])('does NOT suppress on account-level %i, and stops email for the run', async (status) => {
+      const { io, bounced, sent, notified } = fakeIO({
+        recipients: [recip(), recip({ uid: 'u2', email: 'u2@x.com' })],
+        ordersByUid: { u1: [], u2: [] },
+        emailError: new ResendError('monthly_quota_exceeded', status),
+      });
+      const r = await runDailyDigest(io, NOW);
+      expect(bounced).toEqual([]);
+      expect(sent).toHaveLength(0);
+      expect(r.failed).toBe(1);
+      expect(r.skippedEmailUnavailable).toBe(1);
+      expect(notified.u2).toBe(1);
+    });
+
+    it('does NOT suppress on a 400 (request problem, not the address)', async () => {
+      const { io, bounced } = fakeIO({
+        recipients: [recip()], ordersByUid: { u1: [] },
+        emailError: new ResendError('bad request', 400),
       });
       await runDailyDigest(io, NOW);
       expect(bounced).toEqual([]);

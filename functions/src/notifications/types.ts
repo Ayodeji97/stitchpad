@@ -121,5 +121,7 @@ export interface DigestRunResult {
   skippedUnverified: number;
   skippedAlreadySent: number;
   skippedNotAllowed: number;
+  /** Email skipped because Resend refused the whole account this run (quota, key, domain). */
+  skippedEmailUnavailable: number;
   failed: number;
 }
