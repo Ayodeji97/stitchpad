@@ -1272,6 +1272,188 @@ class MeasurementFormViewModelTest {
         assertTrue(analytics.events.contains(AnalyticsEvent.MeasurementAdded))
     }
 
+    // --- "Same as last time" ---
+
+    private fun previousRecord(
+        id: String = "prev-1",
+        gender: CustomerGender = CustomerGender.FEMALE,
+        unit: MeasurementUnit = MeasurementUnit.CM,
+        createdAt: Long = 1_000L,
+        fields: Map<String, String> = mapOf(
+            "bust_circumference" to "90",
+            "waist" to "70,5",
+            "hip_circumference" to "40 / 38,5",
+        ),
+    ) = Measurement(
+        id = id,
+        customerId = "customer-1",
+        gender = gender,
+        fields = fields,
+        unit = unit,
+        notes = null,
+        dateTaken = createdAt,
+        createdAt = createdAt,
+    )
+
+    @Test
+    fun newRecord_withPreviousRecord_exposesPreviousValueHints() = runTest {
+        preferencesStore.unit = MeasurementUnit.CM
+        measurementRepository.measurementsList = listOf(previousRecord())
+
+        val vm = createViewModel()
+
+        val state = vm.state.value
+        assertTrue(state.showPreviousValues)
+        assertEquals("90", state.previousValueFor("bust_circumference"))
+        assertEquals("40 / 38,5", state.previousValueFor("hip_circumference"))
+        // Hints never pre-fill: the form still starts empty.
+        assertEquals("", state.fields["bust_circumference"])
+    }
+
+    @Test
+    fun newRecord_usesMostRecentRecord_andDropsNonPersistableValues() = runTest {
+        preferencesStore.unit = MeasurementUnit.CM
+        measurementRepository.measurementsList = listOf(
+            previousRecord(id = "old", createdAt = 1_000L, fields = mapOf("waist" to "60")),
+            previousRecord(id = "new", createdAt = 2_000L, fields = mapOf("waist" to "70", "bust_circumference" to "0")),
+        )
+
+        val vm = createViewModel()
+
+        assertEquals("70", vm.state.value.previousValueFor("waist"))
+        assertNull(vm.state.value.previousValueFor("bust_circumference"))
+    }
+
+    @Test
+    fun newRecord_withoutPreviousRecord_showsNoHints() = runTest {
+        measurementRepository.measurementsList = emptyList()
+
+        val vm = createViewModel()
+
+        assertFalse(vm.state.value.showPreviousValues)
+        assertFalse(vm.state.value.canCopyPreviousValues)
+        assertNull(vm.state.value.previousValueFor("bust_circumference"))
+    }
+
+    @Test
+    fun newRecord_previousRecordInOtherUnit_showsNoHints() = runTest {
+        preferencesStore.unit = MeasurementUnit.INCHES
+        measurementRepository.measurementsList = listOf(previousRecord(unit = MeasurementUnit.CM))
+
+        val vm = createViewModel()
+
+        assertFalse(vm.state.value.showPreviousValues)
+    }
+
+    @Test
+    fun newRecord_previousRecordFollowsSelectedGender() = runTest {
+        preferencesStore.unit = MeasurementUnit.CM
+        measurementRepository.measurementsList = listOf(
+            previousRecord(gender = CustomerGender.MALE, fields = mapOf("chest" to "100")),
+        )
+
+        val vm = createViewModel()
+        assertFalse(vm.state.value.showPreviousValues)
+
+        vm.onAction(MeasurementFormAction.OnGenderChange(CustomerGender.MALE))
+        assertTrue(vm.state.value.showPreviousValues)
+        assertEquals("100", vm.state.value.previousValueFor("chest"))
+    }
+
+    @Test
+    fun newRecord_previousRecordLoadError_showsNoHints() = runTest {
+        measurementRepository.observeError = DataError.Network.UNKNOWN
+
+        val vm = createViewModel()
+
+        assertFalse(vm.state.value.showPreviousValues)
+        assertNull(vm.state.value.errorMessage)
+    }
+
+    @Test
+    fun editMode_showsNoPreviousValueHints() = runTest {
+        preferencesStore.unit = MeasurementUnit.CM
+        measurementRepository.measurementsList = listOf(
+            fakeMeasurement(id = "meas-1"),
+            previousRecord(id = "prev-1", createdAt = 1L),
+        )
+
+        val vm = createViewModel(measurementId = "meas-1")
+
+        val state = vm.state.value
+        assertTrue(state.isEditMode)
+        assertTrue(state.previousValues.isEmpty())
+        assertFalse(state.showPreviousValues)
+        assertNull(state.previousValueFor("bust_circumference"))
+    }
+
+    @Test
+    fun editMode_copyPreviousValues_isNoOp() = runTest {
+        measurementRepository.measurementsList = listOf(fakeMeasurement(id = "meas-1"))
+        val vm = createViewModel(measurementId = "meas-1")
+        val before = vm.state.value.fields
+
+        vm.onAction(MeasurementFormAction.OnCopyPreviousValuesClick)
+
+        assertEquals(before, vm.state.value.fields)
+    }
+
+    @Test
+    fun copyPreviousValues_fillsOnlyEmptyFields() = runTest {
+        preferencesStore.unit = MeasurementUnit.CM
+        measurementRepository.measurementsList = listOf(previousRecord())
+        val vm = createViewModel()
+        vm.onAction(MeasurementFormAction.OnFieldChange("bust_circumference", "92"))
+        assertTrue(vm.state.value.canCopyPreviousValues)
+
+        vm.onAction(MeasurementFormAction.OnCopyPreviousValuesClick)
+
+        val fields = vm.state.value.fields
+        assertEquals("92", fields["bust_circumference"]) // typed value kept
+        assertEquals("70,5", fields["waist"])
+        assertEquals("40 / 38,5", fields["hip_circumference"])
+        assertFalse(vm.state.value.canCopyPreviousValues)
+    }
+
+    @Test
+    fun copyPreviousValues_treatsWhitespaceOnlyFieldAsEmpty_andIgnoresKeysNotOnForm() = runTest {
+        preferencesStore.unit = MeasurementUnit.CM
+        measurementRepository.measurementsList = listOf(
+            previousRecord(fields = mapOf("waist" to "70", "orphan-key" to "12")),
+        )
+        val vm = createViewModel()
+        vm.onAction(MeasurementFormAction.OnFieldChange("waist", " "))
+
+        vm.onAction(MeasurementFormAction.OnCopyPreviousValuesClick)
+
+        assertEquals("70", vm.state.value.fields["waist"])
+        assertFalse(vm.state.value.fields.containsKey("orphan-key"))
+    }
+
+    // --- "/" quick-insert ---
+
+    @Test
+    fun insertSegmentSeparator_appendsSlash() = runTest {
+        val vm = createViewModel()
+        vm.onAction(MeasurementFormAction.OnFieldChange("waist", "40 "))
+
+        vm.onAction(MeasurementFormAction.OnInsertSegmentSeparator("waist"))
+
+        assertEquals("40 / ", vm.state.value.fields["waist"])
+    }
+
+    @Test
+    fun insertSegmentSeparator_ignoresEmptyOrAlreadySeparatedValues() = runTest {
+        val vm = createViewModel()
+
+        vm.onAction(MeasurementFormAction.OnInsertSegmentSeparator("waist"))
+        assertEquals("", vm.state.value.fields["waist"])
+
+        vm.onAction(MeasurementFormAction.OnFieldChange("waist", "40 / "))
+        vm.onAction(MeasurementFormAction.OnInsertSegmentSeparator("waist"))
+        assertEquals("40 / ", vm.state.value.fields["waist"])
+    }
+
     @Test
     fun edit_save_does_not_log_measurement_added() = runTest {
         measurementRepository.measurementsList = listOf(fakeMeasurement())

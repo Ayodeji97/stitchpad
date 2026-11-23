@@ -378,6 +378,9 @@
     <string name="measurement_step_state_not_started">not started</string>
     <string name="measurement_previous">Previous</string>
     <string name="measurement_next">Next</string>
+    <string name="measurement_same_as_last_time">Same as last time</string>
+    <string name="measurement_previous_value_hint">Last: %1$s</string>
+    <string name="measurement_insert_segment_separator">Add another segment (/)</string>
     <string name="measurement_add_note">Add a note (optional)</string>
     <string name="measurement_notes_label">Notes (optional)</string>
     <string name="measurement_notes_placeholder">e.g. Prefers loose fit around the chest…</string>
