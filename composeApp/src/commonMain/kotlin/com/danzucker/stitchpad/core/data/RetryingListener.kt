@@ -2,7 +2,6 @@ package com.danzucker.stitchpad.core.data
 
 import com.danzucker.stitchpad.core.data.sync.backoffDelayMs
 import dev.gitlive.firebase.firestore.FirebaseFirestoreException
-import dev.gitlive.firebase.firestore.FirestoreExceptionCode
 import dev.gitlive.firebase.firestore.code
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -93,8 +92,8 @@ fun <T> Flow<T>.retryWithFallback(
 
 /** Only for hydrated owner-private listeners; shared base listeners must keep retrying. */
 internal fun retryUnlessPermissionDenied(cause: Throwable): Boolean =
-    cause !is FirebaseFirestoreException || retryableFirestoreCode(cause.code)
+    cause !is FirebaseFirestoreException || retryableFirestoreCode(cause.code.name)
 
 /** Owner-private permission denial needs a new authorized session, not a timed retry. */
-internal fun retryableFirestoreCode(code: FirestoreExceptionCode): Boolean =
-    code != FirestoreExceptionCode.PERMISSION_DENIED
+internal fun retryableFirestoreCode(code: String): Boolean =
+    code != "PERMISSION_DENIED"
