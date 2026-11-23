@@ -1,11 +1,14 @@
 package com.danzucker.stitchpad.core.data
 
 import dev.gitlive.firebase.firestore.FirestoreExceptionCode
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.shareIn
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.test.runTest
 
 class PermissionDeniedListenerTest {
     // The Android SDK exception constructor needs Android's TextUtils. Use a
@@ -13,6 +16,24 @@ class PermissionDeniedListenerTest {
     private class ListenerFailure(val code: FirestoreExceptionCode) : Exception()
 
     private fun shouldRetry(cause: Throwable) = retryableFirestoreCode((cause as ListenerFailure).code)
+
+    @Test
+    fun sharedBaseListenerRecoversFromTransientPermissionDenialWithSameSubscriber() = runTest {
+        var subscriptions = 0
+        val errors = mutableListOf<Throwable>()
+        val shared = flow {
+            subscriptions++
+            if (subscriptions == 1) throw ListenerFailure(FirestoreExceptionCode.PERMISSION_DENIED)
+            emit(7)
+            emit(8)
+        }.retryWithFallback(fallback = -1, initialBackoffMs = 10) { cause, _ -> errors += cause }
+            .shareIn(backgroundScope, SharingStarted.WhileSubscribed(), replay = 1)
+
+        assertEquals(listOf(-1, 7, 8), shared.take(3).toList())
+        assertEquals(2, subscriptions)
+        assertEquals(FirestoreExceptionCode.PERMISSION_DENIED, (errors.single() as ListenerFailure).code)
+        assertEquals(10L, testScheduler.currentTime)
+    }
 
     @Test
     fun deniedInnerListenerDoesNotRestartThroughAnOuterRetry() = runTest {
@@ -30,7 +51,7 @@ class PermissionDeniedListenerTest {
     }
 
     @Test
-    fun permissionDeniedEmitsFallbackAndNeverResubscribesEvenAfterCachedData() = runTest {
+    fun explicitTerminalPolicyEmitsFallbackAndNeverResubscribesEvenAfterCachedData() = runTest {
         var subscriptions = 0
         val values = flow {
             subscriptions++

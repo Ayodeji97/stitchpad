@@ -21,8 +21,9 @@ const val LISTENER_RETRY_MAX_BACKOFF_MS = 60_000L
  * anything it can no longer verify, waits with capped exponential backoff,
  * then resubscribes — indefinitely.
  *
- * Permission denial is terminal for this collection: emit the fallback and stop.
- * A session change creates a fresh collection through the role-aware gate.
+ * By default all upstream failures retry, including transient permission denial
+ * during staff claim refresh. Owner-only listeners opt into a terminal policy
+ * through [shouldRetry]; their role-aware gate starts a fresh authorized collection.
  *
  * Other persistent failures retry indefinitely, and [onError] fires on every
  * single attempt (desired — that is the diagnosability signal), receiving the
@@ -44,9 +45,7 @@ fun <T> Flow<T>.retryWithFallback(
     fallback: T,
     initialBackoffMs: Long = LISTENER_RETRY_INITIAL_BACKOFF_MS,
     maxBackoffMs: Long = LISTENER_RETRY_MAX_BACKOFF_MS,
-    shouldRetry: (Throwable) -> Boolean = { cause ->
-        cause !is FirebaseFirestoreException || retryableFirestoreCode(cause.code)
-    },
+    shouldRetry: (Throwable) -> Boolean = { true },
     onError: (cause: Throwable, attempt: Long) -> Unit,
 ): Flow<T> = flow {
     // Per-collection state: a failure run's backoff must restart at
@@ -92,6 +91,10 @@ fun <T> Flow<T>.retryWithFallback(
         .collect { value -> emit(value) }
 }
 
-/** Permission denial needs a new authorized session, never a timed resubscription. */
+/** Only for hydrated owner-private listeners; shared base listeners must keep retrying. */
+internal fun retryUnlessPermissionDenied(cause: Throwable): Boolean =
+    cause !is FirebaseFirestoreException || retryableFirestoreCode(cause.code)
+
+/** Owner-private permission denial needs a new authorized session, not a timed retry. */
 internal fun retryableFirestoreCode(code: FirestoreExceptionCode): Boolean =
     code != FirestoreExceptionCode.PERMISSION_DENIED

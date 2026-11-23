@@ -9,6 +9,7 @@ import com.danzucker.stitchpad.core.data.mapper.toCustomerContactDto
 import com.danzucker.stitchpad.core.data.mapper.toCustomerDto
 import com.danzucker.stitchpad.core.data.mapper.withContact
 import com.danzucker.stitchpad.core.data.ownerOnlyListener
+import com.danzucker.stitchpad.core.data.retryUnlessPermissionDenied
 import com.danzucker.stitchpad.core.data.retryWithFallback
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.DataError
@@ -125,7 +126,10 @@ class FirebaseCustomerRepository(
                         }
                         .associateBy { it.customerId }
                 }
-                .retryWithFallback(fallback = emptyMap()) { throwable, attempt ->
+                .retryWithFallback(
+                    fallback = emptyMap(),
+                    shouldRetry = ::retryUnlessPermissionDenied,
+                ) { throwable, attempt ->
                     AppLogger.w(tag = TAG, throwable = throwable) {
                         "observeCustomers contact collection-group failed; falling back to base contact; " +
                             "listener failure ${attempt + 1}"
@@ -144,7 +148,10 @@ class FirebaseCustomerRepository(
                         null
                     }
                 }
-                .retryWithFallback(fallback = null) { throwable, attempt ->
+                .retryWithFallback(
+                    fallback = null,
+                    shouldRetry = ::retryUnlessPermissionDenied,
+                ) { throwable, attempt ->
                     AppLogger.w(tag = TAG, throwable = throwable) {
                         "observeCustomer contact sub-doc failed customerId=$customerId; falling back to base " +
                             "contact; listener failure ${attempt + 1}"

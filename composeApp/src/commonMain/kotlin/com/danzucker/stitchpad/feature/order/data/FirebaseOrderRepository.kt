@@ -17,6 +17,7 @@ import com.danzucker.stitchpad.core.data.mapper.toOrderMoneyDto
 import com.danzucker.stitchpad.core.data.mapper.toPaymentDto
 import com.danzucker.stitchpad.core.data.mapper.withMoney
 import com.danzucker.stitchpad.core.data.ownerOnlyListener
+import com.danzucker.stitchpad.core.data.retryUnlessPermissionDenied
 import com.danzucker.stitchpad.core.data.retryWithFallback
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
@@ -340,7 +341,10 @@ class FirebaseOrderRepository(
                         .mapNotNull { doc -> decodeDocOrLog(tag = TAG, docId = doc.id) { doc.data<OrderMoneyDto>() } }
                         .associateBy { it.orderId }
                 }
-                .retryWithFallback(fallback = emptyMap()) { throwable, attempt ->
+                .retryWithFallback(
+                    fallback = emptyMap(),
+                    shouldRetry = ::retryUnlessPermissionDenied,
+                ) { throwable, attempt ->
                     AppLogger.w(tag = TAG, throwable = throwable) {
                         "observeOrders money collection-group failed; falling back to base money; " +
                             "listener failure ${attempt + 1}"
@@ -359,7 +363,10 @@ class FirebaseOrderRepository(
                         null
                     }
                 }
-                .retryWithFallback(fallback = null) { throwable, attempt ->
+                .retryWithFallback(
+                    fallback = null,
+                    shouldRetry = ::retryUnlessPermissionDenied,
+                ) { throwable, attempt ->
                     AppLogger.w(tag = TAG, throwable = throwable) {
                         "observeOrder money sub-doc failed orderId=$orderId; falling back to base money; " +
                             "listener failure ${attempt + 1}"

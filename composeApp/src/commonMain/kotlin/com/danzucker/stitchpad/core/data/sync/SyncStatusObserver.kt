@@ -1,5 +1,6 @@
 package com.danzucker.stitchpad.core.data.sync
 
+import com.danzucker.stitchpad.core.data.retryUnlessPermissionDenied
 import com.danzucker.stitchpad.core.data.retryWithFallback
 import com.danzucker.stitchpad.core.domain.model.SyncStatus
 import com.danzucker.stitchpad.core.logging.AppLogger
@@ -54,6 +55,7 @@ class SyncStatusObserver(
             // is terminal; a role/session change creates a fresh collection.
             .retryWithFallback(
                 fallback = SyncStatus.SYNCED,
+                shouldRetry = ::retryUnlessPermissionDenied,
                 initialBackoffMs = INITIAL_RETRY_BACKOFF_MS,
                 maxBackoffMs = MAX_RETRY_BACKOFF_MS,
             ) { cause, attempt ->
