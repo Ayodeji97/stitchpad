@@ -562,7 +562,7 @@
     <string name="order_form_deadline_quick_2_weeks">2 semaines</string>
     <string name="order_saved_sheet_title">Commande enregistrée</string>
     <string name="order_saved_sheet_body">La commande de %1$s est enregistrée.</string>
-    <string name="order_saved_sheet_share_whatsapp">Partager le reçu sur WhatsApp</string>
+    <string name="order_saved_sheet_share_whatsapp">Partager le reçu</string>
     <string name="order_saved_sheet_done">Terminé</string>
     <string name="order_form_priority_label">Priorité</string>
     <string name="order_form_deposit_label">Acompte payé</string>

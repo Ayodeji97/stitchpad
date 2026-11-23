@@ -684,7 +684,7 @@
     <string name="order_form_deadline_quick_2_weeks">2 weeks</string>
     <string name="order_saved_sheet_title">Order saved</string>
     <string name="order_saved_sheet_body">Order for %1$s is saved.</string>
-    <string name="order_saved_sheet_share_whatsapp">Share receipt on WhatsApp</string>
+    <string name="order_saved_sheet_share_whatsapp">Share receipt</string>
     <string name="order_saved_sheet_done">Done</string>
     <string name="order_form_priority_label">Priority</string>
     <string name="order_form_deposit_label">Deposit paid</string>
