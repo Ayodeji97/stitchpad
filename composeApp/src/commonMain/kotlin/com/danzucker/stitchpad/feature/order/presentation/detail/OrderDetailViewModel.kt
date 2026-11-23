@@ -89,6 +89,7 @@ import kotlin.uuid.Uuid
 private const val ENTITLEMENTS_HYDRATION_TIMEOUT_MS = 2_000L
 private const val MAX_ORDER_DETAIL_PHOTO_BYTES = 5 * 1024 * 1024
 private const val MAX_IMAGES_PER_CATEGORY = 3
+private const val OPEN_RECEIPT_SHARE_KEY = "openReceiptShare"
 
 // Constructor passes the detekt threshold of 10 by exactly one — Coil's ImageLoader
 // and PlatformContext are required for the brand-logo receipt prefetch (PTSP-21).
@@ -96,7 +97,7 @@ private const val MAX_IMAGES_PER_CATEGORY = 3
 // per-layer wiring; staying explicit + suppressing here keeps the seams visible.
 @Suppress("TooManyFunctions", "LongParameterList", "LargeClass")
 class OrderDetailViewModel(
-    savedStateHandle: SavedStateHandle,
+    private val savedStateHandle: SavedStateHandle,
     private val orderRepository: OrderRepository,
     private val customerRepository: CustomerRepository,
     private val measurementRepository: MeasurementRepository,
@@ -116,6 +117,14 @@ class OrderDetailViewModel(
 ) : ViewModel() {
 
     private val orderId: String? = savedStateHandle["orderId"]
+
+    /**
+     * Set when arriving from the order form's post-create "Share receipt" action
+     * ([com.danzucker.stitchpad.navigation.OrderDetailRoute.openReceiptShare]). Consumed once
+     * (and cleared in [savedStateHandle]) so a recreated VM doesn't re-open the sheet.
+     */
+    private var pendingOpenReceiptShare: Boolean =
+        savedStateHandle.get<Boolean>(OPEN_RECEIPT_SHARE_KEY) == true
 
     private var hasStartedObserving = false
     private var customerJob: Job? = null
@@ -869,6 +878,7 @@ class OrderDetailViewModel(
                         currentAuthUid = session.authUid,
                     )
                 }
+                consumeOpenReceiptShareRequest(session)
                 // shouldObserveRoster covers both the staff case (Task 7: no picker, so no
                 // subscription) and a signed-out emission (WorkshopSession.signedOut() has
                 // a blank workshopUid) — a retained detail VM survives bottom-tab switches
@@ -884,6 +894,14 @@ class OrderDetailViewModel(
                 }
             }
         }
+    }
+
+    private fun consumeOpenReceiptShareRequest(session: WorkshopSession) {
+        if (!pendingOpenReceiptShare || session.workshopUid.isBlank()) return
+        pendingOpenReceiptShare = false
+        savedStateHandle[OPEN_RECEIPT_SHARE_KEY] = false
+        // Routed through onAction so the staff restriction on receipt sharing still applies.
+        onAction(OrderDetailAction.OnShareReceiptFromSnackbar)
     }
 
     private fun clearRosterSubscription() {

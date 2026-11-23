@@ -54,6 +54,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.datetime.TimeZone
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.error_order_country_unavailable
 import stitchpad.composeapp.generated.resources.error_order_currency_changed
@@ -129,7 +130,7 @@ class OrderFormViewModel(
     private var currencyRetryJob: Job? = null
 
     private var hasLoadedInitialData = false
-    private val _state = MutableStateFlow(OrderFormState(isEditMode = orderId != null))
+    private val _state = MutableStateFlow(initialState())
 
     private val _events = Channel<OrderFormEvent>()
     val events = _events.receiveAsFlow()
@@ -144,8 +145,32 @@ class OrderFormViewModel(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = OrderFormState(isEditMode = orderId != null)
+            initialValue = initialState()
         )
+
+    /**
+     * A NEW order starts with a deadline [DEFAULT_NEW_ORDER_DEADLINE_DAYS] out so it isn't
+     * forgotten; the tailor can still change or clear it. An edit starts blank and takes the
+     * stored deadline from [loadOrder] untouched.
+     */
+    private fun initialState(): OrderFormState {
+        if (orderId != null) return OrderFormState(isEditMode = true)
+        val deadline = deadlineDaysFromToday(nowMillis(), DEFAULT_NEW_ORDER_DEADLINE_DAYS, localZone())
+        return OrderFormState(
+            isEditMode = false,
+            deadline = deadline,
+            selectedDeadlineQuickPickDays = matchingDeadlineQuickPick(deadline, nowMillis(), localZone()),
+        )
+    }
+
+    private fun nowMillis(): Long = Clock.System.now().toEpochMilliseconds()
+
+    private fun localZone(): TimeZone = TimeZone.currentSystemDefault()
+
+    private fun OrderFormState.withDeadline(deadline: Long?): OrderFormState = copy(
+        deadline = deadline,
+        selectedDeadlineQuickPickDays = matchingDeadlineQuickPick(deadline, nowMillis(), localZone()),
+    )
 
     @Suppress("CyclomaticComplexMethod", "LongMethod", "ReturnCount", "NestedBlockDepth")
     fun onAction(action: OrderFormAction) {
@@ -338,7 +363,11 @@ class OrderFormViewModel(
                 }
             }
             is OrderFormAction.OnDeadlineChange -> {
-                _state.update { it.copy(deadline = action.deadline) }
+                _state.update { it.withDeadline(action.deadline) }
+            }
+            is OrderFormAction.OnDeadlineQuickPick -> {
+                val deadline = deadlineDaysFromToday(nowMillis(), action.days, localZone())
+                _state.update { it.withDeadline(deadline) }
             }
             is OrderFormAction.OnPriorityChange -> {
                 _state.update { it.copy(priority = action.priority) }
@@ -379,6 +408,13 @@ class OrderFormViewModel(
             }
             OrderFormAction.OnDismissDepositPrompt -> {
                 _state.update { it.copy(depositReconciliationPrompt = null) }
+            }
+            OrderFormAction.OnSavedSheetShareReceipt -> leaveSavedSheetForDetail(openReceiptShare = true)
+            OrderFormAction.OnSavedSheetViewOrder -> leaveSavedSheetForDetail(openReceiptShare = false)
+            OrderFormAction.OnSavedSheetDone -> {
+                if (!_state.value.showOrderSavedSheet) return
+                _state.update { it.copy(showOrderSavedSheet = false) }
+                viewModelScope.launch { _events.send(OrderFormEvent.OrderCreated) }
             }
             OrderFormAction.OnErrorDismiss -> {
                 _state.update { it.copy(errorMessage = null) }
@@ -450,6 +486,17 @@ class OrderFormViewModel(
         }
     }
 
+    private fun leaveSavedSheetForDetail(openReceiptShare: Boolean) {
+        val savedId = _state.value.savedOrderId ?: return
+        if (!_state.value.showOrderSavedSheet) return
+        // Staff can't share receipts (owner-only money action) — fall back to just opening it.
+        val share = openReceiptShare && _state.value.canShareReceipt
+        _state.update { it.copy(showOrderSavedSheet = false) }
+        viewModelScope.launch {
+            _events.send(OrderFormEvent.NavigateToOrderDetail(savedId, openReceiptShare = share))
+        }
+    }
+
     private fun updateItem(itemId: String, transform: (OrderItemFormState) -> OrderItemFormState) {
         _state.update { state ->
             state.copy(
@@ -463,6 +510,7 @@ class OrderFormViewModel(
             val session = activeWorkshopProvider.awaitHydrated()
             formSession = session
             userId = session.workshopUid.takeIf { it.isNotBlank() } ?: return@launch
+            _state.update { it.copy(canShareReceipt = !session.isActiveStaff) }
             if (orderId == null) observeCreateCurrency()
             observeCustomers()
             observeCustomGarmentTypes()
@@ -595,7 +643,6 @@ class OrderFormViewModel(
                     _state.update {
                         it.copy(
                             items = order.items.map { item -> item.toFormState() },
-                            deadline = order.deadline,
                             priority = order.priority,
                             depositPaid = depositTotal(order.payments, order.currency)
                                 .takeIf { it > 0.0 }?.let(::moneyInputForAmount) ?: "",
@@ -605,7 +652,7 @@ class OrderFormViewModel(
                             discount = if (order.discount > 0.0) moneyInputForAmount(order.discount) else "",
                             discountReason = order.discountReason ?: "",
                             isLoading = false
-                        )
+                        ).withDeadline(order.deadline)
                     }
                     resolvePendingCustomer()
                 }
@@ -652,12 +699,11 @@ class OrderFormViewModel(
                                     stylePhotoStoragePath = null,
                                 ).toFormState()
                             },
-                            deadline = source.deadline,
                             priority = source.priority,
                             depositPaid = "",
                             notes = source.notes ?: "",
                             isLoading = false,
-                        )
+                        ).withDeadline(source.deadline)
                     }
                     resolvePendingCustomer()
                 }
@@ -708,7 +754,9 @@ class OrderFormViewModel(
         // a state update inside viewModelScope.launch doesn't propagate before a
         // rapid double-tap can re-enter. With PTSP-9's gallery-save path, a
         // duplicate entry creates duplicate Style entities — guard early.
-        if (_state.value.isSaving) return
+        // Also ignored once a create has succeeded (savedOrderId set, "Order saved" sheet up or
+        // being left): the order already exists — never create it twice.
+        if (_state.value.isSaving || _state.value.savedOrderId != null) return
         // A photo picked just before Save may still be compressing; wait then re-enter.
         if (awaitPendingPhotosThenResave()) return
 
@@ -1086,10 +1134,20 @@ class OrderFormViewModel(
                         }
                     }
                     cleanUpPendingStorageDeletions(formItems)
-                    _state.update { it.copy(isSaving = false) }
-                    _events.send(
-                        if (isEdit) OrderFormEvent.OrderSaved else OrderFormEvent.OrderCreated,
-                    )
+                    if (isEdit) {
+                        _state.update { it.copy(isSaving = false) }
+                        _events.send(OrderFormEvent.OrderSaved)
+                    } else {
+                        // New order: offer share / view / done instead of leaving immediately.
+                        // "Done" then emits OrderCreated, the same exit a create used before.
+                        _state.update {
+                            it.copy(
+                                isSaving = false,
+                                showOrderSavedSheet = true,
+                                savedOrderId = actualOrderId,
+                            )
+                        }
+                    }
                 }
                 is Result.Error -> _state.update {
                     it.copy(isSaving = false, errorMessage = result.error.toOrderUiText())

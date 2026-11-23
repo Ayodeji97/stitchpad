@@ -557,6 +557,13 @@
     <string name="order_form_remove_item">Retirer l'article</string>
     <string name="order_form_deadline_label">Date de livraison (facultatif)</string>
     <string name="order_form_pick_date">Choisir une date</string>
+    <string name="order_form_deadline_quick_3_days">3 jours</string>
+    <string name="order_form_deadline_quick_1_week">1 semaine</string>
+    <string name="order_form_deadline_quick_2_weeks">2 semaines</string>
+    <string name="order_saved_sheet_title">Commande enregistrée</string>
+    <string name="order_saved_sheet_body">La commande de %1$s est enregistrée.</string>
+    <string name="order_saved_sheet_share_whatsapp">Partager le reçu sur WhatsApp</string>
+    <string name="order_saved_sheet_done">Terminé</string>
     <string name="order_form_priority_label">Priorité</string>
     <string name="order_form_deposit_label">Acompte payé</string>
     <string name="order_form_deposit_placeholder">0</string>
