@@ -37,7 +37,27 @@ data class MeasurementFormState(
     // (CustomerForm → "Save & Add Measurements"). Drives the "Save" CTA copy and
     // the "Skip for now" escape hatch. False for edit / order-link / detail entry.
     val fromCustomerCreation: Boolean = false,
+    // "Same as last time": persistable values from this customer's most recent
+    // record (same gender + unit), keyed like [fields]. Only ever populated for a
+    // NEW record; always empty in edit mode or when the customer has no history.
+    val previousValues: Map<String, String> = emptyMap(),
 ) {
+    /** True when the "Same as last time" action and the "Last: …" hints should render. */
+    val showPreviousValues: Boolean
+        get() = !isEditMode && previousValues.isNotEmpty()
+
+    /**
+     * True when "Same as last time" would change something: at least one visible
+     * field is still empty and has a previous value to copy into it.
+     */
+    val canCopyPreviousValues: Boolean
+        get() = showPreviousValues &&
+            fields.any { (key, value) -> value.isBlank() && previousValues.containsKey(key) }
+
+    /** The "Last: …" hint for [key], or null when there is none to show. */
+    fun previousValueFor(key: String): String? =
+        if (showPreviousValues) previousValues[key] else null
+
     /**
      * PTSP-6: Save is gated to mirror what `MeasurementFormViewModel.save()`
      * will actually persist — at least one field carrying a meaningful value.

@@ -11,6 +11,7 @@ import com.danzucker.stitchpad.core.domain.model.BodyProfileTemplate
 import com.danzucker.stitchpad.core.domain.model.CustomMeasurementField
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.Measurement
+import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
 import com.danzucker.stitchpad.core.domain.repository.CustomMeasurementFieldRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
@@ -64,6 +65,10 @@ class MeasurementFormViewModel(
     // (not from the already-filtered state, which would lose other-gender fields).
     private var allCustomFields: List<CustomMeasurementField> = emptyList()
 
+    // Create mode only: the customer's existing records, cached so a gender switch
+    // can re-pick the matching "Same as last time" record without another read.
+    private var previousMeasurements: List<Measurement> = emptyList()
+
     private val _state = MutableStateFlow(
         MeasurementFormState(
             isEditMode = measurementId != null,
@@ -96,6 +101,7 @@ class MeasurementFormViewModel(
                     loadMeasurement(measurementId)
                 } else {
                     onGenderChange(CustomerGender.FEMALE)
+                    loadPreviousMeasurements()
                 }
                 observeCustomFields()
             }
@@ -141,6 +147,8 @@ class MeasurementFormViewModel(
             is MeasurementFormAction.OnFieldChange -> {
                 _state.update { it.copy(fields = it.fields + (action.key to action.value)) }
             }
+            MeasurementFormAction.OnCopyPreviousValuesClick -> copyPreviousValues()
+            is MeasurementFormAction.OnInsertSegmentSeparator -> appendSegmentSeparator(action.key)
             is MeasurementFormAction.OnNotesChange -> {
                 _state.update { it.copy(notes = action.notes) }
             }
@@ -250,7 +258,86 @@ class MeasurementFormViewModel(
                 isCurrentSectionExpanded = true,
                 fields = newFields,
                 customFields = visibleCustom,
+                previousValues = previousValuesFor(
+                    isEditMode = current.isEditMode,
+                    gender = gender,
+                    unit = current.unit,
+                ),
             )
+        }
+    }
+
+    /**
+     * "Same as last time" (create mode only): reads the customer's existing records
+     * through the same repository snapshot the edit flow uses. Failure, sign-out or
+     * a snapshot that never arrives (cold cache, no network) simply means no hints —
+     * the form must stay fully usable without them.
+     */
+    private fun loadPreviousMeasurements() {
+        val customerId = customerId ?: return
+        viewModelScope.launch {
+            val userId = activeWorkshopProvider.workshopUidOrNull() ?: return@launch
+            val result = withTimeoutOrNull(PREVIOUS_MEASUREMENTS_TIMEOUT_MS) {
+                measurementRepository.observeMeasurements(userId, customerId).first()
+            }
+            if (result is Result.Success) {
+                previousMeasurements = result.data
+                _state.update { current ->
+                    current.copy(
+                        previousValues = previousValuesFor(
+                            isEditMode = current.isEditMode,
+                            gender = current.gender,
+                            unit = current.unit,
+                        ),
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Persistable values of the most recent record that matches [gender] and [unit].
+     * Gender-matched because field keys differ per body profile; unit-matched so a
+     * tailor who switched inches ↔ cm is never offered values in the wrong unit.
+     */
+    private fun previousValuesFor(
+        isEditMode: Boolean,
+        gender: CustomerGender?,
+        unit: MeasurementUnit,
+    ): Map<String, String> {
+        val latest = previousMeasurements
+            .takeUnless { isEditMode }
+            .orEmpty()
+            .filter { it.gender == gender && it.unit == unit }
+            .maxByOrNull { it.createdAt }
+        return latest?.fields
+            ?.mapValues { it.value.trim() }
+            ?.filterValues { isPersistableMeasurementValue(it) }
+            .orEmpty()
+    }
+
+    /** Fills only the EMPTY visible fields; anything the tailor typed is never overwritten. */
+    private fun copyPreviousValues() {
+        _state.update { current ->
+            if (!current.showPreviousValues) return@update current
+            val merged = current.fields.mapValues { (key, value) ->
+                val previous = current.previousValues[key]
+                if (value.isBlank() && previous != null) previous else value
+            }
+            current.copy(fields = merged)
+        }
+    }
+
+    /**
+     * Appends " / " so the tailor can start the next segment ("40 / 38,5") even on
+     * a numeric keypad without a slash key. No-op on an empty value or one that
+     * already ends in a separator.
+     */
+    private fun appendSegmentSeparator(key: String) {
+        _state.update { current ->
+            val trimmed = current.fields[key]?.trimEnd() ?: return@update current
+            if (trimmed.isEmpty() || trimmed.endsWith('/')) return@update current
+            current.copy(fields = current.fields + (key to "$trimmed / "))
         }
     }
 
@@ -517,6 +604,7 @@ class MeasurementFormViewModel(
     private companion object {
         const val LINK_ORDER_READ_TIMEOUT_MS = 750L
         const val ENTITLEMENTS_HYDRATION_TIMEOUT_MS = 2_000L
+        const val PREVIOUS_MEASUREMENTS_TIMEOUT_MS = 3_000L
     }
 
     @OptIn(ExperimentalUuidApi::class)

@@ -310,6 +310,9 @@
     <string name="measurement_step_state_not_started">non commencé</string>
     <string name="measurement_previous">Précédent</string>
     <string name="measurement_next">Suivant</string>
+    <string name="measurement_same_as_last_time">Comme la dernière fois</string>
+    <string name="measurement_previous_value_hint">Dernière : %1$s</string>
+    <string name="measurement_insert_segment_separator">Ajouter un segment (/)</string>
     <string name="measurement_add_note">Ajouter une note (facultatif)</string>
     <string name="measurement_notes_label">Notes (facultatif)</string>
     <string name="measurement_notes_placeholder">p. ex. Préfère une coupe ample à la poitrine…</string>

@@ -14,6 +14,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,6 +33,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -39,6 +41,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -68,14 +71,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
@@ -123,6 +129,7 @@ import stitchpad.composeapp.generated.resources.measurement_custom_step
 import stitchpad.composeapp.generated.resources.measurement_edit_title
 import stitchpad.composeapp.generated.resources.measurement_gender_label
 import stitchpad.composeapp.generated.resources.measurement_go_to_section
+import stitchpad.composeapp.generated.resources.measurement_insert_segment_separator
 import stitchpad.composeapp.generated.resources.measurement_name_label
 import stitchpad.composeapp.generated.resources.measurement_name_placeholder
 import stitchpad.composeapp.generated.resources.measurement_name_required_hint
@@ -130,6 +137,8 @@ import stitchpad.composeapp.generated.resources.measurement_next
 import stitchpad.composeapp.generated.resources.measurement_notes_label
 import stitchpad.composeapp.generated.resources.measurement_notes_placeholder
 import stitchpad.composeapp.generated.resources.measurement_previous
+import stitchpad.composeapp.generated.resources.measurement_previous_value_hint
+import stitchpad.composeapp.generated.resources.measurement_same_as_last_time
 import stitchpad.composeapp.generated.resources.measurement_save_button
 import stitchpad.composeapp.generated.resources.measurement_section_of
 import stitchpad.composeapp.generated.resources.measurement_show_less
@@ -303,6 +312,13 @@ fun MeasurementFormScreen(
                     label = stringResource(Res.string.measurement_gender_label),
                     onSelected = { onAction(MeasurementFormAction.OnGenderChange(it)) }
                 )
+                if (state.showPreviousValues) {
+                    Spacer(Modifier.height(DesignTokens.space2))
+                    CopyPreviousValuesButton(
+                        enabled = state.canCopyPreviousValues,
+                        onClick = { onAction(MeasurementFormAction.OnCopyPreviousValuesClick) },
+                    )
+                }
                 if (state.sections.isNotEmpty()) {
                     Spacer(Modifier.height(DesignTokens.space4))
                     SectionProgressRow(
@@ -356,28 +372,27 @@ fun MeasurementFormScreen(
                             val isExpanded =
                                 pageIndex != state.currentSectionIndex || state.isCurrentSectionExpanded
 
-                            essentialFields.forEach { field ->
+                            // Essentials first, then the extras when expanded. The last
+                            // visible field gets Done; every other one gets Next.
+                            val visibleFields = if (isExpanded) essentialFields + extraFields else essentialFields
+                            visibleFields.forEachIndexed { index, field ->
                                 MeasurementFieldInput(
                                     field = field,
                                     value = state.fields[field.key] ?: "",
                                     unitSuffix = unitSuffix,
+                                    previousValue = state.previousValueFor(field.key),
+                                    imeAction = if (index == visibleFields.lastIndex) {
+                                        ImeAction.Done
+                                    } else {
+                                        ImeAction.Next
+                                    },
+                                    onInsertSeparator = {
+                                        onAction(MeasurementFormAction.OnInsertSegmentSeparator(field.key))
+                                    },
                                     onValueChange = {
                                         onAction(MeasurementFormAction.OnFieldChange(field.key, it))
                                     }
                                 )
-                            }
-
-                            if (isExpanded) {
-                                extraFields.forEach { field ->
-                                    MeasurementFieldInput(
-                                        field = field,
-                                        value = state.fields[field.key] ?: "",
-                                        unitSuffix = unitSuffix,
-                                        onValueChange = {
-                                            onAction(MeasurementFormAction.OnFieldChange(field.key, it))
-                                        }
-                                    )
-                                }
                             }
 
                             if (extraFields.isNotEmpty() && pageIndex == state.currentSectionIndex) {
@@ -398,8 +413,12 @@ fun MeasurementFormScreen(
                                 isEditMode = state.isEditMode,
                                 isInWelcomeWindow = state.isInWelcomeWindow,
                                 tier = state.tier,
+                                previousValueFor = state::previousValueFor,
                                 onFieldValueChange = { key, value ->
                                     onAction(MeasurementFormAction.OnFieldChange(key, value))
+                                },
+                                onInsertSeparator = { key ->
+                                    onAction(MeasurementFormAction.OnInsertSegmentSeparator(key))
                                 },
                                 onAddClick = { onAction(MeasurementFormAction.OnAddCustomFieldClick) },
                                 onLockedAddClick = { onAction(MeasurementFormAction.OnLockedCustomFieldClick) },
@@ -770,20 +789,51 @@ private fun MeasurementFieldInput(
     field: MeasurementField,
     value: String,
     unitSuffix: String,
+    previousValue: String?,
+    imeAction: ImeAction,
+    onInsertSeparator: () -> Unit,
     onValueChange: (String) -> Unit
 ) {
     MeasurementTextField(
         value = value,
-        // Sanitization now lives inside MeasurementTextField so the caret is mapped
-        // as characters are stripped. Text keyboard (not Decimal) keeps comma/space
-        // keys reachable for segmented lengths ("40, 45, 56") and half sizes ("16.5").
+        // Sanitization lives inside MeasurementTextField so the caret is mapped
+        // as characters are stripped. See measurementValueKeyboardOptions for the
+        // keypad choice and why the "/" quick-insert exists.
         onValueChange = onValueChange,
         sanitize = ::sanitizeMeasurementInput,
         label = measurementFieldLabel(field),
         placeholder = "0",
         suffix = unitSuffix,
         singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+        keyboardOptions = measurementValueKeyboardOptions(imeAction),
+        keyboardActions = measurementValueKeyboardActions(),
+        supportingText = previousValue?.let {
+            stringResource(Res.string.measurement_previous_value_hint, it)
+        },
+        onInsertSeparator = onInsertSeparator,
+    )
+}
+
+/**
+ * Numeric-first keypad for measurement VALUES. Decimal (not Number) so the
+ * decimal mark is on the keypad — iOS shows the locale's mark ("," in French),
+ * Android keypads show "." (and usually ","); both pass [sanitizeMeasurementInput]
+ * and [isPersistableMeasurementValue]. Numeric keypads do not reliably offer "/",
+ * so segmented values ("40 / 38,5") use the "/" quick-insert button that
+ * [MeasurementTextField] shows on the focused field.
+ */
+private fun measurementValueKeyboardOptions(imeAction: ImeAction): KeyboardOptions =
+    KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = imeAction)
+
+/** Next walks to the field below (clearing focus if there is none); Done clears focus. */
+@Composable
+private fun measurementValueKeyboardActions(): KeyboardActions {
+    val focusManager = LocalFocusManager.current
+    return KeyboardActions(
+        onNext = {
+            if (!focusManager.moveFocus(FocusDirection.Down)) focusManager.clearFocus()
+        },
+        onDone = { focusManager.clearFocus() },
     )
 }
 
@@ -921,7 +971,10 @@ private fun MeasurementTextField(
     minLines: Int = 1,
     maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
     suffix: String? = null,
+    supportingText: String? = null,
+    onInsertSeparator: (() -> Unit)? = null,
     sanitize: (String) -> String = { it },
     modifier: Modifier = Modifier
 ) {
@@ -934,6 +987,9 @@ private fun MeasurementTextField(
         unfocusedTextColor = MaterialTheme.colorScheme.onSurface
     )
     val interactionSource = remember { MutableInteractionSource() }
+    // Compose-internal focus state: the "/" quick-insert only shows on the field
+    // being typed in, so idle fields stay uncluttered.
+    val isFocused by interactionSource.collectIsFocusedAsState()
     val (textFieldValue, onTextFieldChange) = rememberSanitizedTextFieldValue(
         value = value,
         sanitize = sanitize,
@@ -961,6 +1017,7 @@ private fun MeasurementTextField(
             ),
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             keyboardOptions = keyboardOptions,
+            keyboardActions = keyboardActions,
             interactionSource = interactionSource,
             modifier = Modifier.fillMaxWidth(),
             decorationBox = { innerTextField ->
@@ -987,6 +1044,20 @@ private fun MeasurementTextField(
                             )
                         }
                     },
+                    trailingIcon = if (onInsertSeparator != null && isFocused) {
+                        { SegmentSeparatorButton(onClick = onInsertSeparator) }
+                    } else {
+                        null
+                    },
+                    supportingText = supportingText?.let {
+                        {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    },
                     colors = colors,
                     container = {
                         OutlinedTextFieldDefaults.Container(
@@ -1001,6 +1072,47 @@ private fun MeasurementTextField(
                     }
                 )
             }
+        )
+    }
+}
+
+/** "/" quick-insert for segmented values, since numeric keypads may lack a slash key. */
+@Composable
+private fun SegmentSeparatorButton(onClick: () -> Unit) {
+    val description = stringResource(Res.string.measurement_insert_segment_separator)
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier.semantics { contentDescription = description },
+    ) {
+        Text(
+            text = "/",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+        )
+    }
+}
+
+/** "Same as last time": copies the previous record into the still-empty fields. */
+@Composable
+private fun CopyPreviousValuesButton(
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    TextButton(
+        onClick = onClick,
+        enabled = enabled,
+        contentPadding = PaddingValues(horizontal = 0.dp, vertical = DesignTokens.space1),
+    ) {
+        Icon(
+            imageVector = Icons.Default.ContentCopy,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+        )
+        Spacer(Modifier.width(DesignTokens.space1))
+        Text(
+            text = stringResource(Res.string.measurement_same_as_last_time),
+            style = MaterialTheme.typography.labelLarge,
         )
     }
 }
@@ -1022,7 +1134,9 @@ private fun CustomFieldsSection(
     isEditMode: Boolean,
     isInWelcomeWindow: Boolean,
     tier: SubscriptionTier,
+    previousValueFor: (String) -> String?,
     onFieldValueChange: (String, String) -> Unit,
+    onInsertSeparator: (String) -> Unit,
     onAddClick: () -> Unit,
     onLockedAddClick: () -> Unit,
     onEditField: (String) -> Unit,
@@ -1111,7 +1225,7 @@ private fun CustomFieldsSection(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
-            visibleFields.forEach { field ->
+            visibleFields.forEachIndexed { index, field ->
                 // Long-press on the label row (NOT the text field) opens the
                 // manage sheet. The text field's own gesture detector would
                 // otherwise swallow the long-press and break text selection.
@@ -1160,7 +1274,14 @@ private fun CustomFieldsSection(
                         placeholder = "0",
                         suffix = unitSuffix,
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                        keyboardOptions = measurementValueKeyboardOptions(
+                            if (index == visibleFields.lastIndex) ImeAction.Done else ImeAction.Next,
+                        ),
+                        keyboardActions = measurementValueKeyboardActions(),
+                        supportingText = previousValueFor(field.id)?.let {
+                            stringResource(Res.string.measurement_previous_value_hint, it)
+                        },
+                        onInsertSeparator = { onInsertSeparator(field.id) },
                     )
                 }
             }
@@ -1257,6 +1378,31 @@ private fun MeasurementFormScreenFemalePreview() {
                     "hip_circumference" to "38"
                 ),
                 unit = MeasurementUnit.INCHES
+            ),
+            onAction = {}
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun MeasurementFormScreenSameAsLastTimePreview() {
+    val sections = BodyProfileTemplate.sectionsFor(CustomerGender.FEMALE)
+    val allKeys = sections.flatMap { it.fields }.map { it.key }
+    StitchPadTheme {
+        MeasurementFormScreen(
+            state = MeasurementFormState(
+                name = "Wedding gown",
+                gender = CustomerGender.FEMALE,
+                sections = sections,
+                fields = allKeys.associateWith { "" } + mapOf("bust_circumference" to "37"),
+                previousValues = mapOf(
+                    "bust_circumference" to "36",
+                    "waist" to "28",
+                    "hip_circumference" to "40 / 38,5",
+                ),
+                unit = MeasurementUnit.INCHES,
             ),
             onAction = {}
         )

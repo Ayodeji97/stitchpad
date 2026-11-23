@@ -11,6 +11,12 @@ sealed interface MeasurementFormAction {
     data object OnToggleShowMore : MeasurementFormAction
     data object OnToggleNotes : MeasurementFormAction
     data class OnFieldChange(val key: String, val value: String) : MeasurementFormAction
+
+    /** "Same as last time": copy the previous record's values into the EMPTY fields only. */
+    data object OnCopyPreviousValuesClick : MeasurementFormAction
+
+    /** "/" quick-insert: appends a segment separator, since numeric keypads may lack "/". */
+    data class OnInsertSegmentSeparator(val key: String) : MeasurementFormAction
     data class OnNotesChange(val notes: String) : MeasurementFormAction
     data object OnSaveClick : MeasurementFormAction
     data object OnSkipClick : MeasurementFormAction
