@@ -16,6 +16,8 @@ import com.danzucker.stitchpad.core.data.mapper.toOrderItemBaseDto
 import com.danzucker.stitchpad.core.data.mapper.toOrderMoneyDto
 import com.danzucker.stitchpad.core.data.mapper.toPaymentDto
 import com.danzucker.stitchpad.core.data.mapper.withMoney
+import com.danzucker.stitchpad.core.data.ownerOnlyListener
+import com.danzucker.stitchpad.core.data.retryUnlessPermissionDenied
 import com.danzucker.stitchpad.core.data.retryWithFallback
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
@@ -28,6 +30,7 @@ import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.domain.model.OrderSubStatus
 import com.danzucker.stitchpad.core.domain.model.Payment
 import com.danzucker.stitchpad.core.domain.repository.OrderRepository
+import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.core.offline.OfflinePhotoStore
 import com.danzucker.stitchpad.core.offline.OfflineUploadJob
@@ -303,6 +306,7 @@ internal fun orderMoneyMergeWrite(
 @Suppress("TooManyFunctions")
 class FirebaseOrderRepository(
     private val firestore: FirebaseFirestore,
+    private val activeWorkshopProvider: ActiveWorkshopProvider,
     private val storage: FirebaseStorage,
     private val offlineWrites: OfflineWriteDispatcher,
     private val photoStore: OfflinePhotoStore,
@@ -327,38 +331,48 @@ class FirebaseOrderRepository(
     // is still propagating), degrade to an empty map so orders fall back to base
     // money — never break the owner's money display over a sub-doc read.
     private fun moneyByOrderId(userId: String): Flow<Map<String, OrderMoneyDto>> =
-        firestore.collectionGroup("private")
-            .where { "ownerId" equalTo userId }
-            .snapshots()
-            .map { snapshot ->
-                snapshot.documents
-                    .filter { it.id == "money" }
-                    .mapNotNull { doc -> decodeDocOrLog(tag = TAG, docId = doc.id) { doc.data<OrderMoneyDto>() } }
-                    .associateBy { it.orderId }
-            }
-            .retryWithFallback(fallback = emptyMap()) { throwable, attempt ->
-                AppLogger.w(tag = TAG, throwable = throwable) {
-                    "observeOrders money collection-group failed; falling back to base money; " +
-                        "retrying (attempt ${attempt + 1})"
+        activeWorkshopProvider.ownerOnlyListener(userId, emptyMap()) {
+            firestore.collectionGroup("private")
+                .where { "ownerId" equalTo userId }
+                .snapshots()
+                .map { snapshot ->
+                    snapshot.documents
+                        .filter { it.id == "money" }
+                        .mapNotNull { doc -> decodeDocOrLog(tag = TAG, docId = doc.id) { doc.data<OrderMoneyDto>() } }
+                        .associateBy { it.orderId }
                 }
-            }
+                .retryWithFallback(
+                    fallback = emptyMap(),
+                    shouldRetry = ::retryUnlessPermissionDenied,
+                ) { throwable, attempt ->
+                    AppLogger.w(tag = TAG, throwable = throwable) {
+                        "observeOrders money collection-group failed; falling back to base money; " +
+                            "listener failure ${attempt + 1}"
+                    }
+                }
+        }
 
     private fun orderMoneyFlow(userId: String, orderId: String): Flow<OrderMoneyDto?> =
-        orderMoneyDoc(userId, orderId)
-            .snapshots
-            .map { snapshot ->
-                if (snapshot.exists) {
-                    decodeDocOrLog(tag = TAG, docId = orderId) { snapshot.data<OrderMoneyDto>() }
-                } else {
-                    null
+        activeWorkshopProvider.ownerOnlyListener(userId, null) {
+            orderMoneyDoc(userId, orderId)
+                .snapshots
+                .map { snapshot ->
+                    if (snapshot.exists) {
+                        decodeDocOrLog(tag = TAG, docId = orderId) { snapshot.data<OrderMoneyDto>() }
+                    } else {
+                        null
+                    }
                 }
-            }
-            .retryWithFallback(fallback = null) { throwable, attempt ->
-                AppLogger.w(tag = TAG, throwable = throwable) {
-                    "observeOrder money sub-doc failed orderId=$orderId; falling back to base money; " +
-                        "retrying (attempt ${attempt + 1})"
+                .retryWithFallback(
+                    fallback = null,
+                    shouldRetry = ::retryUnlessPermissionDenied,
+                ) { throwable, attempt ->
+                    AppLogger.w(tag = TAG, throwable = throwable) {
+                        "observeOrder money sub-doc failed orderId=$orderId; falling back to base money; " +
+                            "listener failure ${attempt + 1}"
+                    }
                 }
-            }
+        }
 
     private fun fabricStoragePath(userId: String, orderId: String, itemId: String): String =
         "users/$userId/orders/$orderId/fabrics/$itemId.jpg"
@@ -489,7 +503,7 @@ class FirebaseOrderRepository(
             // re-collecting after a capped exponential backoff.
             .retryWithFallback(fallback = Result.Error(DataError.Network.UNKNOWN)) { throwable, attempt ->
                 AppLogger.w(tag = TAG, throwable = throwable) {
-                    "observeOrders failed; retrying (attempt ${attempt + 1})"
+                    "observeOrders failed; listener failure ${attempt + 1}"
                 }
             }
             .flowOn(Dispatchers.Default)
@@ -509,7 +523,7 @@ class FirebaseOrderRepository(
         }
             .retryWithFallback(fallback = Result.Error(DataError.Network.UNKNOWN)) { throwable, attempt ->
                 AppLogger.w(tag = TAG, throwable = throwable) {
-                    "observeArchivedOrders failed; retrying (attempt ${attempt + 1})"
+                    "observeArchivedOrders failed; listener failure ${attempt + 1}"
                 }
             }
             .flowOn(Dispatchers.Default)
@@ -539,7 +553,7 @@ class FirebaseOrderRepository(
         }
             .retryWithFallback(fallback = Result.Error(DataError.Network.UNKNOWN)) { throwable, attempt ->
                 AppLogger.w(tag = TAG, throwable = throwable) {
-                    "observeOrder failed orderId=$orderId; retrying (attempt ${attempt + 1})"
+                    "observeOrder failed orderId=$orderId; listener failure ${attempt + 1}"
                 }
             }
             .flowOn(Dispatchers.Default)

@@ -10,11 +10,29 @@ import kotlin.test.assertEquals
 class RetryingListenerTest {
 
     @Test
+    fun repeatedCachedDataDoesNotResetBackoff() = runTest {
+        var subscriptions = 0
+        val attempts = mutableListOf<Long>()
+        flow {
+            subscriptions++
+            emit(7)
+            if (subscriptions <= 3) throw IllegalStateException("Unavailable after cache")
+            emit(8)
+        }.retryWithFallback(fallback = -1, initialBackoffMs = 100) { _, attempt ->
+            attempts += attempt
+        }.toList()
+
+        assertEquals(listOf(0L, 1L, 2L), attempts)
+        assertEquals(700L, testScheduler.currentTime)
+        assertEquals(4, subscriptions)
+    }
+
+    @Test
     fun emitsFallbackOnFailureThenResubscribes() = runTest {
         var subscriptions = 0
         val upstream = flow {
             subscriptions += 1
-            if (subscriptions == 1) throw IllegalStateException("transient permission-denied")
+            if (subscriptions == 1) throw IllegalStateException("transient network failure")
             emit(7)
         }
         val errors = mutableListOf<Throwable>()
