@@ -21,6 +21,7 @@ import { loadWorkshopAudience } from './workshopAudience';
 import { mapOrderScanDoc } from './orderScan';
 import { pushSummary } from './pushSummary';
 import { DigestIO, DigestModel, DigestRecipient } from './types';
+import { hasPaidDigestAccess } from './digestEmailPolicy';
 
 const REGION = 'europe-west1';
 const SCHEDULE = '0 7 * * *';
@@ -57,13 +58,16 @@ async function writeNotificationsAdmin(db: admin.firestore.Firestore, uid: strin
   }
 }
 
-function productionDigestIO(apiKey: string): DigestIO {
+export function productionDigestIO(apiKey: string): DigestIO {
   const db = admin.firestore();
   return {
+    async getEmailAudience() {
+      return (await db.collection('config').doc('app').get()).data()?.digestEmailAudience;
+    },
     async listRecipients(): Promise<DigestRecipient[]> {
       // Enumerates FIREBASE AUTH, not the `users` collection. The old users-collection
       // walk silently excluded every account that never finished workshop setup — 41 of
-      // 154 on 2026-08-20 — which is precisely the group that most needs a nudge. The
+      // 154 on 2026-08-20 — which must still receive inbox/push processing. The
       // users docs, opt-out flags and token platforms are each fetched in ONE query and
       // joined in memory, so this is cheaper than the per-user getUser() it replaces.
       //
@@ -111,6 +115,7 @@ function productionDigestIO(apiKey: string): DigestIO {
             uid,
             email,
             emailVerified: Boolean(authUser.email && authUser.emailVerified),
+            paid: authUser.customClaims?.role !== 'staff' && hasPaidDigestAccess(data, Date.now()),
             locale: typeof data?.locale === 'string' ? data.locale : undefined,
             name,
             digestEnabled: data.dailyDigestEmailEnabled !== false,

@@ -18,13 +18,15 @@ describe('buildDigestEmail', () => {
         { orderId: 'o6', customerName: 'c6', garmentSummary: 'x', amount: 300 },
       ],
     }), 'Ada Couture', OPTS);
-    expect(subject).toBe('StitchPad: 1 overdue, 2 due soon, 3 to collect');
+    expect(subject).toBe('StitchPad weekly summary: 1 overdue, 2 due soon, 3 to collect');
   });
 
   it('greets by tailor name and renders only non-empty sections', () => {
     const { html, text } = buildDigestEmail(model({
       overdue: [{ orderId: 'o1', customerName: 'Bola', garmentSummary: 'Agbada', deadline: 0 }],
     }), 'Ada Couture', OPTS);
+    expect(html).toContain('Your weekly summary');
+    expect(text).toContain('week ahead');
     expect(html).toContain('Ada Couture');
     expect(html).toContain('Bola');
     expect(html).not.toContain('Due soon'); // empty section omitted
@@ -59,7 +61,7 @@ describe('buildDigestEmail', () => {
       overdue: [{ orderId: 'o1', customerName: 'Bola', garmentSummary: 'Agbada', deadline: 0 }],
     }), 'Ada', OPTS);
     for (const body of [html, text]) {
-      expect(body).toContain('Settings → Preferences → Daily summary email');
+      expect(body).toContain('Settings → Preferences');
       expect(body).not.toContain('Settings → Notifications'); // the toggle is NOT in a Notifications section
     }
   });

@@ -1,6 +1,7 @@
 import { runDailyDigest } from '../../notifications/runDailyDigest';
 import { DigestIO, DigestRecipient, OrderScanDoc } from '../../notifications/types';
 import { lagosDateKey } from '../../notifications/lagosTime';
+import { hasPaidDigestAccess, digestEmailWeekday } from '../../notifications/digestEmailPolicy';
 import { ResendError } from '../../email/resendClient';
 
 const NOW = Date.parse('2026-06-03T06:00:00Z');
@@ -35,6 +36,7 @@ function fakeIO(over: Partial<DigestIO> & {
   const notified: Record<string, number> = {};
   const io: DigestIO = {
     listRecipients: async () => over.recipients,
+    getEmailAudience: over.getEmailAudience ?? (async () => undefined),
     loadOrders: async (uid) => over.ordersByUid[uid] || [],
     getLastSentDate: async (uid) => stamps[uid] ?? null,
     setLastSentDate: async (uid, d) => { stamps[uid] = d; },
@@ -64,7 +66,7 @@ function fakeIO(over: Partial<DigestIO> & {
   return { io, sent, bounced, pushes, pushStamps, deletedTokens, stamps, notified };
 }
 
-const recip = (p: Partial<DigestRecipient> = {}): DigestRecipient => ({ uid: 'u1', email: 'u1@x.com', emailVerified: true, name: 'Ada', digestEnabled: true, pushEnabled: true, emailOptOut: false, hardBounce: false, platform: null, unsubscribeUrl: 'https://unsub.test/e?u=u1&t=abc', ...p });
+const recip = (p: Partial<DigestRecipient> = {}): DigestRecipient => ({ uid: 'u1', email: 'u1@x.com', emailVerified: true, paid: true, name: 'Ada', digestEnabled: true, pushEnabled: true, emailOptOut: false, hardBounce: false, platform: null, unsubscribeUrl: 'https://unsub.test/e?u=u1&t=abc', ...p });
 const order = (p: Partial<OrderScanDoc>): OrderScanDoc => ({ id: 'o', customerName: 'C', status: 'IN_PROGRESS', deadline: null, archivedAt: null, totalPrice: 0, payments: [], items: [], ...p });
 
 describe('runDailyDigest', () => {
@@ -76,15 +78,12 @@ describe('runDailyDigest', () => {
     expect(stamps.u1).toBe('2026-06-03');
   });
 
-  // Until 2026-08-20 a quiet morning sent nothing at all, which silenced 81 of 109
-  // owners on the first production run. Silence is now the bug, not the feature.
-  it('sends a nudge instead of falling silent when nothing is actionable', async () => {
+  it('suppresses an empty weekly email instead of sending a nudge', async () => {
     const { io, sent } = fakeIO({ recipients: [recip()], ordersByUid: { u1: [] } });
     const r = await runDailyDigest(io, NOW);
-    expect(sent).toHaveLength(1);
-    expect(r.nudged).toBe(1);
-    expect(r.sent).toBe(0);
-    expect(r.suppressedEmpty).toBe(0);
+    expect(sent).toHaveLength(0);
+    expect(r.nudged).toBe(0);
+    expect(r.suppressedEmpty).toBe(1);
   });
 
   it('skips opted-out tailors', async () => {
@@ -111,14 +110,14 @@ describe('runDailyDigest', () => {
 
   it('isolates a failing recipient so others still send', async () => {
     const { io, sent, notified } = fakeIO({
-      recipients: [recip({ uid: 'u1', email: 'u1@x.com' }), recip({ uid: 'u2', email: 'u2@x.com' })],
-      ordersByUid: { u1: [order({ deadline: NOW - DAY })], u2: [order({ deadline: NOW - DAY })] },
+      recipients: [recip({ uid: 'u1', email: 'u1@x.com' }), recip({ uid: 'u8', email: 'u8@x.com' })],
+      ordersByUid: { u1: [order({ deadline: NOW - DAY })], u8: [order({ deadline: NOW - DAY })] },
     });
     io.loadOrders = async (uid) => { if (uid === 'u1') throw new Error('boom'); return [order({ deadline: NOW - DAY })]; };
     const r = await runDailyDigest(io, NOW);
     expect(r.sent).toBe(1);
     expect(r.failed).toBe(1);
-    expect(sent.map((s) => s.to)).toEqual(['u2@x.com']);
+    expect(sent.map((s) => s.to)).toEqual(['u8@x.com']);
     expect(notified.u1).toBeUndefined(); // loadOrders threw before writeNotifications → no zombie write
   });
 
@@ -135,32 +134,14 @@ describe('runDailyDigest', () => {
     expect(notified.u1).toBe(1);
   });
 
-  describe('daily nudge on a quiet morning', () => {
-    it('asks a working tailor to record today\'s job', async () => {
-      const { io, sent } = fakeIO({
-        recipients: [recip()],
-        // Has orders, but none due/overdue/owing → digest model is empty.
-        ordersByUid: { u1: [order({ status: 'DELIVERED' })] },
-      });
-      const r = await runDailyDigest(io, NOW);
-      expect(sent[0].subject).toBe('Did any job come in today?');
-      expect(r.nudged).toBe(1);
-    });
-
-    it('asks for a first job when there are customers but no orders', async () => {
-      const { io, sent } = fakeIO({
-        recipients: [recip()], ordersByUid: { u1: [] }, customersByUid: { u1: true },
-      });
-      await runDailyDigest(io, NOW);
-      expect(sent[0].subject).toBe('One step from your first job');
-    });
-
-    it('asks for a first customer when the workshop is empty', async () => {
-      const { io, sent } = fakeIO({
-        recipients: [recip()], ordersByUid: { u1: [] }, customersByUid: { u1: false },
-      });
-      await runDailyDigest(io, NOW);
-      expect(sent[0].subject).toBe('Add your first customer');
+  describe('weekly summary content', () => {
+    it.each([false, true])('does not send setup/first-order/quiet nudges (paid=%s)', async (paid) => {
+      for (const orders of [[], [order({ status: 'DELIVERED' })]]) {
+        const f = fakeIO({ recipients: [recip({ paid })], ordersByUid: { u1: orders } });
+        const r = await runDailyDigest(f.io, NOW);
+        expect(f.sent).toHaveLength(0);
+        expect(r.nudged).toBe(0);
+      }
     });
 
     // Regression: the CTA was briefly a hardcoded store URL chosen from the user's
@@ -169,7 +150,7 @@ describe('runDailyDigest', () => {
     // the app on both platforms and the hosted /r page handles the not-installed
     // case per platform, so no store URL belongs in an email at all.
     it('uses the platform-neutral App Link, never a store URL', async () => {
-      const { io, sent } = fakeIO({ recipients: [recip({ platform: 'ios' })], ordersByUid: { u1: [] } });
+      const { io, sent } = fakeIO({ recipients: [recip({ platform: 'ios' })], ordersByUid: { u1: [order({ deadline: NOW - DAY })] } });
       await runDailyDigest(io, NOW);
       expect(sent[0].html).toContain('https://link.getstitchpad.com/r');
       expect(sent[0].html).not.toContain('play.google.com');
@@ -177,9 +158,9 @@ describe('runDailyDigest', () => {
     });
 
     it('sends the same App Link regardless of platform', async () => {
-      const ios = fakeIO({ recipients: [recip({ platform: 'ios' })], ordersByUid: { u1: [] } });
-      const android = fakeIO({ recipients: [recip({ platform: 'android' })], ordersByUid: { u1: [] } });
-      const unknown = fakeIO({ recipients: [recip({ platform: null })], ordersByUid: { u1: [] } });
+      const ios = fakeIO({ recipients: [recip({ platform: 'ios' })], ordersByUid: { u1: [order({ deadline: NOW - DAY })] } });
+      const android = fakeIO({ recipients: [recip({ platform: 'android' })], ordersByUid: { u1: [order({ deadline: NOW - DAY })] } });
+      const unknown = fakeIO({ recipients: [recip({ platform: null })], ordersByUid: { u1: [order({ deadline: NOW - DAY })] } });
       await runDailyDigest(ios.io, NOW);
       await runDailyDigest(android.io, NOW);
       await runDailyDigest(unknown.io, NOW);
@@ -190,7 +171,7 @@ describe('runDailyDigest', () => {
     });
 
     it('attaches RFC 8058 one-click unsubscribe headers', async () => {
-      const { io, sent } = fakeIO({ recipients: [recip()], ordersByUid: { u1: [] } });
+      const { io, sent } = fakeIO({ recipients: [recip()], ordersByUid: { u1: [order({ deadline: NOW - DAY })] } });
       await runDailyDigest(io, NOW);
       expect(sent[0].headers).toEqual({
         'List-Unsubscribe': '<https://unsub.test/e?u=u1&t=abc>',
@@ -222,7 +203,7 @@ describe('runDailyDigest', () => {
 
     it('suppresses an address permanently on a 422 from Resend', async () => {
       const { io, bounced } = fakeIO({
-        recipients: [recip()], ordersByUid: { u1: [] },
+        recipients: [recip()], ordersByUid: { u1: [order({ deadline: NOW - DAY })] },
         emailError: new ResendError('bad address', 422),
       });
       const r = await runDailyDigest(io, NOW);
@@ -234,7 +215,7 @@ describe('runDailyDigest', () => {
     // delete recipients from the list every time Resend has a bad minute.
     it('does NOT suppress on a transient 5xx', async () => {
       const { io, bounced } = fakeIO({
-        recipients: [recip()], ordersByUid: { u1: [] },
+        recipients: [recip()], ordersByUid: { u1: [order({ deadline: NOW - DAY })] },
         emailError: new ResendError('upstream down', 503),
       });
       await runDailyDigest(io, NOW);
@@ -245,8 +226,8 @@ describe('runDailyDigest', () => {
     // permanently suppressed 190 good addresses.
     it.each([429, 401, 403])('does NOT suppress on account-level %i, and stops email for the run', async (status) => {
       const { io, bounced, sent, notified } = fakeIO({
-        recipients: [recip(), recip({ uid: 'u2', email: 'u2@x.com' })],
-        ordersByUid: { u1: [], u2: [] },
+        recipients: [recip(), recip({ uid: 'u8', email: 'u8@x.com' })],
+        ordersByUid: { u1: [order({ deadline: NOW - DAY })], u8: [order({ deadline: NOW - DAY })] },
         emailError: new ResendError('monthly_quota_exceeded', status),
       });
       const r = await runDailyDigest(io, NOW);
@@ -254,12 +235,12 @@ describe('runDailyDigest', () => {
       expect(sent).toHaveLength(0);
       expect(r.failed).toBe(1);
       expect(r.skippedEmailUnavailable).toBe(1);
-      expect(notified.u2).toBe(1);
+      expect(notified.u8).toBe(1);
     });
 
     it('does NOT suppress on a 400 (request problem, not the address)', async () => {
       const { io, bounced } = fakeIO({
-        recipients: [recip()], ordersByUid: { u1: [] },
+        recipients: [recip()], ordersByUid: { u1: [order({ deadline: NOW - DAY })] },
         emailError: new ResendError('bad request', 400),
       });
       await runDailyDigest(io, NOW);
@@ -284,46 +265,46 @@ describe('runDailyDigest — push', () => {
     items: [{ garmentType: 'Asoebi' }],
   };
   const recipient = (over: Partial<DigestRecipient> = {}): DigestRecipient =>
-    ({ uid: 'u1', email: 'a@b.com', emailVerified: true, name: 'Shop', digestEnabled: true, pushEnabled: true, emailOptOut: false, hardBounce: false, platform: null, unsubscribeUrl: 'https://unsub.test/e?u=u1&t=abc', ...over });
+    ({ uid: 'u1', email: 'a@b.com', emailVerified: true, paid: true, name: 'Shop', digestEnabled: true, pushEnabled: true, emailOptOut: false, hardBounce: false, platform: null, unsubscribeUrl: 'https://unsub.test/e?u=u1&t=abc', ...over });
 
   it('sends one push for an enabled, allowed recipient with actionable orders + a token', async () => {
     const f = fakeIO({ recipients: [recipient()], ordersByUid: { u1: [overdueOrder] }, tokensByUid: { u1: ['tok1'] } });
-    await runDailyDigest(f.io, 1_000_000_000_000);
+    await runDailyDigest(f.io, NOW);
     expect(f.pushes).toHaveLength(1);
     expect(f.pushes[0].tokens).toEqual(['tok1']);
     expect(f.pushStamps.u1).toBeTruthy();
   });
   it('skips push when pushEnabled is false (but still emails)', async () => {
     const f = fakeIO({ recipients: [recipient({ pushEnabled: false })], ordersByUid: { u1: [overdueOrder] }, tokensByUid: { u1: ['tok1'] } });
-    await runDailyDigest(f.io, 1_000_000_000_000);
+    await runDailyDigest(f.io, NOW);
     expect(f.pushes).toHaveLength(0);
     expect(f.sent).toHaveLength(1);
   });
   it('skips push when the recipient has no tokens', async () => {
     const f = fakeIO({ recipients: [recipient()], ordersByUid: { u1: [overdueOrder] }, tokensByUid: { u1: [] } });
-    await runDailyDigest(f.io, 1_000_000_000_000);
+    await runDailyDigest(f.io, NOW);
     expect(f.pushes).toHaveLength(0);
     expect(f.pushStamps.u1).toBeUndefined();
   });
   it('skips push when not allowed by the rollout allowlist', async () => {
     const f = fakeIO({ recipients: [recipient()], ordersByUid: { u1: [overdueOrder] }, tokensByUid: { u1: ['tok1'] }, isAllowed: () => false });
-    await runDailyDigest(f.io, 1_000_000_000_000);
+    await runDailyDigest(f.io, NOW);
     expect(f.pushes).toHaveLength(0);
   });
   it('skips push when the model is empty (suppress-when-empty)', async () => {
     const f = fakeIO({ recipients: [recipient()], ordersByUid: { u1: [] }, tokensByUid: { u1: ['tok1'] } });
-    await runDailyDigest(f.io, 1_000_000_000_000);
+    await runDailyDigest(f.io, NOW);
     expect(f.pushes).toHaveLength(0);
   });
   it('skips push when already pushed today', async () => {
     const f = fakeIO({ recipients: [recipient()], ordersByUid: { u1: [overdueOrder] }, tokensByUid: { u1: ['tok1'] } });
-    f.pushStamps.u1 = lagosDateKey(1_000_000_000_000);
-    await runDailyDigest(f.io, 1_000_000_000_000);
+    f.pushStamps.u1 = lagosDateKey(NOW);
+    await runDailyDigest(f.io, NOW);
     expect(f.pushes).toHaveLength(0);
   });
   it('prunes invalid tokens reported by sendPush', async () => {
     const f = fakeIO({ recipients: [recipient()], ordersByUid: { u1: [overdueOrder] }, tokensByUid: { u1: ['tok1', 'bad'] }, invalidTokens: ['bad'] });
-    await runDailyDigest(f.io, 1_000_000_000_000);
+    await runDailyDigest(f.io, NOW);
     expect(f.deletedTokens).toEqual([{ uid: 'u1', tokens: ['bad'] }]);
   });
   it('does NOT stamp lastPushDate when all tokens are invalid (successCount 0)', async () => {
@@ -334,7 +315,7 @@ describe('runDailyDigest — push', () => {
       invalidTokens: ['bad1', 'bad2'],
       pushSuccessCount: 0,
     });
-    await runDailyDigest(f.io, 1_000_000_000_000);
+    await runDailyDigest(f.io, NOW);
     // push was attempted
     expect(f.pushes).toHaveLength(1);
     // invalid tokens were still pruned
@@ -351,7 +332,7 @@ describe('runDailyDigest — push', () => {
     });
     // Make the push path throw.
     f.io.sendPush = async () => { throw new Error('FCM down'); };
-    const result = await runDailyDigest(f.io, 1_000_000_000_000);
+    const result = await runDailyDigest(f.io, NOW);
     expect(f.sent).toHaveLength(1);        // email still went out
     expect(result.sent).toBe(1);
     expect(result.failed).toBe(0);         // push failure not counted as a recipient failure
@@ -478,5 +459,73 @@ describe('runDailyDigest — staff gating and routing (regressions)', () => {
     await runDailyDigest(io, NOW);
     const staffPush = pushes.find((p) => p.tokens.includes('gabby-tok'));
     expect(staffPush?.target).toBe('dashboard');
+  });
+});
+
+describe('paid weekly email, daily notifications', () => {
+  it('keeps inbox, owner push and staff push for an unpaid owner without email', async () => {
+    const f = fakeIO({ recipients: [recip({ paid: false })],
+      ordersByUid: { u1: [order({ deadline: NOW - DAY, assignedMemberId: 'staff' })] },
+      staffByOwner: { u1: ['staff'] }, tokensByUid: { u1: ['owner-token'], staff: ['staff-token'] },
+    });
+    await runDailyDigest(f.io, NOW);
+    expect(f.sent).toHaveLength(0);
+    expect(f.notified.u1).toBe(1);
+    expect(f.pushes.map(p => p.tokens)).toEqual([['owner-token'], ['staff-token']]);
+  });
+
+  it('sends on one assigned weekday only and retains daily push cadence', async () => {
+    const f = fakeIO({ recipients: [recip()], ordersByUid: { u1: [order({ deadline: NOW - DAY })] }, tokensByUid: { u1: ['token'] } });
+    for (let day = 0; day < 8; day++) await runDailyDigest(f.io, NOW + day * DAY);
+    expect(f.sent).toHaveLength(2);
+    expect(f.pushes).toHaveLength(8);
+    expect(f.notified.u1).toBe(8);
+    expect(digestEmailWeekday('u1')).toBe(3);
+  });
+
+  it.each([1, 5])('does not re-send within %i days, even on the assigned weekday', async (days) => {
+    const f = fakeIO({ recipients: [recip()], ordersByUid: { u1: [order({ deadline: NOW - DAY })] } });
+    f.stamps.u1 = lagosDateKey(NOW - days * DAY);
+    await runDailyDigest(f.io, NOW);
+    expect(f.sent).toHaveLength(0);
+  });
+
+  it.each(['none', 'all'])('reads %s once and only gates email', async (audience) => {
+    const getEmailAudience = jest.fn(async () => audience);
+    const f = fakeIO({ recipients: [recip({ paid: false }), recip({ uid: 'u8', paid: false })],
+      ordersByUid: { u1: [order({ deadline: NOW - DAY })], u8: [order({ deadline: NOW - DAY })] }, getEmailAudience,
+    });
+    await runDailyDigest(f.io, NOW);
+    expect(getEmailAudience).toHaveBeenCalledTimes(1);
+    expect(f.sent).toHaveLength(audience === 'all' ? 2 : 0);
+    expect(f.notified).toEqual({ u1: 1, u8: 1 });
+  });
+
+  it('config read failure blocks email but leaves push and inbox working', async () => {
+    const f = fakeIO({ recipients: [recip()], ordersByUid: { u1: [order({ deadline: NOW - DAY })] },
+      tokensByUid: { u1: ['token'] }, getEmailAudience: async () => { throw new Error('unavailable'); },
+    });
+    await runDailyDigest(f.io, NOW);
+    expect(f.sent).toHaveLength(0);
+    expect(f.pushes).toHaveLength(1);
+    expect(f.notified.u1).toBe(1);
+  });
+
+  it.each(['en', 'fr'])('uses weekly subject and heading in %s', async (locale) => {
+    const f = fakeIO({ recipients: [recip({ locale })], ordersByUid: { u1: [order({ deadline: NOW - DAY })] } });
+    await runDailyDigest(f.io, NOW);
+    const wording = locale === 'fr' ? 'hebdomadaire' : 'weekly';
+    expect(f.sent[0].subject).toContain(wording);
+    expect(f.sent[0].html).toContain(wording);
+  });
+
+  it('a launch grant or expired payment does not qualify for email', async () => {
+    for (const data of [{ subscriptionTier: 'atelier', grantSource: 'launch_free' },
+      { subscriptionSource: 'paystack', subscriptionStatus: 'active', subscriptionEndsAt: NOW - DAY }]) {
+      const f = fakeIO({ recipients: [recip({ paid: hasPaidDigestAccess(data, NOW) })], ordersByUid: { u1: [order({ deadline: NOW - DAY })] } });
+      await runDailyDigest(f.io, NOW);
+      expect(f.sent).toHaveLength(0);
+      expect(f.notified.u1).toBe(1);
+    }
   });
 });

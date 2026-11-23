@@ -19,14 +19,14 @@ export function frenchDigestEmail(model: DigestModel, name: string, opts: {
       rows: items.map(i => `${i.customerName} · ${i.garmentSummary} — ${formatNotificationMoney(i.amount ?? 0, currency)}${i.isOverdue ? ' (en retard)' : ''}`) });
   }
   const visible = sections.filter(s => s.total > 0);
-  const subject = `StitchPad : ${visible.map(s => `${s.total} ${s.title.toLowerCase()}`).join(', ')}`;
+  const subject = `StitchPad — résumé hebdomadaire : ${visible.map(s => `${s.total} ${s.title.toLowerCase()}`).join(', ')}`;
   const greeting = name.trim() ? `Bonjour ${name.trim()},` : 'Bonjour,';
-  const intro = 'Voici les points à suivre aujourd’hui dans votre atelier.';
+  const intro = 'Voici les points à suivre cette semaine dans votre atelier.';
   const htmlSections = visible.map(s => `<h2 style="font-size:16px;color:#2C3E7C">${e(s.title)} (${s.total})</h2>${s.rows.slice(0, 5).map(row => `<p>${e(row)}</p>`).join('')}${s.total > 5 ? `<p>+${s.total - 5} autres</p>` : ''}`).join('');
   const textSections = visible.map(s => `${s.title} (${s.total})\n${s.rows.slice(0, 5).join('\n')}${s.total > 5 ? `\n+${s.total - 5} autres` : ''}`).join('\n\n');
-  const footer = 'Désactivez les résumés dans Paramètres → Préférences → Résumé quotidien par e-mail, ou désabonnez-vous.';
+  const footer = 'Gérez vos résumés par e-mail dans Paramètres → Préférences, ou désabonnez-vous.';
   return { subject,
-    html: `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"></head><body style="font-family:Arial,sans-serif;background:#FAF6EC;color:#252320;padding:24px"><main style="max-width:480px;margin:auto;background:#fff;padding:32px"><h1 style="font-family:Georgia,serif;color:#2C3E7C">StitchPad</h1><p>${e(greeting)}</p><p>${intro}</p>${htmlSections}<p><a href="${e(opts.ctaUrl)}">Ouvrir StitchPad</a></p><p>${footer} <a href="${e(opts.unsubscribeUrl)}">Se désabonner</a></p></main></body></html>`,
+    html: `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"></head><body style="font-family:Arial,sans-serif;background:#FAF6EC;color:#252320;padding:24px"><main style="max-width:480px;margin:auto;background:#fff;padding:32px"><h1 style="font-family:Georgia,serif;color:#2C3E7C">Votre résumé hebdomadaire</h1><p>${e(greeting)}</p><p>${intro}</p>${htmlSections}<p><a href="${e(opts.ctaUrl)}">Ouvrir StitchPad</a></p><p>${footer} <a href="${e(opts.unsubscribeUrl)}">Se désabonner</a></p></main></body></html>`,
     text: `${greeting}\n${intro}\n\n${textSections}\n\nOuvrir StitchPad : ${opts.ctaUrl}\n${footer}\n${opts.unsubscribeUrl}`,
   };
 }

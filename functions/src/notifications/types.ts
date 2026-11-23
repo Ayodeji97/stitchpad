@@ -57,6 +57,8 @@ export interface DigestRecipient {
    * unverified owner silences every staff push in their workshop.
    */
   emailVerified: boolean;
+  /** Active Paystack/Apple entitlement, independent of launch tier/grant metadata. */
+  paid: boolean;
   name: string;          // businessName || displayName || email prefix
   digestEnabled: boolean; // false only when explicitly opted out
   pushEnabled: boolean;  // false only when explicitly opted out of push
@@ -77,6 +79,8 @@ export interface DigestRecipient {
 
 export interface DigestIO {
   listRecipients(): Promise<DigestRecipient[]>;
+  /** config/app.digestEmailAudience, read once per scheduled run. */
+  getEmailAudience(): Promise<unknown>;
   loadOrders(uid: string): Promise<OrderScanDoc[]>;
   getLastSentDate(uid: string): Promise<string | null>;
   setLastSentDate(uid: string, dateKey: string): Promise<void>;
@@ -110,7 +114,7 @@ export interface DigestRunResult {
   staffPushed: number;
   /** Kept for continuity in the run logs. Now only counts sends we chose NOT to make. */
   suppressedEmpty: number;
-  /** Emails sent on a day with no work due — the habit nudge. */
+  /** Legacy metric, now always zero: scheduled email never sends empty/nudge content. */
   nudged: number;
   /** Recipient used the one-click unsubscribe link. */
   skippedOptedOut: number;
@@ -123,5 +127,7 @@ export interface DigestRunResult {
   skippedNotAllowed: number;
   /** Email skipped because Resend refused the whole account this run (quota, key, domain). */
   skippedEmailUnavailable: number;
+  skippedEmailAudience: number;
+  skippedWeeklyCadence: number;
   failed: number;
 }
