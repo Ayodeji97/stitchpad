@@ -33,6 +33,8 @@ import com.danzucker.stitchpad.core.domain.model.StyleLocation
 import com.danzucker.stitchpad.core.domain.session.CurrentCountryProvider
 import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.FakeCurrentCountryProvider
+import com.danzucker.stitchpad.core.domain.session.MembershipStatus
+import com.danzucker.stitchpad.core.domain.session.StaffRole
 import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import com.danzucker.stitchpad.core.media.FakeImageCompressor
 import com.danzucker.stitchpad.core.media.ImageCompressor
@@ -55,6 +57,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.datetime.TimeZone
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -63,6 +66,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Clock
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class OrderFormViewModelTest {
@@ -642,23 +646,206 @@ class OrderFormViewModelTest {
         assertEquals(PaymentType.DEPOSIT, created.payments.single().type)
     }
 
-    @Test
-    fun save_inCreateMode_emitsOrderCreated_soRootLandsOnOrdersList() = runTest {
-        val vm = createViewModel(orderId = null)
-        val events = mutableListOf<OrderFormEvent>()
-        val job = launch { vm.events.toList(events) }
-
+    private fun createSavableNewOrder(vm: OrderFormViewModel) {
         vm.onAction(OrderFormAction.OnSelectCustomer(testCustomer))
         val firstItemId = vm.state.value.items.first().id
         vm.onAction(OrderFormAction.OnItemGarmentTypeChange(firstItemId, GarmentType.AGBADA))
         vm.onAction(OrderFormAction.OnItemPriceChange(firstItemId, "5000"))
+    }
+
+    @Test
+    fun save_inCreateMode_showsSavedSheet_insteadOfLeaving() = runTest {
+        val vm = createViewModel(orderId = null)
+        val events = mutableListOf<OrderFormEvent>()
+        val job = launch { vm.events.toList(events) }
+
+        createSavableNewOrder(vm)
         vm.onAction(OrderFormAction.OnSave)
         runCurrent()
 
-        assertNotNull(orderRepository.lastCreatedOrder)
-        assertTrue(events.any { it is OrderFormEvent.OrderCreated })
-        assertTrue(events.none { it is OrderFormEvent.OrderSaved })
+        val created = orderRepository.lastCreatedOrder
+        assertNotNull(created)
+        assertTrue(vm.state.value.showOrderSavedSheet)
+        assertEquals(created.id, vm.state.value.savedOrderId)
+        assertTrue(events.none { it is OrderFormEvent.OrderCreated || it is OrderFormEvent.OrderSaved })
         job.cancel()
+    }
+
+    @Test
+    fun savedSheet_done_emitsOrderCreated_soRootLandsOnOrdersList() = runTest {
+        val vm = createViewModel(orderId = null)
+        val events = mutableListOf<OrderFormEvent>()
+        val job = launch { vm.events.toList(events) }
+
+        createSavableNewOrder(vm)
+        vm.onAction(OrderFormAction.OnSave)
+        vm.onAction(OrderFormAction.OnSavedSheetDone)
+        runCurrent()
+
+        assertFalse(vm.state.value.showOrderSavedSheet)
+        assertEquals(listOf<OrderFormEvent>(OrderFormEvent.OrderCreated), events)
+        job.cancel()
+    }
+
+    @Test
+    fun savedSheet_viewOrder_navigatesToNewOrderDetail_withoutShare() = runTest {
+        val vm = createViewModel(orderId = null)
+        val events = mutableListOf<OrderFormEvent>()
+        val job = launch { vm.events.toList(events) }
+
+        createSavableNewOrder(vm)
+        vm.onAction(OrderFormAction.OnSave)
+        vm.onAction(OrderFormAction.OnSavedSheetViewOrder)
+        runCurrent()
+
+        val createdId = orderRepository.lastCreatedOrder!!.id
+        assertEquals(
+            listOf<OrderFormEvent>(OrderFormEvent.NavigateToOrderDetail(createdId, openReceiptShare = false)),
+            events,
+        )
+        assertFalse(vm.state.value.showOrderSavedSheet)
+        job.cancel()
+    }
+
+    @Test
+    fun savedSheet_shareReceipt_navigatesToDetailAndAsksItToOpenTheShareSheet() = runTest {
+        val vm = createViewModel(orderId = null)
+        val events = mutableListOf<OrderFormEvent>()
+        val job = launch { vm.events.toList(events) }
+
+        createSavableNewOrder(vm)
+        vm.onAction(OrderFormAction.OnSave)
+        vm.onAction(OrderFormAction.OnSavedSheetShareReceipt)
+        runCurrent()
+
+        val createdId = orderRepository.lastCreatedOrder!!.id
+        assertEquals(
+            listOf<OrderFormEvent>(OrderFormEvent.NavigateToOrderDetail(createdId, openReceiptShare = true)),
+            events,
+        )
+        job.cancel()
+    }
+
+    @Test
+    fun savedSheet_shareReceipt_forActiveStaff_opensDetailWithoutShare() = runTest {
+        activeWorkshopProvider = FakeActiveWorkshopProvider(
+            WorkshopSession(
+                authUid = "staff-1",
+                workshopUid = "user-1",
+                role = StaffRole.STAFF,
+                membershipStatus = MembershipStatus.ACTIVE,
+            ),
+        )
+        val vm = createViewModel(orderId = null)
+        val events = mutableListOf<OrderFormEvent>()
+        val job = launch { vm.events.toList(events) }
+
+        assertFalse(vm.state.value.canShareReceipt)
+        createSavableNewOrder(vm)
+        vm.onAction(OrderFormAction.OnSave)
+        vm.onAction(OrderFormAction.OnSavedSheetShareReceipt)
+        runCurrent()
+
+        val createdId = orderRepository.lastCreatedOrder!!.id
+        assertEquals(
+            listOf<OrderFormEvent>(OrderFormEvent.NavigateToOrderDetail(createdId, openReceiptShare = false)),
+            events,
+        )
+        job.cancel()
+    }
+
+    @Test
+    fun save_whileSavedSheetShowing_doesNotCreateTheOrderTwice() = runTest {
+        val vm = createViewModel(orderId = null)
+
+        createSavableNewOrder(vm)
+        vm.onAction(OrderFormAction.OnSave)
+        val first = orderRepository.lastCreatedOrder
+        assertNotNull(first)
+        orderRepository.lastCreatedOrder = null
+
+        vm.onAction(OrderFormAction.OnSave)
+
+        assertNull(orderRepository.lastCreatedOrder)
+    }
+
+    @Test
+    fun newOrder_defaultsDeadlineToOneWeek_andHighlightsThatChip() = runTest {
+        val vm = createViewModel(orderId = null)
+
+        val now = Clock.System.now().toEpochMilliseconds()
+        val zone = TimeZone.currentSystemDefault()
+        assertEquals(deadlineDaysFromToday(now, 7, zone), vm.state.value.deadline)
+        assertEquals(7, vm.state.value.selectedDeadlineQuickPickDays)
+    }
+
+    @Test
+    fun newOrder_defaultDeadline_isSavedOnCreate() = runTest {
+        val vm = createViewModel(orderId = null)
+
+        createSavableNewOrder(vm)
+        vm.onAction(OrderFormAction.OnSave)
+
+        assertEquals(vm.state.value.deadline, orderRepository.lastCreatedOrder?.deadline)
+        assertNotNull(orderRepository.lastCreatedOrder?.deadline)
+    }
+
+    @Test
+    fun newOrder_deadlineCanStillBeCleared() = runTest {
+        val vm = createViewModel(orderId = null)
+
+        vm.onAction(OrderFormAction.OnDeadlineChange(null))
+
+        assertNull(vm.state.value.deadline)
+        assertNull(vm.state.value.selectedDeadlineQuickPickDays)
+    }
+
+    @Test
+    fun deadlineQuickPick_setsDeadlineAndSelectsChip() = runTest {
+        val vm = createViewModel(orderId = null)
+
+        vm.onAction(OrderFormAction.OnDeadlineQuickPick(3))
+
+        val now = Clock.System.now().toEpochMilliseconds()
+        val zone = TimeZone.currentSystemDefault()
+        assertEquals(deadlineDaysFromToday(now, 3, zone), vm.state.value.deadline)
+        assertEquals(3, vm.state.value.selectedDeadlineQuickPickDays)
+
+        vm.onAction(OrderFormAction.OnDeadlineQuickPick(14))
+        assertEquals(deadlineDaysFromToday(now, 14, zone), vm.state.value.deadline)
+        assertEquals(14, vm.state.value.selectedDeadlineQuickPickDays)
+    }
+
+    @Test
+    fun pickingAnUnrelatedDate_clearsChipSelection() = runTest {
+        val vm = createViewModel(orderId = null)
+        val now = Clock.System.now().toEpochMilliseconds()
+        val zone = TimeZone.currentSystemDefault()
+
+        vm.onAction(OrderFormAction.OnDeadlineChange(deadlineDaysFromToday(now, 10, zone)))
+
+        assertNull(vm.state.value.selectedDeadlineQuickPickDays)
+    }
+
+    @Test
+    fun editOrder_keepsStoredDeadline_evenWhenNull() = runTest {
+        seedOrder()
+        val vm = createViewModel(orderId = "order-1")
+
+        assertNull(vm.state.value.deadline)
+        assertNull(vm.state.value.selectedDeadlineQuickPickDays)
+    }
+
+    @Test
+    fun editOrder_keepsStoredDeadline_andSaveDoesNotChangeIt() = runTest {
+        val storedDeadline = 1_700_000_000_000L
+        orderRepository.ordersList = listOf(seedOrder().copy(deadline = storedDeadline))
+        val vm = createViewModel(orderId = "order-1")
+
+        assertEquals(storedDeadline, vm.state.value.deadline)
+        vm.onAction(OrderFormAction.OnSave)
+
+        assertEquals(storedDeadline, orderRepository.lastUpdatedOrder?.deadline)
     }
 
     @Test
@@ -675,6 +862,8 @@ class OrderFormViewModelTest {
         assertNotNull(orderRepository.lastUpdatedOrder)
         assertTrue(events.any { it is OrderFormEvent.OrderSaved })
         assertTrue(events.none { it is OrderFormEvent.OrderCreated })
+        assertFalse(vm.state.value.showOrderSavedSheet)
+        assertNull(vm.state.value.savedOrderId)
         job.cancel()
     }
 

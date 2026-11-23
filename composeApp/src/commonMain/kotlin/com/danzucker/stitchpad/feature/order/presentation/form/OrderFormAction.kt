@@ -93,6 +93,9 @@ sealed interface OrderFormAction {
 
     // Step 3 - Details
     data class OnDeadlineChange(val deadline: Long?) : OrderFormAction
+
+    /** One-tap deadline chip: today + [days] in the user's local date. */
+    data class OnDeadlineQuickPick(val days: Int) : OrderFormAction
     data class OnPriorityChange(val priority: OrderPriority) : OrderFormAction
     data class OnDepositChange(val deposit: String) : OrderFormAction
     data class OnNotesChange(val notes: String) : OrderFormAction
@@ -104,4 +107,11 @@ sealed interface OrderFormAction {
     data object OnConfirmDepositChange : OrderFormAction
     data object OnDismissDepositPrompt : OrderFormAction
     data object OnErrorDismiss : OrderFormAction
+
+    // Post-create "Order saved" sheet
+    data object OnSavedSheetShareReceipt : OrderFormAction
+    data object OnSavedSheetViewOrder : OrderFormAction
+
+    /** "Done" button or dismissing the sheet — leaves the form exactly as a create did before. */
+    data object OnSavedSheetDone : OrderFormAction
 }

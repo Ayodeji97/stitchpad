@@ -129,8 +129,12 @@ data class OrderFormRoute(
     val customerId: String? = null,
 )
 
+/**
+ * [openReceiptShare] opens the detail screen's share-receipt sheet on arrival — used by the
+ * order form's post-create "Share receipt on WhatsApp" action. Consumed once.
+ */
 @Serializable
-data class OrderDetailRoute(val orderId: String)
+data class OrderDetailRoute(val orderId: String, val openReceiptShare: Boolean = false)
 
 @Serializable
 data object DashboardRoute

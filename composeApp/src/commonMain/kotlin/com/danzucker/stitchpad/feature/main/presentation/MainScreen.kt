@@ -458,6 +458,17 @@ private fun MainNavGraph(
                         launchSingleTop = true
                     }
                 },
+                onNavigateToOrderDetail = { orderId, openReceiptShare ->
+                    // Same landing as a plain create (Orders list), with the new order's
+                    // detail pushed on top so Back from it returns to the list.
+                    navController.navigate(OrderListRoute()) {
+                        popUpTo<OrderFormRoute> { inclusive = true }
+                        launchSingleTop = true
+                    }
+                    navController.navigate(
+                        OrderDetailRoute(orderId = orderId, openReceiptShare = openReceiptShare),
+                    )
+                },
             )
         }
         composable<OrderDetailRoute> {

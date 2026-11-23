@@ -98,7 +98,9 @@ import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.feature.measurement.presentation.measurementDisplayName
 import com.danzucker.stitchpad.feature.order.domain.discountBreakdown
 import com.danzucker.stitchpad.feature.order.presentation.components.StylePickerSheet
+import com.danzucker.stitchpad.feature.order.presentation.form.components.DeadlineQuickPickChips
 import com.danzucker.stitchpad.feature.order.presentation.form.components.GarmentPickerSheet
+import com.danzucker.stitchpad.feature.order.presentation.form.components.OrderSavedSheet
 import com.danzucker.stitchpad.feature.order.presentation.garmentDisplayName
 import com.danzucker.stitchpad.feature.style.presentation.form.styleFormSelectionMode
 import com.danzucker.stitchpad.ui.components.CustomDatePickerDialog
@@ -203,6 +205,7 @@ import stitchpad.composeapp.generated.resources.order_priority_urgent
 fun OrderFormRoot(
     onNavigateBack: () -> Unit,
     onOrderCreated: () -> Unit,
+    onNavigateToOrderDetail: (orderId: String, openReceiptShare: Boolean) -> Unit,
 ) {
     val viewModel: OrderFormViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -214,6 +217,8 @@ fun OrderFormRoot(
             OrderFormEvent.NavigateBack -> onNavigateBack()
             OrderFormEvent.OrderSaved -> onNavigateBack()
             OrderFormEvent.OrderCreated -> onOrderCreated()
+            is OrderFormEvent.NavigateToOrderDetail ->
+                onNavigateToOrderDetail(event.orderId, event.openReceiptShare)
             is OrderFormEvent.ShowCustomSavedSnackbar -> {
                 scope.launch {
                     snackbarHostState.showSnackbar(
@@ -408,6 +413,16 @@ fun OrderFormScreen(
                         )
                     },
                     onDismiss = { onAction(OrderFormAction.OnDismissPicker) },
+                )
+            }
+
+            if (state.showOrderSavedSheet) {
+                OrderSavedSheet(
+                    customerName = state.selectedCustomer?.name,
+                    canShareReceipt = state.canShareReceipt,
+                    onShareReceipt = { onAction(OrderFormAction.OnSavedSheetShareReceipt) },
+                    onViewOrder = { onAction(OrderFormAction.OnSavedSheetViewOrder) },
+                    onDone = { onAction(OrderFormAction.OnSavedSheetDone) },
                 )
             }
 
@@ -1006,6 +1021,13 @@ private fun DetailsStep(
             text = stringResource(Res.string.order_form_deadline_label),
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold
+        )
+        Spacer(Modifier.height(DesignTokens.space1))
+
+        DeadlineQuickPickChips(
+            options = DEADLINE_QUICK_PICK_DAYS,
+            selectedDays = state.selectedDeadlineQuickPickDays,
+            onPick = { onAction(OrderFormAction.OnDeadlineQuickPick(it)) },
         )
         Spacer(Modifier.height(DesignTokens.space1))
 

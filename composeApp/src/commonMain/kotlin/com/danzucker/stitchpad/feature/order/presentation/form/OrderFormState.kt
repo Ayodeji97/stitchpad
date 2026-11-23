@@ -54,6 +54,8 @@ data class OrderFormState(
     val pickerSearchQuery: String = "",
     // Step 3 - Details
     val deadline: Long? = null,
+    /** Quick-pick chip (days from today) matching [deadline]'s date, or null. Set by the ViewModel. */
+    val selectedDeadlineQuickPickDays: Int? = null,
     val priority: OrderPriority = OrderPriority.NORMAL,
     val depositPaid: String = "",
     val notes: String = "",
@@ -63,7 +65,13 @@ data class OrderFormState(
     // General
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,
-    val errorMessage: UiText? = null
+    val errorMessage: UiText? = null,
+    // Post-create "Order saved" sheet (new orders only)
+    val showOrderSavedSheet: Boolean = false,
+    /** Id of the order just created; drives the saved sheet's "View order" / share actions. */
+    val savedOrderId: String? = null,
+    /** False for active staff: receipt sharing is an owner-only money action. */
+    val canShareReceipt: Boolean = true,
 )
 
 /**

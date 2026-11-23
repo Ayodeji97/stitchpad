@@ -11,5 +11,14 @@ sealed interface OrderFormEvent {
      * just added, rather than popping back to the dashboard FAB.
      */
     data object OrderCreated : OrderFormEvent
+
+    /**
+     * From the post-create "Order saved" sheet: open the new order's detail. When
+     * [openReceiptShare] is true the detail screen opens its existing share-receipt sheet.
+     */
+    data class NavigateToOrderDetail(
+        val orderId: String,
+        val openReceiptShare: Boolean,
+    ) : OrderFormEvent
     data class ShowCustomSavedSnackbar(val name: String) : OrderFormEvent
 }

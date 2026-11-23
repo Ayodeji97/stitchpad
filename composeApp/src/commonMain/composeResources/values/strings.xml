@@ -682,6 +682,13 @@
     <string name="order_form_remove_item">Remove item</string>
     <string name="order_form_deadline_label">Deadline (optional)</string>
     <string name="order_form_pick_date">Pick a date</string>
+    <string name="order_form_deadline_quick_3_days">3 days</string>
+    <string name="order_form_deadline_quick_1_week">1 week</string>
+    <string name="order_form_deadline_quick_2_weeks">2 weeks</string>
+    <string name="order_saved_sheet_title">Order saved</string>
+    <string name="order_saved_sheet_body">Order for %1$s is saved.</string>
+    <string name="order_saved_sheet_share_whatsapp">Share receipt</string>
+    <string name="order_saved_sheet_done">Done</string>
     <string name="order_form_priority_label">Priority</string>
     <string name="order_form_deposit_label">Deposit paid</string>
     <string name="order_form_deposit_placeholder">0</string>
