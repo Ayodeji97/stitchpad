@@ -66,7 +66,7 @@ object MeasurementShareFormatter {
 
     /** WhatsApp markup: *bold*, _italic_. Values intentionally carry no unit suffix (header names the unit). */
     fun buildWhatsAppText(data: MeasurementShareData): String = buildString {
-        append("📏 *").append(data.customerName).append(" — ").append(data.measurementName).appendLine("*")
+        append("📏 *").append(data.customerName).append(" · ").append(data.measurementName).appendLine("*")
         append(data.genderLabel).append(" · ").append(data.unitLabel)
         data.dateFormatted?.let { append(" · ").append(it) }
         appendLine()

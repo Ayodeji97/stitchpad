@@ -183,7 +183,7 @@
     <string name="reports_paywall_title">Unlock Reports</string>
     <string name="reports_paywall_body">See revenue trends, top customers, production status, and outstanding balances at a glance.</string>
     <string name="reports_paywall_cta">Upgrade to Premium</string>
-    <string name="reports_reminder_template">Hi %1$s, friendly reminder — you have an outstanding balance of %2$s on your order. Could you settle it when convenient? Thanks!</string>
+    <string name="reports_reminder_template">Hi %1$s, friendly reminder: you have an outstanding balance of %2$s on your order. Could you settle it when convenient? Thanks!</string>
     <string name="reports_whatsapp_launch_failed">Couldn't open WhatsApp</string>
     <string name="reports_orders_count">×%1$d orders</string>
     <string name="reports_orders_count_one">×1 order</string>
@@ -213,7 +213,7 @@
     <string name="customer_delete_blocked_message">%1$s has %2$d active order(s). Mark them delivered or remove the orders first, then try again.</string>
     <string name="customer_delete_blocked_dismiss">Got it</string>
     <!-- Shown when the user confirms a delete before the orders flow has emitted, so we don't yet know if the customer has active orders. -->
-    <string name="customer_delete_pending_orders_load">Loading order data — please try again in a moment.</string>
+    <string name="customer_delete_pending_orders_load">Loading order data. Please try again in a moment.</string>
     <!-- Shown when the orders flow errored before a successful snapshot (offline/permission), so we can't safely validate active-order count. -->
     <string name="customer_delete_orders_load_failed">Couldn&apos;t load order data. Check your connection and try again.</string>
 
@@ -237,7 +237,7 @@
     <string name="customer_locked_section_subtitle">Safe and searchable. Unlock anytime to take new orders.</string>
     <string name="customer_locked_chip">Locked</string>
     <string name="customer_locked_explainer">This customer is locked because you have more than your Free plan allows. Upgrade to Tailor Pro to view them, or swap with one of your active customers.</string>
-    <string name="customer_locked_detail_banner_title">Locked — read-only</string>
+    <string name="customer_locked_detail_banner_title">Locked (read-only)</string>
     <string name="customer_locked_detail_banner_body">All data preserved. To start a new order, take new measurements, or edit this profile, unlock or swap.</string>
     <string name="customer_locked_detail_unlock_cta">Unlock with Pro</string>
     <string name="customer_locked_row_swap_cta">Swap</string>
@@ -434,7 +434,7 @@
     <string name="custom_field_section_pill_locked">Pro</string>
     <string name="custom_field_section_pill_first_month">First Month</string>
     <string name="custom_field_section_subtitle">Add your own measurements to this customer’s form.</string>
-    <string name="custom_field_empty_caption">Add measurements that aren’t on the default list — like cuff width, lapel, or gown sweep. They’ll appear here for every customer.</string>
+    <string name="custom_field_empty_caption">Add measurements that aren’t on the default list, like cuff width, lapel, or gown sweep. They’ll appear here for every customer.</string>
     <string name="custom_field_locked_caption">Define measurements that don’t appear on the default list. Available on Pro.</string>
     <string name="custom_field_add_button">Add custom field</string>
     <string name="custom_field_sheet_add_title">Add custom field</string>
@@ -546,11 +546,11 @@
     <string name="style_cap_folder_title">You&apos;ve filled your folders</string>
     <string name="style_cap_style_title">You&apos;ve reached your style limit</string>
     <string name="style_cap_folder_body">You&apos;ve reached your plan&apos;s folder limit. Upgrade to create more folders and keep your collections organised.</string>
-    <string name="style_cap_style_body">You&apos;ve reached your plan&apos;s style limit. Upgrade for more room — organise your styles into folders and save many more.</string>
+    <string name="style_cap_style_body">You&apos;ve reached your plan&apos;s style limit. Upgrade for more room: organise your styles into folders and save many more.</string>
     <string name="style_cap_upgrade_pro">Upgrade to Tailor Pro</string>
     <string name="style_cap_upgrade_atelier">Upgrade to Tailor Atelier</string>
     <string name="style_cap_max_title">You&apos;re on our top plan</string>
-    <string name="style_cap_max_body">Tailor Atelier is our highest tier — you&apos;ve already unlocked everything StitchPad has to offer.</string>
+    <string name="style_cap_max_body">Tailor Atelier is our highest tier. You&apos;ve already unlocked everything StitchPad has to offer.</string>
     <string name="style_cap_limit_title">You&apos;ve reached the limit</string>
     <string name="style_cap_limit_body">This is the most folders a customer&apos;s closet can hold on any plan. Remove one to make room, or keep adding styles to your existing folders.</string>
     <string name="style_cap_dismiss">Not now</string>
@@ -663,7 +663,7 @@
     <string name="garment_picker_section_common_types">Common types</string>
     <string name="garment_picker_add_custom_format">Add &quot;%1$s&quot; as a new garment type</string>
     <string name="garment_picker_add_custom_subtext">Saved for next time</string>
-    <string name="garment_picker_no_matches_format">No common type matches &quot;%1$s&quot; — that&apos;s OK, add it as your own.</string>
+    <string name="garment_picker_no_matches_format">No common type matches &quot;%1$s&quot;. That&apos;s OK, add it as your own.</string>
     <string name="garment_picker_custom_pill">Custom</string>
     <string name="garment_picker_saved_snackbar_format">Saved &quot;%1$s&quot; to your garment types.</string>
     <string name="garment_picker_add_new_cta">Add a new garment type</string>
@@ -827,9 +827,9 @@
     <string name="share_doc_type_deposit_receipt">Deposit receipt</string>
     <string name="share_doc_type_receipt">Receipt</string>
     <!-- Share sheet contextual subtitle per document type (PTSP-29 Variant A) -->
-    <string name="share_sheet_subtitle_invoice">No payment recorded yet — this is a request for payment.</string>
-    <string name="share_sheet_subtitle_deposit_receipt">Part-paid — balance still outstanding.</string>
-    <string name="share_sheet_subtitle_receipt">Fully paid — thank-you receipt.</string>
+    <string name="share_sheet_subtitle_invoice">No payment recorded yet. This is a request for payment.</string>
+    <string name="share_sheet_subtitle_deposit_receipt">Part-paid, balance still outstanding.</string>
+    <string name="share_sheet_subtitle_receipt">Fully paid. Thank-you receipt.</string>
     <!-- Share sheet order summary rows (PTSP-29 Variant A) -->
     <string name="share_summary_total">Total</string>
     <string name="share_summary_balance_due">Balance due</string>
@@ -951,7 +951,7 @@
     <string name="staff_due_tomorrow">Due tomorrow</string>
     <string name="staff_due_weekday">Due %1$s</string>
     <string name="staff_on_track">On track</string>
-    <string name="staff_stage_now">%1$s — now</string>
+    <string name="staff_stage_now">%1$s · now</string>
     <string name="staff_advance_stage_error">Couldn&apos;t update the order. Try again.</string>
     <!-- Stepper / stage-dots content description, e.g. "Sewing, stage 3 of 5" -->
     <string name="staff_stage_progress_cd">%1$s, stage %2$d of %3$d</string>
@@ -1003,11 +1003,11 @@
     <string name="dashboard_garment_with_qty">%1$s · Qty %2$d</string>
     <string name="dashboard_nba_card_cd">%1$s. %2$s. Tap %3$s.</string>
     <!-- WhatsApp message templates -->
-    <string name="dashboard_whatsapp_collect_ready">Hi %1$s, your %2$s order is ready for collection. Balance: %3$s. — %4$s</string>
-    <string name="dashboard_whatsapp_collect_overdue">Hi %1$s, your %2$s order is now %3$dd past its delivery date. Outstanding balance: %4$s. — %5$s</string>
+    <string name="dashboard_whatsapp_collect_ready">Hi %1$s, your %2$s order is ready for collection. Balance: %3$s. From %4$s</string>
+    <string name="dashboard_whatsapp_collect_overdue">Hi %1$s, your %2$s order is now %3$dd past its delivery date. Outstanding balance: %4$s. From %5$s</string>
     <!-- Shown when whatsAppLauncher.launch returns false — WhatsApp not installed, URL rejected, etc. -->
     <string name="dashboard_whatsapp_launch_failed">Couldn&apos;t open WhatsApp. Make sure it&apos;s installed and try again.</string>
-    <string name="to_collect_chase_no_contact">Couldn&apos;t send a reminder — this customer&apos;s contact details are missing.</string>
+    <string name="to_collect_chase_no_contact">Couldn&apos;t send a reminder. This customer&apos;s contact details are missing.</string>
     <!-- Order detail launcher failure strings -->
     <string name="order_detail_whatsapp_launch_failed">Couldn&apos;t open WhatsApp. Make sure it&apos;s installed and try again.</string>
     <string name="order_detail_dialer_launch_failed">Couldn&apos;t open the dialer.</string>
@@ -1081,7 +1081,7 @@
     <string name="focus_pickup_supporting">Reach out about pickup or mark delivered</string>
     <string name="focus_pickup_cta">Open %1$s's order</string>
     <string name="dashboard_focus_collect_headline">Money to collect</string>
-    <string name="dashboard_focus_collect_supporting">%1$d overdue — chase payment today</string>
+    <string name="dashboard_focus_collect_supporting">%1$d overdue. Chase payment today</string>
     <string name="dashboard_focus_collect_cta">Collect now</string>
 
     <!-- V2 empty-state cards (EmptyIllustrationCard) -->
@@ -1145,7 +1145,7 @@
     <string name="reconnect_no_orders_yet">No orders yet</string>
     <string name="reconnect_send_hello">Send a hello</string>
     <string name="reconnect_say_hi">Say hi</string>
-    <string name="reconnect_whatsapp_template">Hi %1$s! Hope you&apos;re doing well. Just checking in — let me know if you need anything new stitched.</string>
+    <string name="reconnect_whatsapp_template">Hi %1$s! Hope you&apos;re doing well. Just checking in. Let me know if you need anything new stitched.</string>
 
     <!-- WeeklyGoalsCard -->
     <string name="goals_section_label">This week</string>
@@ -1155,8 +1155,8 @@
     <string name="goals_supporting">Track your weekly earnings target.</string>
     <string name="goals_motivation_behind">Pick up the pace this week</string>
     <string name="goals_motivation_on_pace">You're on track</string>
-    <string name="goals_motivation_ahead">Strong week — keep it up</string>
-    <string name="goals_motivation_near_goal">Almost there — final push</string>
+    <string name="goals_motivation_ahead">Strong week, keep it up</string>
+    <string name="goals_motivation_near_goal">Almost there, final push</string>
     <string name="goals_percent_of_goal">%1$s of goal</string>
     <string name="goals_earned">%1$s earned</string>
     <string name="goals_to_go">%1$s to go</string>
@@ -1238,7 +1238,7 @@
     <string name="measurement_share_error">Could not share measurement. Please try again.</string>
     <string name="measurement_share_sheet_title">Share measurement</string>
     <string name="measurement_share_whatsapp_title">Send as text on WhatsApp</string>
-    <string name="measurement_share_whatsapp_description">Plain text — readable on any phone</string>
+    <string name="measurement_share_whatsapp_description">Plain text, readable on any phone</string>
     <string name="cd_measurement_share">Share measurement</string>
     <string name="measurement_detail_view_full">View full measurement</string>
     <string name="measurement_detail_change">Change measurement</string>
@@ -1304,7 +1304,7 @@
     <string name="status_sheet_subtitle_cutting">Cut the fabric</string>
     <string name="status_sheet_subtitle_sewing">Stitch the garment</string>
     <string name="status_sheet_subtitle_fitting">Customer comes in to try on</string>
-    <string name="status_sheet_subtitle_ready">Garment finished — message customer</string>
+    <string name="status_sheet_subtitle_ready">Garment finished. Message customer</string>
     <string name="status_sheet_subtitle_delivered">Customer has collected</string>
 
     <!-- Record Payment V2 dialog -->
@@ -1316,10 +1316,10 @@
     <string name="payment_capped_at_balance">Capped at balance %1$s</string>
 
     <!-- Order detail WhatsApp message templates (status-aware, %1$s = customer first name) -->
-    <string name="whatsapp_message_pending">Hi %1$s, just confirming your order details — I&apos;ll be starting work on it soon.</string>
-    <string name="whatsapp_message_in_progress">Hi %1$s, quick update on your outfit — work is in progress and on track.</string>
-    <string name="whatsapp_message_ready">Hi %1$s, your outfit is ready for pickup — let me know what time works for you.</string>
-    <string name="whatsapp_message_delivered">Hi %1$s, hope the outfit suits you well — would love a photo when you wear it!</string>
+    <string name="whatsapp_message_pending">Hi %1$s, just confirming your order details. I&apos;ll be starting work on it soon.</string>
+    <string name="whatsapp_message_in_progress">Hi %1$s, quick update on your outfit: work is in progress and on track.</string>
+    <string name="whatsapp_message_ready">Hi %1$s, your outfit is ready for pickup. Let me know what time works for you.</string>
+    <string name="whatsapp_message_delivered">Hi %1$s, hope the outfit suits you well. Would love a photo when you wear it!</string>
     <!-- Generic greeting when messaging a customer outside any order (PTSP-32/33) -->
     <string name="whatsapp_message_customer_greeting">Hi %1$s, hope you&apos;re keeping well! Just checking in from the workshop.</string>
     <!-- Shown when WhatsApp can&apos;t be opened from the customer screens -->
@@ -1408,7 +1408,7 @@
     <string name="whatsapp_confirmed_badge">WhatsApp confirmed</string>
     <string name="whatsapp_confirm_instructions">Open WhatsApp, read the 4-digit code in the message we drafted, then enter it below. You don&apos;t need to send the message.</string>
     <string name="whatsapp_confirm_input_label">Enter the 4-digit code</string>
-    <string name="whatsapp_confirm_message">StitchPad confirmation code: %1$s — you can delete this message.</string>
+    <string name="whatsapp_confirm_message">StitchPad confirmation code: %1$s. You can delete this message.</string>
     <string name="whatsapp_confirm_error_mismatch">That code doesn&apos;t match. Check WhatsApp and try again.</string>
     <string name="whatsapp_confirm_cancel">Cancel</string>
     <string name="workshop_business_name_helper">Shown on your dashboard. You can change this later.</string>
@@ -1503,7 +1503,7 @@
     <string name="community_strip_join">Join</string>
     <string name="community_banner_dismiss_cd">Dismiss</string>
     <string name="community_banner_icon_cd">WhatsApp</string>
-    <string name="settings_invite_share_message">Hi! I&apos;ve been using StitchPad to manage my tailoring orders and customers — it&apos;s been a game-changer. Try it: https://getstitchpad.com</string>
+    <string name="settings_invite_share_message">Hi! I&apos;ve been using StitchPad to manage my tailoring orders and customers, and it&apos;s been a game-changer. Try it: https://getstitchpad.com</string>
     <string name="settings_support_intro_message">Hi StitchPad team! I need help with </string>
     <string name="settings_section_legal">Legal</string>
     <string name="settings_help_cd">Help</string>
@@ -1565,9 +1565,9 @@
     <string name="plan_card_title_warn_other">%1$d customers left before your free limit</string>
     <string name="plan_card_subtitle_warn">Upgrade to keep adding customers, unlock reports, and back up your work.</string>
     <string name="plan_card_title_locked">You can&apos;t add new customers</string>
-    <string name="plan_card_subtitle_locked">Upgrade to keep growing — your existing customers are safe and unchanged.</string>
+    <string name="plan_card_subtitle_locked">Upgrade to keep growing. Your existing customers are safe and unchanged.</string>
     <string name="plan_card_cta_upgrade">Upgrade</string>
-    <string name="plan_card_cta_upgrade_priced">Upgrade — %1$s/mo</string>
+    <string name="plan_card_cta_upgrade_priced">Upgrade: %1$s/mo</string>
     <string name="plan_card_cta_upgrade_now">Upgrade now</string>
     <string name="plan_card_cta_compare">Compare plans</string>
 
@@ -1611,7 +1611,7 @@
     <string name="founders_note_paragraph_3">We never delete your customers. We never change your data overnight.</string>
     <string name="founders_note_paragraph_4">The cap exists because AI calls cost us real money per draft. The 15-customer Free plan keeps the app sustainable while offering a real product to everyone, not a demo, not a trial.</string>
     <string name="founders_note_paragraph_5">If something feels off, message us directly. We read everything.</string>
-    <string name="founders_note_signature">— Daniel, founder</string>
+    <string name="founders_note_signature">Daniel, founder</string>
     <string name="founders_note_whatsapp_cta">Message us on WhatsApp</string>
 
     <!-- Settings PlanCard (re-landed) -->
@@ -1669,11 +1669,11 @@
     <string name="edit_profile_label_your_name">Your name (optional)</string>
     <string name="edit_profile_helper_your_name">Used in receipts and reminders to customers</string>
     <string name="edit_profile_label_phone">Phone number (optional)</string>
-    <string name="edit_profile_helper_phone">Voice line — only set this if it&apos;s different from your WhatsApp</string>
+    <string name="edit_profile_helper_phone">Voice line. Only set this if it&apos;s different from your WhatsApp</string>
     <string name="edit_profile_label_whatsapp">WhatsApp number</string>
     <string name="edit_profile_helper_whatsapp">Used for customer reminders and receipts</string>
     <string name="edit_profile_label_email">Email</string>
-    <string name="edit_profile_helper_email_readonly">Email changes require security verification — manage from Settings → Account → Email.</string>
+    <string name="edit_profile_helper_email_readonly">Email changes require security verification. Manage from Settings → Account → Email.</string>
     <string name="edit_profile_save">Save changes</string>
     <string name="edit_profile_saved">Profile updated</string>
     <string name="edit_profile_save_failed">Could not save changes. Try again.</string>
@@ -1698,7 +1698,7 @@
     <string name="change_password_helper">At least 6 characters.</string>
     <string name="change_password_cta">Update password</string>
     <string name="change_password_updated">Password updated</string>
-    <string name="password_reset_email_sent">Reset link sent — check your email</string>
+    <string name="password_reset_email_sent">Reset link sent. Check your email</string>
 
     <!-- Re-auth bottom sheet -->
     <string name="reauth_title">Confirm it&apos;s you</string>
@@ -1716,7 +1716,7 @@
     <string name="delete_account_dialog_body">You&apos;ll be signed out and your account closed. Your business data (customers, measurements, orders) is retained per our policy until our background cleanup runs.</string>
     <string name="delete_account_dialog_continue">Continue</string>
 
-    <string name="delete_account_reason_title">Help us improve — why are you leaving?</string>
+    <string name="delete_account_reason_title">Help us improve: why are you leaving?</string>
     <string name="delete_account_reason_subtitle">Your feedback is anonymous and helps us build a better tool for tailors.</string>
     <string name="delete_account_reason_duplicate">I made a duplicate or wrong account</string>
     <string name="delete_account_reason_complex">The app is too complex to use</string>
@@ -1834,7 +1834,7 @@
          the V1.0 design spec.) -->
     <string name="welcome_ending_banner_title_one">Your first month ends tomorrow</string>
     <string name="welcome_ending_banner_title_other">Your first month ends in %1$d days</string>
-    <string name="welcome_ending_banner_body">After your first month, your 15 most active customers stay active. The rest stay safe and searchable — unlock or swap to take new orders. Upgrade to Pro to keep all of them active.</string>
+    <string name="welcome_ending_banner_body">After your first month, your 15 most active customers stay active. The rest stay safe and searchable. Unlock or swap to take new orders. Upgrade to Pro to keep all of them active.</string>
     <string name="welcome_ending_banner_cta">See Tailor Pro</string>
 
     <!-- Push permission pre-prompt sheet -->
@@ -1940,7 +1940,7 @@
     <string name="order_show_amounts">Show amounts</string>
     <string name="order_hide_amounts">Hide amounts</string>
     <string name="order_costs_empty_body">Add what this order cost you to see your real profit.</string>
-    <string name="order_costs_private_caption">Private — never shown on receipts</string>
+    <string name="order_costs_private_caption">Private: never shown on receipts</string>
     <string name="costs_editor_title">Record costs</string>
     <string name="costs_editor_subtitle">What did this order cost you? Leave blank what does not apply.</string>
     <string name="costs_editor_save">Save costs</string>
@@ -1959,7 +1959,7 @@
     <string name="reports_kpi_profit">Profit so far</string>
     <string name="reports_profit_coverage_short">on %1$d of %2$d orders costed</string>
     <string name="reports_profit_coverage_remaining">Add costs to %1$d more to see your full profit</string>
-    <string name="reports_profit_coverage_all">All %1$d orders costed — this is your full profit</string>
+    <string name="reports_profit_coverage_all">All %1$d orders costed. This is your full profit</string>
     <string name="reports_profit_empty">Add costs to an order to see profit</string>
 
     <!-- Owner team management (Slice 7) -->
@@ -2048,7 +2048,7 @@
     <string name="review_sentiment_dismiss_cd">Close</string>
 
     <!-- Sync status -->
-    <string name="sync_status_offline">Offline — saved on this phone, will sync later</string>
+    <string name="sync_status_offline">Offline: saved on this phone, will sync later</string>
     <string name="sync_status_syncing">Syncing…</string>
     <string name="sync_not_synced">Not synced</string>
     <string name="country_picker_search">Search country or dial code</string>
@@ -2078,7 +2078,7 @@
     <string name="collection_load_error">Couldn't load</string>
     <string name="collection_filter_empty">No orders match this filter</string>
     <string name="collection_show_all">Show all</string>
-    <string name="collection_filter_hint">You still have money to collect — clear the filter to see it.</string>
+    <string name="collection_filter_hint">You still have money to collect. Clear the filter to see it.</string>
     <string name="collection_paid_title">You're all paid up</string>
     <string name="collection_paid_body">Every finished order has been paid for. Nice work!</string>
     <string name="collection_oldest">Oldest owed</string>
@@ -2128,7 +2128,7 @@
     <string name="measurement_share_whatsapp_footer">Sent from StitchPad · getstitchpad.com</string>
     <string name="measurement_share_card_title">MEASUREMENT CARD</string>
     <string name="measurement_share_card_taken">Taken %1$s</string>
-    <string name="measurement_share_card_footer">Made with StitchPad — the smart work pad for tailors · getstitchpad.com</string>
+    <string name="measurement_share_card_footer">Made with StitchPad, the smart work pad for tailors · getstitchpad.com</string>
     <string name="smart_order_no_deadline">No deadline set</string>
     <string name="smart_order_garment_fallback">Garment</string>
     <!-- Measurement field names, keyed by BodyProfileTemplate labelKey -->

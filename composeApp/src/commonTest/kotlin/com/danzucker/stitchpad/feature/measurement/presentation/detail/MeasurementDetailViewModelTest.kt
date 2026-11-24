@@ -298,7 +298,7 @@ class MeasurementDetailViewModelTest {
             vm.onAction(MeasurementDetailAction.OnShareWhatsAppClick)
             val event = assertIs<MeasurementDetailEvent.LaunchWhatsApp>(awaitItem())
             assertEquals("", event.phone)
-            assertTrue(event.message.contains("*Chidinma Eze — Wedding gown*"))
+            assertTrue(event.message.contains("*Chidinma Eze · Wedding gown*"))
         }
         assertEquals(
             "whatsapp_text",
@@ -315,7 +315,7 @@ class MeasurementDetailViewModelTest {
             vm.onAction(MeasurementDetailAction.OnShareWhatsAppClick)
             val event = assertIs<MeasurementDetailEvent.LaunchWhatsApp>(awaitItem())
             assertEquals("", event.phone)
-            assertTrue(event.message.contains("*Chidinma Eze — Wedding gown*"))
+            assertTrue(event.message.contains("*Chidinma Eze · Wedding gown*"))
         }
         val event = analytics.events.filterIsInstance<AnalyticsEvent.MeasurementShared>().single()
         assertEquals("whatsapp_text", event.format)

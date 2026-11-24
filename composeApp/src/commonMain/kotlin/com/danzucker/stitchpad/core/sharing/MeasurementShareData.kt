@@ -30,7 +30,7 @@ data class MeasurementShareChrome(
     val cardTitle: String = "MEASUREMENT CARD",
     /** Raw positional template, e.g. "Taken %1$s"; filled by [taken]. */
     val takenTemplate: String = "Taken %1\$s",
-    val cardFooter: String = "Made with StitchPad — the smart work pad for tailors · getstitchpad.com",
+    val cardFooter: String = "Made with StitchPad, the smart work pad for tailors · getstitchpad.com",
     /** WhatsApp sign-off, without the `_…_` italic markup (added by the text builder). */
     val whatsAppFooter: String = "Sent from StitchPad · getstitchpad.com",
 ) {
