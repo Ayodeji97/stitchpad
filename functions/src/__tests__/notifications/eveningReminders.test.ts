@@ -202,9 +202,9 @@ describe('ready, not collected', () => {
   it('copy: weekday within the week, day count beyond it', () => {
     // 3 days before Monday 23 Nov is Friday 20 Nov.
     expect(reminderPush(detectReminders([readyFor(3)], emptyState(), NOW), NOW).body)
-      .toBe('Call Ada — the agbada has been ready since Friday.');
+      .toBe('Call Ada: the agbada has been ready since Friday.');
     expect(reminderPush(detectReminders([readyFor(10)], emptyState(), NOW), NOW).body)
-      .toBe('Call Ada — the agbada has been ready for 10 days.');
+      .toBe('Call Ada: the agbada has been ready for 10 days.');
     expect(reminderPush(detectReminders([readyFor(3)], emptyState(), NOW), NOW).title).toBe('Ready for collection');
   });
 });
@@ -267,7 +267,7 @@ describe('one combined push', () => {
     expect(reminderPush(detectReminders([deliveredOwing(4, { currency: 'XOF' })], emptyState(), NOW), NOW, 'fr').body)
       .toBe('Ada vous doit encore F CFA 15,000 (agbada).');
     expect(reminderPush(detectReminders([readyFor(3)], emptyState(), NOW), NOW, 'fr').body)
-      .toBe('Appelez Ada — agbada est au statut Prêt depuis vendredi.');
+      .toBe('Appelez Ada : agbada est au statut Prêt depuis vendredi.');
     expect(reminderPush(detectReminders([readyFor(3)], emptyState(), NOW), NOW, 'fr').title).toBe('Prêt à récupérer');
     expect(nudgePush('fr')).toEqual({
       title: 'Des nouveaux travaux aujourd\'hui ?', body: 'Enregistrez-les avant d\'oublier.', target: 'dashboard',

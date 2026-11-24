@@ -102,6 +102,6 @@ function outstandingSections(items: DigestItem[], cap: number): {
     title: byCurrency.size > 1 ? `To collect · ${currency}` : 'To collect',
     items: entries.slice(0, cap),
     total: entries.length,
-    line: (item) => `${item.customerName} · ${item.garmentSummary} — ${formatNotificationMoney(item.amount ?? 0, currency)}${item.isOverdue ? ' (overdue)' : ''}`,
+    line: (item) => `${item.customerName} · ${item.garmentSummary}: ${formatNotificationMoney(item.amount ?? 0, currency)}${item.isOverdue ? ' (overdue)' : ''}`,
   }));
 }

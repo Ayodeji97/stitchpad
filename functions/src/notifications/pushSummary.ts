@@ -14,7 +14,7 @@ export interface PushSummary {
  * digest can say, and it used to be indistinguishable from one already underway.
  */
 function startedSuffix(item: DigestItem): string {
-  return item.notStarted ? ' — not started yet' : '';
+  return item.notStarted ? ', not started yet' : '';
 }
 
 /**
@@ -53,7 +53,7 @@ export function pushSummary(model: DigestModel, locale?: string): PushSummary {
     const urgent = model.overdue[0] ?? model.dueSoon[0];
     const owed = model.outstanding.find(item => item.isOverdue) ?? model.outstanding[0];
     const body = urgent
-      ? `${urgent.customerName} · ${urgent.garmentSummary} ${model.overdue.length ? 'est en retard' : 'est bientôt à livrer'}${urgent.notStarted ? ' — pas encore commencé' : ''}`
+      ? `${urgent.customerName} · ${urgent.garmentSummary} ${model.overdue.length ? 'est en retard' : 'est bientôt à livrer'}${urgent.notStarted ? ', pas encore commencé' : ''}`
       : owed ? `${owed.customerName} doit ${formatNotificationMoney(owed.amount ?? 0, owed.currency)}` : '';
     return { title: parts.join(' · ') || 'StitchPad', body };
   }

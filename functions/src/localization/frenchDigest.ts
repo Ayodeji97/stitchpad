@@ -16,7 +16,7 @@ export function frenchDigestEmail(model: DigestModel, name: string, opts: {
   }
   for (const [currency, items] of [...groups.entries()].sort(([a], [b]) => a.localeCompare(b))) {
     sections.push({ title: `À encaisser · ${currency}`, total: items.length,
-      rows: items.map(i => `${i.customerName} · ${i.garmentSummary} — ${formatNotificationMoney(i.amount ?? 0, currency)}${i.isOverdue ? ' (en retard)' : ''}`) });
+      rows: items.map(i => `${i.customerName} · ${i.garmentSummary} : ${formatNotificationMoney(i.amount ?? 0, currency)}${i.isOverdue ? ' (en retard)' : ''}`) });
   }
   const visible = sections.filter(s => s.total > 0);
   const subject = `Votre semaine StitchPad : ${visible.map(s => `${s.total} ${s.title.toLowerCase()}`).join(', ')}`;

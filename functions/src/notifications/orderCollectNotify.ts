@@ -60,7 +60,7 @@ export function collectPushCopy(n: CollectNotification): { title: string; body: 
   const firstName = (n.customerName.trim().split(/\s+/)[0]) || n.customerName;
   return {
     title: 'StitchPad',
-    body: `${firstName}'s ${n.garmentSummary} is ${state} — ${formatNotificationMoney(n.amount, n.currency)} to collect`,
+    body: `${firstName}'s ${n.garmentSummary} is ${state}. ${formatNotificationMoney(n.amount, n.currency)} to collect`,
   };
 }
 

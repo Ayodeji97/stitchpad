@@ -66,10 +66,10 @@ function readyBody(items: ReminderItem[], now: number, lang: Lang): string {
   const more = items.length - 1;
   if (lang === 'fr') {
     const tail = more > 0 ? ` ${more} autre${more > 1 ? 's' : ''} commande${more > 1 ? 's' : ''} attend${more > 1 ? 'ent' : ''} aussi.` : '';
-    return `Appelez ${who(lead, lang)} — ${lead.garmentSummary} est au statut Prêt ${since(lead, now, lang)}.${tail}`;
+    return `Appelez ${who(lead, lang)} : ${lead.garmentSummary} est au statut Prêt ${since(lead, now, lang)}.${tail}`;
   }
   const tail = more > 0 ? ` ${more} more ${more > 1 ? 'are' : 'is'} waiting too.` : '';
-  return `Call ${who(lead, lang)} — the ${lead.garmentSummary} has been ready ${since(lead, now, lang)}.${tail}`;
+  return `Call ${who(lead, lang)}: the ${lead.garmentSummary} has been ready ${since(lead, now, lang)}.${tail}`;
 }
 
 /** Title for a push about ONE kind only. */

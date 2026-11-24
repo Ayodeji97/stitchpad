@@ -91,6 +91,6 @@ export const emailUnsubscribe = functions
 
     functions.logger.info('emailUnsubscribe: opted out', { uid });
     res.status(200).send(page('Unsubscribed', `
-<p style="font-size:15px;line-height:1.6;color:#252320;">Done — you will not get the daily StitchPad email again.</p>
+<p style="font-size:15px;line-height:1.6;color:#252320;">Done. You will not get the daily StitchPad email again.</p>
 <p style="margin-top:16px;font-size:13px;color:#57534C;">Your account and your saved work are untouched. You can turn the daily summary back on any time under Settings → Preferences.</p>`));
   });

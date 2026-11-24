@@ -48,7 +48,7 @@ const COPY: Record<NudgeKind, { subject: string; intro: string; body: string; ct
   quiet: {
     subject: 'Did any job come in today?',
     intro: 'Your board is clear today.',
-    body: 'If work came in, record it now — measurements, deadline, price. StitchPad holds it so nothing slips.',
+    body: 'If work came in, record it now: measurements, deadline, price. StitchPad holds it so nothing slips.',
     cta: 'Record today’s job',
   },
   first_order: {
@@ -60,7 +60,7 @@ const COPY: Record<NudgeKind, { subject: string; intro: string; body: string; ct
   setup: {
     subject: 'Add your first customer',
     intro: 'Your workshop is ready.',
-    body: 'Save one customer with their measurements. Next time they come, you will not measure again — it is already there.',
+    body: 'Save one customer with their measurements. Next time they come, you will not measure again. It is already there.',
     cta: 'Add a customer',
   },
 };
