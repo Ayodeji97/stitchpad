@@ -5,10 +5,21 @@ export interface EvalScore {
   namesTotal: number;
   valuesCorrect: number;
   valuesTotal: number;
-  /** Extracted values (on matched people) that disagree with the truth. */
+  /** Extracted values on matched people that are wrong (differ from truth or have no truth counterpart). */
   wrongValues: number;
-  /** Of wrongValues, how many the model flagged for review. */
+  /** Of wrongValues, how many the tailor would be shown as needing a look (value flagged or person needsReview). */
   wrongFlagged: number;
+  /** Truth values absent from the matched extracted person. Never flagged. */
+  missingValues: number;
+  /** Truth people with no matched extracted person. */
+  unmatchedPeople: number;
+  /** Truth values belonging to unmatched people. Never flagged. */
+  unmatchedPeopleValues: number;
+}
+
+/** Every error the tailor could end up with: wrong + missing + lost-person values. */
+export function errorsTotal(s: EvalScore): number {
+  return s.wrongValues + s.missingValues + s.unmatchedPeopleValues;
 }
 
 export function normName(s: string): string {
@@ -29,11 +40,6 @@ function valueKey(v: { fieldKey: string | null; label: string }): string {
 }
 
 export function score(truth: ExtractedPerson[], got: ExtractedPerson[]): EvalScore {
-  const gotByName = new Map<string, ExtractedPerson>();
-  for (const p of got) {
-    const k = normName(p.name);
-    if (!gotByName.has(k)) gotByName.set(k, p);
-  }
   const result: EvalScore = {
     namesCorrect: 0,
     namesTotal: truth.length,
@@ -41,26 +47,56 @@ export function score(truth: ExtractedPerson[], got: ExtractedPerson[]): EvalSco
     valuesTotal: 0,
     wrongValues: 0,
     wrongFlagged: 0,
+    missingValues: 0,
+    unmatchedPeople: 0,
+    unmatchedPeopleValues: 0,
   };
+  const usedPeople = new Set<number>();
   for (const t of truth) {
     result.valuesTotal += t.values.length;
-    const g = gotByName.get(normName(t.name));
-    if (!g) continue;
+    const gi = got.findIndex((g, i) => !usedPeople.has(i) && normName(g.name) === normName(t.name));
+    if (gi < 0) {
+      result.unmatchedPeople += 1;
+      result.unmatchedPeopleValues += t.values.length;
+      continue;
+    }
+    usedPeople.add(gi);
+    const g = got[gi];
     result.namesCorrect += 1;
-    const truthByKey = new Map(t.values.map((v) => [valueKey(v), normValue(v.value)]));
-    const gotKeys = new Set<string>();
-    for (const gv of g.values) {
-      const key = valueKey(gv);
-      const expected = truthByKey.get(key);
-      const ok = expected !== undefined && expected === normValue(gv.value) && !gotKeys.has(key);
-      gotKeys.add(key);
-      if (ok) {
+
+    const usedGot = new Set<number>();
+    const pendingTruth: number[] = [];
+    // Pass 1: exact (key + value) one-to-one.
+    t.values.forEach((tv, ti) => {
+      const m = g.values.findIndex(
+        (gv, i) => !usedGot.has(i) && valueKey(gv) === valueKey(tv) && normValue(gv.value) === normValue(tv.value),
+      );
+      if (m >= 0) {
+        usedGot.add(m);
         result.valuesCorrect += 1;
       } else {
+        pendingTruth.push(ti);
+      }
+    });
+    // Pass 2: same key, different value -> a wrong extracted value.
+    const missing: number[] = [];
+    for (const ti of pendingTruth) {
+      const m = g.values.findIndex((gv, i) => !usedGot.has(i) && valueKey(gv) === valueKey(t.values[ti]));
+      if (m >= 0) {
+        usedGot.add(m);
         result.wrongValues += 1;
-        if (gv.flagged) result.wrongFlagged += 1;
+        if (g.values[m].flagged || g.needsReview) result.wrongFlagged += 1;
+      } else {
+        missing.push(ti);
       }
     }
+    result.missingValues += missing.length;
+    // Extra extracted values with no truth counterpart are wrong too.
+    g.values.forEach((gv, i) => {
+      if (usedGot.has(i)) return;
+      result.wrongValues += 1;
+      if (gv.flagged || g.needsReview) result.wrongFlagged += 1;
+    });
   }
   return result;
 }

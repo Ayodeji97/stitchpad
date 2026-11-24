@@ -30,4 +30,8 @@ From `functions/`:
 `tsx` is fetched on demand by npx (not a project dependency). Output prints only
 counts. Extracted data goes to `out/<model>.json` (gitignored).
 
-Ship bar: values correct >= 95%, wrong values flagged >= 90%.
+Ship bar: values correct >= 95%, and errors flagged >= 90%. An error is anything
+the tailor could end up with: a wrong extracted value, a value missing from a
+matched person, or any value of a person the model lost. Wrong values count as
+flagged when the value is flagged or the person needs review; missing values and
+lost people are never flagged. The run exits 1 if a bar fails (0 if both pass).
