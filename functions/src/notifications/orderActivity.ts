@@ -219,13 +219,13 @@ export function activityPushCopy(
     const base = who ? `${garment} de ${who}` : garment;
     return {
       title: 'Nouvelle commande pour vous',
-      body: due ? `${base} — à livrer le ${due}` : base,
+      body: due ? `${base}, à livrer le ${due}` : base,
     };
   }
   const base = who ? `${who}'s ${garment}` : garment;
   return {
     title: 'New order assigned to you',
-    body: due ? `${base} — due ${due}` : base,
+    body: due ? `${base}, due ${due}` : base,
   };
 }
 

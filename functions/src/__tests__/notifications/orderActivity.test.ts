@@ -142,10 +142,10 @@ describe('copy + inbox doc', () => {
 
   it('assignment copy has the due date and never any money (EN + FR)', () => {
     const en = activityPushCopy(assignEvent, '', 'en');
-    expect(en).toEqual({ title: 'New order assigned to you', body: 'Ada\'s Agbada — due 28 Nov' });
+    expect(en).toEqual({ title: 'New order assigned to you', body: 'Ada\'s Agbada, due 28 Nov' });
     const fr = activityPushCopy(assignEvent, '', 'fr');
     expect(fr.title).toBe('Nouvelle commande pour vous');
-    expect(fr.body).toMatch(/^Agbada de Ada — à livrer le 28 nov/);
+    expect(fr.body).toMatch(/^Agbada de Ada, à livrer le 28 nov/);
     for (const c of [en, fr]) expect(c.body).not.toMatch(/₦|NGN|F CFA|\d{1,3},\d{3}/);
   });
 
