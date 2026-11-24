@@ -22,6 +22,7 @@ import com.danzucker.stitchpad.di.goalsDataModule
 import com.danzucker.stitchpad.di.goalsPresentationModule
 import com.danzucker.stitchpad.di.measurementDataModule
 import com.danzucker.stitchpad.di.measurementPresentationModule
+import com.danzucker.stitchpad.di.notebookImportDataModule
 import com.danzucker.stitchpad.di.notificationDataModule
 import com.danzucker.stitchpad.di.notificationPresentationModule
 import com.danzucker.stitchpad.di.onboardingModule
@@ -77,6 +78,7 @@ fun initKoin(platformConfig: KoinAppDeclaration = {}) {
             customerDataModule,
             customerPresentationModule,
             measurementDataModule,
+            notebookImportDataModule,
             measurementPresentationModule,
             styleDataModule,
             stylePresentationModule,
