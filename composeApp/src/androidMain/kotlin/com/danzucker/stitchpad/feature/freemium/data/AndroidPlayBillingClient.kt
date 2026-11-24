@@ -46,22 +46,27 @@ internal class AndroidPlayBillingClient(
     override val purchaseUpdates: Flow<PlayPurchase> = updates.asSharedFlow()
 
     // The in-flight launchBillingFlow, completed by the PurchasesUpdatedListener.
-    @Volatile private var inFlight: CompletableDeferred<Result<PlayPurchase, PlayBillingError>>? = null
+    private class InFlightPurchase(
+        val productId: String,
+        val result: CompletableDeferred<Result<PlayPurchase, PlayBillingError>> = CompletableDeferred(),
+    )
+
+    @Volatile private var inFlight: InFlightPurchase? = null
     private val connectMutex = Mutex()
 
     private val listener = PurchasesUpdatedListener { result, purchases ->
-        val deferred = inFlight
-        inFlight = null
+        val pending = inFlight
         val mapped = purchases.orEmpty().mapNotNull { it.toPlayPurchase() }
-        if (deferred == null) {
-            // Out-of-flow update: a pending payment cleared, or a renewal. The sweep verifies it.
-            mapped.filter { it.state == PlayPurchaseState.PURCHASED }.forEach { updates.tryEmit(it) }
-            return@PurchasesUpdatedListener
-        }
-        if (result.responseCode == BillingResponseCode.OK && mapped.isNotEmpty()) {
-            deferred.complete(Result.Success(mapped.first()))
-        } else {
-            deferred.complete(Result.Error(result.toPlayBillingError()))
+        val ok = result.responseCode == BillingResponseCode.OK
+        val match = pending?.let { p -> mapped.firstOrNull { p.productId in it.productIds } }
+        when {
+            // The purchase this flow launched.
+            pending != null && ok && match != null -> pending.result.complete(Result.Success(match))
+            // The launched flow failed or was cancelled.
+            pending != null && !ok -> pending.result.complete(Result.Error(result.toPlayBillingError()))
+            // Out-of-flow update (a pending payment cleared, a renewal, or another
+            // product): the sweep verifies it; the in-flight purchase keeps waiting.
+            else -> mapped.filter { it.state == PlayPurchaseState.PURCHASED }.forEach { updates.tryEmit(it) }
         }
     }
 
@@ -114,14 +119,19 @@ internal class AndroidPlayBillingClient(
             )
         }
 
-        val deferred = CompletableDeferred<Result<PlayPurchase, PlayBillingError>>()
-        inFlight = deferred
-        val launch = withContext(Dispatchers.Main) { billingClient.launchBillingFlow(activity, paramsBuilder.build()) }
-        if (launch.responseCode != BillingResponseCode.OK) {
-            inFlight = null
-            return Result.Error(launch.toPlayBillingError())
+        val flight = InFlightPurchase(productId)
+        inFlight = flight
+        try {
+            val launch = withContext(Dispatchers.Main) {
+                billingClient.launchBillingFlow(activity, paramsBuilder.build())
+            }
+            if (launch.responseCode != BillingResponseCode.OK) return Result.Error(launch.toPlayBillingError())
+            return flight.result.await()
+        } finally {
+            // Also on cancellation (screen closed mid-sheet), so a later update is
+            // not delivered to a dead caller.
+            if (inFlight === flight) inFlight = null
         }
-        return deferred.await()
     }
 
     override suspend fun queryActivePurchases(): Result<List<PlayPurchase>, PlayBillingError> {
@@ -194,6 +204,7 @@ internal class AndroidPlayBillingClient(
             purchaseToken = purchaseToken,
             state = state,
             isAcknowledged = isAcknowledged,
+            obfuscatedAccountId = accountIdentifiers?.obfuscatedAccountId,
         )
     }
 

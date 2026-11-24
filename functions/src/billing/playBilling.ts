@@ -10,9 +10,10 @@ import { createPlayApi } from './playApi';
 // (callable, RTDN, reconcile) re-fetches the subscription from the Play
 // Developer API. Neither the client nor the RTDN payload is trusted for state.
 //
-// users/{uid} gets subscriptionSource 'play' plus playPurchaseToken (raw, needed
-// by reconcile), playPurchaseTokenHash (ownership) and playProductId. The reverse
-// index playSubscriptions/{sha256(token)} -> { uid } lets RTDN find the user.
+// users/{uid} gets subscriptionSource 'play' plus playPurchaseToken (raw),
+// playPurchaseTokenHash (ownership) and playProductId. The server-only index
+// playSubscriptions/{sha256(token)} -> { uid, purchaseToken, appliedStatus } lets
+// RTDN find the user and is what the nightly reconcile iterates.
 
 const REGION = 'europe-west1';
 
@@ -126,6 +127,12 @@ export interface VerifyPlayPurchaseResponse {
   tier: BillingTier | 'free';
   status: 'active' | 'expired' | 'pending';
   endsAt: number | null;
+  /**
+   * True when the purchase is valid and saved but NOT applied because another
+   * entitlement (Paystack, launch grant, another store) is still active. The
+   * nightly reconcile applies it once that entitlement lapses.
+   */
+  blocked: boolean;
 }
 
 function refsFor(db: admin.firestore.Firestore, uid: string, purchaseToken: string): PlayCommitRefs {
@@ -158,6 +165,10 @@ export const PLAY_RTDN_TOPIC = 'play-billing-rtdn';
 
 export const playRealtimeNotifications = functions
   .region(REGION)
+  // Retry on failure: a transient Play API / Firestore error rethrows and Pub/Sub
+  // redelivers. Permanent failures (garbage payload, unknown or invalid token)
+  // resolve instead, so they cannot loop until the message expires.
+  .runWith({ failurePolicy: true })
   .pubsub.topic(PLAY_RTDN_TOPIC)
   .onPublish(async (message) => {
     let payload: unknown = null;
@@ -173,7 +184,8 @@ export const playRealtimeNotifications = functions
 export const reconcilePlaySubscriptions = functions
   .region(REGION)
   // 02:45 Africa/Lagos daily, after the Apple reconcile (02:30). Safety net for
-  // dropped RTDNs and for acknowledgements that failed at verify time.
+  // dropped RTDNs, acknowledgements that failed at verify time, and purchases
+  // saved while another entitlement was active (applied once it lapses).
   .pubsub.schedule('45 2 * * *')
   .timeZone('Africa/Lagos')
   .onRun(async () => {
@@ -222,7 +234,7 @@ export async function verifyPlayPurchaseHandler(
   const desired = desiredStateForPlay(sub, deps.now().getTime());
   const refs = refsFor(deps.db, uid, purchaseToken);
 
-  await deps.db.runTransaction(async (tx) => {
+  const committed = await deps.db.runTransaction(async (tx) => {
     // A Play subscription belongs to its first purchaser, never to whoever signs
     // in next on the same device / Google account.
     const indexSnap = await tx.get(refs.indexRef);
@@ -230,12 +242,19 @@ export async function verifyPlayPurchaseHandler(
     if (boundUid && boundUid !== uid) {
       throw new functions.https.HttpsError('failed-precondition', 'subscription_belongs_to_another_account');
     }
-    await commitPlayState(tx, refs, desired, playTokenHash(purchaseToken), fetchedAtMs, deps.now(),
+    return commitPlayState(tx, refs, desired, playTokenHash(purchaseToken), fetchedAtMs, deps.now(),
       sub.linkedPurchaseToken);
   });
 
   await acknowledgeIfNeeded(deps.api, sub, desired, purchaseToken, uid);
-  return { tier: desired.tier, status: desired.status, endsAt: desired.endsAtMs };
+  return {
+    tier: desired.tier,
+    status: desired.status,
+    endsAt: desired.endsAtMs,
+    // A valid active purchase that did not reach the user doc: another
+    // entitlement still owns it. Saved; reconcile applies it later.
+    blocked: committed.applied && desired.status === 'active' && !committed.userDocWritten,
+  };
 }
 
 // Google refunds any purchase not acknowledged within 3 days. Only the server
@@ -264,10 +283,17 @@ async function acknowledgeIfNeeded(
 
 // Idempotent, ordered writer for user doc + billing doc + reverse index.
 // playLastFetchedAt makes an older API read (slow verify racing a newer RTDN)
-// a no-op. `linkedPurchaseToken` comes from Google (never the client): when the
-// new token replaces the one that currently owns the user doc (tier change via
-// SubscriptionUpdateParams), the new token inherits ownership. Without that, the
-// still-active old token would block the upgrade as a "foreign" entitlement.
+// a no-op. `linkedPurchaseToken` comes from Google (never the client): when an
+// ACTIVE new token replaces the one that currently owns the user doc (tier change
+// via SubscriptionUpdateParams), the new token inherits ownership. Without that,
+// the still-active old token would block the upgrade as a "foreign" entitlement.
+// The link never grants ownership for a downgrade: a replacement that was
+// cancelled while pending (or a refused test purchase) must not revoke the
+// owned token's access.
+//
+// The index doc (server-only) also keeps the raw token and the applied status:
+// it is what the nightly reconcile iterates, so a purchase blocked by another
+// entitlement still gets applied once that entitlement lapses.
 export async function commitPlayState(
   tx: admin.firestore.Transaction,
   refs: PlayCommitRefs,
@@ -276,11 +302,11 @@ export async function commitPlayState(
   fetchedAtMs: number,
   now: Date,
   linkedPurchaseToken?: string,
-): Promise<{ applied: boolean }> {
+): Promise<{ applied: boolean; userDocWritten: boolean }> {
   const billingSnap = await tx.get(refs.billingRef);
   const billing = (billingSnap.exists ? billingSnap.data() : {}) as { playLastFetchedAt?: number };
   if (typeof billing.playLastFetchedAt === 'number' && fetchedAtMs < billing.playLastFetchedAt) {
-    return { applied: false };
+    return { applied: false, userDocWritten: false };
   }
 
   const userSnap = await tx.get(refs.userRef);
@@ -292,10 +318,10 @@ export async function commitPlayState(
     playPurchaseTokenHash?: string;
   };
   const isPlay = userData.subscriptionSource === 'play';
-  const ownsCurrentEntitlement = isPlay && (
-    userData.playPurchaseTokenHash === tokenHash
-    || (!!linkedPurchaseToken && userData.playPurchaseTokenHash === playTokenHash(linkedPurchaseToken))
-  );
+  const ownsByLink = desired.tier !== 'free'
+    && !!linkedPurchaseToken
+    && userData.playPurchaseTokenHash === playTokenHash(linkedPurchaseToken);
+  const ownsCurrentEntitlement = isPlay && (userData.playPurchaseTokenHash === tokenHash || ownsByLink);
 
   const nowTs = admin.firestore.Timestamp.fromDate(now);
   const writeUserDoc = desired.status !== 'pending' && shouldWriteUserDoc({
@@ -335,19 +361,47 @@ export async function commitPlayState(
     updatedAt: nowTs,
   }, { merge: true });
 
-  tx.set(refs.indexRef, { uid: refs.uid, updatedAt: nowTs }, { merge: true });
+  tx.set(refs.indexRef, {
+    uid: refs.uid,
+    purchaseToken: refs.purchaseToken,
+    appliedStatus: desired.status,
+    updatedAt: nowTs,
+  }, { merge: true });
 
-  return { applied: true };
+  return { applied: true, userDocWritten: writeUserDoc };
+}
+
+// Play Developer API statuses that will never succeed on retry for this token
+// (malformed, unknown to Google, or purged).
+const PERMANENT_PLAY_API_STATUSES = new Set([400, 404, 410]);
+
+export function isPermanentPlayApiError(error: unknown): boolean {
+  const e = error as { status?: unknown; code?: unknown; response?: { status?: unknown } } | null;
+  const status = e?.status ?? e?.response?.status ?? e?.code;
+  return typeof status === 'number' && PERMANENT_PLAY_API_STATUSES.has(status);
 }
 
 // Server-initiated re-sync of one token already bound to `uid` (RTDN and
 // reconcile). Unlike the callable, refusals here never throw: a test purchase
 // with the flag off maps to free (heals any wrongly minted grant, like the Apple
-// reconcile) and an account mismatch is logged and skipped. Only a Play API or
-// Firestore failure throws, so Pub/Sub retries.
+// reconcile), an account mismatch is logged and skipped, and a permanent Play API
+// error (400/404/410) is logged by ids only and skipped. Only a transient Play API
+// error or a Firestore failure throws, so Pub/Sub redelivers the RTDN.
 async function syncBoundToken(uid: string, purchaseToken: string, deps: PlayDeps): Promise<void> {
   const fetchedAtMs = deps.now().getTime();
-  const sub = await deps.api.getSubscription(purchaseToken);
+  let sub: PlaySubscription;
+  try {
+    sub = await deps.api.getSubscription(purchaseToken);
+  } catch (error) {
+    if (isPermanentPlayApiError(error)) {
+      functions.logger.warn('play sync: token rejected by Play, skipped', {
+        uid,
+        tokenHash: playTokenHash(purchaseToken),
+      });
+      return;
+    }
+    throw error;
+  }
   if (sub.externalAccountIdentifiers?.obfuscatedExternalAccountId !== playAccountId(uid)) {
     functions.logger.warn('play sync: account mismatch, skipped', { uid });
     return;
@@ -396,21 +450,27 @@ export async function playRtdnHandler(messageJson: unknown, deps: PlayDeps): Pro
   await syncBoundToken(uid, purchaseToken, deps);
 }
 
+// Driven by the Play records (playSubscriptions index), not by users whose doc
+// Play already owns: a purchase that was saved but blocked by another active
+// entitlement (Paystack, launch grant) must be applied once that lapses. Live
+// records are those last seen active or pending; expired ones drop out.
 export async function reconcilePlaySubscriptionsHandler(deps: PlayDeps): Promise<void> {
-  const active = await deps.db.collection('users')
-    .where('subscriptionSource', '==', 'play')
-    .where('subscriptionStatus', '==', 'active')
+  const live = await deps.db.collection('playSubscriptions')
+    .where('appliedStatus', 'in', ['active', 'pending'])
     .get();
 
-  for (const userDoc of active.docs) {
-    const uid = userDoc.id;
-    const purchaseToken = (userDoc.data() as { playPurchaseToken?: string }).playPurchaseToken;
-    if (!purchaseToken) continue;
+  for (const indexDoc of live.docs) {
+    const { uid, purchaseToken } = indexDoc.data() as { uid?: string; purchaseToken?: string };
+    if (!uid || !purchaseToken) continue;
     try {
+      // Never resurrect a deleted account's user doc.
+      const userSnap = await deps.db.doc(`users/${uid}`).get();
+      if (!userSnap.exists) continue;
       await syncBoundToken(uid, purchaseToken, deps);
     } catch (error) {
-      functions.logger.warn('play reconcile failed for user', {
+      functions.logger.warn('play reconcile failed for token', {
         uid,
+        tokenHash: indexDoc.id,
         reason: error instanceof Error ? error.message : String(error),
       });
     }

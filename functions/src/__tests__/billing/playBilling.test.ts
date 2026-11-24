@@ -39,16 +39,17 @@ function fakeDb(initial: Record<string, any> = {}) {
     }),
   };
   const collection = jest.fn((name: string) => {
-    const filters: [string, unknown][] = [];
+    const filters: [string, string, unknown][] = [];
     const query: any = {
-      where: jest.fn((field: string, _op: string, value: unknown) => {
-        filters.push([field, value]);
+      where: jest.fn((field: string, op: string, value: unknown) => {
+        filters.push([field, op, value]);
         return query;
       }),
       get: jest.fn(async () => {
         const docs = [...store.entries()]
           .filter(([path]) => path.startsWith(`${name}/`) && path.split('/').length === 2)
-          .filter(([, data]) => filters.every(([f, v]) => data?.[f] === v))
+          .filter(([, data]) => filters.every(([f, op, v]) =>
+            (op === 'in' ? (v as unknown[]).includes(data?.[f]) : data?.[f] === v)))
           .map(([path, data]) => ({ id: path.split('/')[1], data: () => data }));
         return { docs };
       }),
@@ -201,7 +202,7 @@ describe('verifyPlayPurchaseHandler', () => {
     const api = fakeApi(sub);
     const result = await verifyPlayPurchaseHandler({ purchaseToken: 'tok-a' }, authCtx('u1'), deps(db, api));
     const expiry = Date.parse(sub.lineItems[0].expiryTime!);
-    expect(result).toEqual({ tier: 'pro', status: 'active', endsAt: expiry });
+    expect(result).toEqual({ tier: 'pro', status: 'active', endsAt: expiry, blocked: false });
 
     const user = store.get('users/u1');
     expect(user).toMatchObject({
@@ -214,7 +215,9 @@ describe('verifyPlayPurchaseHandler', () => {
       playProductId: PRO_MONTHLY,
     });
     expect(user.subscriptionEndsAt.toMillis()).toBe(expiry);
-    expect(store.get(`playSubscriptions/${playTokenHash('tok-a')}`)).toMatchObject({ uid: 'u1' });
+    expect(store.get(`playSubscriptions/${playTokenHash('tok-a')}`)).toMatchObject({
+      uid: 'u1', purchaseToken: 'tok-a', appliedStatus: 'active',
+    });
     expect(store.get(`users/u1/billingTransactions/play_${playTokenHash('tok-a')}`)).toMatchObject({
       source: 'play', tier: 'pro', productId: PRO_MONTHLY, appliedStatus: 'active', playLastFetchedAt: NOW.getTime(),
     });
@@ -245,6 +248,7 @@ describe('verifyPlayPurchaseHandler', () => {
     expect(result.status).toBe('pending');
     expect(store.get('users/u1')).toEqual({ subscriptionTier: 'free', subscriptionStatus: 'expired' });
     expect(store.get(`playSubscriptions/${playTokenHash('tok')}`)).toMatchObject({ uid: 'u1' });
+    expect(result.blocked).toBe(false);
     expect(api.acknowledge).not.toHaveBeenCalled();
   });
 
@@ -264,7 +268,9 @@ describe('verifyPlayPurchaseHandler', () => {
     const api = fakeApi(subFor('u1', {
       lineItems: [{ productId: ATELIER_MONTHLY, expiryTime: iso(NOW.getTime() + 30 * DAY) }],
     }));
-    await verifyPlayPurchaseHandler({ purchaseToken: 'tok' }, authCtx('u1'), deps(db, api));
+    const result = await verifyPlayPurchaseHandler({ purchaseToken: 'tok' }, authCtx('u1'), deps(db, api));
+    // Saved but not applied: the client tells the tailor it starts when the current plan ends.
+    expect(result).toMatchObject({ tier: 'atelier', status: 'active', blocked: true });
     expect(store.get('users/u1')).toBe(paystackUser);
     expect(store.get(`users/u1/billingTransactions/play_${playTokenHash('tok')}`)).toMatchObject({ tier: 'atelier' });
     expect(store.get(`playSubscriptions/${playTokenHash('tok')}`)).toMatchObject({ uid: 'u1' });
@@ -319,13 +325,30 @@ describe('commitPlayState', () => {
     expect(store.get('users/u1')).toBe(owned);
   });
 
+  const ownedPro = (token: string) => ({
+    subscriptionSource: 'play', subscriptionStatus: 'active', subscriptionTier: 'pro',
+    subscriptionEndsAt: ts(NOW.getTime() + 20 * DAY),
+    playPurchaseToken: token, playPurchaseTokenHash: playTokenHash(token),
+  });
+
+  it('linkedToken_downgrade_doesNotRevokeOwnedToken', async () => {
+    // Pro on token O; an upgrade N (linkedPurchaseToken = O) stays pending and is
+    // cancelled. N's expiry must not take ownership and revoke O's Pro.
+    const owned = ownedPro('tok-o');
+    const { db, store, tx } = fakeDb({ 'users/u1': owned });
+    await commitPlayState(tx as never, refsFor(db, 'u1', 'tok-n'), expired, playTokenHash('tok-n'),
+      NOW.getTime(), NOW, 'tok-o');
+    expect(store.get('users/u1')).toBe(owned);
+    expect(store.get('users/u1').playPurchaseToken).toBe('tok-o');
+  });
+
   it('olderFetch_isIgnored', async () => {
     const billingPath = `users/u1/billingTransactions/play_${playTokenHash('tok')}`;
     const { db, store, tx } = fakeDb({
       [billingPath]: { playLastFetchedAt: 2000, appliedStatus: 'active' },
     });
     const result = await commitPlayState(tx as never, refsFor(db, 'u1', 'tok'), expired, playTokenHash('tok'), 1000, NOW);
-    expect(result).toEqual({ applied: false });
+    expect(result).toEqual({ applied: false, userDocWritten: false });
     expect(tx.set).not.toHaveBeenCalled();
     expect(store.get(billingPath)).toEqual({ playLastFetchedAt: 2000, appliedStatus: 'active' });
   });
@@ -416,6 +439,56 @@ describe('playRtdnHandler', () => {
       .rejects.toThrow('503');
   });
 
+  it('rtdn_cancelledPendingUpgrade_keepsOwnedGrant', async () => {
+    const owned = ownedUser('tok-o', NOW.getTime() + 20 * DAY);
+    const { db, store } = fakeDb({
+      'users/u1': owned,
+      [`playSubscriptions/${playTokenHash('tok-n')}`]: { uid: 'u1' },
+    });
+    const api = fakeApi(subFor('u1', {
+      subscriptionState: 'SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED',
+      linkedPurchaseToken: 'tok-o',
+      lineItems: [{ productId: ATELIER_MONTHLY, expiryTime: iso(NOW.getTime() + 30 * DAY) }],
+    }));
+    await playRtdnHandler(msg('tok-n', 3), deps(db, api));
+    expect(store.get('users/u1')).toBe(owned);
+  });
+
+  it('rtdn_refusedTestPurchase_linkedToOwned_keepsOwnedGrant', async () => {
+    delete process.env.PLAY_ALLOW_TEST_PURCHASES;
+    const owned = ownedUser('tok-o', NOW.getTime() + 20 * DAY);
+    const { db, store } = fakeDb({
+      'users/u1': owned,
+      [`playSubscriptions/${playTokenHash('tok-n')}`]: { uid: 'u1' },
+    });
+    const api = fakeApi(subFor('u1', {
+      testPurchase: {},
+      linkedPurchaseToken: 'tok-o',
+      lineItems: [{ productId: ATELIER_MONTHLY, expiryTime: iso(NOW.getTime() + 30 * DAY) }],
+    }));
+    await playRtdnHandler(msg('tok-n'), deps(db, api));
+    expect(store.get('users/u1')).toBe(owned);
+  });
+
+  it.each([400, 404, 410])('rtdn_permanentApiError_%s_resolvesWithoutWrite', async (status) => {
+    const { db, store } = fakeDb({ [`playSubscriptions/${playTokenHash('tok')}`]: { uid: 'u1' } });
+    const err = Object.assign(new Error(`Request failed with status code ${status}`), { status });
+    await expect(playRtdnHandler(msg('tok'), deps(db, fakeApi(err)))).resolves.toBeUndefined();
+    expect(store.has('users/u1')).toBe(false);
+  });
+
+  it('rtdn_permanentApiError_viaResponseStatus_resolves', async () => {
+    const { db } = fakeDb({ [`playSubscriptions/${playTokenHash('tok')}`]: { uid: 'u1' } });
+    const err = Object.assign(new Error('gone'), { response: { status: 410 } });
+    await expect(playRtdnHandler(msg('tok'), deps(db, fakeApi(err)))).resolves.toBeUndefined();
+  });
+
+  it.each([429, 500, 503])('rtdn_transientApiError_%s_throws', async (status) => {
+    const { db } = fakeDb({ [`playSubscriptions/${playTokenHash('tok')}`]: { uid: 'u1' } });
+    const err = Object.assign(new Error(`status ${status}`), { status });
+    await expect(playRtdnHandler(msg('tok'), deps(db, fakeApi(err)))).rejects.toThrow(`status ${status}`);
+  });
+
   it('rtdn_testPurchase_flagOff_healsToFree', async () => {
     delete process.env.PLAY_ALLOW_TEST_PURCHASES;
     const { db, store } = fakeDb({
@@ -433,14 +506,20 @@ describe('reconcilePlaySubscriptionsHandler', () => {
     subscriptionEndsAt: ts(NOW.getTime() + DAY), playPurchaseToken: token, playPurchaseTokenHash: playTokenHash(token),
     ...extra,
   });
+  const index = (uid: string, token: string, appliedStatus: string) => ({
+    [`playSubscriptions/${playTokenHash(token)}`]: { uid, purchaseToken: token, appliedStatus },
+  });
 
-  it('reconcile_onlyActivePlayUsers', async () => {
+  it('reconcile_iteratesLivePlayRecords', async () => {
     const { db, store } = fakeDb({
       'users/u1': user('tok-1'),
       'users/u2': user('tok-2'),
       'users/u3': user('tok-3'),
-      'users/apple': { subscriptionSource: 'apple', subscriptionStatus: 'active', subscriptionTier: 'pro' },
-      'users/lapsed': user('tok-4', { subscriptionStatus: 'expired' }),
+      'users/u4': user('tok-4', { subscriptionStatus: 'expired' }),
+      ...index('u1', 'tok-1', 'active'),
+      ...index('u2', 'tok-2', 'active'),
+      ...index('u3', 'tok-3', 'pending'),
+      ...index('u4', 'tok-4', 'expired'),
     });
     const getSubscription = jest.fn(async (token: string) => {
       if (token === 'tok-1') throw new Error('boom');
@@ -455,15 +534,64 @@ describe('reconcilePlaySubscriptionsHandler', () => {
     const api = fakeApi(subFor('x'), { getSubscription });
     await reconcilePlaySubscriptionsHandler(deps(db, api));
 
+    // Only live records (active / pending); one failing token does not stop the loop.
     expect(getSubscription.mock.calls.map((c) => c[0]).sort()).toEqual(['tok-1', 'tok-2', 'tok-3']);
-    expect(db.collection).toHaveBeenCalledWith('users');
+    expect(db.collection).toHaveBeenCalledWith('playSubscriptions');
     expect(store.get('users/u1').subscriptionTier).toBe('pro');
     expect(store.get('users/u2')).toMatchObject({ subscriptionTier: 'free', subscriptionStatus: 'expired' });
     expect(store.get('users/u3')).toMatchObject({ subscriptionTier: 'pro', subscriptionStatus: 'active' });
+    expect(store.get(`playSubscriptions/${playTokenHash('tok-2')}`).appliedStatus).toBe('expired');
+  });
+
+  it('reconcile_appliesPlayOnceBlockingPaystackLapses', async () => {
+    // Paystack Pro active -> Play Atelier verify is blocked (saved, not applied).
+    const { db, store } = fakeDb({
+      'users/u1': {
+        subscriptionSource: 'paystack', subscriptionStatus: 'active', subscriptionTier: 'pro',
+        subscriptionEndsAt: ts(NOW.getTime() + DAY),
+      },
+    });
+    const sub = subFor('u1', {
+      acknowledgementState: 'ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED',
+      lineItems: [{ productId: ATELIER_MONTHLY, expiryTime: iso(NOW.getTime() + 30 * DAY) }],
+    });
+    const api = fakeApi(sub);
+    const verified = await verifyPlayPurchaseHandler({ purchaseToken: 'tok-play' }, authCtx('u1'), deps(db, api));
+    expect(verified.blocked).toBe(true);
+    expect(store.get('users/u1').subscriptionSource).toBe('paystack');
+
+    // Two days later the Paystack period has ended; the nightly reconcile applies Play.
+    const later = new Date(NOW.getTime() + 2 * DAY);
+    await reconcilePlaySubscriptionsHandler({ db: db as never, api, now: () => later });
+    expect(store.get('users/u1')).toMatchObject({
+      subscriptionSource: 'play', subscriptionTier: 'atelier', subscriptionStatus: 'active',
+      playPurchaseToken: 'tok-play',
+    });
+  });
+
+  it('reconcile_appliesPlayOnceLaunchGrantIsGone', async () => {
+    // Launch grant (active, no end date) blocks; once it is gone Play applies.
+    const { db, store } = fakeDb({
+      'users/u1': { subscriptionStatus: 'active', subscriptionTier: 'atelier', grantSource: 'launch_free' },
+    });
+    const api = fakeApi(subFor('u1', { acknowledgementState: 'ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED' }));
+    const verified = await verifyPlayPurchaseHandler({ purchaseToken: 'tok-play' }, authCtx('u1'), deps(db, api));
+    expect(verified.blocked).toBe(true);
+
+    store.set('users/u1', { subscriptionStatus: 'expired', subscriptionTier: 'free', grantSource: 'launch_free' });
+    await reconcilePlaySubscriptionsHandler(deps(db, api));
+    expect(store.get('users/u1')).toMatchObject({ subscriptionSource: 'play', subscriptionTier: 'pro' });
+  });
+
+  it('reconcile_skipsDeletedUser', async () => {
+    const { db, store } = fakeDb({ ...index('gone', 'tok-1', 'active') });
+    const api = fakeApi(subFor('gone'));
+    await reconcilePlaySubscriptionsHandler(deps(db, api));
+    expect(store.has('users/gone')).toBe(false);
   });
 
   it('reconcile_acknowledgesPending', async () => {
-    const { db } = fakeDb({ 'users/u1': user('tok') });
+    const { db } = fakeDb({ 'users/u1': user('tok'), ...index('u1', 'tok', 'active') });
     const api = fakeApi(subFor('u1'));
     await reconcilePlaySubscriptionsHandler(deps(db, api));
     expect(api.acknowledge).toHaveBeenCalledWith(PRO_MONTHLY, 'tok');

@@ -30,6 +30,8 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.datetime.Instant
+import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.upgrade_play_blocked_active_plan
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -326,6 +328,41 @@ class UpgradeViewModelTest {
         assertEquals("NGN 2,000", vm.state.value.paystackPrices.getValue(SubscriptionTier.PRO).monthly)
         assertEquals(CheckoutProvider.PLAY, vm.state.value.checkoutProvider)
         assertFalse(vm.state.value.showBillingCurrencyNote)
+    }
+
+    @Test
+    fun startCheckout_deferred_emitsPlayBlockedSnackbar() = runTest {
+        payments.result = Result.Success(CheckoutOutcome.Deferred)
+        val vm = newVm(country = Country.GH, playBillingEnabled = true)
+        val eventDeferred = async { vm.events.first() }
+
+        vm.onAction(UpgradeAction.StartCheckout)
+        runCurrent()
+
+        val event = eventDeferred.await()
+        assertIs<UpgradeEvent.ShowSnackbar>(event)
+        assertEquals(
+            Res.string.upgrade_play_blocked_active_plan,
+            assertIs<UiText.StringResourceText>(event.message).id,
+        )
+        assertFalse(vm.state.value.isStartingCheckout)
+    }
+
+    @Test
+    fun restore_deferred_emitsPlayBlockedSnackbar() = runTest {
+        payments.restoreResult = Result.Success(CheckoutOutcome.Deferred)
+        val vm = newVm(country = Country.GH, playBillingEnabled = true)
+        val eventDeferred = async { vm.events.first() }
+
+        vm.onAction(UpgradeAction.RestorePurchases)
+        runCurrent()
+
+        val event = eventDeferred.await()
+        assertIs<UpgradeEvent.ShowSnackbar>(event)
+        assertEquals(
+            Res.string.upgrade_play_blocked_active_plan,
+            assertIs<UiText.StringResourceText>(event.message).id,
+        )
     }
 
     @Test

@@ -32,6 +32,13 @@ data class PlayPurchase(
     val purchaseToken: String,
     val state: PlayPurchaseState,
     val isAcknowledged: Boolean,
+    /**
+     * The obfuscatedAccountId set at purchase (sha256Hex(uid) of the StitchPad
+     * account that bought it). Several StitchPad accounts can share one Google
+     * account on a device; only purchases whose id matches the signed-in user
+     * are theirs to replace, restore or verify. Null when Play has none.
+     */
+    val obfuscatedAccountId: String?,
 )
 
 enum class PlayPurchaseState { PURCHASED, PENDING }

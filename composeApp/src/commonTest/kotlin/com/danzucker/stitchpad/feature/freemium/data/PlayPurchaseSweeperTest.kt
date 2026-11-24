@@ -44,6 +44,7 @@ class PlayPurchaseSweeperTest {
         purchaseToken = token,
         state = PlayPurchaseState.PURCHASED,
         isAcknowledged = acknowledged,
+        obfuscatedAccountId = sha256Hex("uid-1"),
     )
 
     @Test

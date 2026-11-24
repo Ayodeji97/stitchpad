@@ -41,6 +41,16 @@ Test purchases are refused unless `PLAY_ALLOW_TEST_PURCHASES=true` is set on the
 | 8 | Switch workshop country to NG | Paystack path unchanged ("Pay with Paystack", NGN prices, browser checkout) | |
 | 9 | `PLAY_ALLOW_TEST_PURCHASES` unset, license-test purchase | Refused (`test_purchase_not_allowed`), error snackbar, no grant | |
 | 10 | iOS (any country) | Apple path unchanged | |
+| 11 | Account with an active Paystack or launch-grant plan buys on Play | Snackbar "Your Google Play plan is saved. It starts when your current plan ends."; user doc unchanged; `playSubscriptions/{hash}.appliedStatus == 'active'`. After that plan lapses, the next `reconcilePlaySubscriptions` run applies Play | |
+| 12 | Two StitchPad accounts on one Google account: account A has a Play sub, sign in as B, open Upgrade and Restore | B neither restores nor replaces A's subscription | |
+
+## 4. After the test window (mandatory)
+
+| # | Step | Done |
+|---|------|------|
+| 1 | Unset `PLAY_ALLOW_TEST_PURCHASES` on the production functions and redeploy the three Play functions so the change takes effect. | |
+| 2 | Run `reconcilePlaySubscriptions` once by hand (Cloud Scheduler → "Force run", or wait for 02:45 Lagos). | |
+| 3 | Confirm every license-test grant is healed: each tester's `users/{uid}` reads `subscriptionTier:'free'`, `subscriptionStatus:'expired'`, and their `playSubscriptions/{hash}.appliedStatus` is `'expired'`. Check the function logs for "play reconcile failed" lines. | |
 
 ## Open decisions
 

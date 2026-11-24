@@ -1348,6 +1348,7 @@
     <string name="upgrade_coming_soon">Bientôt</string>
     <string name="upgrade_terms">Accès prépayé via Paystack. Pas de renouvellement automatique : renouvelez à la fin de votre période.</string>
     <string name="upgrade_terms_apple">Abonnement renouvelé automatiquement, facturé via votre identifiant Apple. Résiliable à tout moment dans les Réglages de l'appareil.</string>
+    <string name="upgrade_play_blocked_active_plan">Votre abonnement Google Play est enregistré. Il démarrera à la fin de votre offre actuelle.</string>
     <string name="upgrade_terms_play">Abonnement renouvelé automatiquement, facturé via Google Play. Résiliable à tout moment dans le Play Store, rubrique Paiements et abonnements.</string>
     <string name="upgrade_purchase_pending">Votre achat est en attente de validation. Votre offre sera débloquée dès sa confirmation.</string>
     <string name="upgrade_price_loading">Chargement du prix…</string>

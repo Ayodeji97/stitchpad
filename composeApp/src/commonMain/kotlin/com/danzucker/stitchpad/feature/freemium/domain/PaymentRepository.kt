@@ -48,4 +48,10 @@ sealed interface CheckoutOutcome {
 
     /** Apple IAP: the user dismissed the native purchase sheet — no error, no grant. */
     data object Cancelled : CheckoutOutcome
+
+    /**
+     * Google Play: the purchase is valid and saved, but another plan (Paystack,
+     * launch grant) is still active. It starts when that plan ends.
+     */
+    data object Deferred : CheckoutOutcome
 }

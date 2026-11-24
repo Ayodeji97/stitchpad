@@ -34,7 +34,7 @@ internal class PlayBillingPaymentRepository(
         val uid = authRepository.getCurrentUser()?.id ?: return Result.Error(PaymentError.UNAUTHENTICATED)
 
         val owned = when (val res = client.queryActivePurchases()) {
-            is Result.Success -> res.data.filter { it.state == PlayPurchaseState.PURCHASED && it.isOurs() }
+            is Result.Success -> res.data.filter { it.state == PlayPurchaseState.PURCHASED && it.isOursFor(uid) }
             // Without the owned list we cannot pass the old token, and buying
             // anyway could stack a second subscription (double charge).
             is Result.Error -> return Result.Error(res.error.toPaymentError())
@@ -48,7 +48,7 @@ internal class PlayBillingPaymentRepository(
             is Result.Success -> onPurchased(res.data)
             is Result.Error -> when (res.error) {
                 PlayBillingError.CANCELLED -> Result.Success(CheckoutOutcome.Cancelled)
-                PlayBillingError.ALREADY_OWNED -> reverifyOwned(productId)
+                PlayBillingError.ALREADY_OWNED -> reverifyOwned(productId, uid)
                 else -> Result.Error(res.error.toPaymentError())
             }
         }
@@ -60,21 +60,24 @@ internal class PlayBillingPaymentRepository(
             is Result.Error -> Result.Error(res.error.toPaymentError())
         }
 
+    @Suppress("ReturnCount") // signed out, query failure
     override suspend fun restorePurchases(): Result<CheckoutOutcome, PaymentError> {
+        val uid = authRepository.getCurrentUser()?.id ?: return Result.Error(PaymentError.UNAUTHENTICATED)
         val purchases = when (val res = client.queryActivePurchases()) {
-            is Result.Success -> res.data.filter { it.state == PlayPurchaseState.PURCHASED && it.isOurs() }
+            is Result.Success -> res.data.filter { it.state == PlayPurchaseState.PURCHASED && it.isOursFor(uid) }
             is Result.Error -> return Result.Error(res.error.toPaymentError())
         }
-        var grantedAny = false
+        val statuses = mutableListOf<PlayVerifyStatus>()
         var lastError: PaymentError? = null
         for (purchase in purchases) {
             when (val verified = verifier.verify(purchase.purchaseToken)) {
-                is Result.Success -> if (verified.data == PlayVerifyStatus.ACTIVE) grantedAny = true
+                is Result.Success -> statuses += verified.data
                 is Result.Error -> lastError = verified.error
             }
         }
         return when {
-            grantedAny -> Result.Success(CheckoutOutcome.PurchasedAndGranted)
+            PlayVerifyStatus.ACTIVE in statuses -> Result.Success(CheckoutOutcome.PurchasedAndGranted)
+            PlayVerifyStatus.BLOCKED in statuses -> Result.Success(CheckoutOutcome.Deferred)
             lastError != null -> Result.Error(lastError)
             else -> Result.Success(CheckoutOutcome.Cancelled)
         }
@@ -87,9 +90,10 @@ internal class PlayBillingPaymentRepository(
      * also stops Google's 3-day auto-refund. Used by PlayPurchaseSweeper.
      */
     suspend fun verifyUnacknowledged() {
+        val uid = authRepository.getCurrentUser()?.id ?: return
         val purchases = (client.queryActivePurchases() as? Result.Success)?.data ?: return
         purchases
-            .filter { it.state == PlayPurchaseState.PURCHASED && !it.isAcknowledged && it.isOurs() }
+            .filter { it.state == PlayPurchaseState.PURCHASED && !it.isAcknowledged && it.isOursFor(uid) }
             .forEach { purchase ->
                 val result = verifier.verify(purchase.purchaseToken)
                 if (result is Result.Error) {
@@ -109,9 +113,9 @@ internal class PlayBillingPaymentRepository(
         return verifyToOutcome(purchase.purchaseToken)
     }
 
-    private suspend fun reverifyOwned(productId: String): Result<CheckoutOutcome, PaymentError> {
+    private suspend fun reverifyOwned(productId: String, uid: String): Result<CheckoutOutcome, PaymentError> {
         val owned = (client.queryActivePurchases() as? Result.Success)?.data
-            ?.firstOrNull { productId in it.productIds && it.state == PlayPurchaseState.PURCHASED }
+            ?.firstOrNull { productId in it.productIds && it.state == PlayPurchaseState.PURCHASED && it.isOursFor(uid) }
             ?: return Result.Error(PaymentError.UNKNOWN)
         return verifyToOutcome(owned.purchaseToken)
     }
@@ -120,13 +124,16 @@ internal class PlayBillingPaymentRepository(
         when (val verified = verifier.verify(purchaseToken)) {
             is Result.Success -> when (verified.data) {
                 PlayVerifyStatus.ACTIVE -> Result.Success(CheckoutOutcome.PurchasedAndGranted)
+                PlayVerifyStatus.BLOCKED -> Result.Success(CheckoutOutcome.Deferred)
                 PlayVerifyStatus.PENDING -> Result.Success(CheckoutOutcome.Pending)
                 PlayVerifyStatus.EXPIRED -> Result.Error(PaymentError.UNKNOWN)
             }
             is Result.Error -> Result.Error(verified.error)
         }
 
-    private fun PlayPurchase.isOurs(): Boolean = productIds.any { it in StoreProductIds.ALL }
+    /** One of our subscription products, bought by THIS StitchPad account (not another on the device). */
+    private fun PlayPurchase.isOursFor(uid: String): Boolean =
+        productIds.any { it in StoreProductIds.ALL } && obfuscatedAccountId == sha256Hex(uid)
 
     private fun PlayBillingError.toPaymentError(): PaymentError = when (this) {
         PlayBillingError.NETWORK -> PaymentError.NETWORK

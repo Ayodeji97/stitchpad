@@ -39,8 +39,11 @@ export function shouldWriteUserDoc(args: {
   // overwrite subscriptionSource and the store id, so a later EXPIRED/REFUND
   // would then satisfy ownsCurrentEntitlement and revoke access that still
   // belongs to the foreign (e.g. Paystack) sub. The store sub stays recorded in
-  // its billing/index docs; the daily reconcile re-applies it once the foreign
-  // entitlement lapses.
+  // its billing/index docs. For Google Play, the nightly reconcile iterates the
+  // playSubscriptions index and applies it once the foreign entitlement lapses.
+  // Apple has the same gap today (its reconcile only scans users the Apple sub
+  // already owns, so a blocked Apple sub waits for its next App Store
+  // notification); Apple behavior is intentionally unchanged here.
   const foreignActive = !ownsCurrentEntitlement
     && current.subscriptionStatus === 'active'
     && tierRank(current.subscriptionTier) > 0

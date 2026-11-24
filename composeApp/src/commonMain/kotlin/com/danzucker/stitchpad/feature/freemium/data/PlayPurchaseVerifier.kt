@@ -11,8 +11,18 @@ import kotlinx.serialization.Serializable
 
 private const val TAG = "PlayVerifier"
 
-/** Server verdict for one Play purchase token (functions/src/billing/playBilling.ts). */
-enum class PlayVerifyStatus { ACTIVE, PENDING, EXPIRED }
+/**
+ * Server verdict for one Play purchase token (functions/src/billing/playBilling.ts).
+ * BLOCKED: valid and saved, but another active entitlement still owns the plan.
+ */
+enum class PlayVerifyStatus { ACTIVE, BLOCKED, PENDING, EXPIRED }
+
+/** Maps the verifyPlayPurchase response fields to a [PlayVerifyStatus]. */
+internal fun playVerifyStatus(status: String, blocked: Boolean): PlayVerifyStatus = when (status) {
+    "active" -> if (blocked) PlayVerifyStatus.BLOCKED else PlayVerifyStatus.ACTIVE
+    "pending" -> PlayVerifyStatus.PENDING
+    else -> PlayVerifyStatus.EXPIRED
+}
 
 /** Sends a Play purchase token to the `verifyPlayPurchase` callable. A seam so the repository is testable. */
 fun interface PlayPurchaseVerifier {
@@ -29,13 +39,7 @@ internal class CloudFunctionsPlayPurchaseVerifier(
                 .httpsCallable("verifyPlayPurchase")
                 .invoke(VerifyPlayPurchaseRequestDto(purchaseToken = purchaseToken))
                 .data<VerifyPlayPurchaseResponseDto>()
-            Result.Success(
-                when (response.status) {
-                    "active" -> PlayVerifyStatus.ACTIVE
-                    "pending" -> PlayVerifyStatus.PENDING
-                    else -> PlayVerifyStatus.EXPIRED
-                },
-            )
+            Result.Success(playVerifyStatus(response.status, response.blocked))
         } catch (e: FirebaseFunctionsException) {
             AppLogger.e(tag = TAG, throwable = e) { "verifyPlayPurchase failed: code=${e.code} message=${e.message}" }
             val kind = when (e.code) {
@@ -82,4 +86,5 @@ private data class VerifyPlayPurchaseResponseDto(
     val tier: String = "free",
     val status: String = "expired",
     val endsAt: Long? = null,
+    val blocked: Boolean = false,
 )

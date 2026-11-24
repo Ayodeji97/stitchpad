@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.upgrade_play_blocked_active_plan
 import stitchpad.composeapp.generated.resources.upgrade_purchase_pending
 
 class UpgradeViewModel(
@@ -193,11 +194,15 @@ class UpgradeViewModel(
                 // A restored grant flips the tier → the entitlements collector
                 // fires UpgradeDetected and pops. Nothing restored / cancelled is a
                 // silent no-op; a real failure shows a snackbar.
-                is Result.Success -> Unit
+                is Result.Success ->
+                    if (result.data == CheckoutOutcome.Deferred) _events.send(playBlockedSnackbar())
                 is Result.Error -> _events.send(UpgradeEvent.ShowSnackbar(result.error.toUiText()))
             }
         }
     }
+
+    private fun playBlockedSnackbar(): UpgradeEvent =
+        UpgradeEvent.ShowSnackbar(UiText.StringResourceText(Res.string.upgrade_play_blocked_active_plan))
 
     private fun startCheckout() {
         val s = _state.value
@@ -229,6 +234,8 @@ class UpgradeViewModel(
                                     UiText.StringResourceText(Res.string.upgrade_purchase_pending),
                                 ),
                             )
+                        // Google Play: saved, but another plan is still active.
+                        CheckoutOutcome.Deferred -> _events.send(playBlockedSnackbar())
                         // User dismissed the native sheet — no charge, no feedback.
                         CheckoutOutcome.Cancelled -> Unit
                     }

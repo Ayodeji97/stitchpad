@@ -1635,6 +1635,7 @@
     <string name="upgrade_coming_soon">Coming soon</string>
     <string name="upgrade_terms">Prepaid access via Paystack. No automatic renewal; renew when your period ends.</string>
     <string name="upgrade_terms_apple">Auto-renewing subscription billed through your Apple ID. Cancel anytime in your device Settings.</string>
+    <string name="upgrade_play_blocked_active_plan">Your Google Play plan is saved. It starts when your current plan ends.</string>
     <string name="upgrade_terms_play">Auto-renewing subscription billed through Google Play. Cancel anytime in the Play Store under Payments and subscriptions.</string>
     <string name="upgrade_purchase_pending">Your purchase is pending approval. We&apos;ll unlock your plan once it&apos;s confirmed.</string>
     <string name="upgrade_price_loading">Loading price…</string>

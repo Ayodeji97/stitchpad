@@ -30,11 +30,20 @@ class PlayBillingPaymentRepositoryTest {
     }
     private val repo = PlayBillingPaymentRepository(client = client, verifier = verifier, authRepository = auth)
 
-    private fun purchased(productId: String, token: String, acknowledged: Boolean = false) = PlayPurchase(
+    private val myAccountId = sha256Hex("uid-1")
+    private val otherAccountId = sha256Hex("someone-else")
+
+    private fun purchased(
+        productId: String,
+        token: String,
+        acknowledged: Boolean = false,
+        accountId: String? = myAccountId,
+    ) = PlayPurchase(
         productIds = listOf(productId),
         purchaseToken = token,
         state = PlayPurchaseState.PURCHASED,
         isAcknowledged = acknowledged,
+        obfuscatedAccountId = accountId,
     )
 
     @Test
@@ -248,6 +257,82 @@ class PlayBillingPaymentRepositoryTest {
         )
         repo.verifyUnacknowledged()
         assertEquals(listOf("tok-new"), verifier.verifiedTokens)
+    }
+
+    @Test
+    fun otherAccountsPurchase_isNotReplaced() = runTest {
+        // Another StitchPad account bought Pro on this device's Google account.
+        client.activePurchases = Result.Success(
+            listOf(purchased(StoreProductIds.PRO_MONTHLY, "tok-theirs", true, accountId = otherAccountId)),
+        )
+        client.purchaseResult = Result.Success(purchased(StoreProductIds.ATELIER_MONTHLY, "tok-mine"))
+
+        repo.startCheckout(SubscriptionTier.ATELIER, BillingCadence.MONTHLY)
+
+        assertEquals(null, client.purchaseCalls.single().oldPurchaseToken)
+        assertEquals(listOf("tok-mine"), verifier.verifiedTokens)
+    }
+
+    @Test
+    fun otherAccountsSamePlan_isNotVerifiedAsMine() = runTest {
+        client.activePurchases = Result.Success(
+            listOf(purchased(StoreProductIds.PRO_MONTHLY, "tok-theirs", true, accountId = otherAccountId)),
+        )
+        client.purchaseResult = Result.Error(PlayBillingError.ALREADY_OWNED)
+
+        val result = repo.startCheckout(SubscriptionTier.PRO, BillingCadence.MONTHLY)
+
+        assertEquals(Result.Error(PaymentError.UNKNOWN), result)
+        assertTrue(verifier.verifiedTokens.isEmpty())
+    }
+
+    @Test
+    fun restore_ignoresOtherAccountsPurchases() = runTest {
+        client.activePurchases = Result.Success(
+            listOf(
+                purchased(StoreProductIds.PRO_MONTHLY, "tok-theirs", true, accountId = otherAccountId),
+                purchased(StoreProductIds.ATELIER_MONTHLY, "tok-noaccount", true, accountId = null),
+            ),
+        )
+        assertEquals(Result.Success(CheckoutOutcome.Cancelled), repo.restorePurchases())
+        assertTrue(verifier.verifiedTokens.isEmpty())
+    }
+
+    @Test
+    fun verifyUnacknowledged_ignoresOtherAccountsPurchases() = runTest {
+        client.activePurchases = Result.Success(
+            listOf(
+                purchased(StoreProductIds.PRO_MONTHLY, "tok-theirs", accountId = otherAccountId),
+                purchased(StoreProductIds.PRO_ANNUAL, "tok-mine"),
+            ),
+        )
+        repo.verifyUnacknowledged()
+        assertEquals(listOf("tok-mine"), verifier.verifiedTokens)
+    }
+
+    @Test
+    fun blockedByActivePlan_returnsDeferred() = runTest {
+        client.purchaseResult = Result.Success(purchased(StoreProductIds.PRO_MONTHLY, "tok-1"))
+        verifier.result = Result.Success(PlayVerifyStatus.BLOCKED)
+        assertEquals(
+            Result.Success(CheckoutOutcome.Deferred),
+            repo.startCheckout(SubscriptionTier.PRO, BillingCadence.MONTHLY),
+        )
+    }
+
+    @Test
+    fun restore_onlyBlocked_returnsDeferred() = runTest {
+        client.activePurchases = Result.Success(listOf(purchased(StoreProductIds.PRO_MONTHLY, "tok-a", true)))
+        verifier.result = Result.Success(PlayVerifyStatus.BLOCKED)
+        assertEquals(Result.Success(CheckoutOutcome.Deferred), repo.restorePurchases())
+    }
+
+    @Test
+    fun verifyResponse_mapsBlockedFlag() {
+        assertEquals(PlayVerifyStatus.ACTIVE, playVerifyStatus(status = "active", blocked = false))
+        assertEquals(PlayVerifyStatus.BLOCKED, playVerifyStatus(status = "active", blocked = true))
+        assertEquals(PlayVerifyStatus.PENDING, playVerifyStatus(status = "pending", blocked = false))
+        assertEquals(PlayVerifyStatus.EXPIRED, playVerifyStatus(status = "expired", blocked = false))
     }
 
     @Test
