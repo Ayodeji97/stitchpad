@@ -54,8 +54,8 @@ describe('cleanupHandler', () => {
     const path = J('u1', 'old');
     const s = fakeStore({ [path]: { status: 'open', createdAt: ts(NOW.getTime() - 8 * DAY), pageCount: 2 } }, { [path]: pagesOf('u1', 'old') });
     const deleted: string[] = [];
-    await cleanupHandler({ db: s.db, deleteObject: async (p) => { deleted.push(p); }, now: () => NOW });
-    expect(deleted.sort()).toEqual([`${path}/p1.jpg`, `${path}/p2.jpg`]);
+    await cleanupHandler({ db: s.db, deletePrefix: async (p) => { deleted.push(p); }, now: () => NOW });
+    expect(deleted).toEqual([`${path}/`]);
     expect(s.updates[path].imagesDeletedAt).toBeDefined();
     expect(s.deletedTrees).toEqual([]);
     expect(s.jobStore.has(path)).toBe(true);
@@ -65,7 +65,7 @@ describe('cleanupHandler', () => {
     const path = J('u1', 'fresh');
     const s = fakeStore({ [path]: { status: 'open', createdAt: ts(NOW.getTime() - 2 * DAY), pageCount: 1 } }, { [path]: pagesOf('u1', 'fresh') });
     const deleted: string[] = [];
-    await cleanupHandler({ db: s.db, deleteObject: async (p) => { deleted.push(p); }, now: () => NOW });
+    await cleanupHandler({ db: s.db, deletePrefix: async (p) => { deleted.push(p); }, now: () => NOW });
     expect(deleted).toEqual([]);
     expect(s.updates[path]).toBeUndefined();
   });
@@ -81,8 +81,8 @@ describe('cleanupHandler', () => {
       { [a]: pagesOf('u1', 'saved'), [b]: pagesOf('u1', 'abandoned') },
     );
     const deleted: string[] = [];
-    await cleanupHandler({ db: s.db, deleteObject: async (p) => { deleted.push(p); }, now: () => NOW });
-    expect(deleted).toHaveLength(4);
+    await cleanupHandler({ db: s.db, deletePrefix: async (p) => { deleted.push(p); }, now: () => NOW });
+    expect(deleted.sort()).toEqual([`${a}/`, `${b}/`].sort());
     expect(s.updates[a].imagesDeletedAt).toBeDefined();
     expect(s.updates[b].imagesDeletedAt).toBeDefined();
   });
@@ -91,14 +91,17 @@ describe('cleanupHandler', () => {
     const path = J('u1', 'done');
     const s = fakeStore({ [path]: { status: 'saved', createdAt: ts(NOW.getTime() - 3 * DAY), pageCount: 2, imagesDeletedAt: ts(1) } }, { [path]: pagesOf('u1', 'done') });
     const deleted: string[] = [];
-    await cleanupHandler({ db: s.db, deleteObject: async (p) => { deleted.push(p); }, now: () => NOW });
+    await cleanupHandler({ db: s.db, deletePrefix: async (p) => { deleted.push(p); }, now: () => NOW });
     expect(deleted).toEqual([]);
   });
 
   it('cleanup_deletesJobTreeAfter30Days covering pages and cards', async () => {
     const path = J('u1', 'ancient');
     const s = fakeStore({ [path]: { status: 'saved', createdAt: ts(NOW.getTime() - 31 * DAY), pageCount: 2, imagesDeletedAt: ts(1) } });
-    await cleanupHandler({ db: s.db, deleteObject: async () => undefined, now: () => NOW });
+    const deleted: string[] = [];
+    await cleanupHandler({ db: s.db, deletePrefix: async (p) => { deleted.push(p); }, now: () => NOW });
+    // imagesDeletedAt was already set, yet a late upload must still be swept.
+    expect(deleted).toEqual([`${path}/`]);
     expect(s.deletedTrees).toEqual([path]);
   });
 
@@ -106,8 +109,8 @@ describe('cleanupHandler', () => {
     const path = J('u1', 'ancient2');
     const s = fakeStore({ [path]: { status: 'open', createdAt: ts(NOW.getTime() - 31 * DAY), pageCount: 2 } }, { [path]: pagesOf('u1', 'ancient2') });
     const deleted: string[] = [];
-    await cleanupHandler({ db: s.db, deleteObject: async (p) => { deleted.push(p); }, now: () => NOW });
-    expect(deleted).toHaveLength(2);
+    await cleanupHandler({ db: s.db, deletePrefix: async (p) => { deleted.push(p); }, now: () => NOW });
+    expect(deleted).toEqual([`${path}/`]);
     expect(s.deletedTrees).toEqual([path]);
   });
 
@@ -124,14 +127,22 @@ describe('cleanupHandler', () => {
     const deleted: string[] = [];
     await cleanupHandler({
       db: s.db,
-      deleteObject: async (p) => {
+      deletePrefix: async (p) => {
         if (p.includes('/bad/')) throw new Error('boom');
         deleted.push(p);
       },
       now: () => NOW,
     });
-    expect(deleted).toHaveLength(2);
+    expect(deleted).toEqual([`${good}/`]);
     expect(s.updates[good].imagesDeletedAt).toBeDefined();
     expect(s.updates[bad]).toBeUndefined();
+  });
+
+  it('cleanup_deletesImageWithNoPageDocAt7Days (prefix sweep, no pages subcollection)', async () => {
+    const path = J('u1', 'nopage');
+    const s = fakeStore({ [path]: { status: 'open', createdAt: ts(NOW.getTime() - 8 * DAY), pageCount: 0 } });
+    const deleted: string[] = [];
+    await cleanupHandler({ db: s.db, deletePrefix: async (p) => { deleted.push(p); }, now: () => NOW });
+    expect(deleted).toEqual([`${path}/`]);
   });
 });

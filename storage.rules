@@ -38,27 +38,41 @@ service firebase.storage {
     // owner-only: staff get no read, and the broad owner write is carved out
     // (grants are additive) so the size/type limits in the notebookImports
     // match below cannot be bypassed.
-    function isNotebookObject(name) {
-      return name.matches('users/[^/]+/notebookImports/.*');
+    // `first` is the top-level folder under users/{uid}/. Paths cannot be
+    // pattern-matched in rules, so the tree is split into direct children and
+    // `first/**`, and notebookImports is excluded by comparing `first`.
+    function ownerOrStaffRead(uid, first) {
+      return request.auth != null
+        && (request.auth.uid == uid || (isActiveStaffOf(uid) && first != 'notebookImports'));
+    }
+    function ownerWrite(uid, first) {
+      return request.auth != null && request.auth.uid == uid && first != 'notebookImports';
     }
 
-    match /users/{uid}/{allPaths=**} {
+    match /users/{uid}/{first} {
+      allow read: if ownerOrStaffRead(uid, first);
+      allow write: if ownerWrite(uid, first);
+    }
+    match /users/{uid}/{first}/{allPaths=**} {
       // Owner: full read/write of their own tree. Staff: read-only here (except
-      // notebookImports) — their write grant is the order-media match below.
-      allow read: if request.auth != null
-        && (request.auth.uid == uid || (isActiveStaffOf(uid) && !isNotebookObject(resource.name)));
-      allow create, update: if request.auth != null && request.auth.uid == uid
-        && !isNotebookObject(request.resource.name);
-      allow delete: if request.auth != null && request.auth.uid == uid
-        && !isNotebookObject(resource.name);
+      // notebookImports, owner-only) — their write grant is the order-media match
+      // below. Grants are additive, so the notebookImports carve-out covers owner
+      // write too, otherwise the limits in the match below could be bypassed.
+      allow read: if ownerOrStaffRead(uid, first);
+      allow write: if ownerWrite(uid, first);
     }
 
-    // Notebook scan import: one JPEG per page, written by the owner only.
+    // Notebook scan import: one JPEG per page, written by the owner only while
+    // the job doc exists and is still 'open'. Owner may always read and delete
+    // (the client deletes images when abandoning). Staff get nothing.
     match /users/{uid}/notebookImports/{jobId}/{file} {
       allow read, delete: if request.auth != null && request.auth.uid == uid;
       allow create, update: if request.auth != null && request.auth.uid == uid
+        && file.matches('[^/]+[.]jpg')
         && request.resource.size < 6 * 1024 * 1024
-        && request.resource.contentType == 'image/jpeg';
+        && request.resource.contentType == 'image/jpeg'
+        && firestore.exists(/databases/(default)/documents/users/$(uid)/notebookImports/$(jobId))
+        && firestore.get(/databases/(default)/documents/users/$(uid)/notebookImports/$(jobId)).data.status == 'open';
     }
 
     // Phase 2b: staff add style/fabric photos to orders. Write-scope is the

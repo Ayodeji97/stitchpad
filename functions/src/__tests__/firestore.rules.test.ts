@@ -1706,6 +1706,20 @@ describe('notebookImports (scan import)', () => {
     await assertFails(setDoc(doc(db('alice'), `${JOB}/cards/p2_0`), { name: 'X', status: 'new' }));
     await assertSucceeds(deleteDoc(doc(db('alice'), CARD)));
   });
+  it('a stranger cannot read another user job', async () => {
+    await seed();
+    await assertFails(getDoc(doc(db('mallory'), JOB)));
+  });
+  it('owner cannot set the job status back to open', async () => {
+    await seed();
+    await updateDoc(doc(db('alice'), JOB), { status: 'saved' });
+    await assertFails(updateDoc(doc(db('alice'), JOB), { status: 'open' }));
+  });
+  it('owner cannot delete the job doc or a page doc', async () => {
+    await seed();
+    await assertFails(deleteDoc(doc(db('alice'), JOB)));
+    await assertFails(deleteDoc(doc(db('alice'), `${JOB}/pages/p1`)));
+  });
   it('staff of the workshop cannot read job, pages or cards', async () => {
     await seed();
     await assertFails(getDoc(doc(staffDb('staff1', 'alice'), JOB)));

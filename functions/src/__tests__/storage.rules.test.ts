@@ -84,6 +84,10 @@ it('owner keeps full read/write', async () => {
 describe('notebookImports images', () => {
   const PAGE = `users/${OWNER}/notebookImports/j1/p1.jpg`;
   const owner = () => testEnv.authenticatedContext(OWNER).storage();
+  const seedJob = (status = 'open') => testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), `users/${OWNER}/notebookImports/j1`), { status, pageCount: 0 });
+  });
+  beforeEach(async () => { await seedJob(); });
   const seedPage = () => testEnv.withSecurityRulesDisabled(async (ctx) => {
     await uploadString(ref(ctx.storage(), PAGE), 'x');
   });
@@ -113,5 +117,24 @@ describe('notebookImports images', () => {
     const p = `users/${OWNER}/orders/o1/fabrics/i1.jpg`;
     await testEnv.withSecurityRulesDisabled(async (ctx) => { await uploadString(ref(ctx.storage(), p), 'x'); });
     await assertSucceeds(getBytes(ref(staffStorage(), p)));
+  });
+  it('owner upload to a missing job is denied', async () => {
+    await assertFails(uploadString(ref(owner(), `users/${OWNER}/notebookImports/nojob/p1.jpg`), 'x', 'raw', { contentType: 'image/jpeg' }));
+  });
+  it('owner upload to a saved job is denied', async () => {
+    await seedJob('saved');
+    await assertFails(uploadString(ref(owner(), PAGE), 'x', 'raw', { contentType: 'image/jpeg' }));
+  });
+  it('owner upload of a non-.jpg name is denied', async () => {
+    await assertFails(uploadString(ref(owner(), `users/${OWNER}/notebookImports/j1/x.png`), 'x', 'raw', { contentType: 'image/jpeg' }));
+  });
+  it('owner delete on a saved job is allowed', async () => {
+    await seedPage();
+    await seedJob('saved');
+    await assertSucceeds(deleteObject(ref(owner(), PAGE)));
+  });
+  it('owner delete of a missing non-notebook object is not a rules denial', async () => {
+    await expect(deleteObject(ref(owner(), `users/${OWNER}/orders/none.jpg`)))
+      .rejects.toMatchObject({ code: 'storage/object-not-found' });
   });
 });

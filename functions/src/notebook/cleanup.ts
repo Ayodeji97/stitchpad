@@ -7,19 +7,15 @@ const TREE_TTL_DAYS = 30;
 
 export interface CleanupDeps {
   db: admin.firestore.Firestore;
-  deleteObject(path: string): Promise<void>;
+  deletePrefix(prefix: string): Promise<void>;
   now: () => Date;
 }
 
 type JobSnap = admin.firestore.QueryDocumentSnapshot;
 
-/** Deletes every page image of the job, then stamps imagesDeletedAt. */
+/** Deletes every object under the job's Storage prefix, then stamps imagesDeletedAt. */
 async function deleteImages(job: JobSnap, deps: CleanupDeps): Promise<void> {
-  const pages = await job.ref.collection('pages').get();
-  for (const page of pages.docs) {
-    const storagePath = (page.data() as { storagePath?: string }).storagePath;
-    if (storagePath) await deps.deleteObject(storagePath);
-  }
+  await deps.deletePrefix(`${job.ref.path}/`);
   await job.ref.set(
     { imagesDeletedAt: admin.firestore.Timestamp.fromDate(deps.now()) },
     { merge: true },
@@ -50,8 +46,8 @@ export async function cleanupHandler(deps: CleanupDeps): Promise<void> {
   for (const job of expired.docs) {
     handled.add(job.ref.path);
     try {
-      // Remove any images still in Storage before the page docs that point at them vanish.
-      if (!job.data().imagesDeletedAt) await deleteImages(job, deps);
+      // Always sweep the prefix: an image may have landed after imagesDeletedAt was set.
+      await deps.deletePrefix(`${job.ref.path}/`);
       await deps.db.recursiveDelete(job.ref);
       treesDeleted++;
     } catch (e) {
@@ -84,8 +80,8 @@ export const cleanupNotebookImports = functions
     const bucket = admin.storage().bucket();
     await cleanupHandler({
       db: admin.firestore(),
-      deleteObject: async (path) => {
-        await bucket.file(path).delete({ ignoreNotFound: true });
+      deletePrefix: async (prefix) => {
+        await bucket.deleteFiles({ prefix });
       },
       now: () => new Date(),
     });
