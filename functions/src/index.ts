@@ -74,7 +74,11 @@ export {
   appStoreServerNotifications,
   reconcileAppleSubscriptions,
 } from './billing/appleBilling';
-export { verifyPlayPurchase } from './billing/playBilling';
+export {
+  verifyPlayPurchase,
+  playRealtimeNotifications,
+  reconcilePlaySubscriptions,
+} from './billing/playBilling';
 export {
   initializeGiftCheckout,
   redeemGift,

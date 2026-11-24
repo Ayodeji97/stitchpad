@@ -151,6 +151,35 @@ export const verifyPlayPurchase = functions
     );
   });
 
+// Real-time developer notifications arrive on this Pub/Sub topic (set in Play
+// Console -> Monetization setup). Google publishes as
+// google-play-developer-notifications@system.gserviceaccount.com.
+export const PLAY_RTDN_TOPIC = 'play-billing-rtdn';
+
+export const playRealtimeNotifications = functions
+  .region(REGION)
+  .pubsub.topic(PLAY_RTDN_TOPIC)
+  .onPublish(async (message) => {
+    let payload: unknown = null;
+    try {
+      payload = message.json;
+    } catch {
+      functions.logger.warn('play rtdn: payload is not JSON, ignored');
+      return;
+    }
+    await playRtdnHandler(payload, { db: admin.firestore(), api: createPlayApi(), now: () => new Date() });
+  });
+
+export const reconcilePlaySubscriptions = functions
+  .region(REGION)
+  // 02:45 Africa/Lagos daily, after the Apple reconcile (02:30). Safety net for
+  // dropped RTDNs and for acknowledgements that failed at verify time.
+  .pubsub.schedule('45 2 * * *')
+  .timeZone('Africa/Lagos')
+  .onRun(async () => {
+    await reconcilePlaySubscriptionsHandler({ db: admin.firestore(), api: createPlayApi(), now: () => new Date() });
+  });
+
 // ── Handlers (pure, dependency-injected; unit tested) ─────────────────────
 
 export async function verifyPlayPurchaseHandler(
@@ -309,4 +338,81 @@ export async function commitPlayState(
   tx.set(refs.indexRef, { uid: refs.uid, updatedAt: nowTs }, { merge: true });
 
   return { applied: true };
+}
+
+// Server-initiated re-sync of one token already bound to `uid` (RTDN and
+// reconcile). Unlike the callable, refusals here never throw: a test purchase
+// with the flag off maps to free (heals any wrongly minted grant, like the Apple
+// reconcile) and an account mismatch is logged and skipped. Only a Play API or
+// Firestore failure throws, so Pub/Sub retries.
+async function syncBoundToken(uid: string, purchaseToken: string, deps: PlayDeps): Promise<void> {
+  const fetchedAtMs = deps.now().getTime();
+  const sub = await deps.api.getSubscription(purchaseToken);
+  if (sub.externalAccountIdentifiers?.obfuscatedExternalAccountId !== playAccountId(uid)) {
+    functions.logger.warn('play sync: account mismatch, skipped', { uid });
+    return;
+  }
+  const disallowedTest = !!sub.testPurchase && !testPurchaseGrantsAllowed();
+  const desired = disallowedTest ? { ...EXPIRED_STATE } : desiredStateForPlay(sub, deps.now().getTime());
+  const refs = refsFor(deps.db, uid, purchaseToken);
+  await deps.db.runTransaction(async (tx) => {
+    await commitPlayState(tx, refs, desired, playTokenHash(purchaseToken), fetchedAtMs, deps.now(),
+      sub.linkedPurchaseToken);
+  });
+  await acknowledgeIfNeeded(deps.api, sub, desired, purchaseToken, uid);
+}
+
+export async function playRtdnHandler(messageJson: unknown, deps: PlayDeps): Promise<void> {
+  if (messageJson == null || typeof messageJson !== 'object') {
+    functions.logger.warn('play rtdn: non-object payload ignored');
+    return;
+  }
+  const message = messageJson as {
+    testNotification?: unknown;
+    subscriptionNotification?: { purchaseToken?: unknown; notificationType?: unknown };
+  };
+  if (message.testNotification) {
+    functions.logger.info('play rtdn: test notification received');
+    return;
+  }
+  const purchaseToken = message.subscriptionNotification?.purchaseToken;
+  if (typeof purchaseToken !== 'string' || !purchaseToken) {
+    // Acknowledge to Pub/Sub (no throw) or it would redeliver this forever.
+    functions.logger.warn('play rtdn: no subscription purchase token, ignored');
+    return;
+  }
+  // notificationType is logged only: state always comes from a fresh API read.
+  const notificationType = message.subscriptionNotification?.notificationType;
+  const tokenHash = playTokenHash(purchaseToken);
+  const indexSnap = await deps.db.doc(`playSubscriptions/${tokenHash}`).get();
+  const uid = (indexSnap.data() as { uid?: string } | undefined)?.uid;
+  if (!uid) {
+    // The verify call never reached us (crash, offline). The client sweep or the
+    // next verify binds the token; the uid is not derivable from the payload.
+    functions.logger.info('play rtdn: token not bound to a user yet', { tokenHash, notificationType });
+    return;
+  }
+  functions.logger.info('play rtdn', { uid, notificationType });
+  await syncBoundToken(uid, purchaseToken, deps);
+}
+
+export async function reconcilePlaySubscriptionsHandler(deps: PlayDeps): Promise<void> {
+  const active = await deps.db.collection('users')
+    .where('subscriptionSource', '==', 'play')
+    .where('subscriptionStatus', '==', 'active')
+    .get();
+
+  for (const userDoc of active.docs) {
+    const uid = userDoc.id;
+    const purchaseToken = (userDoc.data() as { playPurchaseToken?: string }).playPurchaseToken;
+    if (!purchaseToken) continue;
+    try {
+      await syncBoundToken(uid, purchaseToken, deps);
+    } catch (error) {
+      functions.logger.warn('play reconcile failed for user', {
+        uid,
+        reason: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
 }

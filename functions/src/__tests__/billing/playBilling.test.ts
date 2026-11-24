@@ -5,7 +5,9 @@ import {
   commitPlayState,
   desiredStateForPlay,
   playAccountId,
+  playRtdnHandler,
   playTokenHash,
+  reconcilePlaySubscriptionsHandler,
   verifyPlayPurchaseHandler,
 } from '../../billing/playBilling';
 
@@ -326,5 +328,144 @@ describe('commitPlayState', () => {
     expect(result).toEqual({ applied: false });
     expect(tx.set).not.toHaveBeenCalled();
     expect(store.get(billingPath)).toEqual({ playLastFetchedAt: 2000, appliedStatus: 'active' });
+  });
+});
+
+describe('playRtdnHandler', () => {
+  const ownedUser = (token: string, endsMs: number) => ({
+    subscriptionSource: 'play', subscriptionStatus: 'active', subscriptionTier: 'pro',
+    subscriptionEndsAt: ts(endsMs), playPurchaseToken: token, playPurchaseTokenHash: playTokenHash(token),
+  });
+  const msg = (token: string, type = 2) => ({
+    version: '1.0', packageName: 'com.danzucker.stitchpad',
+    subscriptionNotification: { version: '1.0', notificationType: type, purchaseToken: token, subscriptionId: PRO_MONTHLY },
+  });
+
+  it('rtdn_renewal_extendsEndsAt', async () => {
+    const later = NOW.getTime() + 60 * DAY;
+    const { db, store } = fakeDb({
+      'users/u1': ownedUser('tok', NOW.getTime() + DAY),
+      [`playSubscriptions/${playTokenHash('tok')}`]: { uid: 'u1' },
+    });
+    const api = fakeApi(subFor('u1', {
+      acknowledgementState: 'ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED',
+      lineItems: [{ productId: PRO_MONTHLY, expiryTime: iso(later), autoRenewingPlan: { autoRenewEnabled: true } }],
+    }));
+    await playRtdnHandler(msg('tok', 2), deps(db, api));
+    expect(api.getSubscription).toHaveBeenCalledWith('tok');
+    expect(store.get('users/u1').subscriptionEndsAt.toMillis()).toBe(later);
+    expect(store.get('users/u1').subscriptionTier).toBe('pro');
+  });
+
+  it('rtdn_expired_downgradesOwner', async () => {
+    const { db, store } = fakeDb({
+      'users/u1': ownedUser('tok', NOW.getTime() - DAY),
+      [`playSubscriptions/${playTokenHash('tok')}`]: { uid: 'u1' },
+    });
+    const api = fakeApi(subFor('u1', {
+      subscriptionState: 'SUBSCRIPTION_STATE_EXPIRED',
+      lineItems: [{ productId: PRO_MONTHLY, expiryTime: iso(NOW.getTime() - DAY) }],
+    }));
+    await playRtdnHandler(msg('tok', 13), deps(db, api));
+    expect(store.get('users/u1')).toMatchObject({ subscriptionTier: 'free', subscriptionStatus: 'expired' });
+  });
+
+  it('rtdn_pendingCompleted_grants', async () => {
+    const { db, store } = fakeDb({ [`playSubscriptions/${playTokenHash('tok')}`]: { uid: 'u1' } });
+    const api = fakeApi(subFor('u1'));
+    await playRtdnHandler(msg('tok', 4), deps(db, api));
+    expect(store.get('users/u1')).toMatchObject({ subscriptionTier: 'pro', subscriptionSource: 'play' });
+    expect(api.acknowledge).toHaveBeenCalledWith(PRO_MONTHLY, 'tok');
+  });
+
+  it('rtdn_unknownToken_noWrite', async () => {
+    const { db, store, tx } = fakeDb();
+    const api = fakeApi(subFor('u1'));
+    await expect(playRtdnHandler(msg('tok'), deps(db, api))).resolves.toBeUndefined();
+    expect(store.size).toBe(0);
+    expect(tx.set).not.toHaveBeenCalled();
+  });
+
+  it('rtdn_accountMismatch_noWrite', async () => {
+    const { db, store } = fakeDb({ [`playSubscriptions/${playTokenHash('tok')}`]: { uid: 'u1' } });
+    await playRtdnHandler(msg('tok'), deps(db, fakeApi(subFor('other'))));
+    expect(store.has('users/u1')).toBe(false);
+  });
+
+  it('rtdn_testNotification_ignored', async () => {
+    const { db } = fakeDb();
+    const api = fakeApi(subFor('u1'));
+    await expect(playRtdnHandler({ version: '1.0', testNotification: { version: '1.0' } }, deps(db, api)))
+      .resolves.toBeUndefined();
+    expect(api.getSubscription).not.toHaveBeenCalled();
+  });
+
+  it.each([[null], ['garbage'], [42], [{}], [{ subscriptionNotification: {} }], [{ subscriptionNotification: { purchaseToken: 7 } }]])(
+    'rtdn_garbage_ignored %p',
+    async (payload) => {
+      const { db } = fakeDb();
+      const api = fakeApi(subFor('u1'));
+      await expect(playRtdnHandler(payload, deps(db, api))).resolves.toBeUndefined();
+      expect(api.getSubscription).not.toHaveBeenCalled();
+    },
+  );
+
+  it('rtdn_apiFailure_throws', async () => {
+    const { db } = fakeDb({ [`playSubscriptions/${playTokenHash('tok')}`]: { uid: 'u1' } });
+    await expect(playRtdnHandler(msg('tok'), deps(db, fakeApi(new Error('503')))))
+      .rejects.toThrow('503');
+  });
+
+  it('rtdn_testPurchase_flagOff_healsToFree', async () => {
+    delete process.env.PLAY_ALLOW_TEST_PURCHASES;
+    const { db, store } = fakeDb({
+      'users/u1': ownedUser('tok', NOW.getTime() + DAY),
+      [`playSubscriptions/${playTokenHash('tok')}`]: { uid: 'u1' },
+    });
+    await playRtdnHandler(msg('tok'), deps(db, fakeApi(subFor('u1', { testPurchase: {} }))));
+    expect(store.get('users/u1')).toMatchObject({ subscriptionTier: 'free', subscriptionStatus: 'expired' });
+  });
+});
+
+describe('reconcilePlaySubscriptionsHandler', () => {
+  const user = (token: string, extra: Record<string, unknown> = {}) => ({
+    subscriptionSource: 'play', subscriptionStatus: 'active', subscriptionTier: 'pro',
+    subscriptionEndsAt: ts(NOW.getTime() + DAY), playPurchaseToken: token, playPurchaseTokenHash: playTokenHash(token),
+    ...extra,
+  });
+
+  it('reconcile_onlyActivePlayUsers', async () => {
+    const { db, store } = fakeDb({
+      'users/u1': user('tok-1'),
+      'users/u2': user('tok-2'),
+      'users/u3': user('tok-3'),
+      'users/apple': { subscriptionSource: 'apple', subscriptionStatus: 'active', subscriptionTier: 'pro' },
+      'users/lapsed': user('tok-4', { subscriptionStatus: 'expired' }),
+    });
+    const getSubscription = jest.fn(async (token: string) => {
+      if (token === 'tok-1') throw new Error('boom');
+      if (token === 'tok-2') {
+        return subFor('u2', {
+          subscriptionState: 'SUBSCRIPTION_STATE_EXPIRED',
+          lineItems: [{ productId: PRO_MONTHLY, expiryTime: iso(NOW.getTime() - DAY) }],
+        });
+      }
+      return subFor('u3', { acknowledgementState: 'ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED' });
+    });
+    const api = fakeApi(subFor('x'), { getSubscription });
+    await reconcilePlaySubscriptionsHandler(deps(db, api));
+
+    expect(getSubscription.mock.calls.map((c) => c[0]).sort()).toEqual(['tok-1', 'tok-2', 'tok-3']);
+    expect(db.collection).toHaveBeenCalledWith('users');
+    expect(store.get('users/u1').subscriptionTier).toBe('pro');
+    expect(store.get('users/u2')).toMatchObject({ subscriptionTier: 'free', subscriptionStatus: 'expired' });
+    expect(store.get('users/u3')).toMatchObject({ subscriptionTier: 'pro', subscriptionStatus: 'active' });
+  });
+
+  it('reconcile_acknowledgesPending', async () => {
+    const { db } = fakeDb({ 'users/u1': user('tok') });
+    const api = fakeApi(subFor('u1'));
+    await reconcilePlaySubscriptionsHandler(deps(db, api));
+    expect(api.acknowledge).toHaveBeenCalledWith(PRO_MONTHLY, 'tok');
   });
 });
