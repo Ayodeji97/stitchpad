@@ -1084,6 +1084,52 @@ describe('Slice 8e: money/contact denied on base-doc client writes', () => {
 // /private sub-docs. These rules ship WITH the dual-write (Slice 2) so the
 // new owner-client writes aren't default-denied; being isOwner-only they also
 // pre-enforce the staff wall (a non-owner — the future staff member — is denied).
+describe('/private docs are bound to their path (cross-tenant forgery)', () => {
+  // 2026-11-24 security review: the owner reads money/contact with
+  // collectionGroup('private').where(ownerId == me) and joins by the orderId /
+  // customerId FIELD. Without path binding, mallory could write in her OWN tree a
+  // doc claiming ownerId=alice and alice's order id, and it would be joined in.
+  it('denies a money doc whose ownerId is another user', async () => {
+    await assertFails(setDoc(doc(db('mallory'), 'users/mallory/orders/x/private/money'),
+      { ownerId: 'alice', orderId: 'o1', totalPrice: 1 }));
+  });
+
+  it('denies a money doc whose orderId does not match its path', async () => {
+    await assertFails(setDoc(doc(db('mallory'), 'users/mallory/orders/x/private/money'),
+      { ownerId: 'mallory', orderId: 'o1', totalPrice: 1 }));
+  });
+
+  it('denies a contact doc whose ownerId is another user', async () => {
+    await assertFails(setDoc(doc(db('mallory'), 'users/mallory/customers/x/private/contact'),
+      { ownerId: 'alice', customerId: 'c1', phone: '+2348000000000' }));
+  });
+
+  it('denies a contact doc whose customerId does not match its path', async () => {
+    await assertFails(setDoc(doc(db('mallory'), 'users/mallory/customers/x/private/contact'),
+      { ownerId: 'mallory', customerId: 'c1', phone: '+2348000000000' }));
+  });
+
+  it('denies re-pointing an existing doc at another owner', async () => {
+    const alice = db('alice');
+    await assertSucceeds(setDoc(doc(alice, 'users/alice/orders/o9/private/money'),
+      { ownerId: 'alice', orderId: 'o9', totalPrice: 5 }));
+    await assertFails(setDoc(doc(alice, 'users/alice/orders/o9/private/money'),
+      { ownerId: 'bob' }, { merge: true }));
+  });
+
+  it('still allows the real writes: full docs, and a payments-only merge on a legacy order', async () => {
+    const alice = db('alice');
+    await assertSucceeds(setDoc(doc(alice, 'users/alice/orders/o2/private/money'),
+      { ownerId: 'alice', orderId: 'o2', totalPrice: 100 }));
+    await assertSucceeds(setDoc(doc(alice, 'users/alice/customers/c2/private/contact'),
+      { ownerId: 'alice', customerId: 'c2', phone: '+234' }));
+    await assertSucceeds(setDoc(doc(alice, 'users/alice/orders/legacy/private/money'),
+      { payments: [{ amount: 10 }] }, { merge: true }));
+    await assertSucceeds(setDoc(doc(alice, 'users/alice/orders/o2/private/money'),
+      { payments: [{ amount: 10 }] }, { merge: true }));
+  });
+});
+
 describe('owner-only /private sub-docs (money + contact wall)', () => {
   it('owner can write and read the customer private/contact sub-doc', async () => {
     await assertSucceeds(

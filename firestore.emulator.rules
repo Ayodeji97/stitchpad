@@ -31,6 +31,15 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ── Helpers ────────────────────────────────────────────────────────────
+    // A /private mirror may omit ownerId and its id field (a payment merge on a legacy
+    // order creates the doc with `payments` only; such a doc is invisible to the
+    // ownerId-scoped collection-group read). When present they must match the path.
+    function privateDocBoundTo(uid, idField, idValue) {
+      let d = request.resource.data;
+      return (!('ownerId' in d) || d.ownerId == uid)
+        && (!(idField in d) || d[idField] == idValue);
+    }
+
     function isOwner(uid) {
       return request.auth != null && request.auth.uid == uid;
     }
@@ -379,7 +388,13 @@ service cloud.firestore {
         // the customer-contact wall. Staff will be able to read the base customer
         // doc (name, measurements) but never this.
         match /private/{doc} {
-          allow read, write: if isOwner(uid);
+          allow read, delete: if isOwner(uid);
+          // Bind the doc to its path. The owner's collectionGroup('private') read
+          // matches on the ownerId FIELD, so without this anyone who knows a victim's
+          // uid and customer id could plant a contact doc in their OWN tree with
+          // ownerId=<victim> and have it joined into the victim's customer.
+          allow create, update: if isOwner(uid)
+            && privateDocBoundTo(uid, 'customerId', customerId);
         }
       }
 
@@ -481,7 +496,12 @@ service cloud.firestore {
         // denied: this is the money wall. Staff will read the base order doc
         // (garment, status, measurements) but never this.
         match /private/{doc} {
-          allow read, write: if isOwner(uid);
+          allow read, delete: if isOwner(uid);
+          // Same path binding as the customer contact doc above: stops forged money
+          // (ownerId=<victim>, orderId=<victim order>) from being joined into the
+          // victim's orders and the server digest.
+          allow create, update: if isOwner(uid)
+            && privateDocBoundTo(uid, 'orderId', orderId);
         }
       }
 
@@ -699,6 +719,20 @@ service cloud.firestore {
     // (rules default to deny), masking signal we need from churn.
     match /account_deletion_feedback/{docId} {
       allow create: if request.auth != null;
+    }
+
+    // ── /emailPrefs/{uid} — daily-email opt-out and bounce suppression ─────
+    // Written ONLY by the Admin SDK: `emailUnsubscribe` sets `optOut` when a
+    // tailor uses the one-click link, and `runDailyDigest` sets `hardBounce`
+    // when Resend permanently rejects an address.
+    //
+    // Deliberately NOT under /users/{uid}: 41 of 154 accounts have no users doc
+    // at all (they never finished workshop setup), and those people still need a
+    // working unsubscribe. Fully closed to clients — the unsubscribe link is
+    // HMAC-signed and served by the function, so no client ever needs access,
+    // and a readable doc would leak who has unsubscribed.
+    match /emailPrefs/{uid} {
+      allow read, write: if false;
     }
   }
 }
