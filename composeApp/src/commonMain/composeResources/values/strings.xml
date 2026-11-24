@@ -1517,7 +1517,7 @@
     <string name="settings_row_receipt_image">Receipt image style</string>
     <string name="settings_receipt_image_light">Light</string>
     <string name="settings_receipt_image_dark">Dark</string>
-    <string name="settings_row_daily_digest">Daily summary email</string>
+    <string name="settings_row_daily_digest">Weekly email summary</string>
     <string name="settings_row_daily_push">Daily push reminder</string>
     <string name="settings_row_announcements">Tips &amp; announcements</string>
     <string name="settings_theme_system">System default</string>

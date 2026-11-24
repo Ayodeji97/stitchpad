@@ -353,18 +353,20 @@ private fun SettingsLandingLegacy(
                 },
             )
         }
-        SettingsRowDivider()
-        SettingsRow(
-            icon = Icons.Outlined.Notifications,
-            label = stringResource(Res.string.settings_row_daily_digest),
-            onClick = { onAction(SettingsAction.OnDailyDigestToggle(!state.dailyDigestEmailEnabled)) },
-            trailing = {
-                Switch(
-                    checked = state.dailyDigestEmailEnabled,
-                    onCheckedChange = { onAction(SettingsAction.OnDailyDigestToggle(it)) },
-                )
-            },
-        )
+        if (state.showDigestEmailToggle) {
+            SettingsRowDivider()
+            SettingsRow(
+                icon = Icons.Outlined.Notifications,
+                label = stringResource(Res.string.settings_row_daily_digest),
+                onClick = { onAction(SettingsAction.OnDailyDigestToggle(!state.dailyDigestEmailEnabled)) },
+                trailing = {
+                    Switch(
+                        checked = state.dailyDigestEmailEnabled,
+                        onCheckedChange = { onAction(SettingsAction.OnDailyDigestToggle(it)) },
+                    )
+                },
+            )
+        }
         if (state.pushReminderSupported) {
             SettingsRowDivider()
             SettingsRow(
@@ -644,18 +646,20 @@ private fun SettingsLandingHub(
                 },
             )
         }
-        SettingsRowDivider()
-        SettingsRow(
-            icon = Icons.Outlined.Notifications,
-            label = stringResource(Res.string.settings_row_daily_digest),
-            onClick = { onAction(SettingsAction.OnDailyDigestToggle(!state.dailyDigestEmailEnabled)) },
-            trailing = {
-                Switch(
-                    checked = state.dailyDigestEmailEnabled,
-                    onCheckedChange = { onAction(SettingsAction.OnDailyDigestToggle(it)) },
-                )
-            },
-        )
+        if (state.showDigestEmailToggle) {
+            SettingsRowDivider()
+            SettingsRow(
+                icon = Icons.Outlined.Notifications,
+                label = stringResource(Res.string.settings_row_daily_digest),
+                onClick = { onAction(SettingsAction.OnDailyDigestToggle(!state.dailyDigestEmailEnabled)) },
+                trailing = {
+                    Switch(
+                        checked = state.dailyDigestEmailEnabled,
+                        onCheckedChange = { onAction(SettingsAction.OnDailyDigestToggle(it)) },
+                    )
+                },
+            )
+        }
         if (state.pushReminderSupported) {
             SettingsRowDivider()
             SettingsRow(

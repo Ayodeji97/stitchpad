@@ -74,7 +74,7 @@ ${htmlSections}
 <table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 8px;"><tr><td style="background-color:${INDIGO};border-radius:10px;">
 <a href="${escapeHtml(opts.ctaUrl)}" style="display:inline-block;padding:13px 26px;font-size:15px;font-weight:700;color:${WHITE};text-decoration:none;">Open StitchPad</a>
 </td></tr></table>
-<p style="margin:26px 0 0;font-size:12px;line-height:1.6;color:${FAINT};">You're getting this weekly summary with your StitchPad plan. Turn it off any time under Settings → Preferences → Daily summary email, or <a href="${escapeHtml(opts.unsubscribeUrl)}" style="color:${FAINT};">unsubscribe</a>.</p>
+<p style="margin:26px 0 0;font-size:12px;line-height:1.6;color:${FAINT};">You're getting this weekly summary with your StitchPad plan. Turn it off any time under Settings → Preferences → Weekly email summary, or <a href="${escapeHtml(opts.unsubscribeUrl)}" style="color:${FAINT};">unsubscribe</a>.</p>
 </td></tr></table></td></tr></table></body></html>`;
 
   const textSections = sections.filter((s) => s.total > 0).map((s) => {
@@ -82,7 +82,7 @@ ${htmlSections}
     const more = s.total > s.items.length ? `\n  +${s.total - s.items.length} more` : '';
     return `${s.title} (${s.total}):\n${rows}${more}`;
   }).join('\n\n');
-  const text = `Good morning, ${name}\nHere's what needs your attention this week.\n\n${textSections}\n\nOpen StitchPad: ${opts.ctaUrl}\n\nTurn off the weekly summary any time under Settings → Preferences → Daily summary email, or unsubscribe: ${opts.unsubscribeUrl}`;
+  const text = `Good morning, ${name}\nHere's what needs your attention this week.\n\n${textSections}\n\nOpen StitchPad: ${opts.ctaUrl}\n\nTurn off the weekly summary any time under Settings → Preferences → Weekly email summary, or unsubscribe: ${opts.unsubscribeUrl}`;
 
   return { subject, html, text };
 }

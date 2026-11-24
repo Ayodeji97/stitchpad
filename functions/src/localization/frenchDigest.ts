@@ -24,7 +24,7 @@ export function frenchDigestEmail(model: DigestModel, name: string, opts: {
   const intro = 'Voici les points à suivre cette semaine dans votre atelier.';
   const htmlSections = visible.map(s => `<h2 style="font-size:16px;color:#2C3E7C">${e(s.title)} (${s.total})</h2>${s.rows.slice(0, 5).map(row => `<p>${e(row)}</p>`).join('')}${s.total > 5 ? `<p>+${s.total - 5} autres</p>` : ''}`).join('');
   const textSections = visible.map(s => `${s.title} (${s.total})\n${s.rows.slice(0, 5).join('\n')}${s.total > 5 ? `\n+${s.total - 5} autres` : ''}`).join('\n\n');
-  const footer = 'Ce résumé hebdomadaire est inclus dans votre abonnement StitchPad. Désactivez-le dans Paramètres → Préférences → Résumé quotidien par e-mail, ou désabonnez-vous.';
+  const footer = 'Ce résumé hebdomadaire est inclus dans votre abonnement StitchPad. Désactivez-le dans Paramètres → Préférences → Résumé hebdomadaire par e-mail, ou désabonnez-vous.';
   return { subject,
     html: `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"></head><body style="font-family:Arial,sans-serif;background:#FAF6EC;color:#252320;padding:24px"><main style="max-width:480px;margin:auto;background:#fff;padding:32px"><h1 style="font-family:Georgia,serif;color:#2C3E7C">StitchPad</h1><p>${e(greeting)}</p><p>${intro}</p>${htmlSections}<p><a href="${e(opts.ctaUrl)}">Ouvrir StitchPad</a></p><p>${footer} <a href="${e(opts.unsubscribeUrl)}">Se désabonner</a></p></main></body></html>`,
     text: `${greeting}\n${intro}\n\n${textSections}\n\nOuvrir StitchPad : ${opts.ctaUrl}\n${footer}\n${opts.unsubscribeUrl}`,
