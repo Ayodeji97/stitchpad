@@ -1,5 +1,5 @@
 /**
- * Evening reminder push — 18:00 Lagos, server-only (no app release needed).
+ * Evening reminder push — 19:00 Lagos (Daniel, 2026-11-24), server-only (no app release needed).
  *
  * One push per owner per evening at most, combining, in priority order:
  *   due tomorrow & not Ready  >  delivered & still owed  >  Ready & not collected
@@ -29,7 +29,7 @@ import {
 } from './reminderTypes';
 
 const REGION = 'europe-west1';
-const SCHEDULE = '0 18 * * *';
+const SCHEDULE = '0 19 * * *';
 const TIMEZONE = 'Africa/Lagos';
 
 /**

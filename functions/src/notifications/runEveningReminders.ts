@@ -61,7 +61,9 @@ export async function runEveningReminders(io: ReminderIO, now: number, opts: Run
     try {
       // Same inheritance as the digest (resolved in listRecipients), plus #409's
       // workshop-activity switch when present.
-      if (!r.pushEnabled || !r.activityPushEnabled) { result.skippedOptedOut++; continue; }
+      // Daily-reminders switch only. 'Workshop activity alerts' (activityPushEnabled)
+      // covers TEAM events and deliberately does not silence these (Daniel, 2026-11-24).
+      if (!r.pushEnabled) { result.skippedOptedOut++; continue; }
       if (!io.isAllowed(r.uid, r.email)) { result.skippedNotAllowed++; continue; }
 
       const state = await io.loadState(r.uid);

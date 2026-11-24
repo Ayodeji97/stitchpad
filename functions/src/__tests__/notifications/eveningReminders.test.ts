@@ -357,14 +357,14 @@ describe('runEveningReminders', () => {
     expect(s.calls.customerActivity).toBe(0);
   });
 
-  it('honours opt-outs: dailyPushEnabled (inherited) and activityPushEnabled', async () => {
+  it('honours the daily-reminders opt-out; the team-alerts switch does not silence it', async () => {
     const s = fakeIO({
       recipients: [recip({ uid: 'a', pushEnabled: false }), recip({ uid: 'b', activityPushEnabled: false })],
       orders: { a: [dueTomorrow()], b: [dueTomorrow()] },
     });
     const r = await runEveningReminders(s.io, NOW);
-    expect(s.pushes).toEqual([]);
-    expect(r.skippedOptedOut).toBe(2);
+    expect(r.skippedOptedOut).toBe(1);
+    expect(s.pushes).toHaveLength(1);
   });
 
   it('respects the rollout gate', async () => {
