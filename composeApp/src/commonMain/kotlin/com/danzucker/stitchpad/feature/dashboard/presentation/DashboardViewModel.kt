@@ -101,6 +101,9 @@ private const val NOTEBOOK_CARD_MAX_CUSTOMERS = 5
 // The one-time capture hop is for genuinely new accounts only.
 private const val NEW_ACCOUNT_DAYS = 3L
 
+// The dashboard card is for the first days of an account (spec "first days").
+private const val NOTEBOOK_CARD_MAX_ACCOUNT_DAYS = 14L
+
 @OptIn(ExperimentalTime::class, ExperimentalCoroutinesApi::class)
 @Suppress("TooManyFunctions", "LongParameterList", "LargeClass")
 class DashboardViewModel(
@@ -262,6 +265,7 @@ class DashboardViewModel(
         }
         maybeShowNotebookIntro(uiState)
         return canImportNotebook() &&
+            isAccountYoungerThan(NOTEBOOK_CARD_MAX_ACCOUNT_DAYS, entitlements.current().welcomeEndsAt) &&
             customers.count { it.slotState == CustomerSlotState.ACTIVE } < NOTEBOOK_CARD_MAX_CUSTOMERS
     }
 
@@ -288,11 +292,15 @@ class DashboardViewModel(
      * provider already holds: creation = welcomeEndsAt minus the welcome window. Unknown means
      * not new, so older or legacy accounts never get hopped.
      */
-    private suspend fun isNewAccount(): Boolean {
-        val endsAt = entitlements.awaitHydrated().welcomeEndsAt ?: return false
+    private suspend fun isNewAccount(): Boolean =
+        isAccountYoungerThan(NEW_ACCOUNT_DAYS, entitlements.awaitHydrated().welcomeEndsAt)
+
+    /** Account age (from [welcomeEndsAt], see [isNewAccount]) is at most [days]; unknown age is false. */
+    private fun isAccountYoungerThan(days: Long, welcomeEndsAt: Instant?): Boolean {
+        val endsAt = welcomeEndsAt ?: return false
         val createdAtMillis = endsAt.toEpochMilliseconds() - EntitlementsCalculator.WELCOME_WINDOW_DAYS * ONE_DAY_MILLIS
         val ageMillis = nowMillis() - createdAtMillis
-        return ageMillis in 0..NEW_ACCOUNT_DAYS * ONE_DAY_MILLIS
+        return ageMillis in 0..days * ONE_DAY_MILLIS
     }
 
     private fun dismissCommunityBanner() {

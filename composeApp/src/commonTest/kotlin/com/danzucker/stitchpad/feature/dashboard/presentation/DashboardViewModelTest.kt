@@ -347,10 +347,29 @@ class DashboardViewModelTest {
         signIn()
         val prefs = FakeNotebookImportPreferencesStore(introShown = false)
 
-        val vm = createViewModel(notebookPrefs = prefs, entitlements = entitlementsForAccountAge(30))
+        val vm = createViewModel(notebookPrefs = prefs, entitlements = entitlementsForAccountAge(10))
         vm.events.test { expectNoEvents() }
         assertTrue(prefs.introShown())
         assertTrue(vm.state.value.showNotebookCard)
+    }
+
+    @Test
+    fun dashboard_notebookCard_shownUpTo14DaysOld() = runTest {
+        signIn()
+        assertTrue(createViewModel(entitlements = entitlementsForAccountAge(14)).state.value.showNotebookCard)
+    }
+
+    @Test
+    fun dashboard_notebookCard_hiddenAfter14Days() = runTest {
+        signIn()
+        assertFalse(createViewModel(entitlements = entitlementsForAccountAge(15)).state.value.showNotebookCard)
+        assertFalse(createViewModel(entitlements = entitlementsForAccountAge(30)).state.value.showNotebookCard)
+    }
+
+    @Test
+    fun dashboard_notebookCard_hiddenWhenAccountAgeUnknown() = runTest {
+        signIn()
+        assertFalse(createViewModel(entitlements = entitlementsForAccountAge(null)).state.value.showNotebookCard)
     }
 
     @Test
@@ -390,11 +409,11 @@ class DashboardViewModelTest {
     fun dashboard_cardHiddenAt5Customers() = runTest {
         signIn()
         customerRepository.customersList = (1..4).map { fakeCustomer(id = "c$it") }
-        val vm = createViewModel()
+        val vm = createViewModel(entitlements = entitlementsForAccountAge(2))
         assertTrue(vm.state.value.showNotebookCard)
 
         customerRepository.customersList = (1..5).map { fakeCustomer(id = "c$it") }
-        val atFive = createViewModel()
+        val atFive = createViewModel(entitlements = entitlementsForAccountAge(2))
         assertFalse(atFive.state.value.showNotebookCard)
     }
 
@@ -402,20 +421,22 @@ class DashboardViewModelTest {
     fun dashboard_dismissPersists() = runTest {
         signIn()
         val prefs = FakeNotebookImportPreferencesStore(introShown = true)
-        val vm = createViewModel(notebookPrefs = prefs)
+        val vm = createViewModel(notebookPrefs = prefs, entitlements = entitlementsForAccountAge(2))
         assertTrue(vm.state.value.showNotebookCard)
 
         vm.onAction(DashboardAction.OnDismissNotebookCard)
 
         assertFalse(vm.state.value.showNotebookCard)
         assertTrue(prefs.observeCardDismissed().first())
-        assertFalse(createViewModel(notebookPrefs = prefs).state.value.showNotebookCard)
+        assertFalse(
+            createViewModel(notebookPrefs = prefs, entitlements = entitlementsForAccountAge(2)).state.value.showNotebookCard
+        )
     }
 
     @Test
     fun dashboard_notebookCardClick_navigatesToCapture() = runTest {
         signIn()
-        val vm = createViewModel()
+        val vm = createViewModel(entitlements = entitlementsForAccountAge(2))
         vm.events.test {
             vm.onAction(DashboardAction.OnNotebookCardClick)
             assertEquals(DashboardEvent.NavigateToNotebookCapture, awaitItem())
