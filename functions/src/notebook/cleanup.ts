@@ -20,10 +20,10 @@ type JobSnap = admin.firestore.QueryDocumentSnapshot;
 async function deleteImages(job: JobSnap, deps: CleanupDeps): Promise<void> {
   await deps.deletePrefix(`${job.ref.path}/`);
   if (job.data().imagesDeletedAt) return;
-  await job.ref.set(
-    { imagesDeletedAt: admin.firestore.Timestamp.fromDate(deps.now()) },
-    { merge: true },
-  );
+  // update(), not set(merge): a job deleted since the query must not come back as a stub.
+  await job.ref.update({
+    imagesDeletedAt: admin.firestore.Timestamp.fromDate(deps.now()),
+  });
 }
 
 /**

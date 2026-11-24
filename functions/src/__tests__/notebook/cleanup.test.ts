@@ -13,7 +13,10 @@ function fakeStore(jobs: Record<string, any>, pages: Record<string, Record<strin
   const updates: Record<string, any> = {};
   const jobRef = (path: string) => ({
     path,
-    set: async (d: any) => { updates[path] = { ...(updates[path] ?? {}), ...d }; jobStore.set(path, { ...jobStore.get(path), ...d }); },
+    update: async (d: any) => {
+      if (!jobStore.has(path)) throw new Error('NOT_FOUND');
+      updates[path] = { ...(updates[path] ?? {}), ...d }; jobStore.set(path, { ...jobStore.get(path), ...d });
+    },
     collection: (name: string) => ({
       get: async () => ({
         docs: Object.entries(name === 'pages' ? pageStore.get(path) ?? {} : {}).map(([id, data]) => ({ id, data: () => data })),

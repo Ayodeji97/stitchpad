@@ -285,6 +285,8 @@ class NotebookCaptureViewModel(
 
     private fun onRetry(key: String) {
         if (uploader.hasPage(key)) {
+            // A local retry may create the job, so it waits for the open-job lookup like a new photo.
+            if (!_state.value.canCapture) return
             uploader.retry(key)
             return
         }
