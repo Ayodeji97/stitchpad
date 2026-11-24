@@ -135,7 +135,10 @@ platform :android do
       aab: aab,
       json_key: json_key,
       release_status: "draft", # promote manually in Play Console after sanity check
-      metadata_path: metadata_path,
+      # supply wants the folder that HOLDS the language folders (metadata/android),
+      # not metadata/ itself, or it reads "android" as a language and Play rejects
+      # the edit with "Invalid request" (1.4.0 upload, 2026-11-24).
+      metadata_path: File.join(metadata_path, "android"),
       skip_upload_metadata: true,
       skip_upload_changelogs: false,
       skip_upload_images: true,
