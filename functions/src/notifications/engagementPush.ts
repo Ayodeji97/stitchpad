@@ -183,7 +183,7 @@ async function loadPointsByUid(db: Firestore): Promise<Map<string, number>> {
  * server-side would need a collection-group index, and memberships are few (the
  * seat cap is small), so the in-memory filter is cheaper than that migration.
  */
-async function loadActiveStaffUids(db: Firestore): Promise<Set<string>> {
+export async function loadActiveStaffUids(db: Firestore): Promise<Set<string>> {
   const snap = await db.collectionGroup('memberships').get();
   const uids = new Set<string>();
   for (const doc of snap.docs) {
