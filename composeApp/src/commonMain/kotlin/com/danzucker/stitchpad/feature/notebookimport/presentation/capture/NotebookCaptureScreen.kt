@@ -92,6 +92,7 @@ import stitchpad.composeapp.generated.resources.notebook_capture_pages_title
 import stitchpad.composeapp.generated.resources.notebook_capture_reading
 import stitchpad.composeapp.generated.resources.notebook_capture_retry
 import stitchpad.composeapp.generated.resources.notebook_capture_review
+import stitchpad.composeapp.generated.resources.notebook_capture_review_one
 import stitchpad.composeapp.generated.resources.notebook_capture_stuck
 import stitchpad.composeapp.generated.resources.notebook_capture_take_photo
 import stitchpad.composeapp.generated.resources.notebook_capture_title
@@ -533,7 +534,11 @@ private fun ReviewBar(state: NotebookCaptureState, onReviewClick: () -> Unit) {
         Column(modifier = Modifier.navigationBarsPadding()) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outline)
             StitchPadButton(
-                text = stringResource(Res.string.notebook_capture_review, state.reviewCount),
+                text = if (state.reviewCount == 1) {
+                    stringResource(Res.string.notebook_capture_review_one)
+                } else {
+                    stringResource(Res.string.notebook_capture_review, state.reviewCount)
+                },
                 onClick = onReviewClick,
                 enabled = state.canReview,
                 modifier = Modifier

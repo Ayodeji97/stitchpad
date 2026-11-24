@@ -100,12 +100,15 @@ import stitchpad.composeapp.generated.resources.notebook_review_row_meta
 import stitchpad.composeapp.generated.resources.notebook_review_same_person
 import stitchpad.composeapp.generated.resources.notebook_review_same_person_body
 import stitchpad.composeapp.generated.resources.notebook_review_save_checked
+import stitchpad.composeapp.generated.resources.notebook_review_save_checked_one
 import stitchpad.composeapp.generated.resources.notebook_review_section_need_look
 import stitchpad.composeapp.generated.resources.notebook_review_section_ready
 import stitchpad.composeapp.generated.resources.notebook_review_section_saved
 import stitchpad.composeapp.generated.resources.notebook_review_section_skipped
 import stitchpad.composeapp.generated.resources.notebook_review_still_reading
+import stitchpad.composeapp.generated.resources.notebook_review_still_reading_one
 import stitchpad.composeapp.generated.resources.notebook_review_summary
+import stitchpad.composeapp.generated.resources.notebook_review_summary_one
 import stitchpad.composeapp.generated.resources.notebook_review_title
 import stitchpad.composeapp.generated.resources.notebook_review_unclear
 import stitchpad.composeapp.generated.resources.notebook_review_which_customer
@@ -255,7 +258,11 @@ private fun ReviewList(state: NotebookReviewState, callbacks: RowCallbacks, cont
     ) {
         item(key = "summary") {
             Text(
-                text = stringResource(Res.string.notebook_review_summary, state.foundCount, state.needLookCount),
+                text = if (state.foundCount == 1) {
+                    stringResource(Res.string.notebook_review_summary_one, state.needLookCount)
+                } else {
+                    stringResource(Res.string.notebook_review_summary, state.foundCount, state.needLookCount)
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -266,7 +273,13 @@ private fun ReviewList(state: NotebookReviewState, callbacks: RowCallbacks, cont
             ) { InfoBanner(text = stringResource(Res.string.notebook_review_all_done), success = true) }
         } else if (state.pagesReading > 0) {
             item(key = "reading") {
-                InfoBanner(text = stringResource(Res.string.notebook_review_still_reading, state.pagesReading))
+                InfoBanner(
+                    text = if (state.pagesReading == 1) {
+                        stringResource(Res.string.notebook_review_still_reading_one)
+                    } else {
+                        stringResource(Res.string.notebook_review_still_reading, state.pagesReading)
+                    },
+                )
             }
         }
         if (state.foundCount == 0) {
@@ -544,7 +557,11 @@ private fun ReviewBottomBar(state: NotebookReviewState, onSave: () -> Unit, onDi
         ) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outline)
             StitchPadButton(
-                text = stringResource(Res.string.notebook_review_save_checked, state.ready.size),
+                text = if (state.ready.size == 1) {
+                    stringResource(Res.string.notebook_review_save_checked_one)
+                } else {
+                    stringResource(Res.string.notebook_review_save_checked, state.ready.size)
+                },
                 onClick = onSave,
                 enabled = state.canSaveAll,
                 isLoading = state.isSaving,

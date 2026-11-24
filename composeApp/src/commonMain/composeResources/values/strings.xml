@@ -2173,6 +2173,7 @@
     <string name="notebook_capture_retry">Try again</string>
     <string name="notebook_capture_cap">You have reached the page limit for scanning</string>
     <string name="notebook_capture_review">Review %1$d customers</string>
+    <string name="notebook_capture_review_one">Review 1 customer</string>
     <string name="notebook_capture_back_cd">Back</string>
     <string name="notebook_capture_pages_title">Pages</string>
     <string name="notebook_capture_pages_count">%1$d pages</string>
@@ -2185,6 +2186,7 @@
     <string name="notebook_capture_footnote">You can leave this screen. Pages keep reading in the background.</string>
     <string name="notebook_review_title">Check your customers</string>
     <string name="notebook_review_summary">%1$d customers found, %2$d need a look</string>
+    <string name="notebook_review_summary_one">1 customer found, %1$d need a look</string>
     <string name="notebook_review_section_need_look">Need a look</string>
     <string name="notebook_review_section_ready">Ready</string>
     <string name="notebook_review_section_saved">Saved</string>
@@ -2208,6 +2210,7 @@
     <string name="notebook_review_match_new">Save as a new customer</string>
     <string name="notebook_review_match_confirmed">Will be added to %1$s</string>
     <string name="notebook_review_save_checked">Save %1$d checked customers</string>
+    <string name="notebook_review_save_checked_one">Save 1 checked customer</string>
     <string name="notebook_review_discard">Discard this import</string>
     <string name="notebook_review_discard_title">Discard this import?</string>
     <string name="notebook_review_discard_body">The photos and the customers you have not saved will be deleted. Customers you already saved stay.</string>
@@ -2215,6 +2218,7 @@
     <string name="notebook_review_saved_count">Customers saved: %1$d</string>
     <string name="notebook_review_saved_some">Customers saved: %1$d. Not saved yet: %2$d. Try again.</string>
     <string name="notebook_review_still_reading">Still reading %1$d pages. More customers may appear.</string>
+    <string name="notebook_review_still_reading_one">Still reading 1 page. More customers may appear.</string>
     <string name="notebook_review_empty">No customers found yet</string>
     <string name="notebook_review_all_done">All done. Your customers are saved.</string>
     <string name="notebook_review_back_cd">Back</string>

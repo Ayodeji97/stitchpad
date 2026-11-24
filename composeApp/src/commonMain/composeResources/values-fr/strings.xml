@@ -1833,6 +1833,7 @@
     <string name="notebook_capture_retry">Réessayer</string>
     <string name="notebook_capture_cap">Vous avez atteint la limite de pages pour le scan</string>
     <string name="notebook_capture_review">Vérifier %1$d clients</string>
+    <string name="notebook_capture_review_one">Vérifier 1 client</string>
     <string name="notebook_capture_back_cd">Retour</string>
     <string name="notebook_capture_pages_title">Pages</string>
     <string name="notebook_capture_pages_count">%1$d pages</string>
@@ -1845,6 +1846,7 @@
     <string name="notebook_capture_footnote">Vous pouvez quitter cet écran. La lecture des pages continue en arrière-plan.</string>
     <string name="notebook_review_title">Vérifiez vos clients</string>
     <string name="notebook_review_summary">%1$d clients trouvés, %2$d à vérifier</string>
+    <string name="notebook_review_summary_one">1 client trouvé, %1$d à vérifier</string>
     <string name="notebook_review_section_need_look">À vérifier</string>
     <string name="notebook_review_section_ready">Prêts</string>
     <string name="notebook_review_section_saved">Enregistrés</string>
@@ -1868,6 +1870,7 @@
     <string name="notebook_review_match_new">Enregistrer comme nouveau client</string>
     <string name="notebook_review_match_confirmed">Sera ajouté à %1$s</string>
     <string name="notebook_review_save_checked">Enregistrer %1$d clients vérifiés</string>
+    <string name="notebook_review_save_checked_one">Enregistrer 1 client vérifié</string>
     <string name="notebook_review_discard">Abandonner cet import</string>
     <string name="notebook_review_discard_title">Abandonner cet import ?</string>
     <string name="notebook_review_discard_body">Les photos et les clients non enregistrés seront supprimés. Les clients déjà enregistrés restent.</string>
@@ -1875,6 +1878,7 @@
     <string name="notebook_review_saved_count">Clients enregistrés : %1$d</string>
     <string name="notebook_review_saved_some">Clients enregistrés : %1$d. Pas encore enregistrés : %2$d. Réessayez.</string>
     <string name="notebook_review_still_reading">Lecture de %1$d pages en cours. D'autres clients peuvent apparaître.</string>
+    <string name="notebook_review_still_reading_one">Lecture d'1 page en cours. D'autres clients peuvent apparaître.</string>
     <string name="notebook_review_empty">Aucun client trouvé pour l'instant</string>
     <string name="notebook_review_all_done">Terminé. Vos clients sont enregistrés.</string>
     <string name="notebook_review_back_cd">Retour</string>
