@@ -52,6 +52,10 @@ object DuplicateMatcher {
         return folded.split(' ').filter { it.isNotEmpty() && it !in titles }.joinToString(" ")
     }
 
+    /**
+     * Phone match wins. Otherwise a unique exact normalised-name match whose phone does not conflict
+     * with the card's; several candidates the phone cannot separate are ambiguous, so null.
+     */
     fun findExisting(card: ReviewCard, customers: List<Customer>, country: Country): Customer? {
         val cardPhone = card.phone?.let { normalisePhone(it, country) }.orEmpty()
         val byPhone = if (cardPhone.isBlank()) {
@@ -59,9 +63,14 @@ object DuplicateMatcher {
         } else {
             customers.firstOrNull { normalisePhone(it.phone, country) == cardPhone }
         }
-        if (byPhone != null) return byPhone
         val name = normaliseName(card.name)
-        return if (name.isBlank()) null else customers.firstOrNull { normaliseName(it.name) == name }
+        return byPhone ?: if (name.isBlank()) {
+            null
+        } else {
+            customers
+                .filter { normaliseName(it.name) == name && !phonesConflict(card.phone, it.phone) }
+                .singleOrNull()
+        }
     }
 
     /**

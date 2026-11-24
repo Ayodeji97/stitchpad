@@ -6,10 +6,11 @@ import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.Measurement
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
-import com.danzucker.stitchpad.core.sharing.normalisePhone
+import com.danzucker.stitchpad.core.sharing.customerPhoneForStorage
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.toInstant
 import kotlin.time.Clock
 
 data class RecordsToSave(val customer: Customer?, val measurement: Measurement)
@@ -20,8 +21,7 @@ fun importMeasurementId(jobId: String, cardId: String): String = "nbm_${jobId}_$
 
 /**
  * Builds the records for one reviewed card. The review UI forces a gender choice, so
- * [ReviewCard.gender] must be non-null. [country], when given, normalises the phone;
- * otherwise the phone is kept digits-only.
+ * [ReviewCard.gender] must be non-null. [country] formats the phone exactly as the customer form does.
  */
 fun cardToRecords(
     card: ReviewCard,
@@ -29,7 +29,7 @@ fun cardToRecords(
     existingCustomerId: String?,
     importDate: LocalDate,
     defaultUnit: MeasurementUnit,
-    country: Country? = null,
+    country: Country,
     nowMillis: Long = Clock.System.now().toEpochMilliseconds(),
 ): RecordsToSave {
     val gender = requireNotNull(card.gender) { "Card ${card.id} has no gender; review must force a choice" }
@@ -53,9 +53,7 @@ fun cardToRecords(
             id = customerId,
             userId = ownerUid,
             name = card.name.trim(),
-            phone = card.phone?.let { raw ->
-                if (country != null) normalisePhone(raw, country) else raw.filter { it.isDigit() }
-            }.orEmpty(),
+            phone = customerPhoneForStorage(card.phone.orEmpty(), country),
             createdAt = nowMillis,
         )
     }
@@ -66,8 +64,14 @@ fun cardToRecords(
         fields = fields,
         unit = card.unit ?: defaultUnit,
         notes = notes.takeIf { it.isNotEmpty() }?.joinToString("\n"),
-        dateTaken = (card.dateWritten ?: importDate).atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds(),
+        dateTaken = (card.dateWritten ?: importDate).atNoonUtc(),
         createdAt = nowMillis,
     )
     return RecordsToSave(customer, measurement)
 }
+
+/** Noon UTC keeps the same calendar day in every timezone from UTC-11 to UTC+11. */
+private fun LocalDate.atNoonUtc(): Long =
+    LocalDateTime(year, month, day, NOON_HOUR, 0).toInstant(TimeZone.UTC).toEpochMilliseconds()
+
+private const val NOON_HOUR = 12
