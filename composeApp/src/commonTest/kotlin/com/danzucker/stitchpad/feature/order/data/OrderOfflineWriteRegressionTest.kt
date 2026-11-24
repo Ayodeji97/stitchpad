@@ -236,6 +236,25 @@ class OrderOfflineWriteRegressionTest {
     }
 
     @Test
+    fun orderAssignmentWriteFields_ownerAddsActivityMarkers() {
+        val fields = orderAssignmentWriteFields(memberId = "s1", memberName = "Chidi O", now = 42L, ownerAssignedBy = "owner")
+        assertEquals(
+            setOf("assignedMemberId", "assignedMemberName", "updatedAt", "assignedBy", "assignedAt"),
+            fields.keys,
+        )
+        assertEquals("owner", fields["assignedBy"])
+        assertEquals(42L, fields["assignedAt"])
+    }
+
+    @Test
+    fun statusChangeFirestoreMap_carriesActorOnlyWhenKnown() {
+        val withActor = StatusChangeDto(status = "READY", changedAt = 7L, changedBy = "staff1").toFirestoreMap()
+        assertEquals("staff1", withActor["changedBy"])
+        val withoutActor = StatusChangeDto(status = "READY", changedAt = 7L).toFirestoreMap()
+        assertEquals(setOf("status", "changedAt"), withoutActor.keys)
+    }
+
+    @Test
     fun ownedOrderStoragePaths_collectsLegacyAndMultiImagePathsWithoutDuplicates() {
         val order = order(
             item = OrderItem(

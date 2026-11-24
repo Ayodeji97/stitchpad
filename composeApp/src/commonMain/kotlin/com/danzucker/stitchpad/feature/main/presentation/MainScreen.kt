@@ -842,6 +842,11 @@ private fun handleInnerDeepLink(
         // already lands on the dashboard" only holds for a COLD start. A warm resume
         // keeps the inner back stack, so a tailor sitting on Orders (or inside an order)
         // would tap the nudge and see nothing happen.
+        // Join-request push (target: team). TeamRoute is on the inner NavHost.
+        DeepLinkTarget.TEAM -> {
+            pendingDeepLink.clear()
+            innerNavController.navigate(TeamRoute) { launchSingleTop = true }
+        }
         DeepLinkTarget.DASHBOARD -> {
             pendingDeepLink.clear()
             innerNavController.navigate(DashboardRoute) {

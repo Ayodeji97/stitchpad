@@ -19,6 +19,8 @@ class PushTargetParserTest {
             PushTargetParser.Parsed(DeepLinkTarget.FOUNDING_TAILORS),
             PushTargetParser.parse(mapOf("target" to "founding_tailors")),
         )
+    @Test fun parsesTeam() =
+        assertEquals(PushTargetParser.Parsed(DeepLinkTarget.TEAM), PushTargetParser.parse(mapOf("target" to "team")))
 
     // An unrecognised target must stay null, never throw: that is what lets the
     // server introduce a new campaign target before every client has updated. The

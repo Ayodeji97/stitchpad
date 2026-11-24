@@ -142,5 +142,7 @@ data class FabricImageRefDto(
 @Serializable
 data class StatusChangeDto(
     val status: String = "PENDING",
-    val changedAt: Long = 0L
+    val changedAt: Long = 0L,
+    /** Auth uid of the actor; null on pre-1.4.0 entries. See [com.danzucker.stitchpad.core.domain.model.StatusChange.changedBy]. */
+    val changedBy: String? = null,
 )

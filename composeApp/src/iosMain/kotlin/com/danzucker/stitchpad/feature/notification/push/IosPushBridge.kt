@@ -77,3 +77,13 @@ fun iosOnPushDashboardTap() {
         KoinPlatform.getKoin().get<PendingDeepLinkHolder>().set(DeepLinkTarget.DASHBOARD)
     }.onFailure { AppLogger.w { "iosOnPushDashboardTap failed: ${it.message}" } }
 }
+
+/**
+ * Called by Swift when the owner taps a join-request push (target: team). MainScreen
+ * consumes it and opens the Team screen.
+ */
+fun iosOnPushTeamTap() {
+    runCatching {
+        KoinPlatform.getKoin().get<PendingDeepLinkHolder>().set(DeepLinkTarget.TEAM)
+    }.onFailure { AppLogger.w { "iosOnPushTeamTap failed: ${it.message}" } }
+}

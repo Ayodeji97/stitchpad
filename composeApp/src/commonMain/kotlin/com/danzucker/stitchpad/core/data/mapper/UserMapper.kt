@@ -32,6 +32,8 @@ fun UserDto.toUser(): User {
         // in functions/src/notifications/engagementPush.ts: a tailor who already opted out
         // of daily push must not be silently opted into tips.
         announcementsPushEnabled = announcementsPushEnabled ?: dailyPushEnabled ?: dailyDigestEmailEnabled,
+        // Same inheritance as isActivityPushEnabled in functions/src/notifications/orderActivity.ts.
+        activityPushEnabled = activityPushEnabled ?: dailyPushEnabled ?: dailyDigestEmailEnabled,
         referralCode = referralCode,
         country = resolvedCountry,
         currency = Currency.fromCode(currency?.uppercase()) ?: resolvedCountry.currency,
@@ -58,6 +60,7 @@ fun User.toUserDto(): UserDto = UserDto(
     dailyDigestEmailEnabled = dailyDigestEmailEnabled,
     dailyPushEnabled = dailyPushEnabled,
     announcementsPushEnabled = announcementsPushEnabled,
+    activityPushEnabled = activityPushEnabled,
     country = country.iso,
     currency = currency.code,
     timeZone = timeZone,

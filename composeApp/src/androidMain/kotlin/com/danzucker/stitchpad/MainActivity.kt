@@ -118,6 +118,7 @@ class MainActivity : ComponentActivity() {
             DeepLinkTarget.INBOX -> pendingDeepLink.set(DeepLinkTarget.INBOX)
             DeepLinkTarget.DASHBOARD -> pendingDeepLink.set(DeepLinkTarget.DASHBOARD)
             DeepLinkTarget.FOUNDING_TAILORS -> pendingDeepLink.set(DeepLinkTarget.FOUNDING_TAILORS)
+            DeepLinkTarget.TEAM -> pendingDeepLink.set(DeepLinkTarget.TEAM)
             DeepLinkTarget.UPGRADE, DeepLinkTarget.CLAIM_GIFT, DeepLinkTarget.JOIN_WORKSHOP, null -> Unit
         }
         // Consume the extras so a later recreate (e.g. rotation) doesn't re-fire the

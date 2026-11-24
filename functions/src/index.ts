@@ -60,6 +60,7 @@ export { engagementPush, debugSendMyEngagementPush } from './notifications/engag
 export { pruneTokenOwnership } from './notifications/pruneTokenOwnership';
 export { emailUnsubscribe } from './notifications/emailUnsubscribe';
 export { onOrderCollectible } from './notifications/orderCollectNotify';
+export { onOrderActivity } from './notifications/orderActivityNotify';
 export {
   initializeSubscriptionCheckout,
   paystackWebhook,

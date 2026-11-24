@@ -15,10 +15,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PriorityHigh
+import androidx.compose.material.icons.outlined.AssignmentInd
 import androidx.compose.material.icons.outlined.CardGiftcard
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Update
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -42,6 +44,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.core.domain.model.Notification
 import com.danzucker.stitchpad.core.domain.model.NotificationType
+import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.sharing.formatMoney
 import com.danzucker.stitchpad.feature.notification.presentation.inbox.RelativeTime
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -69,12 +72,19 @@ import stitchpad.composeapp.generated.resources.month_abbrev_may
 import stitchpad.composeapp.generated.resources.month_abbrev_nov
 import stitchpad.composeapp.generated.resources.month_abbrev_oct
 import stitchpad.composeapp.generated.resources.month_abbrev_sep
+import stitchpad.composeapp.generated.resources.notification_actor_fallback
 import stitchpad.composeapp.generated.resources.notification_due_soon
 import stitchpad.composeapp.generated.resources.notification_overdue
+import stitchpad.composeapp.generated.resources.notification_tag_assigned_to_you
 import stitchpad.composeapp.generated.resources.notification_tag_due_soon
 import stitchpad.composeapp.generated.resources.notification_tag_overdue
 import stitchpad.composeapp.generated.resources.notification_tag_owes
+import stitchpad.composeapp.generated.resources.notification_tag_staff_status
 import stitchpad.composeapp.generated.resources.notification_to_collect
+import stitchpad.composeapp.generated.resources.order_status_delivered
+import stitchpad.composeapp.generated.resources.order_status_in_progress
+import stitchpad.composeapp.generated.resources.order_status_pending
+import stitchpad.composeapp.generated.resources.order_status_ready
 import stitchpad.composeapp.generated.resources.relative_time_date
 import stitchpad.composeapp.generated.resources.relative_time_hours
 import stitchpad.composeapp.generated.resources.relative_time_minutes
@@ -168,6 +178,16 @@ private fun resolveTypeTokens(type: NotificationType, isDark: Boolean): Notifica
             iconBg = MaterialTheme.colorScheme.primaryContainer,
             icon = Icons.Outlined.CardGiftcard,
         )
+        NotificationType.STAFF_STATUS -> NotificationTypeTokens(
+            accent = MaterialTheme.colorScheme.primary,
+            iconBg = MaterialTheme.colorScheme.primaryContainer,
+            icon = Icons.Outlined.Update,
+        )
+        NotificationType.ORDER_ASSIGNED -> NotificationTypeTokens(
+            accent = MaterialTheme.colorScheme.secondary,
+            iconBg = MaterialTheme.colorScheme.secondaryContainer,
+            icon = Icons.Outlined.AssignmentInd,
+        )
         NotificationType.UNKNOWN -> NotificationTypeTokens(
             accent = MaterialTheme.colorScheme.onSurfaceVariant,
             iconBg = MaterialTheme.colorScheme.surfaceVariant,
@@ -214,9 +234,38 @@ private fun buildA11ySentence(notification: Notification, relativeTime: String):
                 title
             }
         }
+        NotificationType.STAFF_STATUS, NotificationType.ORDER_ASSIGNED ->
+            "${nameWithGarment(notification)} · ${activityTag(notification)}"
         NotificationType.UNKNOWN -> nameWithGarment(notification)
     }
     return "$base · $relativeTime"
+}
+
+@Composable
+private fun orderStatusLabel(status: OrderStatus): String = when (status) {
+    OrderStatus.PENDING -> stringResource(Res.string.order_status_pending)
+    OrderStatus.IN_PROGRESS -> stringResource(Res.string.order_status_in_progress)
+    OrderStatus.READY -> stringResource(Res.string.order_status_ready)
+    OrderStatus.DELIVERED -> stringResource(Res.string.order_status_delivered)
+}
+
+/**
+ * Tag for the workshop-activity rows: "Tunde → Ready" for a staff status change,
+ * "Assigned to you" for an assignment. Empty for every other type.
+ */
+@Composable
+private fun activityTag(notification: Notification): String = when (notification.type) {
+    NotificationType.STAFF_STATUS -> {
+        val actor = notification.actorName ?: stringResource(Res.string.notification_actor_fallback)
+        val status = notification.status
+        if (status != null) {
+            stringResource(Res.string.notification_tag_staff_status, actor, orderStatusLabel(status))
+        } else {
+            actor
+        }
+    }
+    NotificationType.ORDER_ASSIGNED -> stringResource(Res.string.notification_tag_assigned_to_you)
+    else -> ""
 }
 
 /** "Name · Garment", or just the name when the garment summary is empty (avoids a dangling separator). */
@@ -245,22 +294,37 @@ private fun AnnotatedString.Builder.appendOwesTag(
 private fun showTagForType(type: NotificationType, amount: Double?): Boolean = when (type) {
     NotificationType.OVERDUE, NotificationType.DUE_SOON -> true
     NotificationType.TO_COLLECT -> amount != null
+    NotificationType.STAFF_STATUS, NotificationType.ORDER_ASSIGNED -> true
     NotificationType.GIFT_RECEIVED, NotificationType.UNKNOWN -> false
 }
 
+/** Text of the tinted tag for every non-money type; empty for the rest. */
+@Composable
+private fun plainTagFor(notification: Notification): String = when (notification.type) {
+    NotificationType.OVERDUE -> stringResource(Res.string.notification_tag_overdue)
+    NotificationType.DUE_SOON -> stringResource(Res.string.notification_tag_due_soon)
+    else -> activityTag(notification)
+}
+
+/**
+ * Appends the tinted type tag. [plainTag] is the already-resolved text for every
+ * non-money type (overdue / due soon / activity); TO_COLLECT gets the mono amount.
+ */
 private fun AnnotatedString.Builder.appendTag(
     type: NotificationType,
-    tagOverdue: String,
-    tagDueSoon: String,
+    plainTag: String,
     owesFull: String,
     amountStr: String,
     accent: Color,
     monoFamily: FontFamily,
 ) {
     when (type) {
-        NotificationType.OVERDUE -> withStyle(SpanStyle(color = accent)) { append(tagOverdue) }
-        NotificationType.DUE_SOON -> withStyle(SpanStyle(color = accent)) { append(tagDueSoon) }
         NotificationType.TO_COLLECT -> appendOwesTag(owesFull, amountStr, accent, monoFamily)
+        NotificationType.OVERDUE,
+        NotificationType.DUE_SOON,
+        NotificationType.STAFF_STATUS,
+        NotificationType.ORDER_ASSIGNED,
+        -> withStyle(SpanStyle(color = accent)) { append(plainTag) }
         NotificationType.GIFT_RECEIVED, NotificationType.UNKNOWN -> Unit
     }
 }
@@ -278,8 +342,7 @@ private fun buildMetaString(
     muted: Color,
 ): AnnotatedString {
     val amountStr = notification.amount?.let { formatMoney(it, notification.currency) }.orEmpty()
-    val tagOverdue = stringResource(Res.string.notification_tag_overdue)
-    val tagDueSoon = stringResource(Res.string.notification_tag_due_soon)
+    val plainTag = plainTagFor(notification)
     val owesFull = if (notification.type == NotificationType.TO_COLLECT && notification.amount != null) {
         stringResource(Res.string.notification_tag_owes, amountStr)
     } else {
@@ -310,7 +373,7 @@ private fun buildMetaString(
 
         if (showTag) {
             if (hasPrev) append(" · ")
-            appendTag(notification.type, tagOverdue, tagDueSoon, owesFull, amountStr, accent, monoFamily)
+            appendTag(notification.type, plainTag, owesFull, amountStr, accent, monoFamily)
             hasPrev = true
         }
 
@@ -475,6 +538,34 @@ private fun NotificationRowLightPreview() {
                         garmentSummary = "",
                         tier = "pro",
                         gifterName = "Bola",
+                        isRead = false,
+                        createdAt = 0L,
+                    ),
+                    relativeTime = "1h",
+                    onClick = {},
+                )
+                NotificationRow(
+                    notification = Notification(
+                        id = "o6__STAFF_STATUS__1",
+                        orderId = "o6",
+                        type = NotificationType.STAFF_STATUS,
+                        customerName = "Ada Obi",
+                        garmentSummary = "Agbada",
+                        status = OrderStatus.READY,
+                        actorName = "Tunde",
+                        isRead = false,
+                        createdAt = 0L,
+                    ),
+                    relativeTime = "4m",
+                    onClick = {},
+                )
+                NotificationRow(
+                    notification = Notification(
+                        id = "o7__ORDER_ASSIGNED__1",
+                        orderId = "o7",
+                        type = NotificationType.ORDER_ASSIGNED,
+                        customerName = "Kemi Ade",
+                        garmentSummary = "Iro and Buba",
                         isRead = false,
                         createdAt = 0L,
                     ),

@@ -125,6 +125,7 @@ class UserMapperTest {
             original.copy(
                 dailyPushEnabled = true,
                 announcementsPushEnabled = true,
+                activityPushEnabled = true,
                 country = "NG",
                 currency = "NGN",
                 timeZone = "Africa/Lagos",
@@ -198,6 +199,18 @@ class UserMapperTest {
         // Muting tips must NOT mute the daily deadline reminder — the whole point of
         // giving announcements their own field.
         assertTrue(UserDto(id = "u1", announcementsPushEnabled = false).toUser().dailyPushEnabled)
+    }
+
+    @Test
+    fun activityPushEnabled_inheritsLikeTheServer() {
+        // Mirrors isActivityPushEnabled in functions/src/notifications/orderActivity.ts.
+        assertTrue(UserDto(id = "u1").toUser().activityPushEnabled)
+        assertFalse(UserDto(id = "u1", activityPushEnabled = false).toUser().activityPushEnabled)
+        assertFalse(UserDto(id = "u1", dailyPushEnabled = false).toUser().activityPushEnabled)
+        assertFalse(UserDto(id = "u1", dailyDigestEmailEnabled = false).toUser().activityPushEnabled)
+        assertTrue(UserDto(id = "u1", activityPushEnabled = true, dailyPushEnabled = false).toUser().activityPushEnabled)
+        // Muting activity alerts must not mute the daily reminder.
+        assertTrue(UserDto(id = "u1", activityPushEnabled = false).toUser().dailyPushEnabled)
     }
 
     @Test

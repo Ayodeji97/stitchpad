@@ -131,4 +131,11 @@ interface UserRepository {
      * at once.
      */
     suspend fun setAnnouncementsPushEnabled(userId: String, enabled: Boolean): EmptyResult<DataError.Network>
+
+    /**
+     * Sets the workshop-activity push opt-out flag on `users/{userId}` (staff changed a
+     * status, an order was assigned to you, someone asked to join). Read server-side by
+     * isActivityPushEnabled in functions/src/notifications/orderActivity.ts.
+     */
+    suspend fun setActivityPushEnabled(userId: String, enabled: Boolean): EmptyResult<DataError.Network>
 }

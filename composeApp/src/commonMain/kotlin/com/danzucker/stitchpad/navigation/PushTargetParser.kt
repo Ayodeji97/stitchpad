@@ -8,6 +8,7 @@ object PushTargetParser {
     const val TARGET_TO_COLLECT = "to_collect"
     const val TARGET_DASHBOARD = "dashboard"
     const val TARGET_FOUNDING_TAILORS = "founding_tailors"
+    const val TARGET_TEAM = "team"
 
     data class Parsed(val target: DeepLinkTarget, val orderId: String? = null)
 
@@ -24,6 +25,7 @@ object PushTargetParser {
         TARGET_TO_COLLECT -> Parsed(DeepLinkTarget.TO_COLLECT)
         TARGET_DASHBOARD -> Parsed(DeepLinkTarget.DASHBOARD)
         TARGET_FOUNDING_TAILORS -> Parsed(DeepLinkTarget.FOUNDING_TAILORS)
+        TARGET_TEAM -> Parsed(DeepLinkTarget.TEAM)
         TARGET_ORDER -> data[ORDER_ID_KEY]?.takeIf { it.isNotBlank() }?.let { Parsed(DeepLinkTarget.ORDER, it) }
         else -> null
     }

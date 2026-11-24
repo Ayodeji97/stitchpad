@@ -200,4 +200,17 @@ class FakeUserRepository : UserRepository {
         userFlow.value = userFlow.value?.copy(announcementsPushEnabled = enabled)
         return Result.Success(Unit)
     }
+
+    /** Last value passed to [setActivityPushEnabled], or null if never called. */
+    var lastActivityPushEnabled: Boolean? = null
+
+    override suspend fun setActivityPushEnabled(
+        userId: String,
+        enabled: Boolean,
+    ): EmptyResult<DataError.Network> {
+        shouldReturnError?.let { return Result.Error(it) }
+        lastActivityPushEnabled = enabled
+        userFlow.value = userFlow.value?.copy(activityPushEnabled = enabled)
+        return Result.Success(Unit)
+    }
 }

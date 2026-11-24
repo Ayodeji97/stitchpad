@@ -70,7 +70,13 @@ data class FabricImageRef(
 
 data class StatusChange(
     val status: OrderStatus,
-    val changedAt: Long
+    val changedAt: Long,
+    /**
+     * Auth uid of whoever made the change (owner or staff). Null on entries written
+     * before 1.4.0. The server's activity alert uses it to tell the owner when STAFF
+     * moved an order, and never fires when it is absent.
+     */
+    val changedBy: String? = null,
 )
 
 enum class CostCategory {

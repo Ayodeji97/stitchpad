@@ -3,9 +3,11 @@ package com.danzucker.stitchpad.core.data.mapper
 import com.danzucker.stitchpad.core.data.dto.NotificationDto
 import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.NotificationType
+import com.danzucker.stitchpad.core.domain.model.OrderStatus
 import com.danzucker.stitchpad.core.sharing.formatMoney
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class NotificationMapperTest {
 
@@ -38,6 +40,24 @@ class NotificationMapperTest {
         val dto = NotificationDto(type = "OVERDUE")
         val notification = dto.toNotification("doc-1")
         assertEquals(NotificationType.OVERDUE, notification.type)
+    }
+
+    @Test
+    fun toNotification_workshopActivityTypes_mapStatusAndActor() {
+        val staffStatus = NotificationDto(type = "STAFF_STATUS", status = "READY", actorName = " Tunde ")
+            .toNotification("o1__STAFF_STATUS__1")
+        assertEquals(NotificationType.STAFF_STATUS, staffStatus.type)
+        assertEquals(OrderStatus.READY, staffStatus.status)
+        assertEquals("Tunde", staffStatus.actorName)
+
+        val assigned = NotificationDto(type = "ORDER_ASSIGNED", status = null, actorName = "")
+            .toNotification("o1__ORDER_ASSIGNED__1")
+        assertEquals(NotificationType.ORDER_ASSIGNED, assigned.type)
+        assertNull(assigned.status)
+        assertNull(assigned.actorName)
+
+        // A status this build does not know stays null rather than crashing the inbox.
+        assertNull(NotificationDto(type = "STAFF_STATUS", status = "ON_HOLD").toNotification("x").status)
     }
 
     @Test

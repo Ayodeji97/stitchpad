@@ -52,6 +52,11 @@ data class User(
      * must not also mute deadline and money-owed reminders. Opt-out: true by default.
      */
     val announcementsPushEnabled: Boolean = true,
+    /**
+     * Whether the user receives workshop activity alerts (staff status changes for an
+     * owner, assignments for staff, join requests). Opt-out: true by default.
+     */
+    val activityPushEnabled: Boolean = true,
     /** The tailor's own outbound referral code for the Founding Tailors program.
      *  Null until first minted server-side via getOrCreateMyReferralLink. */
     val referralCode: String? = null,

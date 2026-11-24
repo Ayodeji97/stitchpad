@@ -130,10 +130,13 @@ internal fun paymentDtosForOfflineAppend(
 // serialize the whole DTO via its @Serializable strategy.) arrayUnion elements
 // must therefore be primitive maps. Keys MUST match the matching DTO's
 // @Serializable field names so snapshot reads via OrderDto round-trip.
-internal fun StatusChangeDto.toFirestoreMap(): Map<String, Any?> = mapOf(
-    "status" to status,
-    "changedAt" to changedAt,
-)
+internal fun StatusChangeDto.toFirestoreMap(): Map<String, Any?> = buildMap {
+    put("status", status)
+    put("changedAt", changedAt)
+    // Omitted (not null) when unknown, so an entry from a signed-out edge case
+    // looks exactly like a pre-1.4.0 entry: the server then sends no alert.
+    changedBy?.let { put("changedBy", it) }
+}
 
 internal fun PaymentDto.toFirestoreMap(): Map<String, Any?> = mapOf(
     "id" to id,
@@ -181,11 +184,21 @@ internal fun orderAssignmentWriteFields(
     memberId: String?,
     memberName: String?,
     now: Long,
-): Map<String, Any?> = mapOf(
-    "assignedMemberId" to memberId,
-    "assignedMemberName" to memberName,
-    "updatedAt" to now,
-)
+    ownerAssignedBy: String? = null,
+): Map<String, Any?> = buildMap {
+    put("assignedMemberId", memberId)
+    put("assignedMemberName", memberName)
+    put("updatedAt", now)
+    // Owner-only markers for the server's "order assigned to you" alert. Written ONLY
+    // when the OWNER assigns: the staff self-claim rule (firestore.rules) allows no
+    // key beyond the three above, so adding these to a claim would be rejected. The
+    // server requires assignedAt to change in the same write, so a stale marker from
+    // an earlier owner assignment can never make a staff claim look owner-made.
+    if (ownerAssignedBy != null) {
+        put("assignedBy", ownerAssignedBy)
+        put("assignedAt", now)
+    }
+}
 
 internal fun StyleImageRefDto.toFirestoreMap(): Map<String, Any?> = mapOf(
     "source" to source,
@@ -316,6 +329,10 @@ class FirebaseOrderRepository(
 
     private fun ordersCollection(userId: String) =
         firestore.collection("users").document(userId).collection("orders")
+
+    /** The signed-in auth uid (owner or staff), for activity attribution; null when unknown. */
+    private fun currentActorUid(): String? =
+        activeWorkshopProvider.current().authUid.takeIf { it.isNotBlank() }
 
     // Owner-only money sub-doc (Owner + Staff feature). The owner reads money from
     // here (Slice 8a); staff are denied by Firestore rules. During the dual-write
@@ -650,7 +667,7 @@ class FirebaseOrderRepository(
         newStatus: OrderStatus
     ): EmptyResult<DataError.Network> {
         val now = Clock.System.now().toEpochMilliseconds()
-        val change = StatusChangeDto(status = newStatus.name, changedAt = now)
+        val change = StatusChangeDto(status = newStatus.name, changedAt = now, changedBy = currentActorUid())
         val accepted = offlineWrites.enqueue("updateOrderStatus orderId=$orderId") {
             ordersCollection(userId).document(orderId).update(
                 "status" to newStatus.name,
@@ -813,7 +830,14 @@ class FirebaseOrderRepository(
         memberId: String?,
         memberName: String?,
     ): EmptyResult<DataError.Network> {
-        val fields = orderAssignmentWriteFields(memberId, memberName, Clock.System.now().toEpochMilliseconds())
+        val actor = currentActorUid()
+        val fields = orderAssignmentWriteFields(
+            memberId = memberId,
+            memberName = memberName,
+            now = Clock.System.now().toEpochMilliseconds(),
+            // Owner of this tree only — see orderAssignmentWriteFields.
+            ownerAssignedBy = actor?.takeIf { it == userId },
+        )
         val accepted = offlineWrites.enqueue("assignOrder orderId=$orderId") {
             ordersCollection(userId).document(orderId)
                 .update(*fields.entries.map { it.key to it.value }.toTypedArray())

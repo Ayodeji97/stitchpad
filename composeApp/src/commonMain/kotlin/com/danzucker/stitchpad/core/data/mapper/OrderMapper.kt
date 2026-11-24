@@ -321,10 +321,12 @@ private fun FabricImageRef.toFabricImageRefDto(): FabricImageRefDto = FabricImag
 fun StatusChangeDto.toStatusChange(): StatusChange = StatusChange(
     status = runCatching { OrderStatus.valueOf(status) }
         .getOrDefault(OrderStatus.PENDING),
-    changedAt = changedAt
+    changedAt = changedAt,
+    changedBy = changedBy,
 )
 
 fun StatusChange.toStatusChangeDto(): StatusChangeDto = StatusChangeDto(
     status = status.name,
-    changedAt = changedAt
+    changedAt = changedAt,
+    changedBy = changedBy,
 )

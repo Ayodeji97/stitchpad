@@ -9,6 +9,7 @@ import {
   membershipsCollectionPath,
   occupiesSeat,
 } from './staffConstants';
+import { JoinRequest, productionJoinPushIO, runJoinRequestPush } from '../notifications/staffJoinPush';
 
 export interface RedeemStaffInviteRequest {
   code?: unknown;
@@ -23,6 +24,12 @@ export interface RedeemStaffInviteResponse {
 export interface RedeemStaffInviteDeps {
   db: admin.firestore.Firestore;
   now: () => Date;
+  /**
+   * Best-effort owner push for the join request. Optional so tests (and any caller
+   * that must not send) can omit it; a throw here is logged and swallowed — it can
+   * never fail a redeem that has already committed.
+   */
+  notifyJoinRequest?: (req: JoinRequest) => Promise<unknown>;
 }
 
 export async function redeemStaffInviteHandler(
@@ -115,6 +122,17 @@ export async function redeemStaffInviteHandler(
     if ((err as { code?: number }).code !== 6) throw err; // 6 = ALREADY_EXISTS
   }
 
+  if (deps.notifyJoinRequest) {
+    try {
+      const outcome = await deps.notifyJoinRequest({ ownerUid: result.workshopUid, staffUid, staffName, staffEmail });
+      functions.logger.info('redeemStaffInvite: join-request push', { ownerUid: result.workshopUid, staffUid, outcome });
+    } catch (err) {
+      functions.logger.error('redeemStaffInvite: join-request push failed', {
+        ownerUid: result.workshopUid, staffUid, error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   return { workshopUid: result.workshopUid, workshopName: result.workshopName, status: 'pending' };
 }
 
@@ -125,5 +143,6 @@ export const redeemStaffInvite = functions
       redeemStaffInviteHandler(data as RedeemStaffInviteRequest, context, {
         db: admin.firestore(),
         now: () => new Date(),
+        notifyJoinRequest: (req) => runJoinRequestPush(req, productionJoinPushIO(admin.firestore())),
       }),
   );

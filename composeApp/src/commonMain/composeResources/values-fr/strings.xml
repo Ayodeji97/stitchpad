@@ -1255,6 +1255,7 @@
     <string name="settings_row_daily_digest">Résumé hebdomadaire par e-mail</string>
     <string name="settings_row_daily_push">Rappel quotidien</string>
     <string name="settings_row_announcements">Conseils et annonces</string>
+    <string name="settings_row_activity_push">Alertes d’activité de l’atelier</string>
     <string name="settings_theme_system">Par défaut du système</string>
     <string name="settings_theme_light">Clair</string>
     <string name="settings_theme_dark">Sombre</string>
@@ -1504,6 +1505,9 @@
     <string name="notification_tag_overdue">en retard</string>
     <string name="notification_tag_due_soon">bientôt à livrer</string>
     <string name="notification_tag_owes">doit %1$s</string>
+    <string name="notification_tag_staff_status">%1$s : « %2$s »</string>
+    <string name="notification_tag_assigned_to_you">vous est attribuée</string>
+    <string name="notification_actor_fallback">Un membre de l’équipe</string>
     <string name="smart_upgrade_sheet_title">Plus de brouillons gratuits ce mois-ci</string>
     <string name="smart_upgrade_sheet_message">Vous avez utilisé vos 5 brouillons gratuits. Passez à l'offre supérieure pour en rédiger autant que nécessaire.</string>
     <string name="smart_upgrade_sheet_upgrade_cta">Passer à l'offre supérieure</string>

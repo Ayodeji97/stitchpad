@@ -85,6 +85,40 @@ describe('redeemStaffInviteHandler', () => {
     });
   });
 
+  it('pushes the owner about the join request once the redeem has committed', async () => {
+    const { db } = makeStaffDb(openInvite());
+    const notifyJoinRequest = jest.fn().mockResolvedValue('sent');
+    await redeemStaffInviteHandler(
+      { code: 'CODE' },
+      authedCtx('chidi', { email: 'chidi@ex.co', name: 'Chidi' }),
+      { ...deps(db), notifyJoinRequest },
+    );
+    expect(notifyJoinRequest).toHaveBeenCalledWith({
+      ownerUid: 'alice', staffUid: 'chidi', staffName: 'Chidi', staffEmail: 'chidi@ex.co',
+    });
+  });
+
+  it('a failing join-request push never fails the redeem', async () => {
+    const { db, store } = makeStaffDb(openInvite());
+    const notifyJoinRequest = jest.fn().mockRejectedValue(new Error('fcm down'));
+    const res = await redeemStaffInviteHandler(
+      { code: 'CODE' },
+      authedCtx('chidi', { email: 'chidi@ex.co', name: 'Chidi' }),
+      { ...deps(db), notifyJoinRequest },
+    );
+    expect(res.status).toBe('pending');
+    expect(store.get('users/alice/memberships/chidi')).toMatchObject({ status: 'pending' });
+  });
+
+  it('does not push when the redeem is rejected', async () => {
+    const { db } = makeStaffDb(openInvite({ status: 'redeemed' }));
+    const notifyJoinRequest = jest.fn();
+    await expect(
+      redeemStaffInviteHandler({ code: 'CODE' }, authedCtx('chidi'), { ...deps(db), notifyJoinRequest }),
+    ).rejects.toBeTruthy();
+    expect(notifyJoinRequest).not.toHaveBeenCalled();
+  });
+
   it('rejects a caller who is already an active member', async () => {
     const { db } = makeStaffDb({
       ...openInvite(),

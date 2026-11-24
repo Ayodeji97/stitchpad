@@ -1,6 +1,18 @@
 package com.danzucker.stitchpad.core.domain.model
 
-enum class NotificationType { OVERDUE, DUE_SOON, TO_COLLECT, GIFT_RECEIVED, UNKNOWN }
+enum class NotificationType {
+    OVERDUE,
+    DUE_SOON,
+    TO_COLLECT,
+    GIFT_RECEIVED,
+
+    /** Owner inbox: a staff member moved an order's status (server: orderActivity.ts). */
+    STAFF_STATUS,
+
+    /** Staff inbox: the owner assigned an order to this staff member. Never carries money. */
+    ORDER_ASSIGNED,
+    UNKNOWN,
+}
 
 data class Notification(
     val id: String,
@@ -22,4 +34,8 @@ data class Notification(
     val isOverdue: Boolean = false,
     /** Currency stamped on the order when the notification was produced. Legacy inbox docs are NGN. */
     val currency: Currency = Currency.NGN,
+    /** New order status; meaningful only for [NotificationType.STAFF_STATUS]. */
+    val status: OrderStatus? = null,
+    /** Who did it (roster name); meaningful only for [NotificationType.STAFF_STATUS]. */
+    val actorName: String? = null,
 )

@@ -57,6 +57,9 @@ data class UserDto(
      */
     @SerialName("announcementsPushEnabled")
     val announcementsPushEnabled: Boolean? = null,
+    /** Workshop activity alerts. Nullable to inherit like [announcementsPushEnabled]. */
+    @SerialName("activityPushEnabled")
+    val activityPushEnabled: Boolean? = null,
     @SerialName("referralCode")
     val referralCode: String? = null,
     /** ISO 3166-1 alpha-2 market code. Absent on legacy docs, which the mapper treats as NG. */
