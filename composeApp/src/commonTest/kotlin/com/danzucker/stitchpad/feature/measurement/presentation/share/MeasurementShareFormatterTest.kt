@@ -68,7 +68,7 @@ class MeasurementShareFormatterTest {
     @Test
     fun `whatsapp text has bold header sections and footer`() {
         val text = MeasurementShareFormatter.buildWhatsAppText(format())
-        assertTrue(text.startsWith("📏 *Chidinma Eze — Wedding gown*"))
+        assertTrue(text.startsWith("📏 *Chidinma Eze · Wedding gown*"))
         assertTrue(text.contains("Women's · Inches · 12 Jun 2026"))
         assertTrue(text.contains("*Upper Body*"))
         assertTrue(text.contains("Shoulder: 15"))

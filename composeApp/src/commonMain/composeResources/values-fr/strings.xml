@@ -169,7 +169,7 @@
     <string name="customer_delete_blocked_title">Impossible de supprimer %1$s pour le moment</string>
     <string name="customer_delete_blocked_message">%1$s a %2$d commande(s) en cours. Marquez-les comme livrées ou supprimez-les d'abord, puis réessayez.</string>
     <string name="customer_delete_blocked_dismiss">D'accord</string>
-    <string name="customer_delete_pending_orders_load">Chargement des commandes — réessayez dans un instant.</string>
+    <string name="customer_delete_pending_orders_load">Chargement des commandes. Réessayez dans un instant.</string>
     <string name="customer_delete_orders_load_failed">Impossible de charger les commandes. Vérifiez votre connexion et réessayez.</string>
     <string name="customer_actions_message_whatsapp">Écrire sur WhatsApp</string>
     <string name="customer_actions_edit">Modifier</string>
@@ -186,7 +186,7 @@
     <string name="customer_locked_section_subtitle">En sécurité et toujours consultables. Déverrouillez-les à tout moment pour prendre de nouvelles commandes.</string>
     <string name="customer_locked_chip">Verrouillé</string>
     <string name="customer_locked_explainer">Ce client est verrouillé car vous dépassez la limite du forfait gratuit. Passez à Tailor Pro pour y accéder, ou échangez-le avec un de vos clients actifs.</string>
-    <string name="customer_locked_detail_banner_title">Verrouillé — lecture seule</string>
+    <string name="customer_locked_detail_banner_title">Verrouillé (lecture seule)</string>
     <string name="customer_locked_detail_banner_body">Toutes les données sont conservées. Pour créer une commande, prendre des mensurations ou modifier ce profil, déverrouillez ou échangez ce client.</string>
     <string name="customer_locked_detail_unlock_cta">Déverrouiller avec Pro</string>
     <string name="customer_locked_row_swap_cta">Échanger</string>
@@ -352,7 +352,7 @@
     <string name="custom_field_section_pill_locked">Pro</string>
     <string name="custom_field_section_pill_first_month">Premier mois</string>
     <string name="custom_field_section_subtitle">Ajoutez vos propres mensurations à la fiche de ce client.</string>
-    <string name="custom_field_empty_caption">Ajoutez des mensurations absentes de la liste par défaut — largeur de poignet, revers, ampleur de robe… Elles apparaîtront ici pour tous vos clients.</string>
+    <string name="custom_field_empty_caption">Ajoutez des mensurations absentes de la liste par défaut : largeur de poignet, revers, ampleur de robe… Elles apparaîtront ici pour tous vos clients.</string>
     <string name="custom_field_locked_caption">Créez des mensurations absentes de la liste par défaut. Disponible avec Pro.</string>
     <string name="custom_field_add_button">Ajouter un champ personnalisé</string>
     <string name="custom_field_sheet_add_title">Ajouter un champ personnalisé</string>
@@ -542,7 +542,7 @@
     <string name="garment_picker_section_common_types">Types courants</string>
     <string name="garment_picker_add_custom_format">Ajouter « %1$s » comme nouveau type de vêtement</string>
     <string name="garment_picker_add_custom_subtext">Enregistré pour la prochaine fois</string>
-    <string name="garment_picker_no_matches_format">Aucun type courant ne correspond à « %1$s » — pas de souci, ajoutez-le comme le vôtre.</string>
+    <string name="garment_picker_no_matches_format">Aucun type courant ne correspond à « %1$s ». Pas de souci, ajoutez-le comme le vôtre.</string>
     <string name="garment_picker_custom_pill">Personnalisé</string>
     <string name="garment_picker_saved_snackbar_format">« %1$s » ajouté à vos types de vêtements.</string>
     <string name="garment_picker_add_new_cta">Ajouter un nouveau type de vêtement</string>
@@ -685,9 +685,9 @@
     <string name="share_doc_type_invoice">Facture</string>
     <string name="share_doc_type_deposit_receipt">Reçu d'acompte</string>
     <string name="share_doc_type_receipt">Reçu</string>
-    <string name="share_sheet_subtitle_invoice">Aucun paiement enregistré — c'est une demande de paiement.</string>
-    <string name="share_sheet_subtitle_deposit_receipt">Acompte versé — il reste un solde à payer.</string>
-    <string name="share_sheet_subtitle_receipt">Entièrement payé — reçu de remerciement.</string>
+    <string name="share_sheet_subtitle_invoice">Aucun paiement enregistré. C'est une demande de paiement.</string>
+    <string name="share_sheet_subtitle_deposit_receipt">Acompte versé, il reste un solde à payer.</string>
+    <string name="share_sheet_subtitle_receipt">Entièrement payé. Reçu de remerciement.</string>
     <string name="share_summary_total">Total</string>
     <string name="share_summary_balance_due">Solde à payer</string>
     <string name="share_summary_paid">Entièrement payé</string>
@@ -780,7 +780,7 @@
     <string name="staff_due_tomorrow">Pour demain</string>
     <string name="staff_due_weekday">Pour %1$s</string>
     <string name="staff_on_track">Dans les temps</string>
-    <string name="staff_stage_now">%1$s — en cours</string>
+    <string name="staff_stage_now">%1$s · en cours</string>
     <string name="staff_advance_stage_error">Impossible de mettre à jour la commande. Réessayez.</string>
     <string name="staff_stage_progress_cd">%1$s, étape %2$d sur %3$d</string>
     <string name="staff_stage_sheet_title">Choisir l'étape</string>
@@ -822,8 +822,8 @@
     <string name="dashboard_nba_cta_open_order">Ouvrir la commande</string>
     <string name="dashboard_garment_with_qty">%1$s · Qté %2$d</string>
     <string name="dashboard_nba_card_cd">%1$s. %2$s. Touchez %3$s.</string>
-    <string name="dashboard_whatsapp_collect_ready">Bonjour %1$s, votre commande (%2$s) est prête à récupérer. Solde : %3$s. — %4$s</string>
-    <string name="dashboard_whatsapp_collect_overdue">Bonjour %1$s, votre commande (%2$s) a %3$d j de retard sur la date de livraison. Solde restant : %4$s. — %5$s</string>
+    <string name="dashboard_whatsapp_collect_ready">Bonjour %1$s, votre commande (%2$s) est prête à récupérer. Solde : %3$s. De la part de %4$s</string>
+    <string name="dashboard_whatsapp_collect_overdue">Bonjour %1$s, votre commande (%2$s) a %3$d j de retard sur la date de livraison. Solde restant : %4$s. De la part de %5$s</string>
     <string name="dashboard_whatsapp_launch_failed">Impossible d'ouvrir WhatsApp. Vérifiez qu'il est installé et réessayez.</string>
     <string name="to_collect_chase_no_contact">Impossible d'envoyer un rappel : les coordonnées de ce client sont manquantes.</string>
     <string name="order_detail_whatsapp_launch_failed">Impossible d'ouvrir WhatsApp. Vérifiez qu'il est installé et réessayez.</string>
@@ -886,7 +886,7 @@
     <string name="focus_pickup_supporting">Prévenez le client pour le retrait ou marquez comme livrée</string>
     <string name="focus_pickup_cta">Ouvrir la commande · %1$s</string>
     <string name="dashboard_focus_collect_headline">Argent à encaisser</string>
-    <string name="dashboard_focus_collect_supporting">%1$d en retard — relancez le paiement aujourd'hui</string>
+    <string name="dashboard_focus_collect_supporting">%1$d en retard. Relancez le paiement aujourd'hui</string>
     <string name="dashboard_focus_collect_cta">Encaisser</string>
     <string name="dashboard_nba_empty_title">Aucune action conseillée</string>
     <string name="dashboard_nba_empty_supporting">Elles apparaissent quand un solde ou une date limite demande un suivi.</string>
@@ -934,7 +934,7 @@
     <string name="reconnect_no_orders_yet">Pas encore de commande</string>
     <string name="reconnect_send_hello">Envoyer un bonjour</string>
     <string name="reconnect_say_hi">Dire bonjour</string>
-    <string name="reconnect_whatsapp_template">Bonjour %1$s ! J'espère que vous allez bien. Je prends de vos nouvelles — dites-moi si vous avez besoin d'une nouvelle tenue.</string>
+    <string name="reconnect_whatsapp_template">Bonjour %1$s ! J'espère que vous allez bien. Je prends de vos nouvelles. Dites-moi si vous avez besoin d'une nouvelle tenue.</string>
     <string name="goals_section_label">Cette semaine</string>
     <string name="goals_days_left">%1$d jours restants</string>
     <string name="goals_days_left_one">%1$d jour restant</string>
@@ -942,8 +942,8 @@
     <string name="goals_supporting">Suivez votre objectif de gains de la semaine.</string>
     <string name="goals_motivation_behind">Accélérez le rythme cette semaine</string>
     <string name="goals_motivation_on_pace">Vous êtes sur la bonne voie</string>
-    <string name="goals_motivation_ahead">Belle semaine — continuez comme ça</string>
-    <string name="goals_motivation_near_goal">Presque fini — dernier effort</string>
+    <string name="goals_motivation_ahead">Belle semaine, continuez comme ça</string>
+    <string name="goals_motivation_near_goal">Presque fini, dernier effort</string>
     <string name="goals_percent_of_goal">%1$s de l'objectif</string>
     <string name="goals_earned">%1$s encaissés</string>
     <string name="goals_to_go">Encore %1$s</string>
@@ -1018,7 +1018,7 @@
     <string name="measurement_share_error">Impossible de partager les mensurations. Veuillez réessayer.</string>
     <string name="measurement_share_sheet_title">Partager les mensurations</string>
     <string name="measurement_share_whatsapp_title">Envoyer en texte sur WhatsApp</string>
-    <string name="measurement_share_whatsapp_description">Texte simple — lisible sur tous les téléphones</string>
+    <string name="measurement_share_whatsapp_description">Texte simple, lisible sur tous les téléphones</string>
     <string name="cd_measurement_share">Partager les mensurations</string>
     <string name="measurement_detail_view_full">Voir les mensurations complètes</string>
     <string name="measurement_detail_change">Modifier les mensurations</string>
@@ -1068,7 +1068,7 @@
     <string name="status_sheet_subtitle_cutting">Couper le tissu</string>
     <string name="status_sheet_subtitle_sewing">Coudre le vêtement</string>
     <string name="status_sheet_subtitle_fitting">Le client vient faire l'essayage</string>
-    <string name="status_sheet_subtitle_ready">Vêtement terminé — prévenez le client</string>
+    <string name="status_sheet_subtitle_ready">Vêtement terminé. Prévenez le client</string>
     <string name="status_sheet_subtitle_delivered">Le client a récupéré sa commande</string>
     <string name="record_payment_dialog_title">Enregistrer un paiement</string>
     <string name="record_payment_dialog_amount_label">Montant</string>
@@ -1076,10 +1076,10 @@
     <string name="record_payment_dialog_method_label">Mode de paiement</string>
     <string name="record_payment_dialog_mark_paid_full">Marquer comme entièrement payé · %1$s</string>
     <string name="payment_capped_at_balance">Limité au solde de %1$s</string>
-    <string name="whatsapp_message_pending">Bonjour %1$s, je vous confirme les détails de votre commande — je commence le travail très bientôt.</string>
+    <string name="whatsapp_message_pending">Bonjour %1$s, je vous confirme les détails de votre commande. Je commence le travail très bientôt.</string>
     <string name="whatsapp_message_in_progress">Bonjour %1$s, petite nouvelle de votre tenue : le travail avance bien et dans les temps.</string>
-    <string name="whatsapp_message_ready">Bonjour %1$s, votre tenue est prête à être retirée — dites-moi quand vous pouvez passer.</string>
-    <string name="whatsapp_message_delivered">Bonjour %1$s, j'espère que la tenue vous va bien — envoyez-moi une photo quand vous la porterez !</string>
+    <string name="whatsapp_message_ready">Bonjour %1$s, votre tenue est prête à être retirée. Dites-moi quand vous pouvez passer.</string>
+    <string name="whatsapp_message_delivered">Bonjour %1$s, j'espère que la tenue vous va bien. Envoyez-moi une photo quand vous la porterez !</string>
     <string name="whatsapp_message_customer_greeting">Bonjour %1$s, j'espère que vous allez bien ! Je prends de vos nouvelles depuis l'atelier.</string>
     <string name="whatsapp_launch_failed">Impossible d'ouvrir WhatsApp. Vérifiez qu'il est installé et réessayez.</string>
     <string name="whatsapp_collect_message_ready">Bonjour %1$s, votre commande est prête à être retirée. Merci de régler le solde de %2$s dès que possible. Merci ! %3$s</string>
@@ -1148,7 +1148,7 @@
     <string name="whatsapp_confirmed_badge">WhatsApp confirmé</string>
     <string name="whatsapp_confirm_instructions">Ouvrez WhatsApp, lisez le code à 4 chiffres dans le message préparé, puis saisissez-le ci-dessous. Inutile d'envoyer le message.</string>
     <string name="whatsapp_confirm_input_label">Saisissez le code à 4 chiffres</string>
-    <string name="whatsapp_confirm_message">Code de confirmation StitchPad : %1$s — vous pouvez supprimer ce message.</string>
+    <string name="whatsapp_confirm_message">Code de confirmation StitchPad : %1$s. Vous pouvez supprimer ce message.</string>
     <string name="whatsapp_confirm_error_mismatch">Code incorrect. Vérifiez WhatsApp et réessayez.</string>
     <string name="whatsapp_confirm_cancel">Annuler</string>
     <string name="workshop_business_name_helper">Affiché sur votre tableau de bord. Vous pouvez le modifier plus tard.</string>
@@ -1239,7 +1239,7 @@
     <string name="community_strip_join">Rejoindre</string>
     <string name="community_banner_dismiss_cd">Ignorer</string>
     <string name="community_banner_icon_cd">WhatsApp</string>
-    <string name="settings_invite_share_message">Bonjour ! J'utilise StitchPad pour gérer mes commandes de couture et mes clients — ça a tout changé. Essayez-le : https://getstitchpad.com</string>
+    <string name="settings_invite_share_message">Bonjour ! J'utilise StitchPad pour gérer mes commandes de couture et mes clients, et ça a tout changé. Essayez-le : https://getstitchpad.com</string>
     <string name="settings_support_intro_message">Bonjour l’équipe StitchPad ! J’ai besoin d’aide pour </string>
     <string name="settings_section_legal">Mentions légales</string>
     <string name="settings_help_cd">Aide</string>
@@ -1292,9 +1292,9 @@
     <string name="plan_card_title_warn_other">Clients restants avant votre limite gratuite : %1$d</string>
     <string name="plan_card_subtitle_warn">Passez à l'offre supérieure pour continuer à ajouter des clients, débloquer les rapports et sauvegarder votre travail.</string>
     <string name="plan_card_title_locked">Vous ne pouvez pas ajouter de nouveaux clients</string>
-    <string name="plan_card_subtitle_locked">Passez à l'offre supérieure pour continuer à grandir — vos clients actuels restent en sécurité, sans changement.</string>
+    <string name="plan_card_subtitle_locked">Passez à l'offre supérieure pour continuer à grandir. Vos clients actuels restent en sécurité, sans changement.</string>
     <string name="plan_card_cta_upgrade">Passer à l'offre supérieure</string>
-    <string name="plan_card_cta_upgrade_priced">Passer à l'offre supérieure — %1$s/mois</string>
+    <string name="plan_card_cta_upgrade_priced">Passer à l'offre supérieure : %1$s/mois</string>
     <string name="plan_card_cta_upgrade_now">Passer à l'offre supérieure</string>
     <string name="plan_card_cta_compare">Comparer les offres</string>
     <string name="plan_card_first_month_pill_one">Premier mois · 1 jour restant</string>
@@ -1326,9 +1326,9 @@
     <string name="founders_note_paragraph_1">Vos 30 premiers jours sont illimités. Apportez toute votre activité : chaque client, chaque commande, chaque mensuration.</string>
     <string name="founders_note_paragraph_2">Après le premier mois, l'offre gratuite garde vos 15 clients les plus actifs à portée de main. Les autres restent en sécurité et consultables. Vous pouvez les voir à tout moment et les déverrouiller ou les échanger dès que vous devez prendre une nouvelle commande.</string>
     <string name="founders_note_paragraph_3">Nous ne supprimons jamais vos clients. Nous ne changeons jamais vos données du jour au lendemain.</string>
-    <string name="founders_note_paragraph_4">Cette limite existe parce que chaque brouillon IA nous coûte de l'argent. L'offre gratuite à 15 clients permet à l'application de durer tout en offrant un vrai produit à tous — pas une démo, pas un essai.</string>
+    <string name="founders_note_paragraph_4">Cette limite existe parce que chaque brouillon IA nous coûte de l'argent. L'offre gratuite à 15 clients permet à l'application de durer tout en offrant un vrai produit à tous : pas une démo, pas un essai.</string>
     <string name="founders_note_paragraph_5">Si quelque chose ne vous semble pas juste, écrivez-nous directement. Nous lisons tout.</string>
-    <string name="founders_note_signature">— Daniel, fondateur</string>
+    <string name="founders_note_signature">Daniel, fondateur</string>
     <string name="founders_note_whatsapp_cta">Nous écrire sur WhatsApp</string>
     <string name="plan_card_free_state">Vous êtes en offre gratuite</string>
     <string name="plan_card_pro_state">Vous êtes en Tailor Pro</string>
@@ -1378,11 +1378,11 @@
     <string name="edit_profile_label_your_name">Votre nom (facultatif)</string>
     <string name="edit_profile_helper_your_name">Utilisé dans les reçus et les rappels aux clients</string>
     <string name="edit_profile_label_phone">Numéro de téléphone (facultatif)</string>
-    <string name="edit_profile_helper_phone">Ligne d'appel — à remplir seulement si elle diffère de votre WhatsApp</string>
+    <string name="edit_profile_helper_phone">Ligne d'appel. À remplir seulement si elle diffère de votre WhatsApp</string>
     <string name="edit_profile_label_whatsapp">Numéro WhatsApp</string>
     <string name="edit_profile_helper_whatsapp">Utilisé pour les rappels et les reçus des clients</string>
     <string name="edit_profile_label_email">E-mail</string>
-    <string name="edit_profile_helper_email_readonly">Changer d'e-mail demande une vérification de sécurité — allez dans Paramètres → Compte → E-mail.</string>
+    <string name="edit_profile_helper_email_readonly">Changer d'e-mail demande une vérification de sécurité. Allez dans Paramètres → Compte → E-mail.</string>
     <string name="edit_profile_save">Enregistrer les modifications</string>
     <string name="edit_profile_saved">Profil mis à jour</string>
     <string name="edit_profile_save_failed">Impossible d'enregistrer les modifications. Réessayez.</string>
@@ -1402,7 +1402,7 @@
     <string name="change_password_helper">Au moins 6 caractères.</string>
     <string name="change_password_cta">Mettre à jour le mot de passe</string>
     <string name="change_password_updated">Mot de passe mis à jour</string>
-    <string name="password_reset_email_sent">Lien de réinitialisation envoyé — consultez vos e-mails</string>
+    <string name="password_reset_email_sent">Lien de réinitialisation envoyé. Consultez vos e-mails</string>
     <string name="reauth_title">Confirmez votre identité</string>
     <string name="reauth_subtitle">Pour votre sécurité, veuillez vous reconnecter avant de continuer.</string>
     <string name="reauth_label_email">E-mail</string>
@@ -1415,7 +1415,7 @@
     <string name="delete_account_dialog_title">Supprimer votre compte ?</string>
     <string name="delete_account_dialog_body">Vous serez déconnecté(e) et votre compte sera fermé. Vos données (clients, mensurations, commandes) sont conservées selon notre politique jusqu'au nettoyage automatique.</string>
     <string name="delete_account_dialog_continue">Continuer</string>
-    <string name="delete_account_reason_title">Aidez-nous à progresser — pourquoi partez-vous ?</string>
+    <string name="delete_account_reason_title">Aidez-nous à progresser : pourquoi partez-vous ?</string>
     <string name="delete_account_reason_subtitle">Votre avis est anonyme et nous aide à créer un meilleur outil pour les couturiers.</string>
     <string name="delete_account_reason_duplicate">J'ai créé un compte en double ou par erreur</string>
     <string name="delete_account_reason_complex">L'application est trop complexe à utiliser</string>
@@ -1514,7 +1514,7 @@
     <string name="smart_upgrade_sheet_dismiss">Attendre le mois prochain</string>
     <string name="welcome_ending_banner_title_one">Votre premier mois se termine demain</string>
     <string name="welcome_ending_banner_title_other">Votre premier mois se termine dans %1$d jours</string>
-    <string name="welcome_ending_banner_body">Après votre premier mois, vos 15 clients les plus actifs restent actifs. Les autres restent en sécurité et consultables — déverrouillez-les ou échangez-les pour prendre de nouvelles commandes. Passez à Pro pour les garder tous actifs.</string>
+    <string name="welcome_ending_banner_body">Après votre premier mois, vos 15 clients les plus actifs restent actifs. Les autres restent en sécurité et consultables. Déverrouillez-les ou échangez-les pour prendre de nouvelles commandes. Passez à Pro pour les garder tous actifs.</string>
     <string name="welcome_ending_banner_cta">Voir Tailor Pro</string>
     <string name="push_prompt_title">Ne ratez plus aucune date de livraison</string>
     <string name="push_prompt_body">Recevez chaque matin un petit rappel des commandes à livrer et de l'argent à encaisser.</string>
@@ -1602,7 +1602,7 @@
     <string name="order_show_amounts">Afficher les montants</string>
     <string name="order_hide_amounts">Masquer les montants</string>
     <string name="order_costs_empty_body">Ajoutez vos dépenses pour voir votre bénéfice réel.</string>
-    <string name="order_costs_private_caption">Privé — jamais affiché sur les reçus</string>
+    <string name="order_costs_private_caption">Privé : jamais affiché sur les reçus</string>
     <string name="costs_editor_title">Enregistrer les coûts</string>
     <string name="costs_editor_subtitle">Combien vous a coûté cette commande ? Laissez vide ce qui ne s'applique pas.</string>
     <string name="costs_editor_save">Enregistrer les coûts</string>
@@ -1621,7 +1621,7 @@
     <string name="reports_kpi_profit">Bénéfice à ce jour</string>
     <string name="reports_profit_coverage_short">Coûts renseignés : %1$d / %2$d</string>
     <string name="reports_profit_coverage_remaining">Renseignez les coûts manquants (%1$d) pour voir tout le bénéfice</string>
-    <string name="reports_profit_coverage_all">Coûts renseignés partout (%1$d) — bénéfice total</string>
+    <string name="reports_profit_coverage_all">Coûts renseignés partout (%1$d) : bénéfice total</string>
     <string name="reports_profit_empty">Renseignez les coûts d’une commande pour calculer le bénéfice</string>
     <string name="team_title">Équipe</string>
     <string name="team_back_cd">Retour</string>
@@ -1701,7 +1701,7 @@
     <string name="review_sentiment_love">J'adore</string>
     <string name="review_sentiment_not_really">Pas vraiment</string>
     <string name="review_sentiment_dismiss_cd">Fermer</string>
-    <string name="sync_status_offline">Hors ligne — enregistré sur ce téléphone, synchronisé plus tard</string>
+    <string name="sync_status_offline">Hors ligne : enregistré sur ce téléphone, synchronisé plus tard</string>
     <string name="sync_status_syncing">Synchronisation…</string>
     <string name="sync_not_synced">Non synchronisé</string>
     <string name="country_picker_search">Rechercher un pays ou un indicatif</string>
@@ -1788,7 +1788,7 @@
     <string name="measurement_share_whatsapp_footer">Envoyé depuis StitchPad · getstitchpad.com</string>
     <string name="measurement_share_card_title">FICHE DE MESURES</string>
     <string name="measurement_share_card_taken">Prises le %1$s</string>
-    <string name="measurement_share_card_footer">Fait avec StitchPad — le carnet intelligent des tailleurs · getstitchpad.com</string>
+    <string name="measurement_share_card_footer">Fait avec StitchPad, le carnet intelligent des tailleurs · getstitchpad.com</string>
     <string name="smart_order_no_deadline">Aucune date limite</string>
     <string name="smart_order_garment_fallback">Vêtement</string>
     <!-- Draft tailoring terms: needs review by a French-speaking tailor -->

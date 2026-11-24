@@ -92,7 +92,7 @@ private fun ShareMeasurementSheetContent(
             fontWeight = FontWeight.SemiBold,
         )
         Text(
-            text = "$measurementName — $customerName",
+            text = "$measurementName · $customerName",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

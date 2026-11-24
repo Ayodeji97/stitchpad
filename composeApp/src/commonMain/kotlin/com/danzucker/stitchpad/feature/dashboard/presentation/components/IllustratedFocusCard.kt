@@ -366,7 +366,7 @@ private fun IllustratedFocusCardQuietPreview() {
     StitchPadTheme {
         IllustratedFocusCard(
             variant = FocusVariant.Quiet,
-            title = "Quiet day — bring in new work",
+            title = "Quiet day. Bring in new work",
             supporting = "No orders are due today. Reconnect with past customers and follow up on quotes.",
             ctaLabel = "Reconnect now",
             onClick = {},

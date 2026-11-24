@@ -328,7 +328,7 @@ fun OrderFormScreen(
                         Res.string.order_form_step_indicator,
                         state.currentStep,
                         3
-                    ) + " \u2014 " + stepLabels[state.currentStep - 1],
+                    ) + " · " + stepLabels[state.currentStep - 1],
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
