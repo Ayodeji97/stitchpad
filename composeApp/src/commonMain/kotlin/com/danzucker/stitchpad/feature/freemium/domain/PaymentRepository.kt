@@ -21,7 +21,7 @@ interface PaymentRepository {
 
     /**
      * Localized display prices for the subscription products, keyed by
-     * [AppleProductIds]. Apple IAP (iOS) must show the price Apple actually
+     * [StoreProductIds]. Apple IAP (iOS) must show the price Apple actually
      * charges; Paystack (Android) shows its own NGN price strings, so the Android
      * impl returns an empty map and the UI keeps the bundled price resources.
      */

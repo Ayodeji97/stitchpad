@@ -7,6 +7,7 @@ data class AppConfigDto(
     val communityEnabled: Boolean = false,
     val communityInviteUrl: String? = null,
     val billingEnabled: Boolean = false,
+    val playBillingEnabled: Boolean = false,
     val minSupportedBuildAndroid: Int? = null,
     val minSupportedBuildIos: Int? = null,
     val updateUrlAndroid: String? = null,

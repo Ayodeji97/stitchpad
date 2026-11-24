@@ -7,6 +7,7 @@ fun AppConfigDto.toAppConfig(): AppConfig = AppConfig(
     communityEnabled = communityEnabled,
     communityInviteUrl = communityInviteUrl,
     billingEnabled = billingEnabled,
+    playBillingEnabled = playBillingEnabled,
     minSupportedBuildAndroid = minSupportedBuildAndroid,
     minSupportedBuildIos = minSupportedBuildIos,
     updateUrlAndroid = updateUrlAndroid,

@@ -17,6 +17,13 @@ data class AppConfig(
      */
     val billingEnabled: Boolean = false,
     /**
+     * Server-controlled switch for Google Play Billing (Android outside Nigeria).
+     * Default false so the Play checkout stays "Coming soon" until the Play
+     * products, RTDN topic and functions are live; flip
+     * `config/app.playBillingEnabled = true` after the internal-track smoke.
+     */
+    val playBillingEnabled: Boolean = false,
+    /**
      * Break-glass force-update floor: the lowest build number (versionCode /
      * CFBundleVersion) the app will run without prompting the user to update.
      * Per-platform because the two stores review on different timelines. Null =

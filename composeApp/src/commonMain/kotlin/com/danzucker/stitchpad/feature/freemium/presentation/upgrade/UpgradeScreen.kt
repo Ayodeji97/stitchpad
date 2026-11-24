@@ -44,8 +44,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.danzucker.stitchpad.core.domain.model.Currency
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
-import com.danzucker.stitchpad.feature.freemium.domain.AppleProductIds
+import com.danzucker.stitchpad.feature.freemium.domain.StoreProductIds
 import com.danzucker.stitchpad.feature.freemium.domain.BillingCadence
+import com.danzucker.stitchpad.feature.freemium.domain.CheckoutProvider
 import com.danzucker.stitchpad.feature.freemium.presentation.PlanPriceText
 import com.danzucker.stitchpad.feature.freemium.presentation.paystackPlanPriceText
 import com.danzucker.stitchpad.ui.theme.DesignTokens
@@ -299,7 +300,7 @@ private fun tierPriceText(
     tier: SubscriptionTier,
 ): String {
     val price = if (isApple) {
-        state.appleDisplayPrices[AppleProductIds.idFor(tier, state.billingCadence)]
+        state.appleDisplayPrices[StoreProductIds.idFor(tier, state.billingCadence)]
     } else {
         state.paystackPrices[tier]?.let { stringResource(Res.string.upgrade_price_monthly, it.monthly) }
     }

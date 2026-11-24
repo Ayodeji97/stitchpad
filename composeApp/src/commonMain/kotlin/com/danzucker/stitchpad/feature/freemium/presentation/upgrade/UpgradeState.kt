@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.freemium.presentation.upgrade
 
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.feature.freemium.domain.BillingCadence
+import com.danzucker.stitchpad.feature.freemium.domain.CheckoutProvider
 import com.danzucker.stitchpad.feature.freemium.presentation.PlanPriceText
 
 data class UpgradeState(
@@ -13,7 +14,7 @@ data class UpgradeState(
     // native sheet) on iOS vs "Pay with Paystack" (web) on Android. Apple
     // Guideline 3.1.1 forbids any Paystack/web reference on iOS.
     val checkoutProvider: CheckoutProvider = CheckoutProvider.PAYSTACK,
-    // Localized StoreKit display prices keyed by AppleProductIds (iOS only). The
+    // Localized StoreKit display prices keyed by StoreProductIds (iOS only). The
     // tier cards must show the price Apple actually charges, not the bundled NGN
     // strings. Empty on Android / before products load.
     val appleDisplayPrices: Map<String, String> = emptyMap(),
@@ -37,5 +38,3 @@ data class UpgradeState(
     val canCheckout: Boolean
         get() = checkoutProvider == CheckoutProvider.APPLE || billingEnabled
 }
-
-enum class CheckoutProvider { PAYSTACK, APPLE }

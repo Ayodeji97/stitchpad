@@ -60,6 +60,12 @@ class AppConfigMapperTest {
     }
 
     @Test
+    fun playBillingEnabled_defaultsFalse_andMapsTrue() {
+        assertFalse(AppConfigDto().toAppConfig().playBillingEnabled)
+        assertTrue(AppConfigDto(playBillingEnabled = true).toAppConfig().playBillingEnabled)
+    }
+
+    @Test
     fun enabledWithBlankUrl_keepsBlankUrlForCallerToGuard() {
         val config = AppConfigDto(communityEnabled = true, communityInviteUrl = "").toAppConfig()
 
