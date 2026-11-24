@@ -68,6 +68,7 @@ class NotebookReviewViewModelTest {
     private lateinit var workshop: FakeActiveWorkshopProvider
     private lateinit var appScope: CoroutineScope
     private lateinit var uploader: NotebookPageUploader
+    private val reviewSession = NotebookReviewSession()
 
     @BeforeTest
     fun setUp() {
@@ -101,6 +102,7 @@ class NotebookReviewViewModelTest {
             countryProvider = FakeCurrentCountryProvider(),
             unitStore = FakeUnitStore(),
             uploader = uploader,
+            reviewSession = reviewSession,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -254,6 +256,8 @@ class NotebookReviewViewModelTest {
         assertEquals(listOf("c1", "c2"), vm.state.value.ready.map { it.cardId })
         assertTrue(vm.state.value.ready.all { it.duplicate == null })
         assertTrue(repository.deleted.isEmpty())
+        // The card editor reads the same decision.
+        assertTrue(reviewSession.isKeptSeparate(REVIEW_JOB, listOf("c1", "c2")))
     }
 
     @Test
@@ -426,6 +430,7 @@ class NotebookReviewViewModelTest {
             countryProvider = FakeCurrentCountryProvider(),
             unitStore = FakeUnitStore(),
             uploader = uploader,
+            reviewSession = reviewSession,
         )
         vm.events.test {
             backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }

@@ -25,9 +25,13 @@ import com.danzucker.stitchpad.feature.notebookimport.domain.NotebookImportRepos
 import com.danzucker.stitchpad.feature.notebookimport.domain.NotebookImportSaver
 import com.danzucker.stitchpad.feature.notebookimport.domain.ReviewCard
 import com.danzucker.stitchpad.feature.notebookimport.domain.SaveOutcome
+import com.danzucker.stitchpad.feature.notebookimport.domain.isDone
 import com.danzucker.stitchpad.feature.notebookimport.domain.resolveMatch
 import com.danzucker.stitchpad.feature.notebookimport.presentation.CapSheet
+import com.danzucker.stitchpad.feature.notebookimport.presentation.review.NotebookReviewSession
+import com.danzucker.stitchpad.feature.notebookimport.presentation.review.ReviewDismissals
 import com.danzucker.stitchpad.feature.notebookimport.presentation.review.pageNumbers
+import com.danzucker.stitchpad.feature.notebookimport.presentation.review.pendingSamePersonGroups
 import com.danzucker.stitchpad.util.Platform
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -63,6 +67,7 @@ class NotebookCardViewModel(
     private val entitlements: EntitlementsProvider,
     private val countryProvider: CurrentCountryProvider,
     private val unitStore: MeasurementPreferencesStore,
+    private val reviewSession: NotebookReviewSession,
 ) : ViewModel() {
 
     private val jobId: String = savedStateHandle["jobId"] ?: ""
@@ -77,6 +82,10 @@ class NotebookCardViewModel(
     /** Null until the customer list has loaded. */
     private var customers: List<Customer>? = null
     private var imageRequested = false
+
+    /** The job's other active cards and the kept-separate groups, for the same-person check. */
+    private var otherActive: List<ReviewCard> = emptyList()
+    private var dismissals = ReviewDismissals()
 
     private val _state = MutableStateFlow(NotebookCardState())
     private val _events = Channel<NotebookCardEvent>()
@@ -161,6 +170,7 @@ class NotebookCardViewModel(
             return
         }
         persisted = card
+        otherActive = (cards as Result.Success).data.filter { it.id != cardId && !it.isDone }
         _state.update {
             it.copy(
                 isLoading = false,
@@ -169,6 +179,8 @@ class NotebookCardViewModel(
                 fieldOptions = fieldOptionsFor(card.gender),
             )
         }
+        refreshDuplicate()
+        observeOtherCards(uid)
         observePageNumber(uid, card.pageId)
         observePhoto(uid, card.pageId)
         observeCustomers(uid)
@@ -176,6 +188,36 @@ class NotebookCardViewModel(
             countryProvider.country.collect { country ->
                 _state.update { it.copy(upgradeCtaPrice = upgradeCtaPrice(Platform.isIos, country.currency)) }
             }
+        }
+    }
+
+    private fun observeOtherCards(uid: String) {
+        viewModelScope.launch {
+            repository.observeCards(uid, jobId).collect { result ->
+                if (result is Result.Success) {
+                    otherActive = result.data.filter { it.id != cardId && !it.isDone }
+                    refreshDuplicate()
+                }
+            }
+        }
+        viewModelScope.launch {
+            reviewSession.dismissals(jobId).collect {
+                dismissals = it
+                refreshDuplicate()
+            }
+        }
+    }
+
+    /**
+     * Whether the draft is in a same-person group still waiting for Combine or Keep separate, judged
+     * exactly as the review list judges it. While it is, the card cannot be checked or saved alone.
+     */
+    private fun refreshDuplicate() {
+        _state.update { s ->
+            val draft = s.draft ?: return@update s
+            val pending = !draft.isDone &&
+                pendingSamePersonGroups(otherActive + draft, dismissals).any { draft.id in it }
+            s.copy(inPendingDuplicate = pending)
         }
     }
 
@@ -253,6 +295,7 @@ class NotebookCardViewModel(
             )
         }
         refreshMatch()
+        refreshDuplicate()
     }
 
     private fun editValue(index: Int, transform: (CardValue) -> CardValue) = edit { card ->
@@ -321,7 +364,9 @@ class NotebookCardViewModel(
                     _state.update { it.copy(message = UiText.StringResourceText(Res.string.error_no_internet)) }
                     return@launch
                 }
-                onSaveOutcome(saver.save(uid, listOf(checked), unitStore.getUnit(), country))
+                refreshDuplicate()
+                val blocked = setOf(checked.id).takeIf { _state.value.inPendingDuplicate }.orEmpty()
+                onSaveOutcome(saver.save(uid, listOf(checked), unitStore.getUnit(), country, blocked))
             } finally {
                 _state.update { it.copy(isSaving = false) }
             }

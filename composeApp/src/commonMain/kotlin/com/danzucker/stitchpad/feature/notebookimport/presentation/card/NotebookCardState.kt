@@ -42,6 +42,8 @@ data class NotebookCardState(
     val customersLoaded: Boolean = false,
     /** The customer-cap sheet, open after "Save now" stopped at the Free cap. */
     val capSheet: CapSheet? = null,
+    /** In a same-person group still waiting for Combine or Keep separate on the review list. */
+    val inPendingDuplicate: Boolean = false,
 ) {
     val name: String get() = draft?.name.orEmpty()
     val phone: String get() = draft?.phone.orEmpty()
@@ -67,11 +69,12 @@ data class NotebookCardState(
     /** Why "Looks right" is disabled, or null when it is enabled. */
     val checkBlocker: CheckBlocker?
         get() = draft?.checkBlocker()
+            ?: CheckBlocker.DUPLICATE.takeIf { inPendingDuplicate }
             ?: CheckBlocker.MATCH.takeIf { matchCandidate != null && matchChoice == null }
 
     /**
-     * "Looks right" needs a gender, a name, no unclear or blank value, and an answer to any
-     * existing-customer suggestion (so the customer list must have loaded).
+     * "Looks right" needs a gender, a name, no unclear or blank value, no pending same-person prompt,
+     * and an answer to any existing-customer suggestion (so the customer list must have loaded).
      */
     val canMarkChecked: Boolean get() = draft != null && checkBlocker == null && customersLoaded && !isSaving
 }

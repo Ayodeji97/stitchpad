@@ -139,6 +139,15 @@ class NotebookImportSaverTest {
         saver.save("u1", cards, MeasurementUnit.INCHES, Country.DEFAULT)
 
     @Test
+    fun save_skipsBlockedCards() = runTest {
+        val outcome = saver.save("u1", listOf(card("c1"), card("c2")), MeasurementUnit.INCHES, Country.DEFAULT, setOf("c1"))
+
+        assertEquals(SaveOutcome.Done(1), outcome)
+        assertEquals(listOf(importCustomerId("job1", "c2")), customers.created.keys.toList())
+        assertEquals(listOf("c2"), importRepo.updated.map { it.id })
+    }
+
+    @Test
     fun save_newAndMatchedCards() = runTest {
         val outcome = save(listOf(card("c1"), card("c2", matched = "existing1")))
 

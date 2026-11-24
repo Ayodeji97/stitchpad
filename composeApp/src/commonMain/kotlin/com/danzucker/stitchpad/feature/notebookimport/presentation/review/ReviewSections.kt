@@ -11,7 +11,7 @@ import com.danzucker.stitchpad.feature.notebookimport.domain.isDone
 import com.danzucker.stitchpad.feature.notebookimport.domain.isReadyToCheck
 import com.danzucker.stitchpad.feature.notebookimport.domain.resolveMatch
 
-/** Same-person groups the tailor kept separate on this screen (in memory only). */
+/** Same-person groups the tailor kept separate (in memory only, see [NotebookReviewSession]). */
 data class ReviewDismissals(val groups: Set<Set<String>> = emptySet())
 
 data class ReviewSections(
@@ -24,6 +24,8 @@ data class ReviewSections(
      * customer no longer exists is already cleared from them.
      */
     val readyCards: List<ReviewCard>,
+    /** Active cards that must not be saved yet: everything in "Need a look". */
+    val blockedIds: Set<String>,
 )
 
 /** 1-based page number in upload order (page ids sort in upload order); 0 when the page is unknown. */
@@ -76,6 +78,7 @@ fun buildReviewSections(
         saved = cards.filter { it.status == CardStatus.SAVED }.map(::row),
         skipped = cards.filter { it.status == CardStatus.SKIPPED }.map(::row),
         readyCards = readyCards.map { resolutions.getValue(it.id).card },
+        blockedIds = needLookCards.map { it.id }.toSet(),
     )
 }
 
@@ -99,8 +102,7 @@ private fun duplicatePrompts(
     dismissals: ReviewDismissals,
 ): Map<String, DuplicatePrompt> {
     val byId = active.associateBy { it.id }
-    return DuplicateMatcher.groupWithinImport(active)
-        .filter { it.toSet() !in dismissals.groups }
+    return pendingSamePersonGroups(active, dismissals)
         .associate { ids ->
             val group = ids.mapNotNull { byId[it] }
             ids.first() to DuplicatePrompt(
@@ -110,3 +112,10 @@ private fun duplicatePrompts(
             )
         }
 }
+
+/**
+ * Same-person groups among the [active] (not saved or skipped) cards that still wait for Combine or
+ * Keep separate. Shared by the review list and the card editor so both block the same cards.
+ */
+fun pendingSamePersonGroups(active: List<ReviewCard>, dismissals: ReviewDismissals): List<List<String>> =
+    DuplicateMatcher.groupWithinImport(active).filter { it.toSet() !in dismissals.groups }

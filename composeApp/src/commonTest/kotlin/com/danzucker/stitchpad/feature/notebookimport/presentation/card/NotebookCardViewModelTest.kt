@@ -20,6 +20,7 @@ import com.danzucker.stitchpad.feature.notebookimport.presentation.REVIEW_JOB
 import com.danzucker.stitchpad.feature.notebookimport.presentation.REVIEW_OWNER
 import com.danzucker.stitchpad.feature.notebookimport.presentation.customer
 import com.danzucker.stitchpad.feature.notebookimport.presentation.donePage
+import com.danzucker.stitchpad.feature.notebookimport.presentation.review.NotebookReviewSession
 import com.danzucker.stitchpad.feature.notebookimport.presentation.reviewCard
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -47,6 +48,7 @@ class NotebookCardViewModelTest {
     private lateinit var repository: FakeReviewRepository
     private lateinit var customers: FakeReviewCustomers
     private lateinit var measurements: FakeMeasurementRepository
+    private val reviewSession = NotebookReviewSession()
 
     @BeforeTest
     fun setUp() {
@@ -75,6 +77,7 @@ class NotebookCardViewModelTest {
             entitlements = FakeReviewEntitlements(cap = 15),
             countryProvider = FakeCurrentCountryProvider(),
             unitStore = FakeUnitStore(),
+            reviewSession = reviewSession,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -266,6 +269,33 @@ class NotebookCardViewModelTest {
         assertEquals("cust-1", vm.state.value.matchCandidate?.id)
         assertNull(vm.state.value.matchChoice)
         assertFalse(vm.state.value.canMarkChecked)
+    }
+
+    @Test
+    fun card_pendingSamePerson_blocksLooksRightAndSaveNow() = runTest {
+        repository.cards.value = listOf(reviewCard("c1", name = "Kemi Adebayo"), reviewCard("c2", name = "Kemi Adebayo"))
+        val vm = createViewModel()
+
+        assertEquals(CheckBlocker.DUPLICATE, vm.state.value.checkBlocker)
+        assertFalse(vm.state.value.canMarkChecked)
+        vm.onAction(NotebookCardAction.OnLooksRightClick)
+        vm.onAction(NotebookCardAction.OnSaveNowClick)
+        assertTrue(repository.updated.isEmpty())
+        assertTrue(customers.created.isEmpty())
+
+        // Renaming it so it no longer looks like the other card lifts the block.
+        vm.onAction(NotebookCardAction.OnNameChange("Kemi Bello"))
+        assertNull(vm.state.value.checkBlocker)
+    }
+
+    @Test
+    fun card_samePersonKeptSeparateOnTheList_isNotBlocked() = runTest {
+        reviewSession.keepSeparate(REVIEW_JOB, setOf("c1", "c2"))
+        repository.cards.value = listOf(reviewCard("c1", name = "Kemi Adebayo"), reviewCard("c2", name = "Kemi Adebayo"))
+        val vm = createViewModel()
+
+        assertNull(vm.state.value.checkBlocker)
+        assertTrue(vm.state.value.canMarkChecked)
     }
 
     @Test

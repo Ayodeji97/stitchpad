@@ -32,20 +32,23 @@ class NotebookImportSaver(
     private val importRepository: NotebookImportRepository,
     private val clock: Clock,
 ) {
+    /** [blockedCardIds]: cards the caller has not cleared for saving; they are skipped, never saved. */
     suspend fun save(
         ownerUid: String,
         cards: List<ReviewCard>,
         defaultUnit: MeasurementUnit,
         country: Country,
+        blockedCardIds: Set<String> = emptySet(),
     ): SaveOutcome {
         val nowMillis = clock.now().toEpochMilliseconds()
         val importDate = Instant.fromEpochMilliseconds(nowMillis)
             .toLocalDateTime(TimeZone.currentSystemDefault()).date
         var saved = 0
         for ((index, card) in cards.withIndex()) {
-            // Review forces a gender; a card without one is not saveable. It stays unsaved (and counts
-            // as remaining) while the others continue.
-            if (card.isNotForSaving() || card.gender == null) continue
+            // Review forces a gender; a card without one is not saveable. Neither is a card the caller
+            // still blocks (an unanswered match or same-person prompt). Such a card stays unsaved (and
+            // counts as remaining) while the others continue.
+            if (card.isNotForSaving() || card.gender == null || card.id in blockedCardIds) continue
             val failure = saveOne(ownerUid, card, defaultUnit, country, importDate, nowMillis, saved) {
                 cards.drop(index).count { !it.isNotForSaving() }
             }

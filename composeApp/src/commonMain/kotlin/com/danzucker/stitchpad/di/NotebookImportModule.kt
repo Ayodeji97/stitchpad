@@ -7,6 +7,7 @@ import com.danzucker.stitchpad.feature.notebookimport.domain.NotebookImportSaver
 import com.danzucker.stitchpad.feature.notebookimport.domain.NotebookPageUploader
 import com.danzucker.stitchpad.feature.notebookimport.presentation.capture.NotebookCaptureViewModel
 import com.danzucker.stitchpad.feature.notebookimport.presentation.card.NotebookCardViewModel
+import com.danzucker.stitchpad.feature.notebookimport.presentation.review.NotebookReviewSession
 import com.danzucker.stitchpad.feature.notebookimport.presentation.review.NotebookReviewViewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
@@ -32,6 +33,8 @@ val notebookImportDataModule = module {
             scope = appLifetimeScope("NotebookPageUploader"),
         )
     }
+    // In-memory "Keep separate" decisions, shared by the review list and the card editor.
+    single { NotebookReviewSession() }
     factory {
         NotebookImportSaver(
             customerRepository = get(),

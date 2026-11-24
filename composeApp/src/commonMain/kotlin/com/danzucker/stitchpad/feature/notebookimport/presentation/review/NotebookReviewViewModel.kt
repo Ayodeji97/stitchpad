@@ -74,6 +74,7 @@ class NotebookReviewViewModel(
     private val countryProvider: CurrentCountryProvider,
     private val unitStore: MeasurementPreferencesStore,
     private val uploader: NotebookPageUploader,
+    private val reviewSession: NotebookReviewSession,
 ) : ViewModel() {
 
     private val jobId: String = savedStateHandle["jobId"] ?: ""
@@ -83,7 +84,6 @@ class NotebookReviewViewModel(
     private var latestCards: List<ReviewCard> = emptyList()
     private var latestSections: ReviewSections? = null
     private var jobClosed = false
-    private val dismissals = MutableStateFlow(ReviewDismissals())
 
     private val _state = MutableStateFlow(NotebookReviewState())
     private val _events = Channel<NotebookReviewEvent>()
@@ -108,8 +108,7 @@ class NotebookReviewViewModel(
             is NotebookReviewAction.OnConfirmMatch -> confirmMatch(action.cardId)
             is NotebookReviewAction.OnRejectMatch -> rejectMatch(action.cardId)
             is NotebookReviewAction.OnMergeClick -> merge(action.cardIds, action.labels)
-            is NotebookReviewAction.OnKeepSeparateClick ->
-                dismissals.update { it.copy(groups = it.groups + setOf(action.cardIds.toSet())) }
+            is NotebookReviewAction.OnKeepSeparateClick -> reviewSession.keepSeparate(jobId, action.cardIds)
             NotebookReviewAction.OnSaveAllClick -> saveAll()
             NotebookReviewAction.OnDiscardClick -> _state.update { it.copy(showDiscardDialog = true) }
             NotebookReviewAction.OnDiscardDismiss -> _state.update { it.copy(showDiscardDialog = false) }
@@ -147,7 +146,7 @@ class NotebookReviewViewModel(
             countryProvider.country,
             localUploadingCount(),
         ) { cards, pages, customers, country, uploading -> ReviewInputs(cards, pages, customers, country, uploading) }
-        combine(inputs, dismissals) { input, dismissed -> input to dismissed }
+        combine(inputs, reviewSession.dismissals(jobId)) { input, dismissed -> input to dismissed }
             .collect { (input, dismissed) -> render(input, dismissed) }
     }
 
@@ -325,7 +324,8 @@ class NotebookReviewViewModel(
                     _state.update { it.copy(message = UiText.StringResourceText(Res.string.error_no_internet)) }
                     return@launch
                 }
-                onSaveOutcome(saver.save(uid, toSave, unitStore.getUnit(), country), toSave.size)
+                val blocked = latestSections?.blockedIds.orEmpty()
+                onSaveOutcome(saver.save(uid, toSave, unitStore.getUnit(), country, blocked), toSave.size)
             } finally {
                 _state.update { it.copy(isSaving = false) }
             }

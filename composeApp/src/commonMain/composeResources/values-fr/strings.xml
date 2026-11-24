@@ -1915,6 +1915,7 @@
     <string name="notebook_card_not_found">Ce client ne fait plus partie de l'import</string>
     <string name="notebook_card_back_cd">Retour</string>
     <string name="notebook_card_match_needed">Choisissez : ajouter au client existant, ou créer un nouveau client</string>
+    <string name="notebook_card_duplicate_needed">Même personne qu'une autre fiche ? Choisissez d'abord Réunir ou Garder séparés dans la liste</string>
     <string name="notebook_review_saved_before_cap">Limite de clients atteinte. Clients enregistrés avant la limite : %1$d</string>
     <string name="notebook_merge_phone_label">Téléphone</string>
 </resources>
