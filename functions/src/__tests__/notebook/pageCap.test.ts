@@ -1,4 +1,4 @@
-import { reservePage } from '../../notebook/pageCap';
+import { lagosMonthKey, reservePage } from '../../notebook/pageCap';
 import { fakeDb } from './fakeDb';
 
 const NOW = new Date('2026-11-24T10:00:00Z');
@@ -47,5 +47,12 @@ describe('reservePage', () => {
       'users/u1/usage/notebookImport': { lifetimePages: 300, monthKey: '2026-11', monthPages: 0 },
     });
     expect(await reservePage(db, 'u1', NOW)).toEqual({ ok: false, reason: 'page_cap_reached' });
+  });
+});
+
+describe('lagosMonthKey', () => {
+  it('uses the Africa/Lagos calendar month, not UTC', () => {
+    expect(lagosMonthKey(new Date('2026-11-30T22:30:00Z'))).toBe('2026-11');
+    expect(lagosMonthKey(new Date('2026-11-30T23:30:00Z'))).toBe('2026-12');
   });
 });

@@ -110,6 +110,32 @@ describe('processPageHandler', () => {
     expect(cards(store)).toHaveLength(2);
   });
 
+  it('concurrent_delivery_onlyOneProcesses', async () => {
+    const { deps, store, generateJsonFromImage } = setup();
+    await Promise.all([processPageHandler(PATH, deps), processPageHandler(PATH, deps)]);
+    expect(generateJsonFromImage).toHaveBeenCalledTimes(1);
+    expect(store.get(USAGE).lifetimePages).toBe(1);
+    expect(cards(store)).toHaveLength(2);
+    expect(store.get(JOB).pageCount).toEqual(admin.firestore.FieldValue.increment(1));
+  });
+
+  it('a fresh processing claim is left alone', async () => {
+    const { deps, generateJsonFromImage } = setup({
+      initial: { [PAGE]: { status: 'processing', claimedAt: new Date(NOW.getTime() - 60_000) } },
+    });
+    await processPageHandler(PATH, deps);
+    expect(generateJsonFromImage).not.toHaveBeenCalled();
+  });
+
+  it('stale_processing_isReclaimed', async () => {
+    const { deps, store, generateJsonFromImage } = setup({
+      initial: { [PAGE]: { status: 'processing', claimedAt: new Date(NOW.getTime() - 11 * 60_000) } },
+    });
+    await processPageHandler(PATH, deps);
+    expect(generateJsonFromImage).toHaveBeenCalledTimes(1);
+    expect(store.get(PAGE)).toMatchObject({ status: 'done', personCount: 2 });
+  });
+
   it('cap_freeLifetime300: the 301st page fails without calling the model', async () => {
     const { deps, store, generateJsonFromImage } = setup({
       initial: { [USAGE]: { lifetimePages: 300, monthKey: '2026-11', monthPages: 300 } },
@@ -143,6 +169,18 @@ describe('retryNotebookPageHandler', () => {
     expect(store.get(USAGE)).toBeUndefined();
     // and pageCount is not bumped again on retry
     expect(store.get(JOB).pageCount).toBe(0);
+  });
+
+  it('two concurrent retries run once', async () => {
+    const { deps, generateJsonFromImage } = setup({
+      initial: { [PAGE]: { status: 'failed', error: 'read_failed', storagePath: PATH, personCount: 0 } },
+    });
+    const results = await Promise.allSettled([
+      retryNotebookPageHandler({ jobId: 'j1', pageId: 'p1' }, authCtx('u1'), deps),
+      retryNotebookPageHandler({ jobId: 'j1', pageId: 'p1' }, authCtx('u1'), deps),
+    ]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect(generateJsonFromImage).toHaveBeenCalledTimes(1);
   });
 
   it('rejects a page that is not failed', async () => {

@@ -40,13 +40,12 @@ async function processPage(
   retry: boolean,
   skipReserve: boolean,
 ): Promise<PageStatus> {
+  // The caller has already claimed the page (status 'processing') atomically.
   const { uid, jobId, pageId } = path;
   const { db } = deps;
   const paths = pagePaths(uid, jobId, pageId);
   const pageRef = db.doc(paths.page);
   const jobRef = db.doc(paths.job);
-
-  await pageRef.set({ status: 'processing', storagePath, updatedAt: deps.now() }, { merge: true });
 
   const finish = async (
     status: 'done' | 'failed',
@@ -108,13 +107,51 @@ async function processPage(
   }
 }
 
+const STALE_CLAIM_MS = 10 * 60 * 1000;
+
+function millisOf(value: unknown): number | null {
+  if (value instanceof Date) return value.getTime();
+  if (value && typeof (value as { toMillis?: unknown }).toMillis === 'function') {
+    return (value as { toMillis(): number }).toMillis();
+  }
+  return typeof value === 'number' ? value : null;
+}
+
+/**
+ * Atomically moves the page to 'processing'. Succeeds when the page is absent
+ * (initial) or 'failed' (retry), or when an earlier claim is older than 10
+ * minutes (crashed run). Done, failed (initial) or freshly processing pages are
+ * not claimed, so concurrent deliveries cannot both run.
+ */
+async function claimPage(
+  deps: ProcessDeps,
+  pagePath: string,
+  storagePath: string,
+  mode: 'initial' | 'retry',
+): Promise<boolean> {
+  const ref = deps.db.doc(pagePath);
+  const at = deps.now();
+  return deps.db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const page = snap.exists ? (snap.data() as { status?: string; claimedAt?: unknown }) : undefined;
+    let claimable = false;
+    if (!page) claimable = mode === 'initial';
+    else if (page.status === 'failed') claimable = mode === 'retry';
+    else if (page.status === 'processing') {
+      const claimedAt = millisOf(page.claimedAt);
+      claimable = claimedAt === null || at.getTime() - claimedAt > STALE_CLAIM_MS;
+    }
+    if (!claimable) return false;
+    tx.set(ref, { status: 'processing', storagePath, claimedAt: at, updatedAt: at }, { merge: true });
+    return true;
+  });
+}
+
 export async function processPageHandler(objectName: string, deps: ProcessDeps): Promise<void> {
   const path = parseNotebookPath(objectName);
   if (!path) return;
-  const pageSnap = await deps.db.doc(pagePaths(path.uid, path.jobId, path.pageId).page).get();
-  const status = pageSnap.exists ? (pageSnap.data() as { status?: string }).status : undefined;
-  // Duplicate delivery of a finished page must not reserve quota or write cards again.
-  if (status === 'done' || status === 'failed') return;
+  // Duplicate or concurrent delivery must not reserve quota or write cards again.
+  if (!(await claimPage(deps, pagePaths(path.uid, path.jobId, path.pageId).page, objectName, 'initial'))) return;
   await processPage(path, objectName, deps, false, false);
 }
 
@@ -135,6 +172,9 @@ export async function retryNotebookPageHandler(
     throw new functions.https.HttpsError('failed-precondition', 'page_not_failed');
   }
   const storagePath = `users/${uid}/notebookImports/${jobId}/${pageId}.jpg`;
+  if (!(await claimPage(deps, pagePaths(uid, jobId, pageId).page, storagePath, 'retry'))) {
+    throw new functions.https.HttpsError('failed-precondition', 'page_not_failed');
+  }
   // A cap failure never reserved quota; every other failure already did.
   const status = await processPage({ uid, jobId, pageId }, storagePath, deps, true, page.error !== 'page_cap_reached');
   return { status };

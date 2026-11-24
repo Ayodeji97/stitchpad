@@ -21,6 +21,13 @@ export function fakeDb(initial: Record<string, any> = {}) {
       commit: async () => { ops.forEach((op) => op()); },
     };
   };
-  const db = { doc, batch, runTransaction: async (fn: any) => fn(tx) };
+  // Transactions run one at a time, like Firestore's conflict-retry outcome.
+  let queue: Promise<unknown> = Promise.resolve();
+  const runTransaction = (fn: any) => {
+    const run = queue.then(() => fn(tx));
+    queue = run.catch(() => undefined);
+    return run;
+  };
+  const db = { doc, batch, runTransaction };
   return { store, db: db as never };
 }

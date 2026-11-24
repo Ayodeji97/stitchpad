@@ -12,9 +12,18 @@ interface NotebookUsageDoc {
   monthPages: number;
 }
 
+const LAGOS_MONTH = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Lagos', year: 'numeric', month: '2-digit' });
+
+/** 'YYYY-MM' of the Africa/Lagos calendar month containing `now`. */
+export function lagosMonthKey(now: Date): string {
+  const parts = LAGOS_MONTH.formatToParts(now);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
+  return `${get('year')}-${get('month')}`;
+}
+
 /**
  * Atomically reserves one page of scanning quota. Free accounts get a lifetime
- * cap; paid subscribers get a monthly cap (UTC calendar month) that resets.
+ * cap; paid subscribers get a monthly cap (Africa/Lagos calendar month) that resets.
  */
 export async function reservePage(
   db: admin.firestore.Firestore,
@@ -23,7 +32,7 @@ export async function reservePage(
 ): Promise<CapResult> {
   const userRef = db.doc(`users/${uid}`);
   const usageRef = db.doc(`users/${uid}/usage/notebookImport`);
-  const monthKey = now.toISOString().slice(0, 7);
+  const monthKey = lagosMonthKey(now);
   return db.runTransaction(async (tx) => {
     const [userSnap, usageSnap] = await Promise.all([tx.get(userRef), tx.get(usageRef)]);
     const paid = isPaidSubscriber(userSnap.data() as Record<string, unknown> | undefined, now.getTime());
