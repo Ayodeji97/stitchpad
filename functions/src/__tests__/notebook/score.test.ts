@@ -1,4 +1,4 @@
-import { score, errorsTotal } from '../../notebook/evalScore';
+import { score, errorsTotal, scoreFailedPage, addScores } from '../../notebook/evalScore';
 import type { ExtractedPerson, ExtractedValue } from '../../notebook/types';
 
 function v(fieldKey: string, value: string, flagged = false): ExtractedValue {
@@ -14,7 +14,7 @@ describe('notebook eval score', () => {
     const got = [person('ada  obi', [v('chest', ' 36'), v('waist', '30')])];
     expect(score(truth, got)).toEqual({
       namesCorrect: 1, namesTotal: 1, valuesCorrect: 2, valuesTotal: 2, wrongValues: 0, wrongFlagged: 0,
-      missingValues: 0, unmatchedPeople: 0, unmatchedPeopleValues: 0,
+      missingValues: 0, unmatchedPeople: 0, unmatchedPeopleValues: 0, inventedPeople: 0,
     });
   });
 
@@ -23,7 +23,7 @@ describe('notebook eval score', () => {
     const got = [person('Ola Bee', [v('chest', '38', true), v('waist', '30')])];
     expect(score(truth, got)).toEqual({
       namesCorrect: 1, namesTotal: 1, valuesCorrect: 1, valuesTotal: 2, wrongValues: 1, wrongFlagged: 1,
-      missingValues: 0, unmatchedPeople: 0, unmatchedPeopleValues: 0,
+      missingValues: 0, unmatchedPeople: 0, unmatchedPeopleValues: 0, inventedPeople: 0,
     });
   });
 
@@ -40,7 +40,7 @@ describe('notebook eval score', () => {
     const got = [person('Ada', [v('chest', '36')])];
     expect(score(truth, got)).toEqual({
       namesCorrect: 1, namesTotal: 2, valuesCorrect: 1, valuesTotal: 3, wrongValues: 0, wrongFlagged: 0,
-      missingValues: 0, unmatchedPeople: 1, unmatchedPeopleValues: 2,
+      missingValues: 0, unmatchedPeople: 1, unmatchedPeopleValues: 2, inventedPeople: 0,
     });
   });
 
@@ -74,5 +74,23 @@ describe('notebook eval score', () => {
     expect(s.namesCorrect).toBe(2);
     expect(s.valuesCorrect).toBe(3);
     expect(errorsTotal(s)).toBe(0);
+  });
+
+  it('score_failedPage_countsAsUnflaggedErrors', () => {
+    const good = score([person('Ada', [v('chest', '36')])], [person('Ada', [v('chest', '36')])]);
+    const failed = scoreFailedPage([person('Bola', [v('waist', '30'), v('hip', '40')])]);
+    const total = addScores(good, failed);
+    expect(total.namesTotal).toBe(2);
+    expect(total.valuesTotal).toBe(3);
+    expect(total.valuesCorrect).toBe(1);
+    expect(total.unmatchedPeople).toBe(1);
+    expect(total.unmatchedPeopleValues).toBe(2);
+    expect(errorsTotal(total)).toBe(2);
+    expect(total.wrongFlagged).toBe(0);
+  });
+
+  it('score_inventedPeople_counted', () => {
+    const s = score([person('Ada', [])], [person('Ada', []), person('Ghost', [v('chest', '1')])]);
+    expect(s.inventedPeople).toBe(1);
   });
 });

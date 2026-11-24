@@ -15,6 +15,8 @@ export interface EvalScore {
   unmatchedPeople: number;
   /** Truth values belonging to unmatched people. Never flagged. */
   unmatchedPeopleValues: number;
+  /** Extracted people with no truth match. Informational, not part of the bars. */
+  inventedPeople: number;
 }
 
 /** Every error the tailor could end up with: wrong + missing + lost-person values. */
@@ -50,6 +52,7 @@ export function score(truth: ExtractedPerson[], got: ExtractedPerson[]): EvalSco
     missingValues: 0,
     unmatchedPeople: 0,
     unmatchedPeopleValues: 0,
+    inventedPeople: 0,
   };
   const usedPeople = new Set<number>();
   for (const t of truth) {
@@ -98,5 +101,17 @@ export function score(truth: ExtractedPerson[], got: ExtractedPerson[]): EvalSco
       if (gv.flagged || g.needsReview) result.wrongFlagged += 1;
     });
   }
+  result.inventedPeople = got.length - usedPeople.size;
   return result;
+}
+
+/** Score for a page whose extraction failed: everything in the truth is a lost, unflagged error. */
+export function scoreFailedPage(truth: ExtractedPerson[]): EvalScore {
+  return score(truth, []);
+}
+
+export function addScores(a: EvalScore, b: EvalScore): EvalScore {
+  const out = { ...a };
+  for (const k of Object.keys(b) as (keyof EvalScore)[]) out[k] = a[k] + b[k];
+  return out;
 }

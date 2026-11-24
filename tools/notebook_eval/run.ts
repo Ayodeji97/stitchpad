@@ -10,7 +10,7 @@ import { buildSystemPrompt, RESPONSE_SCHEMA } from '../../functions/src/notebook
 import { parseExtraction } from '../../functions/src/notebook/parseExtraction';
 import { NOTEBOOK_MODEL_ID } from '../../functions/src/notebook/notebookModel';
 import type { ExtractedPerson } from '../../functions/src/notebook/types';
-import { score, errorsTotal, type EvalScore } from './score';
+import { score, errorsTotal, scoreFailedPage, addScores, type EvalScore } from './score';
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
@@ -30,10 +30,11 @@ async function main(): Promise<void> {
   }
 
   const client = getVertexClient();
-  const total: EvalScore = {
+  let total: EvalScore = {
     namesCorrect: 0, namesTotal: 0, valuesCorrect: 0, valuesTotal: 0, wrongValues: 0, wrongFlagged: 0,
-    missingValues: 0, unmatchedPeople: 0, unmatchedPeopleValues: 0,
+    missingValues: 0, unmatchedPeople: 0, unmatchedPeopleValues: 0, inventedPeople: 0,
   };
+  let failedPages = 0;
   const outputs: Record<string, ExtractedPerson[] | { error: string }> = {};
 
   for (const file of jpgs) {
@@ -55,9 +56,11 @@ async function main(): Promise<void> {
       const got = parseExtraction(raw);
       outputs[file] = got;
       const s = score(truth, got);
-      for (const k of Object.keys(total) as (keyof EvalScore)[]) total[k] += s[k];
+      total = addScores(total, s);
       console.log(`${file}: names ${s.namesCorrect}/${s.namesTotal}, values ${s.valuesCorrect}/${s.valuesTotal}, wrong ${s.wrongValues} (flagged ${s.wrongFlagged}), missing ${s.missingValues}, unmatched people ${s.unmatchedPeople}`);
     } catch (e) {
+      failedPages += 1;
+      total = addScores(total, scoreFailedPage(truth));
       outputs[file] = { error: e instanceof Error ? e.name : 'unknown' };
       console.log(`${file}: FAILED (${e instanceof Error ? e.name : 'unknown'})`);
     }
@@ -73,13 +76,14 @@ async function main(): Promise<void> {
   console.log(`\nModel: ${model}`);
   console.log(`Names:  ${total.namesCorrect}/${total.namesTotal} (unmatched people ${total.unmatchedPeople})`);
   console.log(`Values: ${total.valuesCorrect}/${total.valuesTotal} (${valuePct.toFixed(1)}%)  bar >= 95%: ${valuesPass ? 'PASS' : 'FAIL'}`);
+  console.log(`Failed pages: ${failedPages}  Invented people (not in bars): ${total.inventedPeople}`);
   console.log(`Errors: ${errors} (wrong ${total.wrongValues}, missing ${total.missingValues}, in unmatched people ${total.unmatchedPeopleValues})`);
   console.log(
     flagPct === null
       ? 'Errors flagged: n/a (no errors)'
       : `Errors flagged: ${total.wrongFlagged}/${errors} (${flagPct.toFixed(1)}%)  bar >= 90%: ${flagPass ? 'PASS' : 'FAIL'}`,
   );
-  process.exit(valuesPass && flagPass ? 0 : 1);
+  process.exit(valuesPass && flagPass && failedPages === 0 ? 0 : 1);
 }
 
 main().catch((e) => {
