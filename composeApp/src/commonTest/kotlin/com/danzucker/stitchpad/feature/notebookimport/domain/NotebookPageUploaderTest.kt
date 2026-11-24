@@ -27,6 +27,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Instant
+
+private const val DAY_MS = 86_400_000L
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NotebookPageUploaderTest {
@@ -43,8 +46,14 @@ class NotebookPageUploaderTest {
         workshop = FakeActiveWorkshopProvider(WorkshopSession.ownerOfSelf("owner"))
     }
 
+    private var nowMillis = 1_800_000_000_000L
+    private val compressor = RecordingCompressor()
+
     private fun newUploader() =
-        NotebookPageUploader(repository, RecordingCompressor(), workshop, FakeEntitlements(), scope)
+        NotebookPageUploader(repository, compressor, workshop, FakeEntitlements(), scope) { nowMillis }
+
+    private fun openJob(id: String, ageMillis: Long, imagesDeletedAt: Instant? = null) =
+        ImportJob(id, Instant.fromEpochMilliseconds(nowMillis - ageMillis), "open", 1, imagesDeletedAt)
 
     @AfterTest
     fun tearDown() {
@@ -92,7 +101,7 @@ class NotebookPageUploaderTest {
 
         uploader.errors.test {
             uploader.submit(listOf(byteArrayOf(1), byteArrayOf(2), byteArrayOf(3)))
-            assertEquals(DataError.Network.NO_INTERNET, awaitItem())
+            assertEquals(UploadFailure.Network(DataError.Network.NO_INTERNET), awaitItem())
             expectNoEvents()
         }
         assertEquals(3, uploader.pages.value.count { it.phase == UploadPhase.FAILED })
@@ -164,5 +173,44 @@ class NotebookPageUploaderTest {
         assertEquals(32, ids.size)
         assertEquals(32, ids.toSet().size)
         gate.complete(Unit)
+    }
+
+    @Test
+    fun adoptJob_ignoresImageExpiredJobs() = runTest {
+        val uploader = newUploader()
+        uploader.adoptJob(openJob("swept", ageMillis = DAY_MS, imagesDeletedAt = Instant.fromEpochMilliseconds(nowMillis)))
+        assertNull(uploader.currentJobId())
+        uploader.adoptJob(openJob("old", ageMillis = 7 * DAY_MS))
+        assertNull(uploader.currentJobId())
+        uploader.adoptJob(openJob("fresh", ageMillis = DAY_MS))
+        assertEquals("fresh", uploader.currentJobId())
+    }
+
+    @Test
+    fun heldJobTurning7DaysOld_nextPhotoStartsANewJob() = runTest {
+        val uploader = newUploader()
+        uploader.submit(listOf(byteArrayOf(1)))
+        assertEquals("job-1", uploader.currentJobId())
+
+        nowMillis += 7 * DAY_MS
+        repository.createJobResult = com.danzucker.stitchpad.core.domain.error.Result.Success("job-2")
+        uploader.submit(listOf(byteArrayOf(2)))
+
+        assertEquals(2, repository.createJobCalls)
+        assertEquals("job-2", uploader.currentJobId())
+    }
+
+    @Test
+    fun compressionFails_pageFailedAndRawNeverUploaded() = runTest {
+        compressor.fail = true
+        val uploader = newUploader()
+
+        uploader.errors.test {
+            uploader.submit(listOf(byteArrayOf(1, 2, 3)))
+            assertEquals(UploadFailure.PhotoUnreadable, awaitItem())
+        }
+        assertEquals(UploadPhase.FAILED, uploader.pages.value.single().phase)
+        assertTrue(repository.uploaded.isEmpty())
+        assertEquals(0, repository.createJobCalls)
     }
 }

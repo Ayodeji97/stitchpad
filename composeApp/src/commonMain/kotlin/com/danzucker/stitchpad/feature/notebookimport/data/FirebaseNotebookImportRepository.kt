@@ -21,6 +21,7 @@ import dev.gitlive.firebase.storage.FirebaseStorageMetadata
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.datetime.Instant
 import kotlin.random.Random
 import kotlin.time.Clock
 
@@ -97,24 +98,28 @@ class FirebaseNotebookImportRepository(
                 }
             }
 
-    override fun observeOpenJob(ownerUid: String): Flow<ImportJob?> =
+    override fun observeOpenJobs(ownerUid: String): Flow<Result<List<ImportJob>, DataError.Network>> =
         jobsCollection(ownerUid).where { "status" equalTo "open" }.snapshots()
             .map { snapshot ->
-                snapshot.documents
+                val jobs = snapshot.documents
                     .mapNotNull { doc ->
                         runCatching {
                             val dto = doc.data<NotebookJobDto>()
-                            // A job whose server timestamp is still pending is the newest.
-                            val sortKey = dto.createdAt?.let { it.seconds } ?: Long.MAX_VALUE
-                            sortKey to dto.toImportJob(doc.id)
+                            val job = dto.toImportJob(doc.id)
+                            // A job whose server timestamp is still pending was created just now.
+                            if (dto.createdAt == null) {
+                                job.copy(createdAt = Instant.fromEpochMilliseconds(nowMillis()))
+                            } else {
+                                job
+                            }
                         }.getOrNull()
                     }
-                    .maxByOrNull { it.first }
-                    ?.second
+                    .sortedByDescending { it.createdAt }
+                Result.Success(jobs) as Result<List<ImportJob>, DataError.Network>
             }
-            .retryWithFallback(fallback = null) { throwable, attempt ->
+            .retryWithFallback(fallback = Result.Error(DataError.Network.UNKNOWN)) { throwable, attempt ->
                 AppLogger.w(tag = TAG, throwable = throwable) {
-                    "observeOpenJob failed; retrying (attempt ${attempt + 1})"
+                    "observeOpenJobs failed; retrying (attempt ${attempt + 1})"
                 }
             }
 

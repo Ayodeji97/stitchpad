@@ -41,18 +41,23 @@ data class ReviewCard(
     val keepAsNew: Boolean = false,
 )
 
-/** [localThumb] is always null from the repository; the capture ViewModel fills it. */
+/**
+ * [localThumb] is always null from the repository; the capture ViewModel fills it. [claimedAt] is when the
+ * server started reading the page (set while [PageStatus.PROCESSING]); a claim older than
+ * [STUCK_PAGE_MILLIS] is a stuck run the tailor may retry.
+ */
 data class ImportPage(
     val id: String,
     val status: PageStatus,
     val personCount: Int,
     val error: String?,
     val localThumb: ByteArray?,
+    val claimedAt: Instant? = null,
 ) {
     override fun equals(other: Any?): Boolean =
         other is ImportPage && id == other.id && status == other.status &&
             personCount == other.personCount && error == other.error &&
-            localThumb.contentEquals(other.localThumb)
+            localThumb.contentEquals(other.localThumb) && claimedAt == other.claimedAt
 
     override fun hashCode(): Int {
         var result = id.hashCode()
@@ -60,8 +65,21 @@ data class ImportPage(
         result = 31 * result + personCount
         result = 31 * result + (error?.hashCode() ?: 0)
         result = 31 * result + (localThumb?.contentHashCode() ?: 0)
+        result = 31 * result + (claimedAt?.hashCode() ?: 0)
         return result
     }
+}
+
+/** Same as the server's stale-claim rule: a page reading for longer than this can be retried. */
+const val STUCK_PAGE_MILLIS: Long = 10 * 60 * 1000L
+
+/** Same as the cleanup cron: a job's images are deleted once it is this old. */
+const val JOB_IMAGE_TTL_MILLIS: Long = 7 * 24 * 60 * 60 * 1000L
+
+/** True when the page has been reading for more than [STUCK_PAGE_MILLIS]. */
+fun ImportPage.isStuck(nowMillis: Long): Boolean {
+    val claimed = claimedAt ?: return false
+    return status == PageStatus.PROCESSING && nowMillis - claimed.toEpochMilliseconds() > STUCK_PAGE_MILLIS
 }
 
 /** [pageCount] is written only by the server. */
@@ -71,4 +89,11 @@ data class ImportJob(
     val status: String,
     val pageCount: Int,
     val imagesDeletedAt: Instant?,
-)
+) {
+    /**
+     * Its images were deleted, or will be by the next cleanup run (7 days). Such a job never takes new
+     * uploads (Storage rules refuse them once imagesDeletedAt is set); new photos start a new job.
+     */
+    fun isImageExpired(nowMillis: Long): Boolean =
+        imagesDeletedAt != null || nowMillis - createdAt.toEpochMilliseconds() >= JOB_IMAGE_TTL_MILLIS
+}

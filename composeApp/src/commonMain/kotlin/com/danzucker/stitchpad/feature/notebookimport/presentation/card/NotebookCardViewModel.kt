@@ -10,7 +10,6 @@ import com.danzucker.stitchpad.core.domain.model.BodyProfileTemplate
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.MeasurementField
-import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.CurrentCountryProvider
@@ -66,7 +65,6 @@ class NotebookCardViewModel(
     private val activeWorkshop: ActiveWorkshopProvider,
     private val entitlements: EntitlementsProvider,
     private val countryProvider: CurrentCountryProvider,
-    private val unitStore: MeasurementPreferencesStore,
     private val reviewSession: NotebookReviewSession,
 ) : ViewModel() {
 
@@ -133,6 +131,7 @@ class NotebookCardViewModel(
             NotebookCardAction.OnFieldPickerDismiss -> _state.update { it.copy(fieldPickerIndex = null) }
             is NotebookCardAction.OnFieldSelect -> selectField(action.index, action.fieldKey)
             is NotebookCardAction.OnMatchToggle -> toggleMatch(action.addToExisting)
+            is NotebookCardAction.OnMatchCandidatePick -> pickCandidate(action.customerId)
             NotebookCardAction.OnLooksRightClick -> looksRight()
             NotebookCardAction.OnSaveNowClick -> saveNow()
             NotebookCardAction.OnSkipClick -> skip()
@@ -154,8 +153,6 @@ class NotebookCardViewModel(
             return
         }
         ownerUid = uid
-        val defaultUnit = unitStore.getUnit()
-        _state.update { it.copy(defaultUnit = defaultUnit) }
         val cards = repository.observeCards(uid, jobId).first()
         val card = (cards as? Result.Success)?.data?.find { it.id == cardId }
         if (card == null) {
@@ -278,7 +275,9 @@ class NotebookCardViewModel(
             val resolution = resolveMatch(draft, loaded, countryProvider.currentCountry())
             s.copy(
                 draft = resolution.card,
-                matchCandidate = resolution.customer?.let { ExistingCustomer(it.id, it.name) },
+                matchCandidate = resolution.customer?.toExisting(),
+                matchCandidates = resolution.candidates.takeIf { resolution.ambiguous }.orEmpty()
+                    .map { it.toExisting() },
                 customersLoaded = true,
             )
         }
@@ -312,15 +311,24 @@ class NotebookCardViewModel(
         _state.update { it.copy(fieldPickerIndex = null) }
     }
 
+    private fun Customer.toExisting() = ExistingCustomer(id, name, phone.ifBlank { null })
+
+    /** "Add to" the single suggestion, or "Create new customer" (also the answer to several candidates). */
+    @Suppress("ReturnCount")
     private fun toggleMatch(addToExisting: Boolean) {
-        val candidate = _state.value.matchCandidate ?: return
-        edit {
-            if (addToExisting) {
-                it.copy(matchedCustomerId = candidate.id, keepAsNew = false)
-            } else {
-                it.copy(matchedCustomerId = null, keepAsNew = true)
-            }
+        if (!addToExisting) {
+            if (_state.value.matchCandidate == null && _state.value.matchCandidates.isEmpty()) return
+            edit { it.copy(matchedCustomerId = null, keepAsNew = true) }
+            return
         }
+        val candidate = _state.value.matchCandidate ?: return
+        edit { it.copy(matchedCustomerId = candidate.id, keepAsNew = false) }
+    }
+
+    /** Only one of the offered same-name customers can be picked. */
+    private fun pickCandidate(customerId: String) {
+        if (_state.value.matchCandidates.none { it.id == customerId }) return
+        edit { it.copy(matchedCustomerId = customerId, keepAsNew = false) }
     }
 
     /** Null when the draft can be checked, else why not. */
@@ -366,7 +374,7 @@ class NotebookCardViewModel(
                 }
                 refreshDuplicate()
                 val blocked = setOf(checked.id).takeIf { _state.value.inPendingDuplicate }.orEmpty()
-                onSaveOutcome(saver.save(uid, listOf(checked), unitStore.getUnit(), country, blocked))
+                onSaveOutcome(saver.save(uid, listOf(checked), country, blocked))
             } finally {
                 _state.update { it.copy(isSaving = false) }
             }

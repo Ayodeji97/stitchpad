@@ -7,4 +7,10 @@ sealed interface NotebookCaptureAction {
     data object OnReviewClick : NotebookCaptureAction
     data object OnNavigateBack : NotebookCaptureAction
     data object OnErrorDismiss : NotebookCaptureAction
+
+    /** Runs the open-job look-up again after it failed or timed out. */
+    data object OnRetryLookup : NotebookCaptureAction
+
+    /** Opens the review of the earlier scan shown in the banner. */
+    data object OnEarlierScanReviewClick : NotebookCaptureAction
 }

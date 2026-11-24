@@ -26,6 +26,9 @@ sealed interface NotebookCardAction {
     /** [fieldKey] null keeps the value as a note. */
     data class OnFieldSelect(val index: Int, val fieldKey: String?) : NotebookCardAction
     data class OnMatchToggle(val addToExisting: Boolean) : NotebookCardAction
+
+    /** "Which customer is this?": the tailor picked one of several same-name customers. */
+    data class OnMatchCandidatePick(val customerId: String) : NotebookCardAction
     data object OnLooksRightClick : NotebookCardAction
     data object OnSaveNowClick : NotebookCardAction
     data object OnSkipClick : NotebookCardAction

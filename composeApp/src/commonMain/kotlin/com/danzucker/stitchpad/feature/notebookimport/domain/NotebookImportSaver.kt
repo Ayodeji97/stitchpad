@@ -4,7 +4,6 @@ import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.domain.model.Customer
-import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import kotlinx.datetime.Instant
@@ -36,7 +35,6 @@ class NotebookImportSaver(
     suspend fun save(
         ownerUid: String,
         cards: List<ReviewCard>,
-        defaultUnit: MeasurementUnit,
         country: Country,
         blockedCardIds: Set<String> = emptySet(),
     ): SaveOutcome {
@@ -45,11 +43,11 @@ class NotebookImportSaver(
             .toLocalDateTime(TimeZone.currentSystemDefault()).date
         var saved = 0
         for ((index, card) in cards.withIndex()) {
-            // Review forces a gender; a card without one is not saveable. Neither is a card the caller
-            // still blocks (an unanswered match or same-person prompt). Such a card stays unsaved (and
-            // counts as remaining) while the others continue.
-            if (card.isNotForSaving() || card.gender == null || card.id in blockedCardIds) continue
-            val failure = saveOne(ownerUid, card, defaultUnit, country, importDate, nowMillis, saved) {
+            // Review forces a gender and a unit; a card without one is not saveable. Neither is a card the
+            // caller still blocks (an unanswered match or same-person prompt). Such a card stays unsaved
+            // (and counts as remaining) while the others continue.
+            if (card.isNotForSaving() || !card.hasGenderAndUnit() || card.id in blockedCardIds) continue
+            val failure = saveOne(ownerUid, card, country, importDate, nowMillis, saved) {
                 cards.drop(index).count { !it.isNotForSaving() }
             }
             if (failure != null) return failure
@@ -63,7 +61,6 @@ class NotebookImportSaver(
     private suspend fun saveOne(
         ownerUid: String,
         card: ReviewCard,
-        defaultUnit: MeasurementUnit,
         country: Country,
         importDate: LocalDate,
         nowMillis: Long,
@@ -75,7 +72,6 @@ class NotebookImportSaver(
             ownerUid = ownerUid,
             existingCustomerId = card.matchedCustomerId,
             importDate = importDate,
-            defaultUnit = defaultUnit,
             country = country,
             nowMillis = nowMillis,
         )
@@ -99,6 +95,8 @@ class NotebookImportSaver(
         )
         return if (marked is Result.Error) SaveOutcome.Failed(saved, marked.error) else null
     }
+
+    private fun ReviewCard.hasGenderAndUnit() = gender != null && unit != null
 
     private fun ReviewCard.isNotForSaving() =
         status == CardStatus.SAVED || status == CardStatus.SKIPPED || savedCustomerId != null

@@ -53,6 +53,7 @@ data class NotebookPageDto(
     val status: String? = null,
     val personCount: Int = 0,
     val error: String? = null,
+    val claimedAt: Timestamp? = null,
 )
 
 /** A null [createdAt] is a local write whose server timestamp has not resolved yet. */
@@ -144,6 +145,7 @@ fun NotebookPageDto.toImportPage(pageId: String): ImportPage = ImportPage(
     personCount = personCount,
     error = error,
     localThumb = null,
+    claimedAt = claimedAt?.let { Instant.fromEpochSeconds(it.seconds, it.nanoseconds) },
 )
 
 fun NotebookJobDto.toImportJob(jobId: String): ImportJob = ImportJob(

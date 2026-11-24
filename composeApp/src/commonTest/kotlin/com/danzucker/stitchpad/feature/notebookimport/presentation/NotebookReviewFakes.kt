@@ -9,7 +9,6 @@ import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
-import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.feature.notebookimport.domain.CardStatus
 import com.danzucker.stitchpad.feature.notebookimport.domain.CardValue
@@ -52,7 +51,8 @@ internal class FakeReviewRepository : NotebookImportRepository {
     override fun observeCards(ownerUid: String, jobId: String): Flow<Result<List<ReviewCard>, DataError.Network>> =
         cards.map { Result.Success(it) }
 
-    override fun observeOpenJob(ownerUid: String): Flow<ImportJob?> = job
+    override fun observeOpenJobs(ownerUid: String): Flow<Result<List<ImportJob>, DataError.Network>> =
+        job.map { Result.Success(listOfNotNull(it?.takeIf { j -> j.status == "open" })) }
 
     override fun observeJob(ownerUid: String, jobId: String): Flow<ImportJob?> = job
 
@@ -118,13 +118,6 @@ internal class FakeReviewCustomers : CustomerRepository {
         Result.Success(Unit)
 }
 
-internal class FakeUnitStore(private var unit: MeasurementUnit = MeasurementUnit.INCHES) : MeasurementPreferencesStore {
-    override suspend fun getUnit(): MeasurementUnit = unit
-    override suspend fun setUnit(unit: MeasurementUnit) {
-        this.unit = unit
-    }
-}
-
 internal class FakeReviewEntitlements(cap: Int = 15) : EntitlementsProvider {
     private val value = UserEntitlements(
         tier = SubscriptionTier.FREE,
@@ -158,6 +151,7 @@ internal fun reviewCard(
     matched: String? = null,
     box: PageBox? = null,
     keepAsNew: Boolean = false,
+    unit: MeasurementUnit? = MeasurementUnit.INCHES,
 ) = ReviewCard(
     id = id,
     jobId = REVIEW_JOB,
@@ -165,7 +159,7 @@ internal fun reviewCard(
     name = name,
     phone = phone,
     gender = gender,
-    unit = MeasurementUnit.INCHES,
+    unit = unit,
     dateWritten = null,
     values = values,
     box = box,

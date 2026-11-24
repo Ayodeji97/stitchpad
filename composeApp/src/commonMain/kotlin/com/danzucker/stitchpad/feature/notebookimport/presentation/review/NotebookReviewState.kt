@@ -29,6 +29,8 @@ data class ReviewRow(
     val unclearCount: Int,
     val match: MatchSuggestion? = null,
     val duplicate: DuplicatePrompt? = null,
+    /** Several existing customers share this name; the tailor picks one on the card. */
+    val ambiguousMatch: Boolean = false,
 )
 
 data class NotebookReviewState(

@@ -125,6 +125,7 @@ import stitchpad.composeapp.generated.resources.notebook_card_photo_cd
 import stitchpad.composeapp.generated.resources.notebook_card_photo_gone
 import stitchpad.composeapp.generated.resources.notebook_card_pick_field
 import stitchpad.composeapp.generated.resources.notebook_card_remove_value_cd
+import stitchpad.composeapp.generated.resources.notebook_card_save_as_new
 import stitchpad.composeapp.generated.resources.notebook_card_save_now
 import stitchpad.composeapp.generated.resources.notebook_card_saved
 import stitchpad.composeapp.generated.resources.notebook_card_skip
@@ -132,8 +133,11 @@ import stitchpad.composeapp.generated.resources.notebook_card_title
 import stitchpad.composeapp.generated.resources.notebook_card_unclear
 import stitchpad.composeapp.generated.resources.notebook_card_unit
 import stitchpad.composeapp.generated.resources.notebook_card_value_right_cd
+import stitchpad.composeapp.generated.resources.notebook_card_which_customer
+import stitchpad.composeapp.generated.resources.notebook_card_which_customer_hint
 import stitchpad.composeapp.generated.resources.notebook_review_unit_cm
 import stitchpad.composeapp.generated.resources.notebook_review_unit_inches
+import stitchpad.composeapp.generated.resources.notebook_review_unit_unknown
 
 /** Longest edge the page photo is decoded at for the crop: enough to read handwriting, small in memory. */
 private const val PHOTO_DECODE_PX = 1600
@@ -304,13 +308,16 @@ private fun CardForm(state: NotebookCardState, onAction: (NotebookCardAction) ->
             title = stringResource(Res.string.notebook_card_unit),
             first = stringResource(Res.string.measurement_unit_inches),
             second = stringResource(Res.string.measurement_unit_cm),
-            selected = if (state.unit == MeasurementUnit.INCHES) 0 else 1,
+            selected = unitChoiceIndex(state.unit),
             enabled = !readOnly,
             onSelect = { i ->
                 onAction(NotebookCardAction.OnUnitSelect(if (i == 0) MeasurementUnit.INCHES else MeasurementUnit.CM))
             },
         )
         DateRow(state.dateWritten, enabled = !readOnly, onAction = onAction)
+        if (state.matchCandidates.isNotEmpty()) {
+            CandidatePicker(state = state, enabled = !readOnly, onAction = onAction)
+        }
         state.matchCandidate?.let { candidate ->
             Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space1)) {
                 LabeledChoice(
@@ -335,6 +342,56 @@ private fun CardForm(state: NotebookCardState, onAction: (NotebookCardAction) ->
             }
         }
         ValuesSection(state, readOnly, onAction)
+    }
+}
+
+/** No unit selected until the tailor chooses: a notebook that did not say gets no default. */
+private fun unitChoiceIndex(unit: MeasurementUnit?): Int? = when (unit) {
+    MeasurementUnit.INCHES -> 0
+    MeasurementUnit.CM -> 1
+    null -> null
+}
+
+/** "Which customer is this?": several existing customers share the name. Pick one, or save as new. */
+@Composable
+private fun CandidatePicker(state: NotebookCardState, enabled: Boolean, onAction: (NotebookCardAction) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space2)) {
+        Text(
+            text = stringResource(Res.string.notebook_card_which_customer),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            text = stringResource(Res.string.notebook_card_which_customer_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        state.matchCandidates.forEach { candidate ->
+            StitchPadButton(
+                text = listOfNotNull(candidate.name, candidate.phone).joinToString(" · "),
+                onClick = { onAction(NotebookCardAction.OnMatchCandidatePick(candidate.id)) },
+                enabled = enabled,
+                variant = if (state.draft?.matchedCustomerId == candidate.id) {
+                    StitchPadButtonVariant.Primary
+                } else {
+                    StitchPadButtonVariant.Secondary
+                },
+                shape = RoundedCornerShape(DesignTokens.radiusMd),
+                modifier = Modifier.fillMaxWidth().heightIn(min = NotebookTouchTarget),
+            )
+        }
+        StitchPadButton(
+            text = stringResource(Res.string.notebook_card_save_as_new),
+            onClick = { onAction(NotebookCardAction.OnMatchToggle(addToExisting = false)) },
+            enabled = enabled,
+            variant = if (state.matchChoice == false) {
+                StitchPadButtonVariant.Primary
+            } else {
+                StitchPadButtonVariant.Secondary
+            },
+            shape = RoundedCornerShape(DesignTokens.radiusMd),
+            modifier = Modifier.fillMaxWidth().heightIn(min = NotebookTouchTarget),
+        )
     }
 }
 
@@ -504,10 +561,10 @@ private fun formatDayFirst(date: LocalDate): String =
 private fun ValuesSection(state: NotebookCardState, readOnly: Boolean, onAction: (NotebookCardAction) -> Unit) {
     val indexed = state.values.withIndex().toList()
     val (fields, notes) = indexed.partition { it.value.fieldKey != null }
-    val unitLabel = if (state.unit == MeasurementUnit.INCHES) {
-        stringResource(Res.string.notebook_review_unit_inches)
-    } else {
-        stringResource(Res.string.notebook_review_unit_cm)
+    val unitLabel = when (state.unit) {
+        MeasurementUnit.INCHES -> stringResource(Res.string.notebook_review_unit_inches)
+        MeasurementUnit.CM -> stringResource(Res.string.notebook_review_unit_cm)
+        null -> stringResource(Res.string.notebook_review_unit_unknown)
     }
     if (fields.isNotEmpty()) {
         Text(
@@ -764,6 +821,28 @@ private fun NotebookCardScreenNoGenderPreview() {
                 isLoading = false,
                 draft = previewCard.copy(gender = null, values = previewCard.values.map { it.copy(flagged = false) }),
                 pageNumber = 2,
+            ),
+            onAction = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun NotebookCardScreenWhichCustomerPreview() {
+    StitchPadTheme {
+        NotebookCardScreen(
+            state = NotebookCardState(
+                isLoading = false,
+                draft = previewCard.copy(unit = null, values = previewCard.values.map { it.copy(flagged = false) }),
+                pageNumber = 3,
+                photoUnavailable = true,
+                customersLoaded = true,
+                matchCandidates = listOf(
+                    ExistingCustomer("cust-1", "Fatima Bello", "+234 812 554 0091"),
+                    ExistingCustomer("cust-2", "Fatima Bello"),
+                ),
             ),
             onAction = {},
         )

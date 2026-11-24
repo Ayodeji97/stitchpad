@@ -15,6 +15,7 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.toInstant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
@@ -69,18 +70,21 @@ class NotebookImportDomainTest {
         val found = DuplicateMatcher.findExisting(
             card(name = "Bisi Ade", phone = "0803 123 4567"), listOf(byName, byPhone), Country.NG,
         )
-        assertEquals("b", found?.id)
+        assertEquals(ExistingMatch.Match(byPhone), found)
     }
 
     @Test
     fun findExisting_nameOnly() {
         val c = customer("a", "Bisi  Ade", "")
-        assertEquals("a", DuplicateMatcher.findExisting(card(name = "mrs bisi ade"), listOf(c), Country.NG)?.id)
+        assertEquals(ExistingMatch.Match(c), DuplicateMatcher.findExisting(card(name = "mrs bisi ade"), listOf(c), Country.NG))
     }
 
     @Test
     fun findExisting_none() {
-        assertNull(DuplicateMatcher.findExisting(card(name = "Zed", phone = ""), listOf(customer("a", "Bisi", "")), Country.NG))
+        assertEquals(
+            ExistingMatch.None,
+            DuplicateMatcher.findExisting(card(name = "Zed", phone = ""), listOf(customer("a", "Bisi", "")), Country.NG),
+        )
     }
 
     @Test
@@ -101,7 +105,7 @@ class NotebookImportDomainTest {
 
     @Test
     fun mapper_newCustomerDeterministicIds() {
-        val r = cardToRecords(card(name = " Bisi ", phone = "0803 123 4567"), "u", null, LocalDate(2026, 5, 5), MeasurementUnit.CM, Country.NG)
+        val r = cardToRecords(card(name = " Bisi ", phone = "0803 123 4567"), "u", null, LocalDate(2026, 5, 5), Country.NG)
         assertEquals("nb_job1_p1_0", r.customer?.id)
         assertEquals("u", r.customer?.userId)
         assertEquals("Bisi", r.customer?.name)
@@ -116,33 +120,49 @@ class NotebookImportDomainTest {
 
     @Test
     fun mapper_phoneStoredLikeForm_ghanaAndBlank() {
-        val gh = cardToRecords(card(phone = "024 123 4567"), "u", null, LocalDate(2026, 5, 5), MeasurementUnit.CM, Country.GH)
+        val gh = cardToRecords(card(phone = "024 123 4567"), "u", null, LocalDate(2026, 5, 5), Country.GH)
         assertEquals("+233241234567", gh.customer?.phone)
-        val blank = cardToRecords(card(phone = null), "u", null, LocalDate(2026, 5, 5), MeasurementUnit.CM, Country.NG)
+        val blank = cardToRecords(card(phone = null), "u", null, LocalDate(2026, 5, 5), Country.NG)
         assertEquals("", blank.customer?.phone)
     }
 
     @Test
-    fun findExisting_ambiguousNamesNull() {
-        val cs = listOf(customer("a", "Bisi Ade", ""), customer("b", "Bisi Ade", ""))
-        assertNull(DuplicateMatcher.findExisting(card(name = "Bisi Ade"), cs, Country.NG))
+    fun findExisting_ambiguousNames_listsCandidates() {
+        val cs = listOf(customer("a", "Bisi Ade", ""), customer("b", "Bisi Ade", ""), customer("c", "Tola", ""))
+        assertEquals(ExistingMatch.Ambiguous(cs.take(2)), DuplicateMatcher.findExisting(card(name = "Bisi Ade"), cs, Country.NG))
+    }
+
+    @Test
+    fun findExisting_ambiguous_excludesPhoneConflictingCandidates() {
+        val a = customer("a", "Bisi Ade", "")
+        val b = customer("b", "Bisi Ade", "")
+        val conflicting = customer("c", "Bisi Ade", "2348099999999")
+        assertEquals(
+            ExistingMatch.Ambiguous(listOf(a, b)),
+            DuplicateMatcher.findExisting(card(name = "Bisi Ade", phone = "08031234567"), listOf(a, b, conflicting), Country.NG),
+        )
+        // one non-conflicting candidate left: a plain match
+        assertEquals(
+            ExistingMatch.Match(a),
+            DuplicateMatcher.findExisting(card(name = "Bisi Ade", phone = "08031234567"), listOf(a, conflicting), Country.NG),
+        )
     }
 
     @Test
     fun findExisting_conflictingPhoneNotMatch() {
         val cs = listOf(customer("a", "Bisi Ade", "2348099999999"))
-        assertNull(DuplicateMatcher.findExisting(card(name = "Bisi Ade", phone = "08031234567"), cs, Country.NG))
+        assertEquals(ExistingMatch.None, DuplicateMatcher.findExisting(card(name = "Bisi Ade", phone = "08031234567"), cs, Country.NG))
     }
 
     @Test
     fun findExisting_phoneWinsAmongSameNames() {
         val cs = listOf(customer("a", "Bisi Ade", "2348099999999"), customer("b", "Bisi Ade", "+2348031234567"))
-        assertEquals("b", DuplicateMatcher.findExisting(card(name = "Bisi Ade", phone = "08031234567"), cs, Country.NG)?.id)
+        assertEquals(ExistingMatch.Match(cs[1]), DuplicateMatcher.findExisting(card(name = "Bisi Ade", phone = "08031234567"), cs, Country.NG))
     }
 
     @Test
     fun mapper_existingCustomer_noCustomerRecord() {
-        val r = cardToRecords(card(), "u", "existing", LocalDate(2026, 5, 5), MeasurementUnit.CM, Country.NG)
+        val r = cardToRecords(card(), "u", "existing", LocalDate(2026, 5, 5), Country.NG)
         assertNull(r.customer)
         assertEquals("existing", r.measurement.customerId)
     }
@@ -151,7 +171,7 @@ class NotebookImportDomainTest {
     fun mapper_unmatchedToNotes() {
         val r = cardToRecords(
             card(values = listOf(CardValue("Chest", "36", "chest", false), CardValue("Odd", "5", null, true), CardValue("Weird", "7", null, false))),
-            "u", null, LocalDate(2026, 5, 5), MeasurementUnit.CM, Country.NG,
+            "u", null, LocalDate(2026, 5, 5), Country.NG,
         )
         assertEquals(mapOf("chest" to "36"), r.measurement.fields)
         assertEquals("Odd: 5\nWeird: 7", r.measurement.notes)
@@ -161,7 +181,7 @@ class NotebookImportDomainTest {
     fun mapper_duplicateKeyToNotes() {
         val r = cardToRecords(
             card(values = listOf(CardValue("Chest", "36", "chest", false), CardValue("Chest 2", "38", "chest", false))),
-            "u", null, LocalDate(2026, 5, 5), MeasurementUnit.CM, Country.NG,
+            "u", null, LocalDate(2026, 5, 5), Country.NG,
         )
         assertEquals(mapOf("chest" to "36"), r.measurement.fields)
         assertEquals("Chest 2: 38", r.measurement.notes)
@@ -170,8 +190,8 @@ class NotebookImportDomainTest {
     @Test
     fun mapper_dateFallsBackToImportDate() {
         val import = LocalDate(2026, 5, 5)
-        val withDate = cardToRecords(card(date = LocalDate(2026, 3, 1)), "u", null, import, MeasurementUnit.CM, Country.NG)
-        val without = cardToRecords(card(date = null), "u", null, import, MeasurementUnit.CM, Country.NG)
+        val withDate = cardToRecords(card(date = LocalDate(2026, 3, 1)), "u", null, import, Country.NG)
+        val without = cardToRecords(card(date = null), "u", null, import, Country.NG)
         assertEquals(noon(LocalDate(2026, 3, 1)), withDate.measurement.dateTaken)
         assertEquals(noon(import), without.measurement.dateTaken)
         assertNull(without.measurement.notes)
@@ -179,9 +199,21 @@ class NotebookImportDomainTest {
     }
 
     @Test
-    fun mapper_unitFallsBackToDefault() {
-        val r = cardToRecords(card(unit = null), "u", null, LocalDate(2026, 5, 5), MeasurementUnit.CM, Country.NG)
-        assertEquals(MeasurementUnit.CM, r.measurement.unit)
-        assertEquals(MeasurementUnit.INCHES, cardToRecords(card(), "u", null, LocalDate(2026, 5, 5), MeasurementUnit.CM, Country.NG).measurement.unit)
+    fun mapper_usesCardUnit_neverADefault() {
+        assertEquals(MeasurementUnit.INCHES, cardToRecords(card(), "u", null, LocalDate(2026, 5, 5), Country.NG).measurement.unit)
+        assertEquals(
+            MeasurementUnit.CM,
+            cardToRecords(card(unit = MeasurementUnit.CM), "u", null, LocalDate(2026, 5, 5), Country.NG).measurement.unit,
+        )
+        assertFailsWith<IllegalArgumentException> {
+            cardToRecords(card(unit = null), "u", null, LocalDate(2026, 5, 5), Country.NG)
+        }
+    }
+
+    @Test
+    fun checkBlocker_nullUnitBlocksAfterGender() {
+        assertEquals(CheckBlocker.UNIT, card(unit = null).checkBlocker())
+        assertEquals(CheckBlocker.GENDER, card(unit = null).copy(gender = null).checkBlocker())
+        assertNull(card().checkBlocker())
     }
 }

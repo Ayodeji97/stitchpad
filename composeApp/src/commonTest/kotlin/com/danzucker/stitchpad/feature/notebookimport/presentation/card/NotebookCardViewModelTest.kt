@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
 import com.danzucker.stitchpad.core.data.repository.FakeMeasurementRepository
 import com.danzucker.stitchpad.core.domain.model.CustomerGender
+import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.FakeCurrentCountryProvider
 import com.danzucker.stitchpad.core.domain.session.WorkshopSession
@@ -15,7 +16,6 @@ import com.danzucker.stitchpad.feature.notebookimport.domain.importCustomerId
 import com.danzucker.stitchpad.feature.notebookimport.presentation.FakeReviewCustomers
 import com.danzucker.stitchpad.feature.notebookimport.presentation.FakeReviewEntitlements
 import com.danzucker.stitchpad.feature.notebookimport.presentation.FakeReviewRepository
-import com.danzucker.stitchpad.feature.notebookimport.presentation.FakeUnitStore
 import com.danzucker.stitchpad.feature.notebookimport.presentation.REVIEW_JOB
 import com.danzucker.stitchpad.feature.notebookimport.presentation.REVIEW_OWNER
 import com.danzucker.stitchpad.feature.notebookimport.presentation.customer
@@ -76,7 +76,6 @@ class NotebookCardViewModelTest {
             activeWorkshop = FakeActiveWorkshopProvider(WorkshopSession.ownerOfSelf(REVIEW_OWNER)),
             entitlements = FakeReviewEntitlements(cap = 15),
             countryProvider = FakeCurrentCountryProvider(),
-            unitStore = FakeUnitStore(),
             reviewSession = reviewSession,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
@@ -245,6 +244,79 @@ class NotebookCardViewModelTest {
         val written = assertNotNull(repository.lastUpdate("c1"))
         assertNull(written.matchedCustomerId)
         assertTrue(written.keepAsNew)
+    }
+
+    @Test
+    fun card_ambiguousMatch_offersCandidatesAndBlocksUntilPicked() = runTest {
+        customers.customers.value = listOf(
+            customer("cust-1", "Bisi Ade", phone = "+2348031111111"),
+            customer("cust-2", "Bisi Ade"),
+        )
+        repository.cards.value = listOf(reviewCard("c1", name = "Bisi Ade"))
+        val vm = createViewModel()
+
+        assertNull(vm.state.value.matchCandidate)
+        assertEquals(
+            listOf(ExistingCustomer("cust-1", "Bisi Ade", "+2348031111111"), ExistingCustomer("cust-2", "Bisi Ade", null)),
+            vm.state.value.matchCandidates,
+        )
+        assertNull(vm.state.value.matchChoice)
+        assertEquals(CheckBlocker.MATCH, vm.state.value.checkBlocker)
+        vm.onAction(NotebookCardAction.OnLooksRightClick)
+        vm.onAction(NotebookCardAction.OnSaveNowClick)
+        assertTrue(repository.updated.isEmpty())
+        assertTrue(customers.created.isEmpty())
+
+        vm.onAction(NotebookCardAction.OnMatchCandidatePick("cust-2"))
+        assertEquals(true, vm.state.value.matchChoice)
+        assertTrue(vm.state.value.canMarkChecked)
+        vm.onAction(NotebookCardAction.OnLooksRightClick)
+        val written = assertNotNull(repository.lastUpdate("c1"))
+        assertEquals("cust-2", written.matchedCustomerId)
+        assertFalse(written.keepAsNew)
+    }
+
+    @Test
+    fun card_ambiguousMatch_saveAsNewCustomer() = runTest {
+        customers.customers.value = listOf(customer("cust-1", "Bisi Ade"), customer("cust-2", "Bisi Ade"))
+        repository.cards.value = listOf(reviewCard("c1", name = "Bisi Ade"))
+        val vm = createViewModel()
+
+        vm.onAction(NotebookCardAction.OnMatchToggle(addToExisting = false))
+        assertEquals(false, vm.state.value.matchChoice)
+        assertTrue(vm.state.value.canMarkChecked)
+        vm.onAction(NotebookCardAction.OnLooksRightClick)
+        val written = assertNotNull(repository.lastUpdate("c1"))
+        assertNull(written.matchedCustomerId)
+        assertTrue(written.keepAsNew)
+    }
+
+    @Test
+    fun card_pickingSomeoneNotACandidate_isIgnored() = runTest {
+        customers.customers.value = listOf(customer("cust-1", "Bisi Ade"), customer("cust-2", "Bisi Ade"))
+        repository.cards.value = listOf(reviewCard("c1", name = "Bisi Ade"))
+        val vm = createViewModel()
+
+        vm.onAction(NotebookCardAction.OnMatchCandidatePick("someone-else"))
+        assertNull(vm.state.value.matchChoice)
+    }
+
+    @Test
+    fun card_nullUnit_blocksUntilChosen() = runTest {
+        repository.cards.value = listOf(reviewCard("c1", unit = null))
+        val vm = createViewModel()
+
+        assertNull(vm.state.value.unit)
+        assertEquals(CheckBlocker.UNIT, vm.state.value.checkBlocker)
+        vm.onAction(NotebookCardAction.OnLooksRightClick)
+        vm.onAction(NotebookCardAction.OnSaveNowClick)
+        assertTrue(repository.updated.none { it.status == CardStatus.CHECKED })
+        assertTrue(customers.created.isEmpty())
+
+        vm.onAction(NotebookCardAction.OnUnitSelect(MeasurementUnit.CM))
+        assertTrue(vm.state.value.canMarkChecked)
+        vm.onAction(NotebookCardAction.OnLooksRightClick)
+        assertEquals(MeasurementUnit.CM, repository.lastUpdate("c1")?.unit)
     }
 
     @Test

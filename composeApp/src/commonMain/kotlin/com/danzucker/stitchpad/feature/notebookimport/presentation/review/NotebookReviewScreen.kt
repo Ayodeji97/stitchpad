@@ -108,6 +108,7 @@ import stitchpad.composeapp.generated.resources.notebook_review_still_reading
 import stitchpad.composeapp.generated.resources.notebook_review_summary
 import stitchpad.composeapp.generated.resources.notebook_review_title
 import stitchpad.composeapp.generated.resources.notebook_review_unclear
+import stitchpad.composeapp.generated.resources.notebook_review_which_customer
 
 /**
  * Root of the review list. Navigation targets are callbacks wired by the nav graph:
@@ -401,6 +402,7 @@ private fun ReviewRowCard(row: ReviewRow, callbacks: RowCallbacks, interactive: 
         if (interactive) {
             row.duplicate?.let { DuplicatePanel(it, row.name, callbacks) }
             row.match?.let { MatchPanel(row.cardId, it, callbacks) }
+            if (row.ambiguousMatch) WhichCustomerPanel()
         }
     }
 }
@@ -454,6 +456,18 @@ private fun DuplicatePanel(prompt: DuplicatePrompt, name: String, callbacks: Row
             onPrimary = { callbacks.onMerge(prompt.cardIds) },
             secondary = stringResource(Res.string.notebook_review_keep_separate),
             onSecondary = { callbacks.onKeepSeparate(prompt.cardIds) },
+        )
+    }
+}
+
+/** Several existing customers share the name: the choice is made on the card (tap the row). */
+@Composable
+private fun WhichCustomerPanel() {
+    PanelBox {
+        Text(
+            text = stringResource(Res.string.notebook_review_which_customer),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
         )
     }
 }
@@ -634,7 +648,13 @@ private fun NotebookReviewScreenPreview() {
         NotebookReviewScreen(
             state = NotebookReviewState(
                 isLoading = false,
-                needLook = previewRows.take(1),
+                needLook = previewRows.take(1) + previewRows[1].copy(
+                    cardId = "c5",
+                    name = "Bisi Ade",
+                    unit = null,
+                    duplicate = null,
+                    ambiguousMatch = true,
+                ),
                 ready = previewRows.drop(1),
                 saved = listOf(previewRows[1].copy(cardId = "c9", name = "Bisi Ade", duplicate = null)),
                 foundCount = 4,

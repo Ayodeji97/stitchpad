@@ -4,6 +4,16 @@ import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.sharing.normalisePhone
 
+/** Where a card stands against the existing customers, before the tailor answers. */
+sealed interface ExistingMatch {
+    data object None : ExistingMatch
+
+    data class Match(val customer: Customer) : ExistingMatch
+
+    /** Several same-name customers the phone cannot separate: the tailor must pick one or save as new. */
+    data class Ambiguous(val candidates: List<Customer>) : ExistingMatch
+}
+
 object DuplicateMatcher {
     private val titles = setOf("mr", "mrs", "miss", "madam", "mama", "alhaji", "chief")
     private const val MIN_PHONE_SUFFIX = 7
@@ -53,23 +63,25 @@ object DuplicateMatcher {
     }
 
     /**
-     * Phone match wins. Otherwise a unique exact normalised-name match whose phone does not conflict
-     * with the card's; several candidates the phone cannot separate are ambiguous, so null.
+     * Phone match wins. Otherwise the exact normalised-name matches whose phone does not conflict with
+     * the card's: one is a [ExistingMatch.Match], several are [ExistingMatch.Ambiguous].
      */
-    fun findExisting(card: ReviewCard, customers: List<Customer>, country: Country): Customer? {
+    @Suppress("ReturnCount")
+    fun findExisting(card: ReviewCard, customers: List<Customer>, country: Country): ExistingMatch {
         val cardPhone = card.phone?.let { normalisePhone(it, country) }.orEmpty()
         val byPhone = if (cardPhone.isBlank()) {
             null
         } else {
             customers.firstOrNull { normalisePhone(it.phone, country) == cardPhone }
         }
+        if (byPhone != null) return ExistingMatch.Match(byPhone)
         val name = normaliseName(card.name)
-        return byPhone ?: if (name.isBlank()) {
-            null
-        } else {
-            customers
-                .filter { normaliseName(it.name) == name && !phonesConflict(card.phone, it.phone) }
-                .singleOrNull()
+        if (name.isBlank()) return ExistingMatch.None
+        val sameName = customers.filter { normaliseName(it.name) == name && !phonesConflict(card.phone, it.phone) }
+        return when (sameName.size) {
+            0 -> ExistingMatch.None
+            1 -> ExistingMatch.Match(sameName.single())
+            else -> ExistingMatch.Ambiguous(sameName)
         }
     }
 

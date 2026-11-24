@@ -73,14 +73,18 @@ import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.notebook_capture_back_cd
 import stitchpad.composeapp.generated.resources.notebook_capture_cap
+import stitchpad.composeapp.generated.resources.notebook_capture_earlier_banner
+import stitchpad.composeapp.generated.resources.notebook_capture_earlier_review
 import stitchpad.composeapp.generated.resources.notebook_capture_failed
 import stitchpad.composeapp.generated.resources.notebook_capture_footnote
 import stitchpad.composeapp.generated.resources.notebook_capture_from_gallery
 import stitchpad.composeapp.generated.resources.notebook_capture_intro
+import stitchpad.composeapp.generated.resources.notebook_capture_lookup_failed
 import stitchpad.composeapp.generated.resources.notebook_capture_no_people
 import stitchpad.composeapp.generated.resources.notebook_capture_page_found
 import stitchpad.composeapp.generated.resources.notebook_capture_page_not_read
 import stitchpad.composeapp.generated.resources.notebook_capture_page_not_uploaded
+import stitchpad.composeapp.generated.resources.notebook_capture_page_stuck
 import stitchpad.composeapp.generated.resources.notebook_capture_page_uploading
 import stitchpad.composeapp.generated.resources.notebook_capture_pages_count
 import stitchpad.composeapp.generated.resources.notebook_capture_pages_count_one
@@ -88,6 +92,7 @@ import stitchpad.composeapp.generated.resources.notebook_capture_pages_title
 import stitchpad.composeapp.generated.resources.notebook_capture_reading
 import stitchpad.composeapp.generated.resources.notebook_capture_retry
 import stitchpad.composeapp.generated.resources.notebook_capture_review
+import stitchpad.composeapp.generated.resources.notebook_capture_stuck
 import stitchpad.composeapp.generated.resources.notebook_capture_take_photo
 import stitchpad.composeapp.generated.resources.notebook_capture_title
 import stitchpad.composeapp.generated.resources.notebook_capture_upload_failed
@@ -194,7 +199,7 @@ fun NotebookCaptureScreen(
             state = state,
             onTakePhoto = onTakePhoto,
             onPickFromGallery = onPickFromGallery,
-            onRetry = { key -> onAction(NotebookCaptureAction.OnRetryPage(key)) },
+            onAction = onAction,
             contentPadding = paddingValues,
         )
     }
@@ -205,7 +210,7 @@ private fun CaptureGrid(
     state: NotebookCaptureState,
     onTakePhoto: () -> Unit,
     onPickFromGallery: () -> Unit,
-    onRetry: (String) -> Unit,
+    onAction: (NotebookCaptureAction) -> Unit,
     contentPadding: PaddingValues,
 ) {
     val fullWidth: (androidx.compose.foundation.lazy.grid.LazyGridItemSpanScope.() -> GridItemSpan) =
@@ -229,15 +234,29 @@ private fun CaptureGrid(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        if (state.earlierJobId != null) {
+            item(key = "earlier-scan", span = fullWidth) {
+                EarlierScanBanner(onReview = { onAction(NotebookCaptureAction.OnEarlierScanReviewClick) })
+            }
+        }
+        if (state.lookup == ResumeLookup.FAILED) {
+            item(key = "lookup-failed", span = fullWidth) {
+                LookupFailedBanner(onRetry = { onAction(NotebookCaptureAction.OnRetryLookup) })
+            }
+        }
         item(span = fullWidth) {
-            CaptureButtons(onTakePhoto = onTakePhoto, onPickFromGallery = onPickFromGallery)
+            CaptureButtons(
+                enabled = state.canCapture,
+                onTakePhoto = onTakePhoto,
+                onPickFromGallery = onPickFromGallery,
+            )
         }
         if (state.pages.isNotEmpty()) {
             item(span = fullWidth) { PagesHeader(count = state.pages.size) }
             items(items = state.pages, key = { it.key }) { page -> PageTile(page = page) }
             state.pages.filter { it.needsAttention() }.forEach { page ->
                 item(key = "banner-${page.key}", span = fullWidth) {
-                    FailedPageBanner(page = page, onRetry = { onRetry(page.key) })
+                    FailedPageBanner(page = page, onRetry = { onAction(NotebookCaptureAction.OnRetryPage(page.key)) })
                 }
             }
         }
@@ -254,23 +273,81 @@ private fun CaptureGrid(
 private fun CapturePage.needsAttention() =
     status == CapturePageStatus.UPLOAD_FAILED ||
         status == CapturePageStatus.READ_FAILED ||
+        status == CapturePageStatus.READ_STUCK ||
         status == CapturePageStatus.CAP_REACHED
 
+/** Disabled until the open-job look-up has succeeded, so a new job never orphans an open one. */
 @Composable
-private fun CaptureButtons(onTakePhoto: () -> Unit, onPickFromGallery: () -> Unit) {
+private fun CaptureButtons(enabled: Boolean, onTakePhoto: () -> Unit, onPickFromGallery: () -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3)) {
         StitchPadButton(
             text = stringResource(Res.string.notebook_capture_take_photo),
             onClick = onTakePhoto,
+            enabled = enabled,
             leadingIcon = Icons.Default.AddAPhoto,
             modifier = Modifier.weight(1f),
         )
         StitchPadButton(
             text = stringResource(Res.string.notebook_capture_from_gallery),
             onClick = onPickFromGallery,
+            enabled = enabled,
             variant = StitchPadButtonVariant.Secondary,
             modifier = Modifier.weight(1f),
         )
+    }
+}
+
+@Composable
+private fun EarlierScanBanner(onReview: () -> Unit) {
+    InfoBanner(
+        text = stringResource(Res.string.notebook_capture_earlier_banner),
+        actionText = stringResource(Res.string.notebook_capture_earlier_review),
+        onAction = onReview,
+        warning = false,
+    )
+}
+
+@Composable
+private fun LookupFailedBanner(onRetry: () -> Unit) {
+    InfoBanner(
+        text = stringResource(Res.string.notebook_capture_lookup_failed),
+        actionText = stringResource(Res.string.notebook_capture_retry),
+        onAction = onRetry,
+        warning = true,
+    )
+}
+
+@Composable
+private fun InfoBanner(text: String, actionText: String, onAction: () -> Unit, warning: Boolean) {
+    val isDark = LocalIsDarkTheme.current
+    val background = when {
+        warning -> if (isDark) DesignTokens.warningDarkBg else DesignTokens.warning50
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(DesignTokens.space3),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(DesignTokens.radiusMd))
+            .background(background)
+            .padding(start = DesignTokens.space3, top = DesignTokens.space2, bottom = DesignTokens.space2),
+    ) {
+        Icon(
+            imageVector = if (warning) Icons.Default.Warning else Icons.Default.Description,
+            contentDescription = null,
+            tint = if (warning) DesignTokens.warning500 else MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(20.dp),
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = onAction, modifier = Modifier.heightIn(min = MIN_TOUCH_TARGET)) {
+            Text(text = actionText, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+        }
     }
 }
 
@@ -351,6 +428,7 @@ private fun PageLabel(page: CapturePage) {
     val text = when (page.status) {
         CapturePageStatus.UPLOADING -> stringResource(Res.string.notebook_capture_page_uploading, page.number)
         CapturePageStatus.READING -> stringResource(Res.string.notebook_capture_reading, page.number)
+        CapturePageStatus.READ_STUCK -> stringResource(Res.string.notebook_capture_page_stuck, page.number)
         CapturePageStatus.DONE ->
             if (page.personCount == 0) {
                 stringResource(Res.string.notebook_capture_no_people)
@@ -395,12 +473,13 @@ private fun FailedPageBanner(page: CapturePage, onRetry: () -> Unit) {
     val title = when (page.status) {
         CapturePageStatus.CAP_REACHED -> stringResource(Res.string.notebook_capture_cap)
         CapturePageStatus.UPLOAD_FAILED -> stringResource(Res.string.notebook_capture_upload_failed)
+        CapturePageStatus.READ_STUCK -> stringResource(Res.string.notebook_capture_stuck)
         else -> stringResource(Res.string.notebook_capture_failed)
     }
-    val pageLabel = if (page.status == CapturePageStatus.UPLOAD_FAILED) {
-        stringResource(Res.string.notebook_capture_page_not_uploaded, page.number)
-    } else {
-        stringResource(Res.string.notebook_capture_page_not_read, page.number)
+    val pageLabel = when (page.status) {
+        CapturePageStatus.UPLOAD_FAILED -> stringResource(Res.string.notebook_capture_page_not_uploaded, page.number)
+        CapturePageStatus.READ_STUCK -> stringResource(Res.string.notebook_capture_page_stuck, page.number)
+        else -> stringResource(Res.string.notebook_capture_page_not_read, page.number)
     }
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -473,7 +552,7 @@ private val previewThumb: ByteArray? = null
 private fun NotebookCaptureScreenEmptyPreview() {
     StitchPadTheme {
         NotebookCaptureScreen(
-            state = NotebookCaptureState(),
+            state = NotebookCaptureState(lookup = ResumeLookup.READY),
             onTakePhoto = {},
             onPickFromGallery = {},
             onAction = {},
@@ -493,6 +572,7 @@ private fun NotebookCaptureScreenUploadingPreview() {
                     CapturePage("p2", 2, CapturePageStatus.READING, thumb = previewThumb),
                     CapturePage("local-3", 3, CapturePageStatus.UPLOADING, thumb = previewThumb),
                 ),
+                lookup = ResumeLookup.READY,
             ),
             onTakePhoto = {},
             onPickFromGallery = {},
@@ -514,8 +594,38 @@ private fun NotebookCaptureScreenFailedPreview() {
                     CapturePage("p3", 3, CapturePageStatus.READ_FAILED),
                     CapturePage("p4", 4, CapturePageStatus.CAP_REACHED),
                     CapturePage("local-5", 5, CapturePageStatus.UPLOAD_FAILED),
+                    CapturePage("p6", 6, CapturePageStatus.READ_STUCK),
                 ),
+                lookup = ResumeLookup.READY,
             ),
+            onTakePhoto = {},
+            onPickFromGallery = {},
+            onAction = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun NotebookCaptureScreenLookupFailedPreview() {
+    StitchPadTheme {
+        NotebookCaptureScreen(
+            state = NotebookCaptureState(lookup = ResumeLookup.FAILED),
+            onTakePhoto = {},
+            onPickFromGallery = {},
+            onAction = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun NotebookCaptureScreenEarlierScanPreview() {
+    StitchPadTheme {
+        NotebookCaptureScreen(
+            state = NotebookCaptureState(lookup = ResumeLookup.READY, earlierJobId = "job-old"),
             onTakePhoto = {},
             onPickFromGallery = {},
             onAction = {},

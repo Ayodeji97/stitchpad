@@ -35,8 +35,9 @@ fun pageNumbers(pages: List<ImportPage>): Map<String, Int> =
 /**
  * Splits the cards into the review sections.
  * - "Need a look": not saved or skipped, and any of: still NEW with needsReview set; not ready to check
- *   (no gender, no name, an unclear or blank value); an existing-customer suggestion the tailor has not
- *   answered; part of a same-person group still waiting for Combine or Keep separate.
+ *   (no gender, no unit, no name, an unclear or blank value); an existing-customer suggestion (or a choice
+ *   between several same-name customers) the tailor has not answered; part of a same-person group still
+ *   waiting for Combine or Keep separate.
  * - "Ready": the other active cards (CHECKED, or NEW cards the server read cleanly). Their values are
  *   shown in full in the list, which is their review.
  * [customers] is null until the customer list has loaded; matches are not judged before then (and the
@@ -67,6 +68,7 @@ fun buildReviewSections(
             unclearCount = card.values.count { it.flagged || it.value.isBlank() },
             match = resolution?.toSuggestion(),
             duplicate = prompts[card.id],
+            ambiguousMatch = resolution?.let { it.ambiguous && it.unresolved } == true,
         )
     }
     val (needLookCards, readyCards) = active.partition { card ->

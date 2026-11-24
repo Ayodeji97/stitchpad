@@ -14,13 +14,13 @@ import com.danzucker.stitchpad.feature.notebookimport.domain.CardStatus
 import com.danzucker.stitchpad.feature.notebookimport.domain.CardValue
 import com.danzucker.stitchpad.feature.notebookimport.domain.ImportPage
 import com.danzucker.stitchpad.feature.notebookimport.domain.NotebookImportSaver
+import com.danzucker.stitchpad.feature.notebookimport.domain.ImportJob
 import com.danzucker.stitchpad.feature.notebookimport.domain.NotebookPageUploader
 import com.danzucker.stitchpad.feature.notebookimport.domain.PageStatus
 import com.danzucker.stitchpad.feature.notebookimport.domain.importCustomerId
 import com.danzucker.stitchpad.feature.notebookimport.presentation.FakeReviewCustomers
 import com.danzucker.stitchpad.feature.notebookimport.presentation.FakeReviewEntitlements
 import com.danzucker.stitchpad.feature.notebookimport.presentation.FakeReviewRepository
-import com.danzucker.stitchpad.feature.notebookimport.presentation.FakeUnitStore
 import com.danzucker.stitchpad.feature.notebookimport.presentation.FinishCall
 import com.danzucker.stitchpad.feature.notebookimport.presentation.REVIEW_JOB
 import com.danzucker.stitchpad.feature.notebookimport.presentation.REVIEW_OWNER
@@ -79,7 +79,9 @@ class NotebookReviewViewModelTest {
         workshop = FakeActiveWorkshopProvider(WorkshopSession.ownerOfSelf(REVIEW_OWNER))
         appScope = CoroutineScope(SupervisorJob() + UnconfinedTestDispatcher())
         uploader = NotebookPageUploader(repository, PassThroughCompressor(), workshop, FakeReviewEntitlements(), appScope)
-        uploader.adoptJob(REVIEW_JOB)
+        uploader.adoptJob(
+            ImportJob(REVIEW_JOB, kotlin.time.Clock.System.now(), "open", 1, null),
+        )
     }
 
     @AfterTest
@@ -100,7 +102,6 @@ class NotebookReviewViewModelTest {
             activeWorkshop = workshop,
             entitlements = FakeReviewEntitlements(cap = 15),
             countryProvider = FakeCurrentCountryProvider(),
-            unitStore = FakeUnitStore(),
             uploader = uploader,
             reviewSession = reviewSession,
         )
@@ -168,6 +169,56 @@ class NotebookReviewViewModelTest {
         assertNull(byId.getValue("c4").matchedCustomerId)
         assertNotNull(vm.state.value.message)
         assertFalse(vm.state.value.isSaving)
+    }
+
+    @Test
+    fun list_ambiguousMatch_needsALookAndIsNotSaved() = runTest {
+        customers.customers.value = listOf(customer("cust-1", "Bisi Ade"), customer("cust-2", "Bisi Ade"))
+        repository.pages.value = listOf(donePage("p1"))
+        repository.cards.value = listOf(
+            reviewCard("c1", name = "Bisi Ade", status = CardStatus.CHECKED),
+            reviewCard("c2", status = CardStatus.CHECKED),
+        )
+        val vm = createViewModel()
+
+        val row = vm.state.value.needLook.single()
+        assertEquals("c1", row.cardId)
+        assertTrue(row.ambiguousMatch)
+        assertNull(row.match)
+        assertEquals(listOf("c2"), vm.state.value.ready.map { it.cardId })
+
+        vm.onAction(NotebookReviewAction.OnSaveAllClick)
+
+        assertEquals(listOf(importCustomerId(REVIEW_JOB, "c2")), customers.created.map { it.id })
+        assertEquals(CardStatus.CHECKED, repository.cards.value.single { it.id == "c1" }.status)
+    }
+
+    @Test
+    fun list_ambiguousMatch_resolvedByKeepAsNew_isReady() = runTest {
+        customers.customers.value = listOf(customer("cust-1", "Bisi Ade"), customer("cust-2", "Bisi Ade"))
+        repository.pages.value = listOf(donePage("p1"))
+        repository.cards.value = listOf(reviewCard("c1", name = "Bisi Ade", status = CardStatus.CHECKED, keepAsNew = true))
+        val vm = createViewModel()
+
+        assertEquals(listOf("c1"), vm.state.value.ready.map { it.cardId })
+        assertFalse(vm.state.value.ready.single().ambiguousMatch)
+    }
+
+    @Test
+    fun list_nullUnit_needsALookAndIsNotSaved() = runTest {
+        repository.pages.value = listOf(donePage("p1"))
+        repository.cards.value = listOf(
+            reviewCard("c1", status = CardStatus.CHECKED, unit = null),
+            reviewCard("c2", status = CardStatus.CHECKED),
+        )
+        val vm = createViewModel()
+
+        assertEquals(listOf("c1"), vm.state.value.needLook.map { it.cardId })
+        assertEquals(listOf("c2"), vm.state.value.ready.map { it.cardId })
+
+        vm.onAction(NotebookReviewAction.OnSaveAllClick)
+
+        assertEquals(listOf(importCustomerId(REVIEW_JOB, "c2")), customers.created.map { it.id })
     }
 
     @Test
@@ -428,7 +479,6 @@ class NotebookReviewViewModelTest {
             activeWorkshop = workshop,
             entitlements = FakeReviewEntitlements(),
             countryProvider = FakeCurrentCountryProvider(),
-            unitStore = FakeUnitStore(),
             uploader = uploader,
             reviewSession = reviewSession,
         )

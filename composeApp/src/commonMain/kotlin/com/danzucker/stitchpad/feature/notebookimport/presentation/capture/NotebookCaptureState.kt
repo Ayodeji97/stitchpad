@@ -3,8 +3,14 @@ package com.danzucker.stitchpad.feature.notebookimport.presentation.capture
 import androidx.compose.runtime.Immutable
 import com.danzucker.stitchpad.core.presentation.UiText
 
-/** What one page tile shows. Upload failures are local; read failures come from the server. */
-enum class CapturePageStatus { UPLOADING, READING, DONE, UPLOAD_FAILED, READ_FAILED, CAP_REACHED }
+/**
+ * What one page tile shows. Upload failures are local; read failures come from the server. READ_STUCK is a
+ * page the server has been reading for over 10 minutes: it can be retried.
+ */
+enum class CapturePageStatus { UPLOADING, READING, READ_STUCK, DONE, UPLOAD_FAILED, READ_FAILED, CAP_REACHED }
+
+/** The look-up of an open job to resume. Capture stays disabled until it succeeds. */
+enum class ResumeLookup { LOADING, FAILED, READY }
 
 /**
  * One tile on the capture grid. [thumb] is only present for pages captured in this session
@@ -37,7 +43,13 @@ class CapturePage(
 data class NotebookCaptureState(
     val pages: List<CapturePage> = emptyList(),
     val errorMessage: UiText? = null,
+    val lookup: ResumeLookup = ResumeLookup.LOADING,
+    /** An earlier open scan (not the current one) with customers still to save; shown as a banner. */
+    val earlierJobId: String? = null,
 ) {
+    /** Photos can be taken only once we know whether to resume a job, so no job is ever orphaned. */
+    val canCapture: Boolean get() = lookup == ResumeLookup.READY
+
     /** Enabled once at least one page has been read. */
     val canReview: Boolean get() = pages.any { it.status == CapturePageStatus.DONE }
 
@@ -47,6 +59,6 @@ data class NotebookCaptureState(
     val hasFailedPage: Boolean
         get() = pages.any {
             it.status == CapturePageStatus.UPLOAD_FAILED || it.status == CapturePageStatus.READ_FAILED ||
-                it.status == CapturePageStatus.CAP_REACHED
+                it.status == CapturePageStatus.READ_STUCK || it.status == CapturePageStatus.CAP_REACHED
         }
 }

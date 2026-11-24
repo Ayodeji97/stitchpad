@@ -5,7 +5,6 @@ package com.danzucker.stitchpad.feature.notebookimport.domain
 import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.domain.model.Customer
 import com.danzucker.stitchpad.core.domain.model.Measurement
-import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.sharing.customerPhoneForStorage
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
@@ -20,19 +19,20 @@ fun importCustomerId(jobId: String, cardId: String): String = "nb_${jobId}_$card
 fun importMeasurementId(jobId: String, cardId: String): String = "nbm_${jobId}_$cardId"
 
 /**
- * Builds the records for one reviewed card. The review UI forces a gender choice, so
- * [ReviewCard.gender] must be non-null. [country] formats the phone exactly as the customer form does.
+ * Builds the records for one reviewed card. The review UI forces a gender and a unit choice, so
+ * [ReviewCard.gender] and [ReviewCard.unit] must be non-null: a notebook that did not say its unit is
+ * never given the workshop default. [country] formats the phone exactly as the customer form does.
  */
 fun cardToRecords(
     card: ReviewCard,
     ownerUid: String,
     existingCustomerId: String?,
     importDate: LocalDate,
-    defaultUnit: MeasurementUnit,
     country: Country,
     nowMillis: Long = Clock.System.now().toEpochMilliseconds(),
 ): RecordsToSave {
     val gender = requireNotNull(card.gender) { "Card ${card.id} has no gender; review must force a choice" }
+    val unit = requireNotNull(card.unit) { "Card ${card.id} has no unit; review must force a choice" }
     val customerId = existingCustomerId ?: importCustomerId(card.jobId, card.id)
 
     val fields = linkedMapOf<String, String>()
@@ -62,7 +62,7 @@ fun cardToRecords(
         customerId = customerId,
         gender = gender,
         fields = fields,
-        unit = card.unit ?: defaultUnit,
+        unit = unit,
         notes = notes.takeIf { it.isNotEmpty() }?.joinToString("\n"),
         dateTaken = (card.dateWritten ?: importDate).atNoonUtc(),
         createdAt = nowMillis,

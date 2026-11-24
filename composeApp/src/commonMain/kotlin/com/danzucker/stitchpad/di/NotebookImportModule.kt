@@ -9,6 +9,7 @@ import com.danzucker.stitchpad.feature.notebookimport.presentation.capture.Noteb
 import com.danzucker.stitchpad.feature.notebookimport.presentation.card.NotebookCardViewModel
 import com.danzucker.stitchpad.feature.notebookimport.presentation.review.NotebookReviewSession
 import com.danzucker.stitchpad.feature.notebookimport.presentation.review.NotebookReviewViewModel
+import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 import kotlin.time.Clock
@@ -46,7 +47,15 @@ val notebookImportDataModule = module {
 }
 
 val notebookImportPresentationModule = module {
-    viewModelOf(::NotebookCaptureViewModel)
+    // Explicit so the clock parameter keeps its default (viewModelOf would try to inject it).
+    viewModel {
+        NotebookCaptureViewModel(
+            repository = get(),
+            activeWorkshop = get(),
+            entitlements = get(),
+            uploader = get(),
+        )
+    }
     viewModelOf(::NotebookReviewViewModel)
     viewModelOf(::NotebookCardViewModel)
 }

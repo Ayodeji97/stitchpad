@@ -22,8 +22,12 @@ interface NotebookImportRepository {
 
     fun observeCards(ownerUid: String, jobId: String): Flow<Result<List<ReviewCard>, DataError.Network>>
 
-    /** Newest job with status open, for resume. */
-    fun observeOpenJob(ownerUid: String): Flow<ImportJob?>
+    /**
+     * Every job with status open, newest first (a job whose server timestamp is still pending counts as
+     * created now). An error is reported as such, never as "no open job", so a failed lookup can never
+     * be mistaken for a fresh start.
+     */
+    fun observeOpenJobs(ownerUid: String): Flow<Result<List<ImportJob>, DataError.Network>>
 
     /** One job by id (any status); null when it does not exist. Carries [ImportJob.imagesDeletedAt]. */
     fun observeJob(ownerUid: String, jobId: String): Flow<ImportJob?>

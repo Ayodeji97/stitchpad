@@ -8,7 +8,6 @@ import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Country
 import com.danzucker.stitchpad.core.domain.model.Customer
-import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.CurrentCountryProvider
@@ -72,7 +71,6 @@ class NotebookReviewViewModel(
     private val activeWorkshop: ActiveWorkshopProvider,
     private val entitlements: EntitlementsProvider,
     private val countryProvider: CurrentCountryProvider,
-    private val unitStore: MeasurementPreferencesStore,
     private val uploader: NotebookPageUploader,
     private val reviewSession: NotebookReviewSession,
 ) : ViewModel() {
@@ -325,7 +323,7 @@ class NotebookReviewViewModel(
                     return@launch
                 }
                 val blocked = latestSections?.blockedIds.orEmpty()
-                onSaveOutcome(saver.save(uid, toSave, unitStore.getUnit(), country, blocked), toSave.size)
+                onSaveOutcome(saver.save(uid, toSave, country, blocked), toSave.size)
             } finally {
                 _state.update { it.copy(isSaving = false) }
             }

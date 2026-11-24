@@ -2254,9 +2254,21 @@
     <string name="notebook_card_saved_message">Customer saved</string>
     <string name="notebook_card_not_found">This customer is no longer in the import</string>
     <string name="notebook_card_back_cd">Back</string>
-    <string name="notebook_card_match_needed">Choose: add to the existing customer, or create a new one</string>
+    <string name="notebook_card_match_needed">Choose the existing customer, or create a new one</string>
     <string name="notebook_card_duplicate_needed">Same person as another card? Choose Combine or Keep separate on the review list first</string>
     <string name="notebook_review_saved_before_cap">Customer limit reached. Customers saved before the limit: %1$d</string>
+    <string name="notebook_capture_photo_unreadable">This photo could not be read. Take it again.</string>
+    <string name="notebook_capture_retry_limit">This page can't be read. Try a clearer photo as a new page.</string>
+    <string name="notebook_capture_lookup_failed">We could not check for an earlier scan. Check your connection and try again.</string>
+    <string name="notebook_capture_earlier_banner">You have customers from an earlier scan waiting to be saved</string>
+    <string name="notebook_capture_earlier_review">Review</string>
+    <string name="notebook_capture_stuck">Taking too long</string>
+    <string name="notebook_capture_page_stuck">Page %1$d · taking too long</string>
+    <string name="notebook_card_unit_needed">Choose inches or cm first</string>
+    <string name="notebook_card_which_customer">Which customer is this?</string>
+    <string name="notebook_card_which_customer_hint">Several customers have this name. Pick the right one, or save as a new customer.</string>
+    <string name="notebook_card_save_as_new">Save as a new customer</string>
+    <string name="notebook_review_which_customer">Which customer is this?</string>
     <string name="notebook_merge_phone_label">Phone</string>
 
     <!-- Notebook scan import: entry points -->

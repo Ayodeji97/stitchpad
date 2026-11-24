@@ -15,7 +15,7 @@ import kotlinx.datetime.LocalDate
 
 /** An existing customer the card looks like. A suggestion only, until the tailor picks "Add to". */
 @Immutable
-data class ExistingCustomer(val id: String, val name: String)
+data class ExistingCustomer(val id: String, val name: String, val phone: String? = null)
 
 data class NotebookCardState(
     val isLoading: Boolean = true,
@@ -29,6 +29,8 @@ data class NotebookCardState(
     val photoUnavailable: Boolean = false,
     val crop: CropRegion? = null,
     val matchCandidate: ExistingCustomer? = null,
+    /** Several same-name customers: "Which customer is this?" Pick one, or save as a new customer. */
+    val matchCandidates: List<ExistingCustomer> = emptyList(),
     /** Template fields the value labels can be mapped to. */
     val fieldOptions: List<MeasurementField> = emptyList(),
     val fieldPickerIndex: Int? = null,
@@ -36,8 +38,6 @@ data class NotebookCardState(
     val isSaving: Boolean = false,
     val message: UiText? = null,
     val upgradeCtaPrice: String? = null,
-    /** The workshop's unit, used when the notebook did not say. */
-    val defaultUnit: MeasurementUnit = MeasurementUnit.INCHES,
     /** Existing-customer matches can be judged only once the customer list is in. */
     val customersLoaded: Boolean = false,
     /** The customer-cap sheet, open after "Save now" stopped at the Free cap. */
@@ -48,7 +48,9 @@ data class NotebookCardState(
     val name: String get() = draft?.name.orEmpty()
     val phone: String get() = draft?.phone.orEmpty()
     val gender: CustomerGender? get() = draft?.gender
-    val unit: MeasurementUnit get() = draft?.unit ?: defaultUnit
+
+    /** Null when the notebook did not say; the tailor must choose (never a silent default). */
+    val unit: MeasurementUnit? get() = draft?.unit
     val dateWritten: LocalDate? get() = draft?.dateWritten
     val values: List<CardValue> get() = draft?.values.orEmpty()
     val status: CardStatus? get() = draft?.status
@@ -56,8 +58,8 @@ data class NotebookCardState(
     val isReadOnly: Boolean get() = draft?.status == CardStatus.SAVED
 
     /**
-     * The tailor's answer to [matchCandidate]: true "Add to", false "Create new customer", null not
-     * answered yet (neither option selected).
+     * The tailor's answer to [matchCandidate] or [matchCandidates]: true "Add to" (or a candidate picked),
+     * false "Create new customer", null not answered yet (neither option selected).
      */
     val matchChoice: Boolean?
         get() = when {
@@ -70,7 +72,9 @@ data class NotebookCardState(
     val checkBlocker: CheckBlocker?
         get() = draft?.checkBlocker()
             ?: CheckBlocker.DUPLICATE.takeIf { inPendingDuplicate }
-            ?: CheckBlocker.MATCH.takeIf { matchCandidate != null && matchChoice == null }
+            ?: CheckBlocker.MATCH.takeIf {
+                (matchCandidate != null || matchCandidates.isNotEmpty()) && matchChoice == null
+            }
 
     /**
      * "Looks right" needs a gender, a name, no unclear or blank value, no pending same-person prompt,

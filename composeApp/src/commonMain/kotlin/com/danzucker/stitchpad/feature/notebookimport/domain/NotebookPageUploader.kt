@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
 
 private const val TAG = "NotebookUploader"
 
@@ -32,6 +33,14 @@ private const val THUMB_JPEG_QUALITY = 80
 private const val ERROR_BUFFER = 8
 
 enum class UploadPhase { UPLOADING, FAILED, UPLOADED }
+
+/** Why a page did not upload. */
+sealed interface UploadFailure {
+    data class Network(val error: DataError.Network) : UploadFailure
+
+    /** The photo could not be compressed (unreadable image). It is never uploaded raw. */
+    data object PhotoUnreadable : UploadFailure
+}
 
 /**
  * A page captured in this app session. [bytes] (the compressed full-size JPEG) is held only until the
@@ -59,7 +68,9 @@ class LocalUpload(
  *
  * One worker uploads strictly in capture order (server page ids encode upload time and carry the page
  * order); order and ids are fixed synchronously in [submit]. The job is created, server-confirmed,
- * before the first upload. Never logs bytes or content.
+ * before the first upload. A job whose images are expired (see [ImportJob.isImageExpired]) never takes
+ * new uploads: it is not adopted, and a held job that turns 7 days old is replaced by a new one.
+ * Never logs bytes or content.
  */
 @Suppress("TooManyFunctions")
 class NotebookPageUploader(
@@ -68,6 +79,7 @@ class NotebookPageUploader(
     private val activeWorkshop: ActiveWorkshopProvider,
     private val entitlements: EntitlementsProvider,
     private val scope: CoroutineScope,
+    private val nowMillis: () -> Long = { Clock.System.now().toEpochMilliseconds() },
 ) {
     private class Work(val ownerUid: String, val localId: String)
 
@@ -78,14 +90,18 @@ class NotebookPageUploader(
         val pages: List<LocalUpload> = emptyList(),
         val nextId: Int = 0,
         val errorReported: Boolean = false,
+        /** When [jobId] was created, to stop using it once its images expire. */
+        val jobCreatedAtMillis: Long? = null,
     ) {
+        @Suppress("LongParameterList")
         fun copy(
             ownerUid: String? = this.ownerUid,
             jobId: String? = this.jobId,
             pages: List<LocalUpload> = this.pages,
             nextId: Int = this.nextId,
             errorReported: Boolean = this.errorReported,
-        ) = Holder(ownerUid, jobId, pages, nextId, errorReported)
+            jobCreatedAtMillis: Long? = this.jobCreatedAtMillis,
+        ) = Holder(ownerUid, jobId, pages, nextId, errorReported, jobCreatedAtMillis)
 
         fun emptied() = Holder(nextId = nextId)
     }
@@ -102,10 +118,10 @@ class NotebookPageUploader(
         combine(holder, activeWorkshop.flow) { h, s -> if (h.ownerUid == s.uidOrNull()) h.jobId else null }
             .stateIn(scope, SharingStarted.Eagerly, null)
 
-    private val _errors = MutableSharedFlow<DataError.Network>(extraBufferCapacity = ERROR_BUFFER)
+    private val _errors = MutableSharedFlow<UploadFailure>(extraBufferCapacity = ERROR_BUFFER)
 
     /** One emission per burst of failures: a batch failing the same way is reported once. */
-    val errors: SharedFlow<DataError.Network> = _errors.asSharedFlow()
+    val errors: SharedFlow<UploadFailure> = _errors.asSharedFlow()
 
     private val queue = Channel<Work>(Channel.UNLIMITED)
 
@@ -142,12 +158,20 @@ class NotebookPageUploader(
         return holder.value.let { h -> h.ownerUid == uid && h.pages.any { it.id == localId } }
     }
 
-    /** Adopts a job found on resume. Ignored when this owner already has a job. */
-    fun adoptJob(id: String) {
+    /**
+     * Adopts a job found on resume. Ignored when this owner already has a job, or when the job's images
+     * are expired (it must not take new uploads).
+     */
+    fun adoptJob(job: ImportJob) {
         val uid = allowedUid() ?: return
+        if (job.isImageExpired(nowMillis())) return
         holder.update {
             val base = if (it.ownerUid == uid) it else it.emptied()
-            if (base.jobId == null) base.copy(ownerUid = uid, jobId = id) else base
+            if (base.jobId == null) {
+                base.copy(ownerUid = uid, jobId = job.id, jobCreatedAtMillis = job.createdAt.toEpochMilliseconds())
+            } else {
+                base
+            }
         }
     }
 
@@ -203,7 +227,7 @@ class NotebookPageUploader(
     private fun pageOf(work: Work): LocalUpload? =
         holder.value.takeIf { it.ownerUid == work.ownerUid }?.pages?.find { it.id == work.localId }
 
-    @Suppress("TooGenericExceptionCaught")
+    @Suppress("TooGenericExceptionCaught", "ReturnCount")
     private suspend fun process(work: Work) {
         // Re-check before every upload: still signed in as this uid, still the owner, still allowed.
         if (allowedUid() != work.ownerUid) {
@@ -212,36 +236,60 @@ class NotebookPageUploader(
         }
         val raw = pageOf(work)?.takeIf { it.phase == UploadPhase.UPLOADING }?.bytes ?: return
         try {
-            val jpeg = imageCompressor.compress(raw, NOTEBOOK_MAX_EDGE_PX, NOTEBOOK_JPEG_QUALITY) ?: raw
+            // Never upload the raw photo: it can be far over the 6 MB Storage limit and full resolution.
+            val jpeg = imageCompressor.compress(raw, NOTEBOOK_MAX_EDGE_PX, NOTEBOOK_JPEG_QUALITY)
+            if (jpeg == null) {
+                onFailed(work, UploadFailure.PhotoUnreadable)
+                return
+            }
             val result = when (val job = ensureJob(work.ownerUid)) {
                 is Result.Success -> repository.uploadPage(work.ownerUid, job.data, jpeg)
                 is Result.Error -> Result.Error(job.error)
             }
             when (result) {
                 is Result.Success -> onUploaded(work, result.data, jpeg)
-                is Result.Error -> onFailed(work, result.error)
+                is Result.Error -> onFailed(work, UploadFailure.Network(result.error))
             }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             AppLogger.e(TAG, e) { "upload crashed: ${e::class.simpleName}" }
-            onFailed(work, DataError.Network.UNKNOWN)
+            onFailed(work, UploadFailure.Network(DataError.Network.UNKNOWN))
         }
     }
 
     private suspend fun ensureJob(ownerUid: String): Result<String, DataError.Network> {
-        val existing = holder.value.takeIf { it.ownerUid == ownerUid }?.jobId
-        if (existing != null) return Result.Success(existing)
+        val held = holder.value.takeIf { it.ownerUid == ownerUid }
+        val existing = held?.jobId
+        if (existing != null && !held.isJobExpired()) return Result.Success(existing)
+        if (existing != null) {
+            // The held job's images are about to be swept: its uploaded pages stay with it (reachable from
+            // the earlier-scan banner) and new pages start a new job.
+            AppLogger.i(TAG) { "held job expired jobId=$existing; starting a new one" }
+            holder.update { h ->
+                if (h.ownerUid != ownerUid || h.jobId != existing) {
+                    h
+                } else {
+                    h.copy(jobId = null, jobCreatedAtMillis = null, pages = h.pages.filter { it.pageId == null })
+                }
+            }
+        }
+        val createdAtMillis = nowMillis()
         val created = repository.createJob(ownerUid)
         var bound = false
         if (created is Result.Success) {
             holder.update {
                 bound = it.ownerUid == ownerUid
-                if (bound) it.copy(jobId = created.data) else it
+                if (bound) it.copy(jobId = created.data, jobCreatedAtMillis = createdAtMillis) else it
             }
         }
         // If the owner changed while the job was being created, do not upload into it.
         return if (created is Result.Success && !bound) Result.Error(DataError.Network.UNAUTHORIZED) else created
+    }
+
+    private fun Holder.isJobExpired(): Boolean {
+        val created = jobCreatedAtMillis ?: return false
+        return nowMillis() - created >= JOB_IMAGE_TTL_MILLIS
     }
 
     private suspend fun onUploaded(work: Work, pageId: String, jpeg: ByteArray) {
@@ -250,7 +298,7 @@ class NotebookPageUploader(
         holder.update { if (it.ownerUid == work.ownerUid) it.copy(errorReported = false) else it }
     }
 
-    private fun onFailed(work: Work, error: DataError.Network) {
+    private fun onFailed(work: Work, error: UploadFailure) {
         AppLogger.w(TAG) { "upload failed: $error" }
         change(work) { it.withPhase(UploadPhase.FAILED) }
         var report = false
