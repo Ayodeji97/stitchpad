@@ -2161,4 +2161,26 @@
     <string name="measurement_field_elbow_circumference">Elbow circumference</string>
     <string name="measurement_field_tummy">Tummy</string>
     <string name="measurement_field_knee_circumference">Knee</string>
+
+    <!-- Notebook scan import: capture -->
+    <string name="notebook_capture_title">Scan your notebook</string>
+    <string name="notebook_capture_intro">Take a clear photo of each page. We read the names and measurements, then you check them before anything is saved.</string>
+    <string name="notebook_capture_take_photo">Take photo</string>
+    <string name="notebook_capture_from_gallery">Choose from gallery</string>
+    <string name="notebook_capture_reading">Reading page %1$d</string>
+    <string name="notebook_capture_no_people">No customers found on this page</string>
+    <string name="notebook_capture_failed">Could not read this page</string>
+    <string name="notebook_capture_retry">Try again</string>
+    <string name="notebook_capture_cap">You have reached the page limit for scanning</string>
+    <string name="notebook_capture_review">Review %1$d customers</string>
+    <string name="notebook_capture_back_cd">Back</string>
+    <string name="notebook_capture_pages_title">Pages</string>
+    <string name="notebook_capture_pages_count">%1$d pages</string>
+    <string name="notebook_capture_pages_count_one">1 page</string>
+    <string name="notebook_capture_page_found">Page %1$d · %2$d found</string>
+    <string name="notebook_capture_page_not_read">Page %1$d · not read</string>
+    <string name="notebook_capture_page_not_uploaded">Page %1$d · not uploaded</string>
+    <string name="notebook_capture_page_uploading">Uploading page %1$d</string>
+    <string name="notebook_capture_upload_failed">Could not upload this page</string>
+    <string name="notebook_capture_footnote">You can leave this screen. Pages keep reading in the background.</string>
 </resources>

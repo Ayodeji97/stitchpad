@@ -3,6 +3,8 @@ package com.danzucker.stitchpad.di
 import com.danzucker.stitchpad.feature.notebookimport.data.FirebaseNotebookImportRepository
 import com.danzucker.stitchpad.feature.notebookimport.domain.NotebookImportRepository
 import com.danzucker.stitchpad.feature.notebookimport.domain.NotebookImportSaver
+import com.danzucker.stitchpad.feature.notebookimport.presentation.capture.NotebookCaptureViewModel
+import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 import kotlin.time.Clock
 
@@ -24,4 +26,8 @@ val notebookImportDataModule = module {
             clock = Clock.System,
         )
     }
+}
+
+val notebookImportPresentationModule = module {
+    viewModelOf(::NotebookCaptureViewModel)
 }

@@ -1821,4 +1821,26 @@
     <string name="measurement_field_elbow_circumference">Tour de coude</string>
     <string name="measurement_field_tummy">Tour de ventre</string>
     <string name="measurement_field_knee_circumference">Tour de genou</string>
+
+    <!-- Notebook scan import: capture -->
+    <string name="notebook_capture_title">Scanner votre cahier</string>
+    <string name="notebook_capture_intro">Prenez une photo nette de chaque page. Nous lisons les noms et les mesures, puis vous les vérifiez avant tout enregistrement.</string>
+    <string name="notebook_capture_take_photo">Prendre une photo</string>
+    <string name="notebook_capture_from_gallery">Choisir dans la galerie</string>
+    <string name="notebook_capture_reading">Lecture de la page %1$d</string>
+    <string name="notebook_capture_no_people">Aucun client trouvé sur cette page</string>
+    <string name="notebook_capture_failed">Impossible de lire cette page</string>
+    <string name="notebook_capture_retry">Réessayer</string>
+    <string name="notebook_capture_cap">Vous avez atteint la limite de pages pour le scan</string>
+    <string name="notebook_capture_review">Vérifier %1$d clients</string>
+    <string name="notebook_capture_back_cd">Retour</string>
+    <string name="notebook_capture_pages_title">Pages</string>
+    <string name="notebook_capture_pages_count">%1$d pages</string>
+    <string name="notebook_capture_pages_count_one">1 page</string>
+    <string name="notebook_capture_page_found">Page %1$d · %2$d trouvés</string>
+    <string name="notebook_capture_page_not_read">Page %1$d · non lue</string>
+    <string name="notebook_capture_page_not_uploaded">Page %1$d · non envoyée</string>
+    <string name="notebook_capture_page_uploading">Envoi de la page %1$d</string>
+    <string name="notebook_capture_upload_failed">Impossible d'envoyer cette page</string>
+    <string name="notebook_capture_footnote">Vous pouvez quitter cet écran. La lecture des pages continue en arrière-plan.</string>
 </resources>
