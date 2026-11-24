@@ -22,7 +22,13 @@ import com.danzucker.stitchpad.core.sharing.WhatsAppLauncher
 import com.danzucker.stitchpad.feature.auth.data.AndroidSsoCredentialProvider
 import com.danzucker.stitchpad.feature.auth.data.CurrentActivityHolder
 import com.danzucker.stitchpad.feature.auth.data.SsoCredentialProvider
+import com.danzucker.stitchpad.feature.freemium.data.AndroidPlayBillingClient
 import com.danzucker.stitchpad.feature.freemium.data.CloudFunctionsPaymentRepository
+import com.danzucker.stitchpad.feature.freemium.data.CloudFunctionsPlayPurchaseVerifier
+import com.danzucker.stitchpad.feature.freemium.data.NativePlayBillingClient
+import com.danzucker.stitchpad.feature.freemium.data.PlayBillingPaymentRepository
+import com.danzucker.stitchpad.feature.freemium.data.PlayPurchaseVerifier
+import com.danzucker.stitchpad.feature.freemium.data.RoutingPaymentRepository
 import com.danzucker.stitchpad.feature.freemium.domain.PaymentRepository
 import com.danzucker.stitchpad.feature.measurement.data.MeasurementPreferences
 import com.danzucker.stitchpad.feature.notification.push.AndroidPushPermissionController
@@ -85,7 +91,17 @@ actual val platformModule: Module = module {
             webClientId = BuildConfig.GOOGLE_WEB_CLIENT_ID,
         )
     }
-    // Android sells subscriptions via Paystack (Google Play's rules permit it);
-    // iOS binds StoreKitPaymentRepository instead (see PlatformModule.ios.kt).
-    single<PaymentRepository> { CloudFunctionsPaymentRepository(functions = get()) }
+    // Android checkout is routed per purchase by the workshop country: Paystack in
+    // Nigeria, Google Play Billing in every other wave-1 market (spec 6b). iOS binds
+    // StoreKitPaymentRepository instead (see PlatformModule.ios.kt).
+    single<NativePlayBillingClient> { AndroidPlayBillingClient(context = androidContext(), activityHolder = get()) }
+    single<PlayPurchaseVerifier> { CloudFunctionsPlayPurchaseVerifier(functions = get()) }
+    single { PlayBillingPaymentRepository(client = get(), verifier = get(), authRepository = get()) }
+    single<PaymentRepository> {
+        RoutingPaymentRepository(
+            paystack = CloudFunctionsPaymentRepository(functions = get()),
+            play = get<PlayBillingPaymentRepository>(),
+            countryProvider = get(),
+        )
+    }
 }

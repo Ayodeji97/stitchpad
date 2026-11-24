@@ -13,8 +13,8 @@ import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.session.CurrentCountryProvider
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.freemium.domain.BillingCadence
-import com.danzucker.stitchpad.feature.freemium.domain.CheckoutProvider
 import com.danzucker.stitchpad.feature.freemium.domain.CheckoutOutcome
+import com.danzucker.stitchpad.feature.freemium.domain.CheckoutProvider
 import com.danzucker.stitchpad.feature.freemium.domain.PaymentRepository
 import com.danzucker.stitchpad.feature.freemium.presentation.isBilledInForeignCurrency
 import com.danzucker.stitchpad.feature.freemium.presentation.paystackPlanPriceText
