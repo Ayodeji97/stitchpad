@@ -24,13 +24,16 @@ private class SaverCustomers : CustomerRepository {
     var createCalls = 0
     var capAtCreateCall: Int? = null
     var errorOnCreate: DataError.Network? = null
+    var errorOnGet: DataError.Network? = null
 
     override fun observeCustomers(userId: String): Flow<Result<List<Customer>, DataError.Network>> = emptyFlow()
     override fun observeCustomer(userId: String, customerId: String): Flow<Result<Customer, DataError.Network>> =
         emptyFlow()
 
     override suspend fun getCustomer(userId: String, customerId: String): Result<Customer, DataError.Network> =
-        created[customerId]?.let { Result.Success(it) } ?: Result.Error(DataError.Network.NOT_FOUND)
+        errorOnGet?.let { Result.Error(it) }
+            ?: created[customerId]?.let { Result.Success(it) }
+            ?: Result.Error(DataError.Network.NOT_FOUND)
 
     override suspend fun createCustomer(userId: String, customer: Customer): EmptyResult<DataError.Network> {
         createCalls++
@@ -205,5 +208,57 @@ class NotebookImportSaverTest {
 
         assertEquals(0, customers.createCalls)
         assertEquals(1, measurements.created.size)
+    }
+
+    @Test
+    fun preCheckReadError_stopsWithoutCreating() = runTest {
+        customers.errorOnGet = DataError.Network.NO_INTERNET
+
+        val outcome = save(listOf(card("c1"), card("c2")))
+
+        assertEquals(SaveOutcome.Failed(0, DataError.Network.NO_INTERNET), outcome)
+        assertEquals(0, customers.createCalls)
+        assertEquals(0, measurements.created.size)
+    }
+
+    @Test
+    fun skippedCards_areLeftAlone() = runTest {
+        val outcome = save(listOf(card("c1", status = CardStatus.SKIPPED), card("c2")))
+
+        assertEquals(SaveOutcome.Done(1), outcome)
+        assertEquals(setOf("nb_job1_c2"), customers.created.keys)
+    }
+
+    @Test
+    fun nullGender_leftUnsavedCountedInRemainingOthersContinue() = runTest {
+        customers.capAtCreateCall = 2
+        val cards = listOf(
+            card("c1").copy(gender = null),
+            card("c2"),
+            card("c3"),
+            card("c4"),
+        )
+
+        val outcome = save(cards)
+
+        // c2 saved; c3 hits the cap; remaining = c3, c4 (the null-gender c1 is before the cap)
+        assertEquals(SaveOutcome.StoppedAtCap(savedCount = 1, remaining = 2), outcome)
+        assertEquals(setOf("nb_job1_c2"), customers.created.keys)
+    }
+
+    @Test
+    fun nullGender_doesNotFailTheRun() = runTest {
+        val outcome = save(listOf(card("c1").copy(gender = null), card("c2")))
+
+        assertEquals(SaveOutcome.Done(1), outcome)
+        assertEquals(setOf("nb_job1_c2"), customers.created.keys)
+    }
+
+    @Test
+    fun capRemaining_countsLaterNullGenderCards() = runTest {
+        customers.capAtCreateCall = 1
+        val outcome = save(listOf(card("c1"), card("c2").copy(gender = null), card("c3")))
+
+        assertEquals(SaveOutcome.StoppedAtCap(savedCount = 0, remaining = 3), outcome)
     }
 }

@@ -97,8 +97,10 @@ class NotebookImportMapperTest {
 
     @Test
     fun pageId_format() {
-        val id = pageIdFor(7, byteArrayOf(0x0a, 0xFF.toByte(), 0x00, 0x1c))
-        assertEquals("p007_0aff001c", id)
+        val id = pageIdFor(1_800_000_000_123, byteArrayOf(0x0a, 0xFF.toByte(), 0x00, 0x1c))
+        assertEquals("p1800000000123_0aff001c", id)
+        // string order == upload order, also across digit-count boundaries
+        assertTrue(pageIdFor(999, byteArrayOf(0, 0, 0, 0)) < pageIdFor(1_000, byteArrayOf(0, 0, 0, 0)))
         assertFalse(id.contains(' '))
     }
 }

@@ -4,8 +4,8 @@ import com.danzucker.stitchpad.core.data.retryWithFallback
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
-import com.danzucker.stitchpad.core.domain.error.asEmptyResult
 import com.danzucker.stitchpad.core.logging.AppLogger
+import com.danzucker.stitchpad.core.offline.OfflineWriteDispatcher
 import com.danzucker.stitchpad.feature.notebookimport.domain.ImportJob
 import com.danzucker.stitchpad.feature.notebookimport.domain.ImportPage
 import com.danzucker.stitchpad.feature.notebookimport.domain.NotebookImportRepository
@@ -21,12 +21,11 @@ import dev.gitlive.firebase.storage.FirebaseStorageMetadata
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlin.random.Random
+import kotlin.time.Clock
 
 private const val TAG = "NotebookImportRepo"
-private const val PAGE_INDEX_WIDTH = 3
+private const val PAGE_TIME_WIDTH = 13
 private const val RANDOM_SUFFIX_BYTES = 4
 
 /** Logs only ids and exception types: never names, phones or values. */
@@ -35,10 +34,11 @@ class FirebaseNotebookImportRepository(
     private val firestore: FirebaseFirestore,
     private val storage: FirebaseStorage,
     private val functions: FirebaseFunctions,
+    offlineWrites: OfflineWriteDispatcher,
+    private val nowMillis: () -> Long = { Clock.System.now().toEpochMilliseconds() },
 ) : NotebookImportRepository {
 
-    private val uploadCounts = mutableMapOf<String, Int>()
-    private val uploadCountsLock = Mutex()
+    private val writer = NotebookImportWriter(FirebaseRemote(), offlineWrites)
 
     private fun jobsCollection(uid: String) =
         firestore.collection("users").document(uid).collection("notebookImports")
@@ -50,30 +50,14 @@ class FirebaseNotebookImportRepository(
     private fun storagePrefix(uid: String, jobId: String) = "users/$uid/notebookImports/$jobId"
 
     override suspend fun createJob(ownerUid: String): Result<String, DataError.Network> =
-        guarded("createJob") {
-            val doc = jobsCollection(ownerUid).document
-            // Exactly the three keys the rules allow on create.
-            doc.set(
-                mapOf(
-                    "createdAt" to FieldValue.serverTimestamp,
-                    "status" to "open",
-                    "pageCount" to 0,
-                ),
-            )
-            doc.id
-        }
+        writer.createJob(ownerUid)
 
     override suspend fun uploadPage(
         ownerUid: String,
         jobId: String,
         jpeg: ByteArray,
     ): Result<String, DataError.Network> = guarded("uploadPage") {
-        val index = uploadCountsLock.withLock {
-            val next = (uploadCounts[jobId] ?: 0) + 1
-            uploadCounts[jobId] = next
-            next
-        }
-        val pageId = pageIdFor(index, Random.nextBytes(RANDOM_SUFFIX_BYTES))
+        val pageId = pageIdFor(nowMillis(), Random.nextBytes(RANDOM_SUFFIX_BYTES))
         storage.reference.child("${storagePrefix(ownerUid, jobId)}/$pageId.jpg")
             .putData(jpeg.toStorageData(), FirebaseStorageMetadata(contentType = "image/jpeg"))
         pageId
@@ -104,7 +88,7 @@ class FirebaseNotebookImportRepository(
             .map { snapshot ->
                 val cards = snapshot.documents.mapNotNull { doc ->
                     runCatching { doc.data<NotebookCardDto>().toReviewCard(doc.id, jobId) }.getOrNull()
-                }.sortedBy { it.id }
+                }.sortedWith(compareBy({ it.pageId }, { it.id.substringAfterLast('_').toIntOrNull() ?: 0 }))
                 Result.Success(cards) as Result<List<ReviewCard>, DataError.Network>
             }
             .retryWithFallback(fallback = Result.Error(DataError.Network.UNKNOWN)) { throwable, attempt ->
@@ -135,19 +119,14 @@ class FirebaseNotebookImportRepository(
             }
 
     override suspend fun updateCard(ownerUid: String, card: ReviewCard): EmptyResult<DataError.Network> =
-        guarded("updateCard") {
-            val fields = card.toUpdateFields() + ("updatedAt" to FieldValue.serverTimestamp)
-            val updates = fields.toList().toTypedArray()
-            @Suppress("SpreadOperator")
-            cardsCollection(ownerUid, card.jobId).document(card.id).update(*updates)
-        }.asUnit()
+        writer.updateCard(ownerUid, card)
 
     override suspend fun deleteCard(
         ownerUid: String,
         jobId: String,
         cardId: String,
     ): EmptyResult<DataError.Network> =
-        guarded("deleteCard") { cardsCollection(ownerUid, jobId).document(cardId).delete() }.asUnit()
+        writer.deleteCard(ownerUid, jobId, cardId)
 
     override suspend fun retryPage(jobId: String, pageId: String): EmptyResult<DataError.Network> =
         try {
@@ -167,15 +146,38 @@ class FirebaseNotebookImportRepository(
         ownerUid: String,
         jobId: String,
         abandoned: Boolean,
-    ): EmptyResult<DataError.Network> {
-        if (abandoned) deleteImagesBestEffort(ownerUid, jobId)
-        return guarded("finishJob") {
-            jobDoc(ownerUid, jobId).update("status" to if (abandoned) "abandoned" else "saved")
-        }.asUnit()
-    }
+    ): EmptyResult<DataError.Network> = writer.finishJob(ownerUid, jobId, abandoned)
 
-    private suspend fun deleteImagesBestEffort(ownerUid: String, jobId: String) {
-        try {
+    private inner class FirebaseRemote : NotebookImportRemote {
+        override suspend fun createJobDoc(ownerUid: String): String {
+            val doc = jobsCollection(ownerUid).document
+            // Exactly the three keys the rules allow on create.
+            doc.set(
+                mapOf(
+                    "createdAt" to FieldValue.serverTimestamp,
+                    "status" to "open",
+                    "pageCount" to 0,
+                ),
+            )
+            return doc.id
+        }
+
+        override suspend fun updateCardDoc(ownerUid: String, card: ReviewCard) {
+            val updates = (card.toUpdateFields() + ("updatedAt" to FieldValue.serverTimestamp))
+                .toList().toTypedArray()
+            @Suppress("SpreadOperator")
+            cardsCollection(ownerUid, card.jobId).document(card.id).update(*updates)
+        }
+
+        override suspend fun setJobStatus(ownerUid: String, jobId: String, status: String) {
+            jobDoc(ownerUid, jobId).update("status" to status)
+        }
+
+        override suspend fun deleteCardDoc(ownerUid: String, jobId: String, cardId: String) {
+            cardsCollection(ownerUid, jobId).document(cardId).delete()
+        }
+
+        override suspend fun deleteJobImages(ownerUid: String, jobId: String) {
             storage.reference.child(storagePrefix(ownerUid, jobId)).listAll().items.forEach { item ->
                 try {
                     item.delete()
@@ -185,10 +187,6 @@ class FirebaseNotebookImportRepository(
                     AppLogger.w(tag = TAG, throwable = e) { "image delete failed jobId=$jobId" }
                 }
             }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            AppLogger.w(tag = TAG, throwable = e) { "image listing failed jobId=$jobId" }
         }
     }
 
@@ -202,8 +200,6 @@ class FirebaseNotebookImportRepository(
             Result.Error(DataError.Network.UNKNOWN)
         }
 
-    private fun <T> Result<T, DataError.Network>.asUnit(): EmptyResult<DataError.Network> = asEmptyResult()
-
     private fun FunctionsExceptionCode.toNetworkError(): DataError.Network = when (this) {
         FunctionsExceptionCode.PERMISSION_DENIED -> DataError.Network.FORBIDDEN
         FunctionsExceptionCode.UNAUTHENTICATED -> DataError.Network.UNAUTHORIZED
@@ -215,8 +211,12 @@ class FirebaseNotebookImportRepository(
     }
 }
 
-/** `p` + zero-padded 1-based upload index + `_` + 8 hex characters. */
-internal fun pageIdFor(index: Int, randomBytes: ByteArray): String {
+/**
+ * `p` + upload time as zero-padded epoch millis + `_` + 8 hex characters. The time prefix makes plain
+ * string order equal upload order across app restarts (an in-memory counter would reset); the random
+ * suffix keeps ids unique when two uploads share a millisecond.
+ */
+internal fun pageIdFor(uploadMillis: Long, randomBytes: ByteArray): String {
     val hex = randomBytes.joinToString("") { (it.toInt() and 0xFF).toString(16).padStart(2, '0') }
-    return "p${index.toString().padStart(PAGE_INDEX_WIDTH, '0')}_$hex"
+    return "p${uploadMillis.toString().padStart(PAGE_TIME_WIDTH, '0')}_$hex"
 }

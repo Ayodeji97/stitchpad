@@ -9,7 +9,12 @@ import kotlin.time.Clock
 // FirebaseFunctions comes from smartDataModule; FirebaseFirestore and FirebaseStorage from CoreModule.
 val notebookImportDataModule = module {
     single<NotebookImportRepository> {
-        FirebaseNotebookImportRepository(firestore = get(), storage = get(), functions = get())
+        FirebaseNotebookImportRepository(
+            firestore = get(),
+            storage = get(),
+            functions = get(),
+            offlineWrites = get(),
+        )
     }
     factory {
         NotebookImportSaver(
