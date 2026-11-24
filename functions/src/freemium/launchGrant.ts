@@ -87,6 +87,9 @@ export function buildLaunchGrantFields(now: Date) {
     subscriptionFallbackEndsAt: del,
     appleOriginalTransactionId: del,
     appleLastSignedDate: del,
+    playPurchaseToken: del,
+    playPurchaseTokenHash: del,
+    playProductId: del,
   };
 }
 

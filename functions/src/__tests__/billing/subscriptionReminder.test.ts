@@ -4,6 +4,7 @@ import {
   ReminderRecipient,
   runSubscriptionReminder,
   SubscriptionReminderIO,
+  isStoreManagedSource,
 } from '../../billing/subscriptionReminder';
 import { buildRenewalReminderEmail } from '../../billing/subscriptionReminderTemplate';
 
@@ -161,5 +162,14 @@ describe('buildRenewalReminderEmail', () => {
     });
     expect(html).not.toContain('<script>x</script>');
     expect(html).toContain('&lt;script&gt;');
+  });
+});
+
+describe('isStoreManagedSource', () => {
+  it('skips Apple and Play subscriptions (the store renews them), keeps Paystack', () => {
+    expect(isStoreManagedSource('apple')).toBe(true);
+    expect(isStoreManagedSource('play')).toBe(true);
+    expect(isStoreManagedSource('paystack')).toBe(false);
+    expect(isStoreManagedSource(undefined)).toBe(false);
   });
 });

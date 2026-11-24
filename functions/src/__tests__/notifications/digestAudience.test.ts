@@ -7,8 +7,8 @@ const DAY = 86_400_000;
 const ts = (ms: number) => ({ toMillis: () => ms });
 
 describe('isPaidSubscriber', () => {
-  it('counts a running Paystack or Apple plan', () => {
-    for (const source of ['paystack', 'apple']) {
+  it('counts a running Paystack, Apple or Play plan', () => {
+    for (const source of ['paystack', 'apple', 'play']) {
       expect(isPaidSubscriber({
         subscriptionSource: source, subscriptionStatus: 'active', subscriptionEndsAt: ts(NOW + DAY),
       }, NOW)).toBe(true);

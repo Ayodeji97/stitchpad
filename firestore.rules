@@ -86,7 +86,8 @@ service cloud.firestore {
     // / appStoreServerNotifications), or the createUserProfile seed — all Admin SDK,
     // which bypasses rules: subscriptionTier, subscriptionStatus, subscriptionEndsAt,
     // subscriptionRenews, plus the Apple provenance fields subscriptionSource,
-    // appleOriginalTransactionId, appleProductId. This closes two holes: deleting subscriptionEndsAt /
+    // appleOriginalTransactionId, appleProductId, and the Play provenance fields
+    // playPurchaseToken, playPurchaseTokenHash, playProductId. This closes two holes: deleting subscriptionEndsAt /
     // subscriptionRenews to dodge the expirePrepaidSubscriptions query (and keep
     // paid access), and deleting subscriptionTier / subscriptionStatus to corrupt
     // billing state. NOT used for welcomeBonusAppliedAt / bonusCoins: blocking adds
@@ -243,6 +244,10 @@ service cloud.firestore {
         && (!('subscriptionSource' in request.resource.data))
         && (!('appleOriginalTransactionId' in request.resource.data))
         && (!('appleProductId' in request.resource.data))
+        // Google Play provenance (verifyPlayPurchase / RTDN, Admin SDK only).
+        && (!('playPurchaseToken' in request.resource.data))
+        && (!('playPurchaseTokenHash' in request.resource.data))
+        && (!('playProductId' in request.resource.data))
         // subscriptionFallbackTier/EndsAt are the queued lower-tier segment from a
         // mismatched-tier gift — server-owned, never planted at creation.
         && (!('subscriptionFallbackTier' in request.resource.data))
@@ -278,6 +283,9 @@ service cloud.firestore {
         && serverOnlyField('subscriptionSource')
         && serverOnlyField('appleOriginalTransactionId')
         && serverOnlyField('appleProductId')
+        && serverOnlyField('playPurchaseToken')
+        && serverOnlyField('playPurchaseTokenHash')
+        && serverOnlyField('playProductId')
         && serverOnlyField('subscriptionFallbackTier')
         && serverOnlyField('subscriptionFallbackEndsAt')
         && serverOnlyField('giftLinkToken')
@@ -624,6 +632,14 @@ service cloud.firestore {
     // a second account can be refused. No client may read or write it — the uid
     // ownership map must not be enumerable or forgeable from a device.
     match /appleSubscriptions/{originalTransactionId} {
+      allow read, write: if false;
+    }
+
+    // ── /playSubscriptions/{tokenHash} — server-only index ─────────────────
+    // sha256(Play purchase token) -> owning uid. Written by verifyPlayPurchase /
+    // the Play RTDN handler (Admin SDK) so a notification can find its user and
+    // a token cannot be re-bound to a second account. Never client-visible.
+    match /playSubscriptions/{tokenHash} {
       allow read, write: if false;
     }
 

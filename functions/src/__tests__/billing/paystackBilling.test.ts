@@ -56,6 +56,51 @@ describe('initializeSubscriptionCheckoutHandler', () => {
     )).rejects.toMatchObject({ code: 'invalid-argument' });
   });
 
+  describe('country guard (Paystack is Nigeria-only; elsewhere Android uses Play)', () => {
+    const run = (userDoc?: Record<string, unknown>) => {
+      const docs = docStore(userDoc ? { 'users/uid-1': userDoc } : {});
+      const paystack = {
+        initializeTransaction: jest.fn(async (request: any) => ({
+          authorization_url: 'https://checkout.paystack.com/xyz',
+          access_code: 'access',
+          reference: request.reference,
+        })),
+      };
+      const promise = initializeSubscriptionCheckoutHandler(
+        { tier: 'pro', cadence: 'monthly' },
+        { auth: { uid: 'uid-1', token: { email: 'ada@example.com' } } } as never,
+        {
+          db: { doc: docs.doc } as never,
+          paystack,
+          now: () => new Date('2026-06-01T10:00:00Z'),
+          randomId: () => 'abc',
+        },
+      );
+      return { promise, paystack, docs };
+    };
+
+    it('refuses a non-NG workshop with the provider-unavailable marker', async () => {
+      const { promise, paystack, docs } = run({ country: 'GH' });
+      await expect(promise).rejects.toMatchObject({
+        code: 'failed-precondition',
+        message: expect.stringContaining('payment_provider_unavailable'),
+      });
+      await expect(run({ country: 'GH' }).promise).rejects.toMatchObject({
+        message: expect.stringContaining('provider_unavailable_country'),
+      });
+      expect(paystack.initializeTransaction).not.toHaveBeenCalled();
+      expect([...docs.store.keys()].some((k) => k.includes('billingTransactions'))).toBe(false);
+    });
+
+    it('proceeds when country is missing (legacy NG users) or NG', async () => {
+      for (const userDoc of [undefined, {}, { country: 'NG' }, { country: 'ng' }]) {
+        const { promise, paystack } = run(userDoc);
+        await expect(promise).resolves.toMatchObject({ authorizationUrl: 'https://checkout.paystack.com/xyz' });
+        expect(paystack.initializeTransaction).toHaveBeenCalledTimes(1);
+      }
+    });
+  });
+
   it('writes a pending billing transaction with the expected amount', async () => {
     const docs = docStore();
     const paystack = {
