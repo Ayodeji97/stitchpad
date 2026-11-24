@@ -25,6 +25,8 @@ val notebookImportDataModule = module {
         NotebookPageUploader(
             repository = get(),
             imageCompressor = get(),
+            activeWorkshop = get(),
+            entitlements = get(),
             scope = appLifetimeScope("NotebookPageUploader"),
         )
     }

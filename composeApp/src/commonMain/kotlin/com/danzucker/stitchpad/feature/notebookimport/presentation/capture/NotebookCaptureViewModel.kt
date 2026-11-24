@@ -105,7 +105,7 @@ class NotebookCaptureViewModel(
                 return
             }
             // A job already held by the uploader (earlier visit to this screen) is the live one.
-            if (uploader.jobId.value == null) resumeOpenJob(uid)
+            if (uploader.currentJobId() == null) resumeOpenJob(uid)
             observe(uid)
         } finally {
             loaded.complete(Unit)
@@ -153,19 +153,18 @@ class NotebookCaptureViewModel(
         if (photos.isEmpty()) return
         viewModelScope.launch {
             loaded.await()
-            val uid = ownerUidOrNull() ?: return@launch
-            uploader.submit(uid, photos)
+            if (ownerUidOrNull() == null) return@launch
+            uploader.submit(photos)
         }
     }
 
     private fun onRetry(key: String) {
-        val local = uploader.pages.value.find { it.id == key }
-        if (local != null) {
-            viewModelScope.launch { ownerUidOrNull()?.let { uploader.retry(it, key) } }
+        if (uploader.hasPage(key)) {
+            uploader.retry(key)
             return
         }
         val page = serverPages.find { it.id == key }
-        val job = uploader.jobId.value
+        val job = uploader.currentJobId()
         if (page != null && job != null && page.isRetryable()) {
             viewModelScope.launch { retryServerPage(job, page.id) }
         }
@@ -182,7 +181,7 @@ class NotebookCaptureViewModel(
     }
 
     private fun onReviewClick() {
-        val job = uploader.jobId.value ?: return
+        val job = uploader.currentJobId() ?: return
         if (!_state.value.canReview) return
         send(NotebookCaptureEvent.NavigateToReview(job))
     }

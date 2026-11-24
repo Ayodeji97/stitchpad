@@ -162,7 +162,7 @@ class NotebookCaptureViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun newUploader() = NotebookPageUploader(repository, compressor, appScope)
+    private fun newUploader() = NotebookPageUploader(repository, compressor, workshop, FakeEntitlements(), appScope)
 
     private fun TestScope.createViewModel(uploader: NotebookPageUploader = newUploader()): NotebookCaptureViewModel {
         val vm = NotebookCaptureViewModel(
