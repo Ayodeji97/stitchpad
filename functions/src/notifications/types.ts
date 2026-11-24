@@ -1,5 +1,6 @@
 // functions/src/notifications/types.ts
 import { PushSummary } from './pushSummary';
+import type { DigestEmailAudience } from './digestAudience';
 
 /** A tailor's order as read from `users/{uid}/orders` (raw Admin SDK shape). */
 export interface OrderScanDoc {
@@ -73,10 +74,16 @@ export interface DigestRecipient {
   platform: 'ios' | 'android' | null;
   /** HMAC-signed one-click unsubscribe URL for this recipient. */
   unsubscribeUrl: string;
+  /** Running Paystack/Apple plan (see isPaidSubscriber). Gates the digest EMAIL only. */
+  paid: boolean;
+  /** Lagos weekday (0=Sun) this owner's weekly email goes out. See digestEmailWeekday. */
+  emailWeekday: number;
 }
 
 export interface DigestIO {
   listRecipients(): Promise<DigestRecipient[]>;
+  /** `config/app.digestEmailAudience`, read once per run. The emergency brake is 'none'. */
+  getEmailAudience(): Promise<DigestEmailAudience>;
   loadOrders(uid: string): Promise<OrderScanDoc[]>;
   getLastSentDate(uid: string): Promise<string | null>;
   setLastSentDate(uid: string, dateKey: string): Promise<void>;
@@ -110,8 +117,14 @@ export interface DigestRunResult {
   staffPushed: number;
   /** Kept for continuity in the run logs. Now only counts sends we chose NOT to make. */
   suppressedEmpty: number;
-  /** Emails sent on a day with no work due — the habit nudge. */
+  /** Habit-nudge emails. Always 0 since the weekly paid-only change; kept for log continuity. */
   nudged: number;
+  /** Email skipped: config/app.digestEmailAudience is 'none'. */
+  skippedAudienceOff: number;
+  /** Email skipped: owner is not on a running paid plan (audience 'paid'). */
+  skippedNotPaid: number;
+  /** Email skipped: today is not this owner's weekday, or the last email was < 6 days ago. */
+  skippedNotEmailDay: number;
   /** Recipient used the one-click unsubscribe link. */
   skippedOptedOut: number;
   /** Address previously hard-bounced. */

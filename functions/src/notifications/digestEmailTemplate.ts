@@ -45,7 +45,7 @@ export function buildDigestEmail(
   if (model.overdue.length > 0) subjectParts.push(`${model.overdue.length} overdue`);
   if (model.dueSoon.length > 0) subjectParts.push(`${model.dueSoon.length} due soon`);
   if (model.outstanding.length > 0) subjectParts.push(`${model.outstanding.length} to collect`);
-  const subject = `StitchPad: ${subjectParts.join(', ')}`;
+  const subject = `Your StitchPad week: ${subjectParts.join(', ')}`;
 
   const sections: { title: string; items: DigestItem[]; total: number; line: (i: DigestItem) => string }[] = [
     { title: 'Overdue', items: model.overdue.slice(0, CAP), total: model.overdue.length, line: (i) => `${i.customerName} · ${i.garmentSummary}` },
@@ -69,12 +69,12 @@ export function buildDigestEmail(
 <td style="vertical-align:middle;"><span style="font-size:18px;font-weight:800;color:${INDIGO};letter-spacing:-0.2px;">StitchPad</span></td>
 </tr></table>
 <h1 style="margin:0 0 18px;font-family:${SERIF_STACK};font-size:26px;font-weight:700;color:${INDIGO};line-height:1.2;">Good morning, ${escapeHtml(name)}</h1>
-<p style="margin:0 0 28px;font-size:15px;line-height:1.6;color:${INK};">Here's what needs your attention today.</p>
+<p style="margin:0 0 28px;font-size:15px;line-height:1.6;color:${INK};">Here's what needs your attention this week.</p>
 ${htmlSections}
 <table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 8px;"><tr><td style="background-color:${INDIGO};border-radius:10px;">
 <a href="${escapeHtml(opts.ctaUrl)}" style="display:inline-block;padding:13px 26px;font-size:15px;font-weight:700;color:${WHITE};text-decoration:none;">Open StitchPad</a>
 </td></tr></table>
-<p style="margin:26px 0 0;font-size:12px;line-height:1.6;color:${FAINT};">You're getting this because daily summaries are on. Turn them off any time under Settings → Preferences → Daily summary email, or <a href="${escapeHtml(opts.unsubscribeUrl)}" style="color:${FAINT};">unsubscribe</a>.</p>
+<p style="margin:26px 0 0;font-size:12px;line-height:1.6;color:${FAINT};">You're getting this weekly summary with your StitchPad plan. Turn it off any time under Settings → Preferences → Daily summary email, or <a href="${escapeHtml(opts.unsubscribeUrl)}" style="color:${FAINT};">unsubscribe</a>.</p>
 </td></tr></table></td></tr></table></body></html>`;
 
   const textSections = sections.filter((s) => s.total > 0).map((s) => {
@@ -82,7 +82,7 @@ ${htmlSections}
     const more = s.total > s.items.length ? `\n  +${s.total - s.items.length} more` : '';
     return `${s.title} (${s.total}):\n${rows}${more}`;
   }).join('\n\n');
-  const text = `Good morning, ${name}\nHere's what needs your attention today.\n\n${textSections}\n\nOpen StitchPad: ${opts.ctaUrl}\n\nTurn off daily summaries any time under Settings → Preferences → Daily summary email, or unsubscribe: ${opts.unsubscribeUrl}`;
+  const text = `Good morning, ${name}\nHere's what needs your attention this week.\n\n${textSections}\n\nOpen StitchPad: ${opts.ctaUrl}\n\nTurn off the weekly summary any time under Settings → Preferences → Daily summary email, or unsubscribe: ${opts.unsubscribeUrl}`;
 
   return { subject, html, text };
 }

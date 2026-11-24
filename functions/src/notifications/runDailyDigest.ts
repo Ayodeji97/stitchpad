@@ -1,9 +1,9 @@
 import * as functions from 'firebase-functions/v1';
 import { digestDetector, isDigestEmpty } from './digestDetector';
 import { buildDigestEmail } from './digestEmailTemplate';
-import { buildNudgeEmail, NudgeKind } from './nudgeEmailTemplate';
+import { daysSinceDateKey, DigestEmailAudience, MIN_DAYS_BETWEEN_EMAILS } from './digestAudience';
 import { ResendError } from '../email/resendClient';
-import { lagosDateKey } from './lagosTime';
+import { lagosDateKey, lagosWeekday } from './lagosTime';
 import { pushSummary } from './pushSummary';
 import { staffDigests } from './staffDigest';
 import { DigestIO, DigestRunResult } from './types';
@@ -42,9 +42,20 @@ function unsubscribeHeaders(url: string): Record<string, string> | undefined {
 export async function runDailyDigest(io: DigestIO, now: number): Promise<DigestRunResult> {
   const recipients = await io.listRecipients();
   const todayKey = lagosDateKey(now);
+  const weekday = lagosWeekday(now);
+  // Read ONCE per run, so a mid-run config edit can't split the audience. A failed
+  // read must not cost anyone their push, so it falls back to the 'paid' default.
+  let audience: DigestEmailAudience = 'paid';
+  try {
+    audience = await io.getEmailAudience();
+  } catch (err) {
+    functions.logger.error('daily digest: could not read digestEmailAudience; using "paid"', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
   const result: DigestRunResult = {
     considered: recipients.length, sent: 0, staffPushed: 0, suppressedEmpty: 0,
-    nudged: 0, skippedOptedOut: 0, skippedBounced: 0,
+    nudged: 0, skippedAudienceOff: 0, skippedNotPaid: 0, skippedNotEmailDay: 0, skippedOptedOut: 0, skippedBounced: 0,
     skippedDisabled: 0, skippedUnverified: 0, skippedAlreadySent: 0,
     skippedNotAllowed: 0, skippedEmailUnavailable: 0, failed: 0,
   };
@@ -131,23 +142,23 @@ export async function runDailyDigest(io: DigestIO, now: number): Promise<DigestR
       if (!r.emailVerified) { result.skippedUnverified++; continue; }
       if (!io.isAllowed(r.uid, r.email)) { result.skippedNotAllowed++; continue; }
       if (emailUnavailable) { result.skippedEmailUnavailable++; continue; }
-      if ((await io.getLastSentDate(r.uid)) === todayKey) { result.skippedAlreadySent++; continue; }
-
-      // A quiet morning used to `continue` here and send nothing at all, which on the
-      // first production morning silenced 81 of 109 owners. The daily touchpoint now
-      // always has something to say — but WHAT it says has to match how far in the
-      // tailor actually is: "did a job come in today?" is nonsense to someone who has
-      // never added a customer.
-      const empty = isDigestEmpty(model);
-      let kind: NudgeKind | null = null;
-      if (empty) {
-        if (orders.length > 0) kind = 'quiet';
-        else kind = (await io.hasCustomers(r.uid)) ? 'first_order' : 'setup';
+      // WEEKLY, PAID-ONLY email (2026-11-23). Push and the inbox above stay daily for
+      // everyone; the email is the paid perk and must fit the Resend free plan.
+      if (audience === 'none') { result.skippedAudienceOff++; continue; }
+      if (audience === 'paid' && !r.paid) { result.skippedNotPaid++; continue; }
+      if (r.emailWeekday !== weekday) { result.skippedNotEmailDay++; continue; }
+      // Re-runs and manual triggers: never two emails inside a week.
+      const since = daysSinceDateKey(await io.getLastSentDate(r.uid), now);
+      if (since !== null && since < MIN_DAYS_BETWEEN_EMAILS) {
+        if (since === 0) result.skippedAlreadySent++; else result.skippedNotEmailDay++;
+        continue;
       }
+      // No empty weekly email. The setup / first-order / quiet nudges now go by push
+      // (runEngagementPush); their templates stay for debugSendMyDigest previews.
+      if (isDigestEmpty(model)) { result.suppressedEmpty++; continue; }
+
       const opts = { ctaUrl: ctaUrl(), unsubscribeUrl: r.unsubscribeUrl, locale: r.locale };
-      const { subject, html, text } = kind
-        ? buildNudgeEmail(kind, r.name, opts)
-        : buildDigestEmail(model, r.name, opts);
+      const { subject, html, text } = buildDigestEmail(model, r.name, opts);
 
       // Stamp AFTER a successful send (at-least-once): if setLastSentDate throws
       // after the email went out, the next run may re-send — preferred over
@@ -177,7 +188,7 @@ export async function runDailyDigest(io: DigestIO, now: number): Promise<DigestR
         throw sendErr;
       }
       await io.setLastSentDate(r.uid, todayKey);
-      if (kind) result.nudged++; else result.sent++;
+      result.sent++;
     } catch (err) {
       result.failed++;
       functions.logger.error('daily digest: recipient failed', {

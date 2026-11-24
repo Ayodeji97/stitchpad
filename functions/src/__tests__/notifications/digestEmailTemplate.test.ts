@@ -18,7 +18,7 @@ describe('buildDigestEmail', () => {
         { orderId: 'o6', customerName: 'c6', garmentSummary: 'x', amount: 300 },
       ],
     }), 'Ada Couture', OPTS);
-    expect(subject).toBe('StitchPad: 1 overdue, 2 due soon, 3 to collect');
+    expect(subject).toBe('Your StitchPad week: 1 overdue, 2 due soon, 3 to collect');
   });
 
   it('greets by tailor name and renders only non-empty sections', () => {

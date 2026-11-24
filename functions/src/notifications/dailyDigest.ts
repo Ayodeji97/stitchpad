@@ -15,6 +15,9 @@ import {
   sendMulticast,
 } from './fcm';
 import { lagosDateKey } from './lagosTime';
+import {
+  digestEmailWeekday, DigestEmailAudience, isPaidSubscriber, parseDigestEmailAudience,
+} from './digestAudience';
 import { notificationDocsFromModel } from './notificationDocs';
 import { loadMoneyByOrderId, withMoney } from './orderMoney';
 import { loadWorkshopAudience } from './workshopAudience';
@@ -60,6 +63,10 @@ async function writeNotificationsAdmin(db: admin.firestore.Firestore, uid: strin
 function productionDigestIO(apiKey: string): DigestIO {
   const db = admin.firestore();
   return {
+    async getEmailAudience(): Promise<DigestEmailAudience> {
+      const snap = await db.collection('config').doc('app').get();
+      return parseDigestEmailAudience(snap.data()?.digestEmailAudience);
+    },
     async listRecipients(): Promise<DigestRecipient[]> {
       // Enumerates FIREBASE AUTH, not the `users` collection. The old users-collection
       // walk silently excluded every account that never finished workshop setup — 41 of
@@ -72,6 +79,7 @@ function productionDigestIO(apiKey: string): DigestIO {
       // concurrency — recipient order is stable, so a timeout starves the same tail
       // every morning with no symptom beyond a missing "run complete" log line.
       const secret = process.env.EMAIL_UNSUB_SECRET ?? '';
+      const now = Date.now();
       const [usersSnap, prefsSnap, tokensSnap] = await Promise.all([
         db.collection('users').get(),
         db.collection('emailPrefs').get(),
@@ -124,6 +132,8 @@ function productionDigestIO(apiKey: string): DigestIO {
             hardBounce: pref.hardBounce === true,
             platform: plat === 'ios' || plat === 'android' ? plat : null,
             unsubscribeUrl: secret ? buildUnsubscribeUrl(uid, secret, UNSUBSCRIBE_BASE) : '',
+            paid: isPaidSubscriber(data, now),
+            emailWeekday: digestEmailWeekday(uid),
           });
         }
         pageToken = page.pageToken;
