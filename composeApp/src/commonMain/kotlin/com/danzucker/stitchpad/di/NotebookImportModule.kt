@@ -6,6 +6,8 @@ import com.danzucker.stitchpad.feature.notebookimport.domain.NotebookImportRepos
 import com.danzucker.stitchpad.feature.notebookimport.domain.NotebookImportSaver
 import com.danzucker.stitchpad.feature.notebookimport.domain.NotebookPageUploader
 import com.danzucker.stitchpad.feature.notebookimport.presentation.capture.NotebookCaptureViewModel
+import com.danzucker.stitchpad.feature.notebookimport.presentation.card.NotebookCardViewModel
+import com.danzucker.stitchpad.feature.notebookimport.presentation.review.NotebookReviewViewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 import kotlin.time.Clock
@@ -42,4 +44,6 @@ val notebookImportDataModule = module {
 
 val notebookImportPresentationModule = module {
     viewModelOf(::NotebookCaptureViewModel)
+    viewModelOf(::NotebookReviewViewModel)
+    viewModelOf(::NotebookCardViewModel)
 }

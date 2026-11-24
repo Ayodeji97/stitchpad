@@ -5,6 +5,7 @@ import com.danzucker.stitchpad.core.domain.error.EmptyResult
 import com.danzucker.stitchpad.core.domain.error.Result
 import kotlinx.coroutines.flow.Flow
 
+@Suppress("TooManyFunctions")
 interface NotebookImportRepository {
     /**
      * Creates the job doc `{ createdAt, status:'open', pageCount:0 }` and returns its id.
@@ -23,6 +24,12 @@ interface NotebookImportRepository {
 
     /** Newest job with status open, for resume. */
     fun observeOpenJob(ownerUid: String): Flow<ImportJob?>
+
+    /** One job by id (any status); null when it does not exist. Carries [ImportJob.imagesDeletedAt]. */
+    fun observeJob(ownerUid: String, jobId: String): Flow<ImportJob?>
+
+    /** Download URL of one page photo. Fails once the images were deleted (7 days, or after the job ends). */
+    suspend fun pageImageUrl(ownerUid: String, jobId: String, pageId: String): Result<String, DataError.Network>
 
     suspend fun updateCard(ownerUid: String, card: ReviewCard): EmptyResult<DataError.Network>
 

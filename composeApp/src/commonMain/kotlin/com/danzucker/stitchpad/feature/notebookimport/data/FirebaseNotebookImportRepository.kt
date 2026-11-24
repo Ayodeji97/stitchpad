@@ -118,6 +118,25 @@ class FirebaseNotebookImportRepository(
                 }
             }
 
+    override fun observeJob(ownerUid: String, jobId: String): Flow<ImportJob?> =
+        jobDoc(ownerUid, jobId).snapshots
+            .map { doc ->
+                if (!doc.exists) null else runCatching { doc.data<NotebookJobDto>().toImportJob(doc.id) }.getOrNull()
+            }
+            .retryWithFallback(fallback = null) { throwable, attempt ->
+                AppLogger.w(tag = TAG, throwable = throwable) {
+                    "observeJob failed; retrying (attempt ${attempt + 1})"
+                }
+            }
+
+    override suspend fun pageImageUrl(
+        ownerUid: String,
+        jobId: String,
+        pageId: String,
+    ): Result<String, DataError.Network> = guarded("pageImageUrl") {
+        storage.reference.child("${storagePrefix(ownerUid, jobId)}/$pageId.jpg").getDownloadUrl()
+    }
+
     override suspend fun updateCard(ownerUid: String, card: ReviewCard): EmptyResult<DataError.Network> =
         writer.updateCard(ownerUid, card)
 

@@ -94,6 +94,11 @@ private class SaverImportRepo : NotebookImportRepository {
 
     override fun observeOpenJob(ownerUid: String): Flow<ImportJob?> = emptyFlow()
 
+    override fun observeJob(ownerUid: String, jobId: String): Flow<ImportJob?> = emptyFlow()
+
+    override suspend fun pageImageUrl(ownerUid: String, jobId: String, pageId: String) =
+        Result.Success("https://example.test/$pageId.jpg")
+
     override suspend fun updateCard(ownerUid: String, card: ReviewCard): EmptyResult<DataError.Network> {
         if (failUpdatesRemaining > 0) {
             failUpdatesRemaining--
