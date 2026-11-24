@@ -60,6 +60,22 @@
   ],
   "fieldOverrides": [
     {
+      "collectionGroup": "notebookImports",
+      "fieldPath": "createdAt",
+      "indexes": [
+        { "queryScope": "COLLECTION_GROUP", "order": "ASCENDING" },
+        { "queryScope": "COLLECTION", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "notebookImports",
+      "fieldPath": "status",
+      "indexes": [
+        { "queryScope": "COLLECTION_GROUP", "order": "ASCENDING" },
+        { "queryScope": "COLLECTION", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "notificationTokens",
       "fieldPath": "token",
       "indexes": [

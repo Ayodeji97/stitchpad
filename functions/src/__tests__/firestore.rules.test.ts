@@ -1661,3 +1661,55 @@ describe('Slice 8a: owner collectionGroup(private) read', () => {
     await assertFails(getDoc(doc(db('mallory'), 'users/alice/customers/c1/private/contact')));
   });
 });
+
+describe('notebookImports (scan import)', () => {
+  const JOB = 'users/alice/notebookImports/j1';
+  const CARD = `${JOB}/cards/p1_0`;
+  const seed = () => asAdmin(async (a) => {
+    await setDoc(doc(a, 'users/alice/memberships/staff1'), { status: 'active' });
+    await setDoc(doc(a, JOB), { createdAt: Timestamp.now(), status: 'open', pageCount: 1 });
+    await setDoc(doc(a, `${JOB}/pages/p1`), { status: 'done', personCount: 1 });
+    await setDoc(doc(a, CARD), { name: 'Ada', pageId: 'p1', personIndex: 0, status: 'new', values: {}, matchedCustomerId: null, savedCustomerId: null });
+  });
+
+  it('owner creates a job with exactly {createdAt, status:open, pageCount:0}', async () => {
+    await assertSucceeds(setDoc(doc(db('alice'), 'users/alice/notebookImports/new1'), { createdAt: serverTimestamp(), status: 'open', pageCount: 0 }));
+  });
+  it('owner cannot create a job with a nonzero pageCount or extra field', async () => {
+    await assertFails(setDoc(doc(db('alice'), 'users/alice/notebookImports/new2'), { createdAt: serverTimestamp(), status: 'open', pageCount: 5 }));
+    await assertFails(setDoc(doc(db('alice'), 'users/alice/notebookImports/new3'), { createdAt: serverTimestamp(), status: 'open', pageCount: 0, imagesDeletedAt: serverTimestamp() }));
+  });
+  it('another user cannot create a job under alice', async () => {
+    await assertFails(setDoc(doc(db('mallory'), 'users/alice/notebookImports/new4'), { createdAt: serverTimestamp(), status: 'open', pageCount: 0 }));
+  });
+  it('owner may change job status to saved/abandoned only', async () => {
+    await seed();
+    await assertSucceeds(updateDoc(doc(db('alice'), JOB), { status: 'saved' }));
+    await assertSucceeds(updateDoc(doc(db('alice'), JOB), { status: 'abandoned' }));
+    await assertFails(updateDoc(doc(db('alice'), JOB), { status: 'bogus' }));
+    await assertFails(updateDoc(doc(db('alice'), JOB), { pageCount: 99 }));
+    await assertFails(updateDoc(doc(db('alice'), JOB), { imagesDeletedAt: serverTimestamp() }));
+  });
+  it('owner can read job, pages and cards; cannot write pages', async () => {
+    await seed();
+    await assertSucceeds(getDoc(doc(db('alice'), JOB)));
+    await assertSucceeds(getDoc(doc(db('alice'), `${JOB}/pages/p1`)));
+    await assertSucceeds(getDoc(doc(db('alice'), CARD)));
+    await assertFails(setDoc(doc(db('alice'), `${JOB}/pages/p2`), { status: 'done' }));
+    await assertFails(updateDoc(doc(db('alice'), `${JOB}/pages/p1`), { status: 'failed' }));
+  });
+  it('owner can update card values but not pageId; cannot create a card', async () => {
+    await seed();
+    await assertSucceeds(updateDoc(doc(db('alice'), CARD), { values: { chest: 40 }, status: 'checked', updatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(db('alice'), CARD), { pageId: 'p9' }));
+    await assertFails(updateDoc(doc(db('alice'), CARD), { personIndex: 3 }));
+    await assertFails(setDoc(doc(db('alice'), `${JOB}/cards/p2_0`), { name: 'X', status: 'new' }));
+    await assertSucceeds(deleteDoc(doc(db('alice'), CARD)));
+  });
+  it('staff of the workshop cannot read job, pages or cards', async () => {
+    await seed();
+    await assertFails(getDoc(doc(staffDb('staff1', 'alice'), JOB)));
+    await assertFails(getDoc(doc(staffDb('staff1', 'alice'), `${JOB}/pages/p1`)));
+    await assertFails(getDoc(doc(staffDb('staff1', 'alice'), CARD)));
+  });
+});
