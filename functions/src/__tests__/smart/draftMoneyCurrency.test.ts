@@ -34,7 +34,7 @@ function database(extra: Record<string, firestore.DocumentData | undefined> = {}
 
 beforeEach(() => {
   generateText.mockClear();
-  __setVertexClientForTests({ generateText });
+  __setVertexClientForTests({ generateText, generateJsonFromImage: async () => { throw new Error('not used'); } });
 });
 
 describe('Smart money is sourced from the authenticated order and its stamped mirror', () => {

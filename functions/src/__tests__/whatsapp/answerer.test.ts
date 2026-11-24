@@ -11,12 +11,13 @@ function fakeClient(reply: string) {
   const calls: { systemPrompt: string; userPrompt: string; maxOutputTokens?: number }[] = [];
   const client: VertexClient = {
     async generateText(args) { calls.push(args); return reply; },
+    generateJsonFromImage: async () => { throw new Error('not used'); },
   };
   return { client, calls };
 }
 
 function throwingClient(): VertexClient {
-  return { async generateText() { throw new Error('genai down'); } };
+  return { async generateText() { throw new Error('genai down'); }, generateJsonFromImage: async () => { throw new Error('not used'); } };
 }
 
 describe('answerSupportQuestion', () => {
@@ -61,7 +62,7 @@ describe('answerSupportQuestion', () => {
 
   it('escalates without calling the model when no knowledge matches (no ungrounded answers)', async () => {
     let called = false;
-    const client: VertexClient = { async generateText() { called = true; return 'anything\nCONFIDENCE: high\nESCALATE: no'; } };
+    const client: VertexClient = { async generateText() { called = true; return 'anything\nCONFIDENCE: high\nESCALATE: no'; }, generateJsonFromImage: async () => { throw new Error('not used'); } };
     const result = await answerSupportQuestion({ question: 'what is the weather today', language: 'en', knowledge: kb, client });
     expect(called).toBe(false);
     expect(result.escalate).toBe(true);

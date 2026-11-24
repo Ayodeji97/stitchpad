@@ -13,6 +13,7 @@ let __setVertexClientForTests: (c: VertexClient) => void;
 
 const fakeVertex: VertexClient = {
   generateText: jest.fn().mockResolvedValue('Hi Folake, just a friendly note about your balance.'),
+  generateJsonFromImage: async () => { throw new Error('not used'); },
 };
 
 beforeAll(async () => {
