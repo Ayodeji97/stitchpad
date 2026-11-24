@@ -35,10 +35,57 @@ describe('shouldWriteUserDoc', () => {
   });
 
   it('foreignNoEndDate_blocksTakeover', () => {
+    // An endless entitlement that is NOT a launch grant (e.g. a manual tester grant).
     expect(shouldWriteUserDoc({
       desiredTier: 'pro',
       ownsCurrentEntitlement: false,
-      current: { subscriptionSource: 'launch_free', subscriptionStatus: 'active', subscriptionTier: 'pro' },
+      current: { subscriptionStatus: 'active', subscriptionTier: 'pro' },
+      nowMs: NOW,
+    })).toBe(false);
+  });
+
+  it('activeLaunchGrant_doesNotBlockPaidStorePurchase', () => {
+    // Exact shape buildLaunchGrantFields writes: grantSource launch_free, no
+    // subscriptionSource, no subscriptionEndsAt. It is not a paid entitlement.
+    expect(shouldWriteUserDoc({
+      desiredTier: 'pro',
+      ownsCurrentEntitlement: false,
+      current: { grantSource: 'launch_free', subscriptionStatus: 'active', subscriptionTier: 'atelier' },
+      nowMs: NOW,
+    })).toBe(true);
+  });
+
+  it('paystackAfterLaunchGrant_stillBlocks', () => {
+    // grantSource is sticky; a later Paystack purchase sets subscriptionSource.
+    expect(shouldWriteUserDoc({
+      desiredTier: 'atelier',
+      ownsCurrentEntitlement: false,
+      current: {
+        grantSource: 'launch_free', subscriptionSource: 'paystack', subscriptionStatus: 'active',
+        subscriptionTier: 'pro', subscriptionEndsAt: at(NOW + DAY),
+      },
+      nowMs: NOW,
+    })).toBe(false);
+  });
+
+  it('giftAfterLaunchGrant_stillBlocks', () => {
+    // Gifts keep grantSource and set no subscriptionSource, but always an end date.
+    expect(shouldWriteUserDoc({
+      desiredTier: 'atelier',
+      ownsCurrentEntitlement: false,
+      current: {
+        grantSource: 'launch_free', subscriptionStatus: 'active', subscriptionTier: 'pro',
+        subscriptionEndsAt: at(NOW + DAY),
+      },
+      nowMs: NOW,
+    })).toBe(false);
+  });
+
+  it('launchGrant_downgradeStillRequiresOwnership', () => {
+    expect(shouldWriteUserDoc({
+      desiredTier: 'free',
+      ownsCurrentEntitlement: false,
+      current: { grantSource: 'launch_free', subscriptionStatus: 'active', subscriptionTier: 'atelier' },
       nowMs: NOW,
     })).toBe(false);
   });

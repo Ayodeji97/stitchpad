@@ -276,6 +276,28 @@ describe('verifyPlayPurchaseHandler', () => {
     expect(store.get(`playSubscriptions/${playTokenHash('tok')}`)).toMatchObject({ uid: 'u1' });
   });
 
+  it('launchGrant_isReplacedByPaidPlayPurchase', async () => {
+    const { db, store } = fakeDb({
+      'users/u1': { subscriptionStatus: 'active', subscriptionTier: 'atelier', grantSource: 'launch_free' },
+    });
+    const result = await verifyPlayPurchaseHandler({ purchaseToken: 'tok' }, authCtx('u1'), deps(db, fakeApi(subFor('u1'))));
+    expect(result).toMatchObject({ tier: 'pro', status: 'active', blocked: false });
+    expect(store.get('users/u1')).toMatchObject({
+      subscriptionSource: 'play', subscriptionTier: 'pro', subscriptionStatus: 'active', playPurchaseToken: 'tok',
+    });
+  });
+
+  it('paystackAfterLaunchGrant_stillBlocksPlay', async () => {
+    const paystackUser = {
+      grantSource: 'launch_free', subscriptionSource: 'paystack', subscriptionStatus: 'active',
+      subscriptionTier: 'pro', subscriptionEndsAt: ts(NOW.getTime() + DAY),
+    };
+    const { db, store } = fakeDb({ 'users/u1': paystackUser });
+    const result = await verifyPlayPurchaseHandler({ purchaseToken: 'tok' }, authCtx('u1'), deps(db, fakeApi(subFor('u1'))));
+    expect(result.blocked).toBe(true);
+    expect(store.get('users/u1')).toBe(paystackUser);
+  });
+
   it('upgrade_linkedToken_takesOverOwnedPlayEntitlement', async () => {
     // Pro on token A, then Atelier bought with replacement: Play returns token B
     // with linkedPurchaseToken = A. B must take over, not be blocked as "foreign".
@@ -569,18 +591,16 @@ describe('reconcilePlaySubscriptionsHandler', () => {
     });
   });
 
-  it('reconcile_appliesPlayOnceLaunchGrantIsGone', async () => {
-    // Launch grant (active, no end date) blocks; once it is gone Play applies.
-    const { db, store } = fakeDb({
-      'users/u1': { subscriptionStatus: 'active', subscriptionTier: 'atelier', grantSource: 'launch_free' },
-    });
+  it('reconcile_appliesRecordPreviouslyBlockedByLaunchGrant', async () => {
+    // A record saved while an active launch grant used to block it (before the
+    // launch-grant rule changed) is picked up and applied by the nightly run.
+    const launchGrant = { subscriptionStatus: 'active', subscriptionTier: 'atelier', grantSource: 'launch_free' };
+    const { db, store } = fakeDb({ 'users/u1': launchGrant, ...index('u1', 'tok-play', 'active') });
     const api = fakeApi(subFor('u1', { acknowledgementState: 'ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED' }));
-    const verified = await verifyPlayPurchaseHandler({ purchaseToken: 'tok-play' }, authCtx('u1'), deps(db, api));
-    expect(verified.blocked).toBe(true);
-
-    store.set('users/u1', { subscriptionStatus: 'expired', subscriptionTier: 'free', grantSource: 'launch_free' });
     await reconcilePlaySubscriptionsHandler(deps(db, api));
-    expect(store.get('users/u1')).toMatchObject({ subscriptionSource: 'play', subscriptionTier: 'pro' });
+    expect(store.get('users/u1')).toMatchObject({
+      subscriptionSource: 'play', subscriptionTier: 'pro', playPurchaseToken: 'tok-play',
+    });
   });
 
   it('reconcile_skipsDeletedUser', async () => {

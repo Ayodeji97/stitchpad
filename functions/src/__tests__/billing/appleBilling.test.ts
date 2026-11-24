@@ -185,6 +185,25 @@ describe('verifyAppleTransactionHandler', () => {
     expect(store.get('appleSubscriptions/orig-1')).toMatchObject({ uid: 'uid-1' });
   });
 
+  it('replaces an active launch_free grant with the paid Apple subscription', async () => {
+    const { db, store } = fakeDb({
+      'users/uid-1': { subscriptionTier: 'atelier', subscriptionStatus: 'active', grantSource: 'launch_free' },
+    });
+    const verifier = fakeVerifier({ verifyTransaction: jest.fn(async () => txnFor('uid-1')) });
+    const result = await verifyAppleTransactionHandler(
+      { signedTransactionJws: 'jws' },
+      authCtx('uid-1'),
+      { db: db as never, verifier, now: () => new Date('2026-06-01T10:01:00Z') },
+    );
+    expect(result.tier).toBe('pro');
+    expect(store.get('users/uid-1')).toMatchObject({
+      subscriptionTier: 'pro',
+      subscriptionStatus: 'active',
+      subscriptionSource: 'apple',
+      appleOriginalTransactionId: 'orig-1',
+    });
+  });
+
   it('does not grant paid access for an already-expired transaction (replay guard)', async () => {
     const { db, store } = fakeDb();
     const verifier = fakeVerifier({
