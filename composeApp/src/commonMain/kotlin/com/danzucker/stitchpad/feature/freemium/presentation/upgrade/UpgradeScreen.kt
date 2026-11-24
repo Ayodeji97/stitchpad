@@ -82,6 +82,7 @@ import stitchpad.composeapp.generated.resources.upgrade_subscribe
 import stitchpad.composeapp.generated.resources.upgrade_terms
 import stitchpad.composeapp.generated.resources.upgrade_terms_apple
 import stitchpad.composeapp.generated.resources.upgrade_terms_of_use
+import stitchpad.composeapp.generated.resources.upgrade_terms_play
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -131,15 +132,16 @@ fun UpgradeScreen(
         ) {
             Spacer(Modifier.height(DesignTokens.space4))
 
-            // Tier picker. On iOS the price + hint come from StoreKit (the price
-            // Apple actually charges for the selected cadence); on Android they are
-            // the NGN Paystack prices, formatted by the ViewModel for the workshop.
-            val isApple = state.checkoutProvider == CheckoutProvider.APPLE
+            // Tier picker. On the store paths (App Store, Google Play) the price +
+            // hint come from the store (what it actually charges for the selected
+            // cadence); on Paystack they are the NGN prices, formatted by the
+            // ViewModel for the workshop.
+            val isStore = state.isStoreCheckout
             Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.space3)) {
                 TierCard(
                     name = stringResource(Res.string.upgrade_pro_name),
-                    monthlyPrice = tierPriceText(isApple, state, SubscriptionTier.PRO),
-                    annualHint = tierHintText(isApple, state, SubscriptionTier.PRO),
+                    monthlyPrice = tierPriceText(isStore, state, SubscriptionTier.PRO),
+                    annualHint = tierHintText(isStore, state, SubscriptionTier.PRO),
                     benefits = listOf(
                         stringResource(Res.string.upgrade_pro_benefit_customers),
                         stringResource(Res.string.upgrade_pro_benefit_reports),
@@ -152,8 +154,8 @@ fun UpgradeScreen(
                 )
                 TierCard(
                     name = stringResource(Res.string.upgrade_atelier_name),
-                    monthlyPrice = tierPriceText(isApple, state, SubscriptionTier.ATELIER),
-                    annualHint = tierHintText(isApple, state, SubscriptionTier.ATELIER),
+                    monthlyPrice = tierPriceText(isStore, state, SubscriptionTier.ATELIER),
+                    annualHint = tierHintText(isStore, state, SubscriptionTier.ATELIER),
                     benefits = listOf(
                         stringResource(Res.string.upgrade_atelier_benefit_everything),
                         stringResource(Res.string.upgrade_atelier_benefit_drafts),
@@ -212,8 +214,9 @@ fun UpgradeScreen(
                             // disabled CTA reads "Coming soon" instead of a dead checkout.
                             !state.canCheckout -> Res.string.upgrade_coming_soon
                             // Apple Guideline 3.1.1: the iOS CTA must not name
-                            // Paystack or imply web payment — it's the native sheet.
-                            state.checkoutProvider == CheckoutProvider.APPLE -> Res.string.upgrade_subscribe
+                            // Paystack or imply web payment. Google Play is also a
+                            // native sheet, so both stores read "Subscribe".
+                            state.isStoreCheckout -> Res.string.upgrade_subscribe
                             else -> Res.string.upgrade_pay_with_paystack
                         }
                     ),
@@ -237,10 +240,10 @@ fun UpgradeScreen(
 
             Text(
                 text = stringResource(
-                    if (state.checkoutProvider == CheckoutProvider.APPLE) {
-                        Res.string.upgrade_terms_apple
-                    } else {
-                        Res.string.upgrade_terms
+                    when (state.checkoutProvider) {
+                        CheckoutProvider.APPLE -> Res.string.upgrade_terms_apple
+                        CheckoutProvider.PLAY -> Res.string.upgrade_terms_play
+                        else -> Res.string.upgrade_terms
                     }
                 ),
                 style = MaterialTheme.typography.bodySmall,
@@ -272,8 +275,9 @@ fun UpgradeScreen(
                 }
             }
 
-            // Apple requires a "Restore purchases" affordance for subscriptions.
-            if (state.checkoutProvider == CheckoutProvider.APPLE) {
+            // Apple requires a "Restore purchases" affordance for subscriptions; Google
+            // Play gets the same (re-binds a Play subscription after a reinstall).
+            if (state.isStoreCheckout) {
                 TextButton(
                     onClick = { onAction(UpgradeAction.RestorePurchases) },
                     enabled = !state.isStartingCheckout,
@@ -295,12 +299,12 @@ fun UpgradeScreen(
  */
 @Composable
 private fun tierPriceText(
-    isApple: Boolean,
+    isStore: Boolean,
     state: UpgradeState,
     tier: SubscriptionTier,
 ): String {
-    val price = if (isApple) {
-        state.appleDisplayPrices[StoreProductIds.idFor(tier, state.billingCadence)]
+    val price = if (isStore) {
+        state.storeDisplayPrices[StoreProductIds.idFor(tier, state.billingCadence)]
     } else {
         state.paystackPrices[tier]?.let { stringResource(Res.string.upgrade_price_monthly, it.monthly) }
     }
@@ -310,10 +314,10 @@ private fun tierPriceText(
 /** The secondary hint: the auto-renew cadence on iOS, or the Paystack annual offer on Android. */
 @Composable
 private fun tierHintText(
-    isApple: Boolean,
+    isStore: Boolean,
     state: UpgradeState,
     tier: SubscriptionTier,
-): String = if (isApple) {
+): String = if (isStore) {
     stringResource(
         if (state.billingCadence == BillingCadence.ANNUAL) {
             Res.string.upgrade_billed_annually
@@ -480,6 +484,30 @@ private fun UpgradeScreenApplePreview() {
                 selectedTier = SubscriptionTier.PRO,
                 billingCadence = BillingCadence.MONTHLY,
                 checkoutProvider = CheckoutProvider.APPLE,
+            ),
+            snackbarHostState = SnackbarHostState(),
+            onAction = {},
+            onBack = {},
+        )
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Preview
+@Composable
+private fun UpgradeScreenPlayPreview() {
+    StitchPadTheme {
+        UpgradeScreen(
+            state = UpgradeState(
+                currentTier = SubscriptionTier.FREE,
+                selectedTier = SubscriptionTier.PRO,
+                billingCadence = BillingCadence.MONTHLY,
+                checkoutProvider = CheckoutProvider.PLAY,
+                playBillingEnabled = true,
+                storeDisplayPrices = mapOf(
+                    StoreProductIds.PRO_MONTHLY to "GH₵ 15.00",
+                    StoreProductIds.ATELIER_MONTHLY to "GH₵ 30.00",
+                ),
             ),
             snackbarHostState = SnackbarHostState(),
             onAction = {},

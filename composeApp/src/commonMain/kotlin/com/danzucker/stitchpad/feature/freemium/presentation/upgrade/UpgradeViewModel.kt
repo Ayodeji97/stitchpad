@@ -16,6 +16,7 @@ import com.danzucker.stitchpad.feature.freemium.domain.BillingCadence
 import com.danzucker.stitchpad.feature.freemium.domain.CheckoutOutcome
 import com.danzucker.stitchpad.feature.freemium.domain.CheckoutProvider
 import com.danzucker.stitchpad.feature.freemium.domain.PaymentRepository
+import com.danzucker.stitchpad.feature.freemium.domain.checkoutProviderFor
 import com.danzucker.stitchpad.feature.freemium.presentation.isBilledInForeignCurrency
 import com.danzucker.stitchpad.feature.freemium.presentation.paystackPlanPriceText
 import com.danzucker.stitchpad.feature.freemium.presentation.toUiText
@@ -25,6 +26,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -68,28 +70,50 @@ class UpgradeViewModel(
             }
         }
 
-        // Load Apple's localized prices so the tier cards show what the App Store
-        // actually charges. No-ops on Android (empty catalog → bundled NGN strings).
+        // Checkout provider: Apple on iOS; on Android, Paystack (NG) or Google Play
+        // from the workshop's LOADED country (null until it arrives, so a Ghana
+        // tailor never sees a Paystack checkout during the user-doc race). Paystack
+        // prices are NGN-only; re-format them whenever the workshop's country (and
+        // so its currency) resolves or changes. Store prices (App Store / Play) load
+        // whenever the provider becomes a store path.
         viewModelScope.launch {
-            (paymentRepository.productCatalog() as? Result.Success)?.let { catalog ->
-                _state.update { it.copy(appleDisplayPrices = catalog.data) }
+            var catalogLoadedFor: CheckoutProvider? = null
+            combine(currentCountryProvider.country, currentCountryProvider.loadedCountry) { country, loaded ->
+                country to loaded
+            }.collect { (country, loaded) ->
+                val provider = when {
+                    Platform.isIos -> CheckoutProvider.APPLE
+                    loaded == null -> null
+                    else -> checkoutProviderFor(isIos = false, country = loaded)
+                }
+                _state.update { it.copy(checkoutProvider = provider).withPaystackPrices(country.currency) }
+                if (provider != catalogLoadedFor) {
+                    catalogLoadedFor = provider
+                    if (provider == CheckoutProvider.APPLE || provider == CheckoutProvider.PLAY) {
+                        loadStorePrices()
+                    } else {
+                        _state.update { it.copy(storeDisplayPrices = emptyMap()) }
+                    }
+                }
             }
         }
 
-        // Track the server billing kill switch so the Paystack CTA flips from
-        // "Coming soon" to live the moment config/app.billingEnabled is set true —
-        // no app release. Default AppConfig.Disabled keeps billingEnabled false.
-        // Paystack prices are NGN-only; re-format them whenever the active workshop's
-        // country (and so its currency) resolves or changes.
-        viewModelScope.launch {
-            currentCountryProvider.country.collect { country ->
-                _state.update { it.withPaystackPrices(country.currency) }
-            }
-        }
-
+        // Track the server billing kill switches so a CTA flips from "Coming soon"
+        // to live the moment config/app.billingEnabled (Paystack) or
+        // playBillingEnabled (Google Play) is set true, with no app release.
         viewModelScope.launch {
             appConfigRepository.config.collect { cfg ->
-                _state.update { it.copy(billingEnabled = cfg.billingEnabled) }
+                _state.update {
+                    it.copy(billingEnabled = cfg.billingEnabled, playBillingEnabled = cfg.playBillingEnabled)
+                }
+            }
+        }
+    }
+
+    private fun loadStorePrices() {
+        viewModelScope.launch {
+            (paymentRepository.productCatalog() as? Result.Success)?.let { catalog ->
+                _state.update { it.copy(storeDisplayPrices = catalog.data) }
             }
         }
     }
@@ -98,6 +122,7 @@ class UpgradeViewModel(
         paystackPrices = SubscriptionTier.entries
             .mapNotNull { tier -> paystackPlanPriceText(tier, workshopCurrency)?.let { tier to it } }
             .toMap(),
+        // Only the Paystack path bills in Naira; the stores charge local currency.
         showBillingCurrencyNote = checkoutProvider == CheckoutProvider.PAYSTACK &&
             isBilledInForeignCurrency(workshopCurrency),
     )
@@ -129,10 +154,10 @@ class UpgradeViewModel(
                 currentTier = currentTier,
                 selectedTier = selectedTier,
                 billingCadence = cadence,
-                // iOS must purchase through Apple IAP (Guideline 3.1.1); Android
-                // continues to use Paystack. The binding is platform-specific, but
-                // the screen also needs the provider to pick the CTA copy.
-                checkoutProvider = if (Platform.isIos) CheckoutProvider.APPLE else CheckoutProvider.PAYSTACK,
+                // iOS must purchase through Apple IAP (Guideline 3.1.1). Android
+                // waits for the workshop country (Paystack in NG, Play elsewhere),
+                // resolved by the country collector in init.
+                checkoutProvider = if (Platform.isIos) CheckoutProvider.APPLE else null,
             )
         }
     }
@@ -194,7 +219,7 @@ class UpgradeViewModel(
                     when (val outcome = result.data) {
                         is CheckoutOutcome.Redirect ->
                             _events.send(UpgradeEvent.OpenExternalBrowser(outcome.authorizationUrl))
-                        // Apple grant lands as a user-doc tier change; the
+                        // Store (Apple / Play) grant lands as a user-doc tier change; the
                         // entitlements collector above fires UpgradeDetected and
                         // pops back, so no extra event is needed here.
                         CheckoutOutcome.PurchasedAndGranted -> Unit

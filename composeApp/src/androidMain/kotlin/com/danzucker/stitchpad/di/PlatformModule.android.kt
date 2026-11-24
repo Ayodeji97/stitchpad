@@ -27,6 +27,7 @@ import com.danzucker.stitchpad.feature.freemium.data.CloudFunctionsPaymentReposi
 import com.danzucker.stitchpad.feature.freemium.data.CloudFunctionsPlayPurchaseVerifier
 import com.danzucker.stitchpad.feature.freemium.data.NativePlayBillingClient
 import com.danzucker.stitchpad.feature.freemium.data.PlayBillingPaymentRepository
+import com.danzucker.stitchpad.feature.freemium.data.PlayPurchaseSweeper
 import com.danzucker.stitchpad.feature.freemium.data.PlayPurchaseVerifier
 import com.danzucker.stitchpad.feature.freemium.data.RoutingPaymentRepository
 import com.danzucker.stitchpad.feature.freemium.domain.PaymentRepository
@@ -97,6 +98,9 @@ actual val platformModule: Module = module {
     single<NativePlayBillingClient> { AndroidPlayBillingClient(context = androidContext(), activityHolder = get()) }
     single<PlayPurchaseVerifier> { CloudFunctionsPlayPurchaseVerifier(functions = get()) }
     single { PlayBillingPaymentRepository(client = get(), verifier = get(), authRepository = get()) }
+    single {
+        PlayPurchaseSweeper(repository = get(), client = get(), countryProvider = get(), authRepository = get())
+    }
     single<PaymentRepository> {
         RoutingPaymentRepository(
             paystack = CloudFunctionsPaymentRepository(functions = get()),

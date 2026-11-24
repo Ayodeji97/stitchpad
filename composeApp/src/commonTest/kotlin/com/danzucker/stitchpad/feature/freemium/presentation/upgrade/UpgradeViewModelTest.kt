@@ -13,8 +13,10 @@ import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.freemium.domain.BillingCadence
 import com.danzucker.stitchpad.feature.freemium.domain.CheckoutOutcome
+import com.danzucker.stitchpad.feature.freemium.domain.CheckoutProvider
 import com.danzucker.stitchpad.feature.freemium.domain.PaymentError
 import com.danzucker.stitchpad.feature.freemium.domain.PaymentRepository
+import com.danzucker.stitchpad.feature.freemium.domain.StoreProductIds
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -307,7 +309,8 @@ class UpgradeViewModelTest {
         assertEquals("NGN 2,000", state.paystackPrices.getValue(SubscriptionTier.PRO).monthly)
         assertEquals("NGN 40,000", state.paystackPrices.getValue(SubscriptionTier.ATELIER).annual)
         assertEquals("NGN 8,000", state.paystackPrices.getValue(SubscriptionTier.ATELIER).annualSaving)
-        assertTrue(state.showBillingCurrencyNote)
+        // Ghana on Android buys through Google Play, so the Naira note never applies.
+        assertFalse(state.showBillingCurrencyNote)
     }
 
     @Test
@@ -321,13 +324,92 @@ class UpgradeViewModelTest {
         runCurrent()
 
         assertEquals("NGN 2,000", vm.state.value.paystackPrices.getValue(SubscriptionTier.PRO).monthly)
-        assertTrue(vm.state.value.showBillingCurrencyNote)
+        assertEquals(CheckoutProvider.PLAY, vm.state.value.checkoutProvider)
+        assertFalse(vm.state.value.showBillingCurrencyNote)
+    }
+
+    @Test
+    fun provider_waitsForLoadedCountry() = runTest {
+        val vm = newVm(countryProvider = FakeCurrentCountryProvider(Country.GH, loaded = false))
+        runCurrent()
+
+        assertNull(vm.state.value.checkoutProvider)
+        assertFalse(vm.state.value.canCheckout)
+        vm.onAction(UpgradeAction.StartCheckout)
+        runCurrent()
+        assertNull(payments.lastTier)
+        assertFalse(vm.state.value.isStartingCheckout)
+    }
+
+    @Test
+    fun provider_ghAndroid_isPlay() = runTest {
+        val vm = newVm(country = Country.GH)
+        runCurrent()
+        assertEquals(CheckoutProvider.PLAY, vm.state.value.checkoutProvider)
+    }
+
+    @Test
+    fun provider_ngAndroid_isPaystack() = runTest {
+        val vm = newVm(country = Country.NG)
+        runCurrent()
+        assertEquals(CheckoutProvider.PAYSTACK, vm.state.value.checkoutProvider)
+    }
+
+    @Test
+    fun play_canCheckout_followsPlayBillingEnabled() = runTest {
+        // Paystack's flag on, Play's off: the Play CTA stays "Coming soon".
+        val off = newVm(country = Country.GH, billingEnabled = true, playBillingEnabled = false)
+        runCurrent()
+        assertFalse(off.state.value.canCheckout)
+        off.onAction(UpgradeAction.StartCheckout)
+        runCurrent()
+        assertNull(payments.lastTier)
+
+        // Play's flag on, Paystack's off: Play checkout is live.
+        val on = newVm(country = Country.GH, billingEnabled = false, playBillingEnabled = true)
+        runCurrent()
+        assertTrue(on.state.value.canCheckout)
+        on.onAction(UpgradeAction.StartCheckout)
+        runCurrent()
+        assertEquals(SubscriptionTier.PRO, payments.lastTier)
+    }
+
+    @Test
+    fun play_hidesBillingCurrencyNote() = runTest {
+        val vm = newVm(country = Country.CI, playBillingEnabled = true)
+        runCurrent()
+        assertEquals(CheckoutProvider.PLAY, vm.state.value.checkoutProvider)
+        assertFalse(vm.state.value.showBillingCurrencyNote)
+    }
+
+    @Test
+    fun play_loadsStorePrices() = runTest {
+        payments.catalog = Result.Success(mapOf(StoreProductIds.PRO_MONTHLY to "GH₵ 15.00"))
+        val countries = FakeCurrentCountryProvider(Country.GH, loaded = false)
+        val vm = newVm(countryProvider = countries)
+        runCurrent()
+        assertTrue(vm.state.value.storeDisplayPrices.isEmpty())
+        assertEquals(0, payments.catalogCalls)
+
+        countries.load(Country.GH)
+        runCurrent()
+
+        assertEquals(mapOf(StoreProductIds.PRO_MONTHLY to "GH₵ 15.00"), vm.state.value.storeDisplayPrices)
+        assertEquals(1, payments.catalogCalls)
+    }
+
+    @Test
+    fun paystack_doesNotLoadStorePrices() = runTest {
+        newVm(country = Country.NG)
+        runCurrent()
+        assertEquals(0, payments.catalogCalls)
     }
 
     // billingEnabled defaults true so the existing Paystack-checkout tests exercise
     // the live path; the gate tests pass false explicitly.
     private fun newVm(
         billingEnabled: Boolean = true,
+        playBillingEnabled: Boolean = false,
         country: Country = Country.DEFAULT,
         countryProvider: FakeCurrentCountryProvider = FakeCurrentCountryProvider(country),
     ): UpgradeViewModel = UpgradeViewModel(
@@ -340,6 +422,7 @@ class UpgradeViewModelTest {
                 communityEnabled = false,
                 communityInviteUrl = null,
                 billingEnabled = billingEnabled,
+                playBillingEnabled = playBillingEnabled,
             ),
         ),
         currentCountryProvider = countryProvider,
@@ -368,7 +451,12 @@ class UpgradeViewModelTest {
             return deferred?.await() ?: result
         }
 
-        override suspend fun productCatalog(): Result<Map<String, String>, PaymentError> = catalog
+        var catalogCalls = 0
+
+        override suspend fun productCatalog(): Result<Map<String, String>, PaymentError> {
+            catalogCalls++
+            return catalog
+        }
 
         override suspend fun restorePurchases(): Result<CheckoutOutcome, PaymentError> = restoreResult
     }

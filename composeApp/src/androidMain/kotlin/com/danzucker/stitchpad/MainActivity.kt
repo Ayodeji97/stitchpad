@@ -6,18 +6,22 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.lifecycleScope
 import com.danzucker.stitchpad.feature.auth.data.CurrentActivityHolder
+import com.danzucker.stitchpad.feature.freemium.data.PlayPurchaseSweeper
 import com.danzucker.stitchpad.feature.notification.push.PUSH_ORDER_ID_EXTRA
 import com.danzucker.stitchpad.feature.notification.push.PUSH_TARGET_EXTRA
 import com.danzucker.stitchpad.navigation.DeepLinkParser
 import com.danzucker.stitchpad.navigation.DeepLinkTarget
 import com.danzucker.stitchpad.navigation.PendingDeepLinkHolder
 import com.danzucker.stitchpad.navigation.PushTargetParser
+import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 
 class MainActivity : ComponentActivity() {
     private val currentActivityHolder: CurrentActivityHolder by inject()
     private val pendingDeepLink: PendingDeepLinkHolder by inject()
+    private val playPurchaseSweeper: PlayPurchaseSweeper by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -25,9 +29,19 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         currentActivityHolder.activity = this
         handlePushIntent(intent)
+        // Google Play purchases that complete while the app runs (pending cash or
+        // carrier payments clearing) are verified as they arrive.
+        playPurchaseSweeper.observePurchaseUpdates(lifecycleScope)
         setContent {
             App()
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // On every foreground: verify Play purchases that cleared while the app was
+        // closed. No-op unless signed in on a Play-billing workshop.
+        lifecycleScope.launch { playPurchaseSweeper.sweep() }
     }
 
     override fun onNewIntent(intent: Intent) {
