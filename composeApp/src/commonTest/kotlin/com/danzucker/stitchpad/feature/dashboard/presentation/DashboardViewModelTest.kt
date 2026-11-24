@@ -315,12 +315,22 @@ class DashboardViewModelTest {
 
     // --- Notebook import entry points ---
 
+    /** Entitlements whose welcome window implies the account was created [ageDays] before "now". */
+    private fun entitlementsForAccountAge(ageDays: Int?): FakeEntitlementsProvider {
+        val base = FakeEntitlementsProvider().current()
+        val endsAt = ageDays?.let {
+            val createdAt = millisAt(today, hour = 9) - it * 24L * 60L * 60L * 1000L
+            kotlinx.datetime.Instant.fromEpochMilliseconds(createdAt + 30L * 24L * 60L * 60L * 1000L)
+        }
+        return FakeEntitlementsProvider(base.copy(welcomeEndsAt = endsAt))
+    }
+
     @Test
     fun dashboard_brandNewOwner_firstTime_navigatesToCaptureOnce() = runTest {
         signIn()
         val prefs = FakeNotebookImportPreferencesStore(introShown = false)
 
-        val vm = createViewModel(notebookPrefs = prefs)
+        val vm = createViewModel(notebookPrefs = prefs, entitlements = entitlementsForAccountAge(1))
         vm.events.test {
             assertEquals(DashboardEvent.NavigateToNotebookCapture, awaitItem())
             expectNoEvents()
@@ -328,8 +338,29 @@ class DashboardViewModelTest {
         assertTrue(prefs.introShown())
 
         // A second load (new ViewModel, same persisted prefs) must not navigate again.
-        val second = createViewModel(notebookPrefs = prefs)
+        val second = createViewModel(notebookPrefs = prefs, entitlements = entitlementsForAccountAge(1))
         second.events.test { expectNoEvents() }
+    }
+
+    @Test
+    fun dashboard_oldAccount_brandNew_noHopFlagConsumed() = runTest {
+        signIn()
+        val prefs = FakeNotebookImportPreferencesStore(introShown = false)
+
+        val vm = createViewModel(notebookPrefs = prefs, entitlements = entitlementsForAccountAge(30))
+        vm.events.test { expectNoEvents() }
+        assertTrue(prefs.introShown())
+        assertTrue(vm.state.value.showNotebookCard)
+    }
+
+    @Test
+    fun dashboard_unknownAccountAge_noHopFlagConsumed() = runTest {
+        signIn()
+        val prefs = FakeNotebookImportPreferencesStore(introShown = false)
+
+        val vm = createViewModel(notebookPrefs = prefs, entitlements = entitlementsForAccountAge(null))
+        vm.events.test { expectNoEvents() }
+        assertTrue(prefs.introShown())
     }
 
     @Test

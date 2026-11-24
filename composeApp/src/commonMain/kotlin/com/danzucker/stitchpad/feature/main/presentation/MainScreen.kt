@@ -301,7 +301,11 @@ private fun MainNavGraph(
                 },
                 onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
                 onNavigateToCustomers = {
-                    navController.navigate(CustomerListRoute) { launchSingleTop = true }
+                    // Reuse an existing customer list in the back stack instead of stacking a second.
+                    navController.navigate(CustomerListRoute) {
+                        popUpTo(CustomerListRoute)
+                        launchSingleTop = true
+                    }
                 },
             )
         }
@@ -310,7 +314,11 @@ private fun MainNavGraph(
                 onNavigateBack = { navController.navigateUp() },
                 onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
                 onNavigateToCustomers = {
-                    navController.navigate(CustomerListRoute) { launchSingleTop = true }
+                    // Reuse an existing customer list in the back stack instead of stacking a second.
+                    navController.navigate(CustomerListRoute) {
+                        popUpTo(CustomerListRoute)
+                        launchSingleTop = true
+                    }
                 },
             )
         }

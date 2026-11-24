@@ -8,6 +8,7 @@ import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
 import com.danzucker.stitchpad.core.config.domain.CommunityJoinTracker
 import com.danzucker.stitchpad.core.config.domain.isUsableCommunityInviteUrl
 import com.danzucker.stitchpad.core.config.domain.repository.AppConfigRepository
+import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsCalculator
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
@@ -96,6 +97,9 @@ private const val COUNT_FETCH_TIMEOUT_MS = 3_000L
 // The notebook card is a nudge for tailors who have barely started; past this many
 // active customers they have clearly entered their book already.
 private const val NOTEBOOK_CARD_MAX_CUSTOMERS = 5
+
+// The one-time capture hop is for genuinely new accounts only.
+private const val NEW_ACCOUNT_DAYS = 3L
 
 @OptIn(ExperimentalTime::class, ExperimentalCoroutinesApi::class)
 @Suppress("TooManyFunctions", "LongParameterList", "LargeClass")
@@ -272,8 +276,23 @@ class DashboardViewModel(
         viewModelScope.launch {
             if (notebookPrefs.introShown()) return@launch
             notebookPrefs.setIntroShown()
-            if (uiState == DashboardUiState.BrandNew) emitEvent(DashboardEvent.NavigateToNotebookCapture)
+            if (uiState == DashboardUiState.BrandNew && isNewAccount()) {
+                emitEvent(DashboardEvent.NavigateToNotebookCapture)
+            }
         }
+    }
+
+    /**
+     * True when the account is under [NEW_ACCOUNT_DAYS] old. Age comes from the server-stamped
+     * welcome-bonus time on the user doc (set once at account creation) which the entitlements
+     * provider already holds: creation = welcomeEndsAt minus the welcome window. Unknown means
+     * not new, so older or legacy accounts never get hopped.
+     */
+    private suspend fun isNewAccount(): Boolean {
+        val endsAt = entitlements.awaitHydrated().welcomeEndsAt ?: return false
+        val createdAtMillis = endsAt.toEpochMilliseconds() - EntitlementsCalculator.WELCOME_WINDOW_DAYS * ONE_DAY_MILLIS
+        val ageMillis = nowMillis() - createdAtMillis
+        return ageMillis in 0..NEW_ACCOUNT_DAYS * ONE_DAY_MILLIS
     }
 
     private fun dismissCommunityBanner() {
