@@ -1252,7 +1252,7 @@
     <string name="settings_row_receipt_image">Style de l'image du reçu</string>
     <string name="settings_receipt_image_light">Clair</string>
     <string name="settings_receipt_image_dark">Sombre</string>
-    <string name="settings_row_daily_digest">Résumé quotidien par e-mail</string>
+    <string name="settings_row_daily_digest">Résumé hebdomadaire par e-mail</string>
     <string name="settings_row_daily_push">Rappel quotidien</string>
     <string name="settings_row_announcements">Conseils et annonces</string>
     <string name="settings_theme_system">Par défaut du système</string>

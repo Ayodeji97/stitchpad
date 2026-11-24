@@ -17,6 +17,7 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.legal.LegalUrls
 import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
+import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
 import com.danzucker.stitchpad.core.domain.preferences.ReceiptImagePreferencesStore
 import com.danzucker.stitchpad.core.domain.preferences.ReceiptImageStyle
@@ -376,6 +377,7 @@ class SettingsViewModel(
             themePreference = ui.themePreference,
             receiptImageStyle = ui.receiptImageStyle,
             dailyDigestEmailEnabled = firestoreUser?.dailyDigestEmailEnabled ?: true,
+            showDigestEmailToggle = showsDigestEmailToggle(entitlements),
             dailyPushEnabled = firestoreUser?.dailyPushEnabled ?: true,
             announcementsPushEnabled = firestoreUser?.announcementsPushEnabled ?: true,
             pushReminderSupported = true,
@@ -616,3 +618,7 @@ internal fun computeAiDisplay(
         AiDisplay(limit = smartCoinAllowance, used = used.coerceIn(0, smartCoinAllowance))
     }
 }
+
+/** Mirrors the server's paid-only digest email rule; see [SettingsState.showDigestEmailToggle]. */
+internal fun showsDigestEmailToggle(entitlements: UserEntitlements): Boolean =
+    entitlements.tier != SubscriptionTier.FREE && entitlements.subscriptionEndsAt != null

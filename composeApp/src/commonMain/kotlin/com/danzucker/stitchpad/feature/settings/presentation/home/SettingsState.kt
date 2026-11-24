@@ -52,6 +52,12 @@ data class SettingsState(
     val themePreference: ThemePreference = ThemePreference.SYSTEM,
     val receiptImageStyle: ReceiptImageStyle = ReceiptImageStyle.LIGHT,
     val dailyDigestEmailEnabled: Boolean = true,
+    /**
+     * The digest email is weekly and paid-only since 2026-11-24 (server: dailyDigest).
+     * True only on a bought plan with an end date; a launch grant has none. Free and
+     * launch-grant owners get no digest email, so they don't see a dead switch.
+     */
+    val showDigestEmailToggle: Boolean = false,
     val dailyPushEnabled: Boolean = true,
     val announcementsPushEnabled: Boolean = true,
     val pushReminderSupported: Boolean = true,

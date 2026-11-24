@@ -59,7 +59,7 @@ describe('buildDigestEmail', () => {
       overdue: [{ orderId: 'o1', customerName: 'Bola', garmentSummary: 'Agbada', deadline: 0 }],
     }), 'Ada', OPTS);
     for (const body of [html, text]) {
-      expect(body).toContain('Settings → Preferences → Daily summary email');
+      expect(body).toContain('Settings → Preferences → Weekly email summary');
       expect(body).not.toContain('Settings → Notifications'); // the toggle is NOT in a Notifications section
     }
   });
