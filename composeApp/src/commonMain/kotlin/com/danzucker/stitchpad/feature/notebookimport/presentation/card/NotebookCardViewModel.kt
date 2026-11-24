@@ -20,13 +20,13 @@ import com.danzucker.stitchpad.feature.customer.presentation.toCustomerUiText
 import com.danzucker.stitchpad.feature.freemium.presentation.upgradeCtaPrice
 import com.danzucker.stitchpad.feature.notebookimport.domain.CardStatus
 import com.danzucker.stitchpad.feature.notebookimport.domain.CardValue
-import com.danzucker.stitchpad.feature.notebookimport.domain.DuplicateMatcher
 import com.danzucker.stitchpad.feature.notebookimport.domain.ImportJob
 import com.danzucker.stitchpad.feature.notebookimport.domain.NotebookImportRepository
 import com.danzucker.stitchpad.feature.notebookimport.domain.NotebookImportSaver
 import com.danzucker.stitchpad.feature.notebookimport.domain.ReviewCard
 import com.danzucker.stitchpad.feature.notebookimport.domain.SaveOutcome
-import com.danzucker.stitchpad.feature.notebookimport.domain.checkBlocker
+import com.danzucker.stitchpad.feature.notebookimport.domain.resolveMatch
+import com.danzucker.stitchpad.feature.notebookimport.presentation.CapSheet
 import com.danzucker.stitchpad.feature.notebookimport.presentation.review.pageNumbers
 import com.danzucker.stitchpad.util.Platform
 import kotlinx.coroutines.channels.Channel
@@ -73,7 +73,9 @@ class NotebookCardViewModel(
 
     /** The card as last loaded or written; the draft is compared against it on leave. */
     private var persisted: ReviewCard? = null
-    private var customers: List<Customer> = emptyList()
+
+    /** Null until the customer list has loaded. */
+    private var customers: List<Customer>? = null
     private var imageRequested = false
 
     private val _state = MutableStateFlow(NotebookCardState())
@@ -127,6 +129,7 @@ class NotebookCardViewModel(
             NotebookCardAction.OnSkipClick -> skip()
             NotebookCardAction.OnNavigateBack -> leave()
             NotebookCardAction.OnMessageShown -> _state.update { it.copy(message = null) }
+            NotebookCardAction.OnCapSheetDismiss -> _state.update { it.copy(capSheet = null) }
         }
     }
 
@@ -220,18 +223,22 @@ class NotebookCardViewModel(
         }
     }
 
-    /** The existing customer to offer: the confirmed one, else the matcher's suggestion for the draft. */
+    /**
+     * The existing customer to offer: the confirmed one, else the matcher's suggestion for the draft.
+     * A confirmed match whose customer no longer exists is cleared from the draft (written on the next
+     * save or leave), so the card is never saved under a missing id.
+     */
     private fun refreshMatch() {
+        val loaded = customers ?: return
         _state.update { s ->
             val draft = s.draft ?: return@update s
-            val confirmedId = draft.matchedCustomerId
-            val candidate = if (confirmedId != null) {
-                ExistingCustomer(confirmedId, customers.find { it.id == confirmedId }?.name ?: draft.name)
-            } else {
-                DuplicateMatcher.findExisting(draft, customers, countryProvider.currentCountry())
-                    ?.let { ExistingCustomer(it.id, it.name) }
-            }
-            s.copy(matchCandidate = candidate)
+            if (draft.status == CardStatus.SAVED) return@update s.copy(customersLoaded = true)
+            val resolution = resolveMatch(draft, loaded, countryProvider.currentCountry())
+            s.copy(
+                draft = resolution.card,
+                matchCandidate = resolution.customer?.let { ExistingCustomer(it.id, it.name) },
+                customersLoaded = true,
+            )
         }
     }
 
@@ -264,18 +271,25 @@ class NotebookCardViewModel(
 
     private fun toggleMatch(addToExisting: Boolean) {
         val candidate = _state.value.matchCandidate ?: return
-        edit { it.copy(matchedCustomerId = if (addToExisting) candidate.id else null) }
+        edit {
+            if (addToExisting) {
+                it.copy(matchedCustomerId = candidate.id, keepAsNew = false)
+            } else {
+                it.copy(matchedCustomerId = null, keepAsNew = true)
+            }
+        }
     }
 
     /** Null when the draft can be checked, else why not. */
-    private fun blockReason(card: ReviewCard): UiText? =
-        card.checkBlocker()?.let { UiText.StringResourceText(it.hintResource()) }
+    private fun blockReason(): UiText? =
+        _state.value.checkBlocker?.let { UiText.StringResourceText(it.hintResource()) }
 
     /** The draft as a checked card, or null (with the reason shown) when it cannot be checked yet. */
     @Suppress("ReturnCount")
     private fun checkedDraft(): ReviewCard? {
         val draft = _state.value.draft ?: return null
-        val reason = blockReason(draft)
+        if (!_state.value.customersLoaded) return null
+        val reason = blockReason()
         if (reason != null) {
             _state.update { it.copy(message = reason) }
             return null
@@ -320,7 +334,7 @@ class NotebookCardViewModel(
             is SaveOutcome.Done -> _events.send(NotebookCardEvent.NavigateBack)
             is SaveOutcome.StoppedAtCap -> {
                 val cap = entitlements.current().customerCap
-                _events.send(NotebookCardEvent.ShowCapReachedSheet(activeCount = cap, customerCap = cap))
+                _state.update { it.copy(capSheet = CapSheet(activeCount = cap, customerCap = cap)) }
             }
             is SaveOutcome.Failed -> {
                 AppLogger.w(TAG) { "save now failed: ${outcome.error}" }

@@ -1,4 +1,9 @@
+@file:Suppress("MatchingDeclarationName")
+
 package com.danzucker.stitchpad.feature.notebookimport.domain
+
+/** Localized labels for details of the other card that are kept as notes when they clash. */
+data class MergeNoteLabels(val date: String, val phone: String)
 
 /**
  * Combines two cards the tailor said are the same person into [keep]. Nothing from [other] is silently
@@ -7,28 +12,55 @@ package com.danzucker.stitchpad.feature.notebookimport.domain
  * must be looked at again:
  * - the same field with a different reading: both values are kept and flagged;
  * - a different unit: [other]'s values are kept and flagged;
- * - a different written date: [keep]'s date stays, [other]'s is kept as a flagged note labelled [dateNoteLabel];
- * - a different gender: gender is cleared, so the tailor must choose again.
- * Missing phone, gender, unit, date or confirmed match are taken from [other].
+ * - a different written date or phone: [keep]'s stays, [other]'s is kept as a flagged note;
+ * - a different gender: gender is cleared, so the tailor must choose again;
+ * - different existing-customer decisions: both are cleared, so the tailor must choose again.
+ * Missing phone, gender, unit, date or match decision are taken from [other].
  */
-fun mergeCards(keep: ReviewCard, other: ReviewCard, dateNoteLabel: String): ReviewCard {
+fun mergeCards(keep: ReviewCard, other: ReviewCard, labels: MergeNoteLabels): ReviewCard {
     val unitConflict = conflicts(keep.unit, other.unit)
     val merged = mergeValues(keep.values, other.values, unitConflict)
-    val values = merged.values.toMutableList()
-    val dateConflict = conflicts(keep.dateWritten, other.dateWritten)
-    if (dateConflict) values += CardValue(dateNoteLabel, other.dateWritten.toString(), fieldKey = null, flagged = true)
+    val notes = clashNotes(keep, other, labels)
     val genderConflict = conflicts(keep.gender, other.gender)
-    val conflict = unitConflict || merged.conflict || dateConflict || genderConflict
+    val decision = mergedDecision(keep, other)
+    val conflict = unitConflict || merged.conflict || notes.isNotEmpty() || genderConflict || decision.clash
     return keep.copy(
         phone = mergedPhone(keep.phone, other.phone),
         gender = if (genderConflict) null else keep.gender ?: other.gender,
         unit = keep.unit ?: other.unit,
         dateWritten = keep.dateWritten ?: other.dateWritten,
-        values = values,
+        values = merged.values + notes,
         needsReview = keep.needsReview || other.needsReview || conflict,
         status = mergedStatus(keep.status, other.status, conflict),
-        matchedCustomerId = keep.matchedCustomerId ?: other.matchedCustomerId,
+        matchedCustomerId = decision.matchedCustomerId,
+        keepAsNew = decision.keepAsNew,
     )
+}
+
+/** [other]'s written date and phone, as flagged notes, when they differ from [keep]'s. */
+private fun clashNotes(keep: ReviewCard, other: ReviewCard, labels: MergeNoteLabels): List<CardValue> = buildList {
+    if (conflicts(keep.dateWritten, other.dateWritten)) {
+        add(CardValue(labels.date, other.dateWritten.toString(), fieldKey = null, flagged = true))
+    }
+    val keepDigits = keep.phone.orEmpty().filter { it.isDigit() }
+    val otherDigits = other.phone.orEmpty().filter { it.isDigit() }
+    if (keepDigits.isNotEmpty() && otherDigits.isNotEmpty() && keepDigits != otherDigits) {
+        add(CardValue(labels.phone, other.phone.orEmpty().trim(), fieldKey = null, flagged = true))
+    }
+}
+
+private class MatchDecision(val matchedCustomerId: String?, val keepAsNew: Boolean, val clash: Boolean)
+
+/** One decision when the cards agree or only one decided; none (ask again) when they disagree. */
+private fun mergedDecision(keep: ReviewCard, other: ReviewCard): MatchDecision {
+    val matches = listOfNotNull(keep.matchedCustomerId, other.matchedCustomerId).distinct()
+    val keptNew = keep.keepAsNew || other.keepAsNew
+    val clash = matches.size > 1 || (matches.isNotEmpty() && keptNew)
+    return when {
+        clash -> MatchDecision(null, keepAsNew = false, clash = true)
+        matches.isNotEmpty() -> MatchDecision(matches.single(), keepAsNew = false, clash = false)
+        else -> MatchDecision(null, keepAsNew = keptNew, clash = false)
+    }
 }
 
 private fun mergedPhone(keep: String?, other: String?): String? = keep?.takeIf { it.isNotBlank() } ?: other

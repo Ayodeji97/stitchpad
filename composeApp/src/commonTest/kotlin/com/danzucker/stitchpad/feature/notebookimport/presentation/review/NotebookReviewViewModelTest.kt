@@ -38,6 +38,11 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import com.danzucker.stitchpad.core.domain.error.DataError
+import com.danzucker.stitchpad.core.presentation.UiText
+import com.danzucker.stitchpad.feature.notebookimport.domain.MergeNoteLabels
+import stitchpad.composeapp.generated.resources.Res
+import stitchpad.composeapp.generated.resources.notebook_review_saved_before_cap
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -101,6 +106,8 @@ class NotebookReviewViewModelTest {
         return vm
     }
 
+    private val labels = MergeNoteLabels(date = "Date", phone = "Phone")
+
     private fun flagged(label: String, value: String, key: String?) = CardValue(label, value, key, true)
 
     @Test
@@ -139,11 +146,11 @@ class NotebookReviewViewModelTest {
             reviewCard("c1", needsReview = true, values = listOf(flagged("Waist", "3?", "waist"))),
             reviewCard("c2", status = CardStatus.CHECKED),
             reviewCard("c3", status = CardStatus.SKIPPED),
-            // Same name as an existing customer, never confirmed: must become a NEW customer.
-            reviewCard("c4", name = "Emeka Okafor", status = CardStatus.CHECKED),
+            // Same name as an existing customer, tailor chose "Save as a new customer".
+            reviewCard("c4", name = "Emeka Okafor", status = CardStatus.CHECKED, keepAsNew = true),
         )
         val vm = createViewModel()
-        assertNotNull(vm.state.value.ready.single { it.cardId == "c4" }.match)
+        assertNull(vm.state.value.ready.single { it.cardId == "c4" }.match)
 
         vm.onAction(NotebookReviewAction.OnSaveAllClick)
 
@@ -171,12 +178,15 @@ class NotebookReviewViewModelTest {
         )
         val vm = createViewModel()
 
-        vm.events.test {
-            vm.onAction(NotebookReviewAction.OnSaveAllClick)
-            val event = awaitItem()
-            assertIs<NotebookReviewEvent.ShowCapReachedSheet>(event)
-            assertEquals(15, event.customerCap)
-        }
+        vm.onAction(NotebookReviewAction.OnSaveAllClick)
+
+        val sheet = assertNotNull(vm.state.value.capSheet)
+        assertEquals(15, sheet.customerCap)
+        val message = assertIs<UiText.StringResourceText>(vm.state.value.message)
+        assertEquals(Res.string.notebook_review_saved_before_cap, message.id)
+        assertEquals(0, message.args.single())
+        vm.onAction(NotebookReviewAction.OnCapSheetDismiss)
+        assertNull(vm.state.value.capSheet)
         // Nothing was saved and both cards stay checked for after the upgrade.
         assertTrue(repository.cards.value.all { it.status == CardStatus.CHECKED })
         assertEquals(listOf("c1", "c2"), vm.state.value.ready.map { it.cardId })
@@ -202,11 +212,14 @@ class NotebookReviewViewModelTest {
             ),
         )
         val vm = createViewModel()
-        val prompt = assertNotNull(vm.state.value.ready.first { it.cardId == "c1" }.duplicate)
+        // A pending same-person prompt keeps both cards out of Ready (and out of Save all).
+        assertEquals(listOf("c1", "c2"), vm.state.value.needLook.map { it.cardId })
+        assertTrue(vm.state.value.ready.isEmpty())
+        val prompt = assertNotNull(vm.state.value.needLook.first { it.cardId == "c1" }.duplicate)
         assertEquals(listOf("c1", "c2"), prompt.cardIds)
         assertEquals(listOf(1, 2), prompt.pageNumbers)
 
-        vm.onAction(NotebookReviewAction.OnMergeClick(prompt.cardIds, dateNoteLabel = "Date"))
+        vm.onAction(NotebookReviewAction.OnMergeClick(prompt.cardIds, labels))
 
         val merged = assertNotNull(repository.lastUpdate("c1"))
         assertEquals(
@@ -234,10 +247,72 @@ class NotebookReviewViewModelTest {
         )
         val vm = createViewModel()
 
+        assertTrue(vm.state.value.ready.isEmpty())
+
         vm.onAction(NotebookReviewAction.OnKeepSeparateClick(listOf("c1", "c2")))
 
+        assertEquals(listOf("c1", "c2"), vm.state.value.ready.map { it.cardId })
         assertTrue(vm.state.value.ready.all { it.duplicate == null })
         assertTrue(repository.deleted.isEmpty())
+    }
+
+    @Test
+    fun list_merge_whenDeleteFails_skipsTheOtherCard() = runTest {
+        repository.deleteError = DataError.Network.NO_INTERNET
+        repository.pages.value = listOf(donePage("p1"))
+        repository.cards.value = listOf(
+            reviewCard("c1", name = "Kemi Adebayo"),
+            reviewCard("c2", name = "Kemi Adebayo", values = listOf(CardValue("Hip", "44", "hip", false))),
+        )
+        val vm = createViewModel()
+
+        vm.onAction(NotebookReviewAction.OnMergeClick(listOf("c1", "c2"), labels))
+
+        assertEquals(2, repository.lastUpdate("c1")?.values?.size)
+        // The other card can never be saved a second time.
+        assertEquals(CardStatus.SKIPPED, repository.lastUpdate("c2")?.status)
+        assertEquals(listOf("c1"), (vm.state.value.needLook + vm.state.value.ready).map { it.cardId })
+    }
+
+    @Test
+    fun list_saveAll_neverSavesUnresolvedSuggestion() = runTest {
+        customers.customers.value = listOf(customer("cust-1", "Emeka Okafor"))
+        repository.pages.value = listOf(donePage("p1"))
+        repository.cards.value = listOf(
+            reviewCard("c1", name = "Emeka Okafor", status = CardStatus.CHECKED),
+            reviewCard("c2", status = CardStatus.CHECKED),
+        )
+        val vm = createViewModel()
+        assertEquals(listOf("c1"), vm.state.value.needLook.map { it.cardId })
+
+        vm.onAction(NotebookReviewAction.OnSaveAllClick)
+
+        assertEquals(listOf(importCustomerId(REVIEW_JOB, "c2")), customers.created.map { it.id })
+        assertEquals(importCustomerId(REVIEW_JOB, "c2"), measurements.lastCreatedMeasurement?.customerId)
+        assertEquals(CardStatus.CHECKED, repository.cards.value.first { it.id == "c1" }.status)
+    }
+
+    @Test
+    fun list_staleConfirmedMatch_isNeverSavedUnderTheMissingId() = runTest {
+        customers.customers.value = listOf(customer("cust-1", "Emeka Okafor"))
+        repository.pages.value = listOf(donePage("p1"))
+        repository.cards.value = listOf(
+            // Confirmed earlier, but that customer was deleted since; no other match for this name.
+            reviewCard("c1", name = "Bisi Ade", status = CardStatus.CHECKED, matched = "gone"),
+            // Confirmed to a deleted customer, and the name now matches someone else: ask again.
+            reviewCard("c2", name = "Emeka Okafor", status = CardStatus.CHECKED, matched = "gone"),
+        )
+        val vm = createViewModel()
+        assertEquals(listOf("c2"), vm.state.value.needLook.map { it.cardId })
+        val again = assertNotNull(vm.state.value.needLook.single().match)
+        assertEquals("cust-1", again.customerId)
+        assertFalse(again.confirmed)
+        assertNull(vm.state.value.ready.single().match)
+
+        vm.onAction(NotebookReviewAction.OnSaveAllClick)
+
+        assertEquals(listOf(importCustomerId(REVIEW_JOB, "c1")), customers.created.map { it.id })
+        assertEquals(importCustomerId(REVIEW_JOB, "c1"), measurements.lastCreatedMeasurement?.customerId)
     }
 
     @Test
@@ -247,17 +322,21 @@ class NotebookReviewViewModelTest {
         repository.cards.value = listOf(reviewCard("c1", name = "Emeka Okafor"))
         val vm = createViewModel()
 
-        val match = assertNotNull(vm.state.value.ready.single().match)
+        // Unresolved suggestion: needs a look, nothing written.
+        assertTrue(vm.state.value.ready.isEmpty())
+        val match = assertNotNull(vm.state.value.needLook.single().match)
         assertEquals("Emeka Okafor", match.customerName)
         assertFalse(match.confirmed)
         assertTrue(repository.updated.isEmpty())
 
         vm.onAction(NotebookReviewAction.OnConfirmMatch("c1"))
         assertEquals("cust-1", repository.lastUpdate("c1")?.matchedCustomerId)
+        assertEquals(false, repository.lastUpdate("c1")?.keepAsNew)
         assertTrue(vm.state.value.ready.single().match!!.confirmed)
 
         vm.onAction(NotebookReviewAction.OnRejectMatch("c1"))
         assertNull(repository.lastUpdate("c1")?.matchedCustomerId)
+        assertEquals(true, repository.lastUpdate("c1")?.keepAsNew)
         assertNull(vm.state.value.ready.single().match)
     }
 

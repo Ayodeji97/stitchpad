@@ -45,6 +45,7 @@ data class NotebookCardDto(
     val status: String = "new",
     val matchedCustomerId: String? = null,
     val savedCustomerId: String? = null,
+    val keepAsNew: Boolean = false,
 )
 
 @Serializable
@@ -94,6 +95,7 @@ fun NotebookCardDto.toReviewCard(cardId: String, jobId: String): ReviewCard = Re
     },
     matchedCustomerId = matchedCustomerId,
     savedCustomerId = savedCustomerId,
+    keepAsNew = keepAsNew,
 )
 
 /** Wire form of [CardStatus]. Never produces 'uploading' style values; only the four the rules accept. */
@@ -128,6 +130,7 @@ fun ReviewCard.toUpdateFields(): Map<String, Any?> = mapOf(
     "status" to status.toWire(),
     "matchedCustomerId" to matchedCustomerId,
     "savedCustomerId" to savedCustomerId,
+    "keepAsNew" to keepAsNew,
 )
 
 fun NotebookPageDto.toImportPage(pageId: String): ImportPage = ImportPage(

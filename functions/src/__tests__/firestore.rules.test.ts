@@ -1706,6 +1706,14 @@ describe('notebookImports (scan import)', () => {
     await assertFails(setDoc(doc(db('alice'), `${JOB}/cards/p2_0`), { name: 'X', status: 'new' }));
     await assertSucceeds(deleteDoc(doc(db('alice'), CARD)));
   });
+  it('owner can set keepAsNew on a card; other unlisted keys are still denied', async () => {
+    await seed();
+    await assertSucceeds(updateDoc(doc(db('alice'), CARD), { keepAsNew: true, matchedCustomerId: null, updatedAt: serverTimestamp() }));
+    await assertSucceeds(updateDoc(doc(db('alice'), CARD), { keepAsNew: false, matchedCustomerId: 'c1' }));
+    await assertFails(updateDoc(doc(db('alice'), CARD), { keepAsNew: true, needsReview: false }));
+    await assertFails(updateDoc(doc(db('alice'), CARD), { box: { x: 0, y: 0, w: 1, h: 1 } }));
+    await assertFails(updateDoc(doc(db('mallory'), CARD), { keepAsNew: true }));
+  });
   it('a stranger cannot read another user job', async () => {
     await seed();
     await assertFails(getDoc(doc(db('mallory'), JOB)));

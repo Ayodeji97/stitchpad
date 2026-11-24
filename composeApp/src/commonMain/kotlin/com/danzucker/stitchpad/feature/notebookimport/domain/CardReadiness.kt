@@ -7,7 +7,7 @@ package com.danzucker.stitchpad.feature.notebookimport.domain
 fun ReviewCard.isReadyToCheck(): Boolean = checkBlocker() == null
 
 /** What still stops a card from being checked, in the order the tailor should fix it. */
-enum class CheckBlocker { GENDER, NAME, VALUES }
+enum class CheckBlocker { GENDER, NAME, VALUES, MATCH }
 
 fun ReviewCard.checkBlocker(): CheckBlocker? = when {
     gender == null -> CheckBlocker.GENDER

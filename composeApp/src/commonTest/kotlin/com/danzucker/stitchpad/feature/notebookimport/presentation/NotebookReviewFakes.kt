@@ -40,6 +40,7 @@ internal class FakeReviewRepository : NotebookImportRepository {
     val updated = mutableListOf<ReviewCard>()
     val deleted = mutableListOf<String>()
     val finished = mutableListOf<FinishCall>()
+    var deleteError: DataError.Network? = null
 
     override suspend fun createJob(ownerUid: String): Result<String, DataError.Network> = Result.Success(REVIEW_JOB)
 
@@ -68,6 +69,7 @@ internal class FakeReviewRepository : NotebookImportRepository {
     }
 
     override suspend fun deleteCard(ownerUid: String, jobId: String, cardId: String): EmptyResult<DataError.Network> {
+        deleteError?.let { return Result.Error(it) }
         deleted += cardId
         cards.value = cards.value.filterNot { it.id == cardId }
         return Result.Success(Unit)
@@ -155,6 +157,7 @@ internal fun reviewCard(
     phone: String? = null,
     matched: String? = null,
     box: PageBox? = null,
+    keepAsNew: Boolean = false,
 ) = ReviewCard(
     id = id,
     jobId = REVIEW_JOB,
@@ -170,6 +173,7 @@ internal fun reviewCard(
     status = status,
     matchedCustomerId = matched,
     savedCustomerId = null,
+    keepAsNew = keepAsNew,
 )
 
 internal fun donePage(id: String) = ImportPage(id, PageStatus.DONE, 1, null, null)

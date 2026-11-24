@@ -29,12 +29,12 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import com.danzucker.stitchpad.feature.notebookimport.domain.CheckBlocker
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -186,10 +186,10 @@ class NotebookCardViewModelTest {
         repository.cards.value = listOf(reviewCard("c1"))
         val vm = createViewModel()
 
-        vm.events.test {
-            vm.onAction(NotebookCardAction.OnSaveNowClick)
-            assertIs<NotebookCardEvent.ShowCapReachedSheet>(awaitItem())
-        }
+        vm.onAction(NotebookCardAction.OnSaveNowClick)
+        assertEquals(15, vm.state.value.capSheet?.customerCap)
+        vm.onAction(NotebookCardAction.OnCapSheetDismiss)
+        assertNull(vm.state.value.capSheet)
         assertEquals(CardStatus.CHECKED, repository.cards.value.single().status)
     }
 
@@ -213,24 +213,59 @@ class NotebookCardViewModelTest {
 
         val candidate = assertNotNull(vm.state.value.matchCandidate)
         assertEquals("Emeka Okafor", candidate.name)
-        assertFalse(vm.state.value.addToExisting)
+        // Unresolved: neither option selected, and it blocks "Looks right".
+        assertNull(vm.state.value.matchChoice)
+        assertEquals(CheckBlocker.MATCH, vm.state.value.checkBlocker)
+        assertFalse(vm.state.value.canMarkChecked)
+        vm.onAction(NotebookCardAction.OnLooksRightClick)
+        assertTrue(repository.updated.isEmpty())
 
         vm.onAction(NotebookCardAction.OnMatchToggle(addToExisting = true))
-        assertTrue(vm.state.value.addToExisting)
+        assertEquals(true, vm.state.value.matchChoice)
         vm.onAction(NotebookCardAction.OnLooksRightClick)
-        assertEquals("cust-1", repository.lastUpdate("c1")?.matchedCustomerId)
+        val written = assertNotNull(repository.lastUpdate("c1"))
+        assertEquals("cust-1", written.matchedCustomerId)
+        assertFalse(written.keepAsNew)
     }
 
     @Test
-    fun card_matchedToggle_offClearsMatchedCustomerId() = runTest {
+    fun card_matchedToggle_offKeepsAsNew() = runTest {
         customers.customers.value = listOf(customer("cust-1", "Emeka Okafor"))
         repository.cards.value = listOf(reviewCard("c1", name = "Emeka Okafor", matched = "cust-1"))
         val vm = createViewModel()
-        assertTrue(vm.state.value.addToExisting)
+        assertEquals(true, vm.state.value.matchChoice)
 
         vm.onAction(NotebookCardAction.OnMatchToggle(addToExisting = false))
+        assertEquals(false, vm.state.value.matchChoice)
+        assertTrue(vm.state.value.canMarkChecked)
+        vm.onAction(NotebookCardAction.OnLooksRightClick)
+        val written = assertNotNull(repository.lastUpdate("c1"))
+        assertNull(written.matchedCustomerId)
+        assertTrue(written.keepAsNew)
+    }
+
+    @Test
+    fun card_staleMatch_isClearedAndNeverShowsTheCardsOwnName() = runTest {
+        customers.customers.value = listOf(customer("cust-1", "Emeka Okafor"))
+        repository.cards.value = listOf(reviewCard("c1", name = "Bisi Ade", matched = "gone"))
+        val vm = createViewModel()
+
+        assertNull(vm.state.value.matchCandidate)
+        assertNull(vm.state.value.draft?.matchedCustomerId)
+        assertTrue(vm.state.value.canMarkChecked)
         vm.onAction(NotebookCardAction.OnLooksRightClick)
         assertNull(repository.lastUpdate("c1")?.matchedCustomerId)
+    }
+
+    @Test
+    fun card_staleMatch_offersTheRealSuggestionAgain() = runTest {
+        customers.customers.value = listOf(customer("cust-1", "Emeka Okafor"))
+        repository.cards.value = listOf(reviewCard("c1", name = "Emeka Okafor", matched = "gone"))
+        val vm = createViewModel()
+
+        assertEquals("cust-1", vm.state.value.matchCandidate?.id)
+        assertNull(vm.state.value.matchChoice)
+        assertFalse(vm.state.value.canMarkChecked)
     }
 
     @Test

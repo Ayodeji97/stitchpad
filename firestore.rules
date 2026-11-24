@@ -208,7 +208,7 @@ service cloud.firestore {
           allow update: if isOwner(uid)
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
                  ['name', 'phone', 'gender', 'unit', 'dateWritten', 'values',
-                  'status', 'matchedCustomerId', 'savedCustomerId', 'updatedAt'])
+                  'status', 'matchedCustomerId', 'savedCustomerId', 'keepAsNew', 'updatedAt'])
             && request.resource.data.status in ['new', 'checked', 'saved', 'skipped'];
         }
       }

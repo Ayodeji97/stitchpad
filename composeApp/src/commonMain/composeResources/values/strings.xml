@@ -2254,4 +2254,7 @@
     <string name="notebook_card_saved_message">Customer saved</string>
     <string name="notebook_card_not_found">This customer is no longer in the import</string>
     <string name="notebook_card_back_cd">Back</string>
+    <string name="notebook_card_match_needed">Choose: add to the existing customer, or create a new one</string>
+    <string name="notebook_review_saved_before_cap">Customer limit reached. Customers saved before the limit: %1$d</string>
+    <string name="notebook_merge_phone_label">Phone</string>
 </resources>

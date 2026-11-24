@@ -31,4 +31,5 @@ sealed interface NotebookCardAction {
     data object OnSkipClick : NotebookCardAction
     data object OnNavigateBack : NotebookCardAction
     data object OnMessageShown : NotebookCardAction
+    data object OnCapSheetDismiss : NotebookCardAction
 }

@@ -18,6 +18,7 @@ import com.danzucker.stitchpad.feature.customer.presentation.toCustomerUiText
 import com.danzucker.stitchpad.feature.freemium.presentation.upgradeCtaPrice
 import com.danzucker.stitchpad.feature.notebookimport.domain.CardStatus
 import com.danzucker.stitchpad.feature.notebookimport.domain.ImportPage
+import com.danzucker.stitchpad.feature.notebookimport.domain.MergeNoteLabels
 import com.danzucker.stitchpad.feature.notebookimport.domain.NotebookImportRepository
 import com.danzucker.stitchpad.feature.notebookimport.domain.NotebookImportSaver
 import com.danzucker.stitchpad.feature.notebookimport.domain.NotebookPageUploader
@@ -27,6 +28,7 @@ import com.danzucker.stitchpad.feature.notebookimport.domain.SaveOutcome
 import com.danzucker.stitchpad.feature.notebookimport.domain.UploadPhase
 import com.danzucker.stitchpad.feature.notebookimport.domain.isDone
 import com.danzucker.stitchpad.feature.notebookimport.domain.mergeCards
+import com.danzucker.stitchpad.feature.notebookimport.presentation.CapSheet
 import com.danzucker.stitchpad.util.Platform
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -41,6 +43,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.error_no_internet
+import stitchpad.composeapp.generated.resources.notebook_review_saved_before_cap
 import stitchpad.composeapp.generated.resources.notebook_review_saved_count
 import stitchpad.composeapp.generated.resources.notebook_review_saved_some
 
@@ -50,7 +53,8 @@ private const val TAG = "NotebookReview"
 private data class ReviewInputs(
     val cards: List<ReviewCard>,
     val pages: List<ImportPage>,
-    val customers: List<Customer>,
+    /** Null until the customer list has loaded. */
+    val customers: List<Customer>?,
     val country: Country,
     val localUploading: Int,
 )
@@ -103,7 +107,7 @@ class NotebookReviewViewModel(
             is NotebookReviewAction.OnCardClick -> send(NotebookReviewEvent.NavigateToCard(jobId, action.cardId))
             is NotebookReviewAction.OnConfirmMatch -> confirmMatch(action.cardId)
             is NotebookReviewAction.OnRejectMatch -> rejectMatch(action.cardId)
-            is NotebookReviewAction.OnMergeClick -> merge(action.cardIds, action.dateNoteLabel)
+            is NotebookReviewAction.OnMergeClick -> merge(action.cardIds, action.labels)
             is NotebookReviewAction.OnKeepSeparateClick ->
                 dismissals.update { it.copy(groups = it.groups + setOf(action.cardIds.toSet())) }
             NotebookReviewAction.OnSaveAllClick -> saveAll()
@@ -112,6 +116,7 @@ class NotebookReviewViewModel(
             NotebookReviewAction.OnDiscardConfirm -> discard()
             NotebookReviewAction.OnNavigateBack -> send(NotebookReviewEvent.NavigateBack)
             NotebookReviewAction.OnMessageShown -> _state.update { it.copy(message = null) }
+            NotebookReviewAction.OnCapSheetDismiss -> _state.update { it.copy(capSheet = null) }
         }
     }
 
@@ -164,11 +169,17 @@ class NotebookReviewViewModel(
         }
     }
 
-    /** Customers only feed match suggestions, so the list never waits for them. */
-    private fun customersOf(uid: String): Flow<List<Customer>> = flow {
-        emit(emptyList())
+    /**
+     * Null until loaded, so the list shows without waiting; matches are judged (and saving allowed)
+     * only once the real list is in.
+     */
+    private fun customersOf(uid: String): Flow<List<Customer>?> = flow {
+        emit(null)
         customerRepository.observeCustomers(uid).collect { result ->
-            if (result is Result.Success) emit(result.data)
+            when (result) {
+                is Result.Success -> emit(result.data)
+                is Result.Error -> AppLogger.w(TAG) { "observeCustomers failed: ${result.error}" }
+            }
         }
     }
 
@@ -200,6 +211,7 @@ class NotebookReviewViewModel(
                 foundCount = input.cards.size,
                 needLookCount = sections.needLook.size,
                 pagesReading = reading,
+                customersLoaded = input.customers != null,
             )
         }
         if (input.cards.isNotEmpty() && input.cards.all { it.isDone } && reading == 0) finishWhenAllDone()
@@ -246,20 +258,21 @@ class NotebookReviewViewModel(
 
     private fun card(id: String): ReviewCard? = latestCards.find { it.id == id }
 
+    /** "Add to <existing>": the only place the list writes matchedCustomerId. */
     @Suppress("ReturnCount")
     private fun confirmMatch(cardId: String) {
         val uid = ownerUid ?: return
         val card = card(cardId)?.takeIf { !it.isDone } ?: return
         val suggestion = latestSections?.let { s -> (s.needLook + s.ready).find { it.cardId == cardId }?.match }
             ?: return
-        update(uid, card.copy(matchedCustomerId = suggestion.customerId))
+        update(uid, card.copy(matchedCustomerId = suggestion.customerId, keepAsNew = false))
     }
 
+    /** "Save as a new customer": a persisted answer, so the suggestion stays resolved. */
     private fun rejectMatch(cardId: String) {
         val uid = ownerUid ?: return
-        dismissals.update { it.copy(matches = it.matches + cardId) }
         val card = card(cardId)?.takeIf { !it.isDone } ?: return
-        if (card.matchedCustomerId != null) update(uid, card.copy(matchedCustomerId = null))
+        update(uid, card.copy(matchedCustomerId = null, keepAsNew = true))
     }
 
     private fun update(uid: String, card: ReviewCard) {
@@ -269,12 +282,16 @@ class NotebookReviewViewModel(
         }
     }
 
-    /** Keeps the first card of the group, folds the others into it, then deletes them. */
-    private fun merge(cardIds: List<String>, dateNoteLabel: String) {
+    /**
+     * Keeps the first card of the group, folds the others into it, then deletes them. A card that
+     * cannot be deleted is marked SKIPPED instead, so its values (now in the merged card) are never
+     * saved twice.
+     */
+    private fun merge(cardIds: List<String>, labels: MergeNoteLabels) {
         val uid = ownerUid ?: return
         val group = cardIds.mapNotNull { id -> card(id)?.takeIf { !it.isDone } }
         if (group.size < 2) return
-        val merged = group.drop(1).fold(group.first()) { acc, other -> mergeCards(acc, other, dateNoteLabel) }
+        val merged = group.drop(1).fold(group.first()) { acc, other -> mergeCards(acc, other, labels) }
         viewModelScope.launch {
             val written = repository.updateCard(uid, merged)
             if (written is Result.Error) {
@@ -283,7 +300,11 @@ class NotebookReviewViewModel(
             }
             for (other in group.drop(1)) {
                 val deleted = repository.deleteCard(uid, jobId, other.id)
-                if (deleted is Result.Error) showError(deleted.error)
+                if (deleted is Result.Error) {
+                    AppLogger.w(TAG) { "merge delete failed cardId=${other.id}: ${deleted.error}" }
+                    val skipped = repository.updateCard(uid, other.copy(status = CardStatus.SKIPPED))
+                    if (skipped is Result.Error) showError(skipped.error)
+                }
             }
         }
     }
@@ -291,7 +312,7 @@ class NotebookReviewViewModel(
     @Suppress("ReturnCount")
     private fun saveAll() {
         val uid = ownerUid ?: return
-        if (_state.value.isSaving) return
+        if (!_state.value.canSaveAll) return
         // Clean cards the server read without doubt count as checked once their values were shown here.
         val toSave = latestSections?.readyCards.orEmpty()
             .map { if (it.status == CardStatus.NEW) it.copy(status = CardStatus.CHECKED) else it }
@@ -325,7 +346,15 @@ class NotebookReviewViewModel(
             is SaveOutcome.StoppedAtCap -> {
                 AppLogger.i(TAG) { "save stopped at cap saved=${outcome.savedCount} remaining=${outcome.remaining}" }
                 val cap = entitlements.current().customerCap
-                _events.send(NotebookReviewEvent.ShowCapReachedSheet(activeCount = cap, customerCap = cap))
+                _state.update {
+                    it.copy(
+                        capSheet = CapSheet(activeCount = cap, customerCap = cap),
+                        message = UiText.StringResourceText(
+                            Res.string.notebook_review_saved_before_cap,
+                            arrayOf(outcome.savedCount),
+                        ),
+                    )
+                }
             }
             is SaveOutcome.Failed -> {
                 AppLogger.w(TAG) { "save failed saved=${outcome.savedCount}: ${outcome.error}" }

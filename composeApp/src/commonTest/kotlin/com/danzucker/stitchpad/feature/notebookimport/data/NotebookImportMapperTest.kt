@@ -40,12 +40,22 @@ class NotebookImportMapperTest {
         status = fields["status"] as String,
         matchedCustomerId = fields["matchedCustomerId"] as String?,
         savedCustomerId = fields["savedCustomerId"] as String?,
+        keepAsNew = fields["keepAsNew"] as Boolean,
     )
 
     @Test
     fun card_roundTrip() {
         val back = dtoFrom(full, full.toUpdateFields()).toReviewCard(full.id, full.jobId)
         assertEquals(full, back)
+    }
+
+    @Test
+    fun card_roundTrip_keepAsNew() {
+        val card = full.copy(matchedCustomerId = null, keepAsNew = true)
+        val fields = card.toUpdateFields()
+        assertEquals(true, fields["keepAsNew"])
+        assertEquals(card, dtoFrom(card, fields).toReviewCard(card.id, card.jobId))
+        assertFalse(NotebookCardDto().keepAsNew)
     }
 
     @Test
@@ -63,7 +73,7 @@ class NotebookImportMapperTest {
     fun updateFields_onlyRuleAllowListedKeys() {
         val allowed = setOf(
             "name", "phone", "gender", "unit", "dateWritten", "values",
-            "status", "matchedCustomerId", "savedCustomerId", "updatedAt",
+            "status", "matchedCustomerId", "savedCustomerId", "keepAsNew", "updatedAt",
         )
         assertTrue(allowed.containsAll(full.toUpdateFields().keys))
     }

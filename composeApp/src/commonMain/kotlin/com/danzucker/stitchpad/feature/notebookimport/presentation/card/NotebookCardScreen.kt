@@ -49,9 +49,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -157,13 +155,10 @@ fun NotebookCardRoot(
     val viewModel: NotebookCardViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    // Same transient pattern as CustomerFormScreen: the sheet only lives while it is on screen.
-    var capSheet by remember { mutableStateOf<NotebookCardEvent.ShowCapReachedSheet?>(null) }
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             NotebookCardEvent.NavigateBack -> onNavigateBack()
-            is NotebookCardEvent.ShowCapReachedSheet -> capSheet = event
         }
     }
 
@@ -177,20 +172,20 @@ fun NotebookCardRoot(
 
     NotebookCardScreen(state = state, onAction = viewModel::onAction, snackbarHostState = snackbarHostState)
 
-    capSheet?.let { pending ->
+    state.capSheet?.let { pending ->
         CustomerCapReachedSheet(
             activeCount = pending.activeCount,
             customerCap = pending.customerCap,
             proMonthlyPrice = state.upgradeCtaPrice,
             onUpgradeClick = {
-                capSheet = null
+                viewModel.onAction(NotebookCardAction.OnCapSheetDismiss)
                 onNavigateToUpgrade()
             },
             onSwapClick = {
-                capSheet = null
+                viewModel.onAction(NotebookCardAction.OnCapSheetDismiss)
                 onNavigateToCustomers()
             },
-            onDismiss = { capSheet = null },
+            onDismiss = { viewModel.onAction(NotebookCardAction.OnCapSheetDismiss) },
         )
     }
 }
@@ -322,7 +317,11 @@ private fun CardForm(state: NotebookCardState, onAction: (NotebookCardAction) ->
                     title = stringResource(Res.string.notebook_card_already_customer),
                     first = stringResource(Res.string.notebook_card_add_to, candidate.name),
                     second = stringResource(Res.string.notebook_card_create_new),
-                    selected = if (state.addToExisting) 0 else 1,
+                    selected = when (state.matchChoice) {
+                        true -> 0
+                        false -> 1
+                        null -> null
+                    },
                     enabled = !readOnly,
                     onSelect = { i -> onAction(NotebookCardAction.OnMatchToggle(addToExisting = i == 0)) },
                 )

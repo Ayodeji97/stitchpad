@@ -10,7 +10,7 @@ import com.danzucker.stitchpad.feature.notebookimport.domain.CardValue
 import com.danzucker.stitchpad.feature.notebookimport.domain.CheckBlocker
 import com.danzucker.stitchpad.feature.notebookimport.domain.ReviewCard
 import com.danzucker.stitchpad.feature.notebookimport.domain.checkBlocker
-import com.danzucker.stitchpad.feature.notebookimport.domain.isReadyToCheck
+import com.danzucker.stitchpad.feature.notebookimport.presentation.CapSheet
 import kotlinx.datetime.LocalDate
 
 /** An existing customer the card looks like. A suggestion only, until the tailor picks "Add to". */
@@ -38,6 +38,10 @@ data class NotebookCardState(
     val upgradeCtaPrice: String? = null,
     /** The workshop's unit, used when the notebook did not say. */
     val defaultUnit: MeasurementUnit = MeasurementUnit.INCHES,
+    /** Existing-customer matches can be judged only once the customer list is in. */
+    val customersLoaded: Boolean = false,
+    /** The customer-cap sheet, open after "Save now" stopped at the Free cap. */
+    val capSheet: CapSheet? = null,
 ) {
     val name: String get() = draft?.name.orEmpty()
     val phone: String get() = draft?.phone.orEmpty()
@@ -46,12 +50,28 @@ data class NotebookCardState(
     val dateWritten: LocalDate? get() = draft?.dateWritten
     val values: List<CardValue> get() = draft?.values.orEmpty()
     val status: CardStatus? get() = draft?.status
-    val addToExisting: Boolean get() = draft?.matchedCustomerId != null
+    val addToExisting: Boolean get() = matchChoice == true
     val isReadOnly: Boolean get() = draft?.status == CardStatus.SAVED
 
-    /** Why "Looks right" is disabled, or null when it is enabled. */
-    val checkBlocker: CheckBlocker? get() = draft?.checkBlocker()
+    /**
+     * The tailor's answer to [matchCandidate]: true "Add to", false "Create new customer", null not
+     * answered yet (neither option selected).
+     */
+    val matchChoice: Boolean?
+        get() = when {
+            draft?.matchedCustomerId != null -> true
+            draft?.keepAsNew == true -> false
+            else -> null
+        }
 
-    /** "Looks right" needs a gender, a name, and no unclear or blank value. */
-    val canMarkChecked: Boolean get() = draft?.isReadyToCheck() == true && !isSaving
+    /** Why "Looks right" is disabled, or null when it is enabled. */
+    val checkBlocker: CheckBlocker?
+        get() = draft?.checkBlocker()
+            ?: CheckBlocker.MATCH.takeIf { matchCandidate != null && matchChoice == null }
+
+    /**
+     * "Looks right" needs a gender, a name, no unclear or blank value, and an answer to any
+     * existing-customer suggestion (so the customer list must have loaded).
+     */
+    val canMarkChecked: Boolean get() = draft != null && checkBlocker == null && customersLoaded && !isSaving
 }

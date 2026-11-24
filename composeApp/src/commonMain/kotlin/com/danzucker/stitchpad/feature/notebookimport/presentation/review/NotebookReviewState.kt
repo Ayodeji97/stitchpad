@@ -5,6 +5,7 @@ import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.notebookimport.domain.CardValue
+import com.danzucker.stitchpad.feature.notebookimport.presentation.CapSheet
 
 /**
  * An existing customer this card may belong to. [confirmed] is true only once the tailor said so
@@ -48,6 +49,10 @@ data class NotebookReviewState(
     val message: UiText? = null,
     /** Pro price for the cap sheet, in the workshop's currency. */
     val upgradeCtaPrice: String? = null,
+    /** Existing-customer matches can be judged only once the customer list is in. */
+    val customersLoaded: Boolean = false,
+    /** The customer-cap sheet, open after saving stopped at the Free cap. */
+    val capSheet: CapSheet? = null,
 ) {
-    val canSaveAll: Boolean get() = ready.isNotEmpty() && !isSaving
+    val canSaveAll: Boolean get() = ready.isNotEmpty() && !isSaving && customersLoaded
 }

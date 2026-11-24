@@ -45,9 +45,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,6 +59,7 @@ import com.danzucker.stitchpad.core.domain.model.CustomerGender
 import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import com.danzucker.stitchpad.feature.freemium.presentation.cap.CustomerCapReachedSheet
 import com.danzucker.stitchpad.feature.notebookimport.domain.CardValue
+import com.danzucker.stitchpad.feature.notebookimport.domain.MergeNoteLabels
 import com.danzucker.stitchpad.feature.notebookimport.presentation.MonoValueChip
 import com.danzucker.stitchpad.feature.notebookimport.presentation.NotebookTouchTarget
 import com.danzucker.stitchpad.feature.notebookimport.presentation.cardValueLabel
@@ -78,6 +77,7 @@ import org.koin.compose.viewmodel.koinViewModel
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.common_cancel
 import stitchpad.composeapp.generated.resources.notebook_merge_date_label
+import stitchpad.composeapp.generated.resources.notebook_merge_phone_label
 import stitchpad.composeapp.generated.resources.notebook_review_all_done
 import stitchpad.composeapp.generated.resources.notebook_review_already_customer
 import stitchpad.composeapp.generated.resources.notebook_review_back_cd
@@ -123,14 +123,11 @@ fun NotebookReviewRoot(
     val viewModel: NotebookReviewViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    // Same transient pattern as CustomerFormScreen: the sheet only lives while it is on screen.
-    var capSheet by remember { mutableStateOf<NotebookReviewEvent.ShowCapReachedSheet?>(null) }
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             NotebookReviewEvent.NavigateBack -> onNavigateBack()
             is NotebookReviewEvent.NavigateToCard -> onOpenCard(event.jobId, event.cardId)
-            is NotebookReviewEvent.ShowCapReachedSheet -> capSheet = event
         }
     }
 
@@ -144,20 +141,20 @@ fun NotebookReviewRoot(
 
     NotebookReviewScreen(state = state, onAction = viewModel::onAction, snackbarHostState = snackbarHostState)
 
-    capSheet?.let { pending ->
+    state.capSheet?.let { pending ->
         CustomerCapReachedSheet(
             activeCount = pending.activeCount,
             customerCap = pending.customerCap,
             proMonthlyPrice = state.upgradeCtaPrice,
             onUpgradeClick = {
-                capSheet = null
+                viewModel.onAction(NotebookReviewAction.OnCapSheetDismiss)
                 onNavigateToUpgrade()
             },
             onSwapClick = {
-                capSheet = null
+                viewModel.onAction(NotebookReviewAction.OnCapSheetDismiss)
                 onNavigateToCustomers()
             },
-            onDismiss = { capSheet = null },
+            onDismiss = { viewModel.onAction(NotebookReviewAction.OnCapSheetDismiss) },
         )
     }
 }
@@ -169,7 +166,10 @@ fun NotebookReviewScreen(
     onAction: (NotebookReviewAction) -> Unit,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
-    val dateNoteLabel = stringResource(Res.string.notebook_merge_date_label)
+    val mergeLabels = MergeNoteLabels(
+        date = stringResource(Res.string.notebook_merge_date_label),
+        phone = stringResource(Res.string.notebook_merge_phone_label),
+    )
     Scaffold(
         topBar = {
             TopAppBar(
@@ -217,7 +217,7 @@ fun NotebookReviewScreen(
                 onOpen = { onAction(NotebookReviewAction.OnCardClick(it)) },
                 onConfirmMatch = { onAction(NotebookReviewAction.OnConfirmMatch(it)) },
                 onRejectMatch = { onAction(NotebookReviewAction.OnRejectMatch(it)) },
-                onMerge = { onAction(NotebookReviewAction.OnMergeClick(it, dateNoteLabel)) },
+                onMerge = { onAction(NotebookReviewAction.OnMergeClick(it, mergeLabels)) },
                 onKeepSeparate = { onAction(NotebookReviewAction.OnKeepSeparateClick(it)) },
             )
             ReviewList(state = state, callbacks = callbacks, contentPadding = padding)

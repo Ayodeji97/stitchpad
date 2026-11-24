@@ -1914,4 +1914,7 @@
     <string name="notebook_card_saved_message">Client enregistré</string>
     <string name="notebook_card_not_found">Ce client ne fait plus partie de l'import</string>
     <string name="notebook_card_back_cd">Retour</string>
+    <string name="notebook_card_match_needed">Choisissez : ajouter au client existant, ou créer un nouveau client</string>
+    <string name="notebook_review_saved_before_cap">Limite de clients atteinte. Clients enregistrés avant la limite : %1$d</string>
+    <string name="notebook_merge_phone_label">Téléphone</string>
 </resources>

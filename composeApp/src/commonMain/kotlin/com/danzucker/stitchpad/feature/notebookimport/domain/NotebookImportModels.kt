@@ -34,6 +34,11 @@ data class ReviewCard(
     val status: CardStatus,
     val matchedCustomerId: String?,
     val savedCustomerId: String?,
+    /**
+     * The tailor chose "Save as a new customer" for an existing-customer suggestion. A suggestion is
+     * resolved only when [matchedCustomerId] is set or this is true.
+     */
+    val keepAsNew: Boolean = false,
 )
 
 /** [localThumb] is always null from the repository; the capture ViewModel fills it. */

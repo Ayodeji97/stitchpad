@@ -5,6 +5,7 @@ import com.danzucker.stitchpad.core.domain.model.MeasurementUnit
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 
 class MergeCardsTest {
@@ -25,6 +26,8 @@ class MergeCardsTest {
         matchedCustomerId = matched, savedCustomerId = null,
     )
 
+    private val labels = MergeNoteLabels(date = "Date", phone = "Phone")
+
     private fun v(label: String, value: String, key: String?, flagged: Boolean = false) =
         CardValue(label, value, key, flagged)
 
@@ -33,7 +36,7 @@ class MergeCardsTest {
         val merged = mergeCards(
             card("a", values = listOf(v("Bust", "38", "bust"), v("Hip", "44", "hip"))),
             card("b", values = listOf(v("Bust", "38", "bust"), v("Hip", "45", "hip"), v("Rd arm", "13", null))),
-            dateNoteLabel = "Date",
+            labels = labels,
         )
         assertEquals(
             listOf(v("Bust", "38", "bust"), v("Hip", "44", "hip", true), v("Hip", "45", "hip", true), v("Rd arm", "13", null)),
@@ -48,7 +51,7 @@ class MergeCardsTest {
         val merged = mergeCards(
             card("a", gender = null, unit = null, matched = null),
             card("b", phone = "0803", gender = CustomerGender.MALE, unit = MeasurementUnit.CM, matched = "cust"),
-            dateNoteLabel = "Date",
+            labels = labels,
         )
         assertEquals("0803", merged.phone)
         assertEquals(CustomerGender.MALE, merged.gender)
@@ -58,7 +61,7 @@ class MergeCardsTest {
 
     @Test
     fun conflictingGender_isClearedSoTheTailorMustChoose() {
-        val merged = mergeCards(card("a"), card("b", gender = CustomerGender.MALE), dateNoteLabel = "Date")
+        val merged = mergeCards(card("a"), card("b", gender = CustomerGender.MALE), labels = labels)
         assertNull(merged.gender)
     }
 
@@ -67,7 +70,7 @@ class MergeCardsTest {
         val merged = mergeCards(
             card("a", values = listOf(v("Bust", "38", "bust"))),
             card("b", unit = MeasurementUnit.CM, values = listOf(v("Hip", "112", "hip"))),
-            dateNoteLabel = "Date",
+            labels = labels,
         )
         assertEquals(listOf(v("Bust", "38", "bust"), v("Hip", "112", "hip", true)), merged.values)
         assertEquals(MeasurementUnit.INCHES, merged.unit)
@@ -78,10 +81,31 @@ class MergeCardsTest {
         val merged = mergeCards(
             card("a", date = LocalDate(2026, 1, 2)),
             card("b", date = LocalDate(2026, 3, 4)),
-            dateNoteLabel = "Date",
+            labels = labels,
         )
         assertEquals(LocalDate(2026, 1, 2), merged.dateWritten)
         assertEquals(listOf(v("Date", "2026-03-04", null, true)), merged.values)
+    }
+
+    @Test
+    fun differingPhone_isKeptAsAFlaggedNote() {
+        val merged = mergeCards(card("a", phone = "0803 111 2222"), card("b", phone = "0812 333 4444"), labels = labels)
+        assertEquals("0803 111 2222", merged.phone)
+        assertEquals(listOf(v("Phone", "0812 333 4444", null, true)), merged.values)
+        assertEquals(CardStatus.NEW, merged.status)
+    }
+
+    @Test
+    fun samePhoneWrittenDifferently_isNotAConflict() {
+        val merged = mergeCards(card("a", phone = "0803 111 2222"), card("b", phone = "08031112222"), labels = labels)
+        assertEquals(emptyList(), merged.values)
+    }
+
+    @Test
+    fun conflictingMatchDecisions_areClearedToAskAgain() {
+        val merged = mergeCards(card("a", matched = "cust"), card("b").copy(keepAsNew = true), labels = labels)
+        assertNull(merged.matchedCustomerId)
+        assertFalse(merged.keepAsNew)
     }
 
     @Test
@@ -89,7 +113,7 @@ class MergeCardsTest {
         val merged = mergeCards(
             card("a", status = CardStatus.CHECKED, values = listOf(v("Bust", "38", "bust"))),
             card("b", status = CardStatus.CHECKED, values = listOf(v("Hip", "44", "hip"))),
-            dateNoteLabel = "Date",
+            labels = labels,
         )
         assertEquals(CardStatus.CHECKED, merged.status)
     }
