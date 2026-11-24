@@ -172,6 +172,8 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate, UNUserNot
             IosPushBridgeKt.iosOnPushFoundingTailorsTap()
         case "dashboard":
             IosPushBridgeKt.iosOnPushDashboardTap()
+        case "team":
+            IosPushBridgeKt.iosOnPushTeamTap()
         default:
             // Unknown target: the notification still displayed, and the tap just opens
             // the app. This is what lets the server add a campaign target before every

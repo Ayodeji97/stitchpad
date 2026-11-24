@@ -18,4 +18,6 @@ data class NotificationDto(
     val createdAt: Long = 0L,
     val isOverdue: Boolean = false,
     val currency: String? = null,
+    val status: String? = null,
+    val actorName: String? = null,
 )

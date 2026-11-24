@@ -245,6 +245,7 @@ class SettingsViewModel(
             is SettingsAction.OnDailyDigestToggle -> setDailyDigest(action.enabled)
             is SettingsAction.OnDailyPushToggle -> setDailyPush(action.enabled)
             is SettingsAction.OnAnnouncementsPushToggle -> setAnnouncementsPush(action.enabled)
+            is SettingsAction.OnActivityPushToggle -> setActivityPush(action.enabled)
             SettingsAction.OnCommunityClick -> {
                 val url = state.value.communityUrl ?: return
                 emit(SettingsEvent.OpenCommunityLink(url))
@@ -380,6 +381,7 @@ class SettingsViewModel(
             showDigestEmailToggle = showsDigestEmailToggle(entitlements),
             dailyPushEnabled = firestoreUser?.dailyPushEnabled ?: true,
             announcementsPushEnabled = firestoreUser?.announcementsPushEnabled ?: true,
+            activityPushEnabled = firestoreUser?.activityPushEnabled ?: true,
             pushReminderSupported = true,
             showSignOutDialog = ui.showSignOutDialog,
             isSigningOut = ui.isSigningOut,
@@ -473,6 +475,17 @@ class SettingsViewModel(
             // POST_NOTIFICATIONS before anything can arrive, so enabling this while
             // the permission is still missing should surface the system dialog rather
             // than silently doing nothing.
+            if (enabled && pushPermissionController.shouldRequest()) {
+                pushPermissionController.requestPermission()
+            }
+        }
+    }
+
+    private fun setActivityPush(enabled: Boolean) {
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser()?.id ?: return@launch
+            userRepository.setActivityPushEnabled(userId, enabled)
+            // Same permission reasoning as setDailyPush.
             if (enabled && pushPermissionController.shouldRequest()) {
                 pushPermissionController.requestPermission()
             }

@@ -1520,6 +1520,7 @@
     <string name="settings_row_daily_digest">Weekly email summary</string>
     <string name="settings_row_daily_push">Daily push reminder</string>
     <string name="settings_row_announcements">Tips &amp; announcements</string>
+    <string name="settings_row_activity_push">Workshop activity alerts</string>
     <string name="settings_theme_system">System default</string>
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>
@@ -1818,6 +1819,9 @@
     <string name="notification_tag_overdue">overdue</string>
     <string name="notification_tag_due_soon">due soon</string>
     <string name="notification_tag_owes">owes %1$s</string>
+    <string name="notification_tag_staff_status">%1$s marked %2$s</string>
+    <string name="notification_tag_assigned_to_you">assigned to you</string>
+    <string name="notification_actor_fallback">A team member</string>
 
     <!-- Smart upgrade sheet -->
     <string name="smart_upgrade_sheet_title">Out of free drafts this month</string>

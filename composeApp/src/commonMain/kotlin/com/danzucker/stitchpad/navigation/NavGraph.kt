@@ -189,6 +189,7 @@ private val ACCOUNT_SCOPED_DEEP_LINKS = setOf(
     DeepLinkTarget.TO_COLLECT,
     DeepLinkTarget.DASHBOARD,
     DeepLinkTarget.FOUNDING_TAILORS,
+    DeepLinkTarget.TEAM,
 )
 
 /**

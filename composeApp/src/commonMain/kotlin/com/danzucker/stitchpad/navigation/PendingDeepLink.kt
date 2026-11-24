@@ -16,6 +16,9 @@ enum class DeepLinkTarget {
 
     /** Engagement push: the Founding Tailors referral screen. */
     FOUNDING_TAILORS,
+
+    /** Join-request push (owner): the Team screen, where the request is approved. */
+    TEAM,
 }
 
 /** Plan to pre-select on the Upgrade screen when arriving via a renewal deep link. */

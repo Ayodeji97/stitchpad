@@ -60,6 +60,11 @@ export interface PushPayload {
   /** Android notification tag — successive pushes with the same tag replace, not stack. */
   androidTag?: string;
   /**
+   * iOS equivalent of {@link androidTag}: pushes sharing an `apns-collapse-id`
+   * replace each other in Notification Center instead of stacking. Max 64 bytes.
+   */
+  apnsCollapseId?: string;
+  /**
    * Deliver without a sound. Default is OFF — everything we send is worth hearing.
    *
    * iOS ONLY. Android takes its sound from the channel's importance, which the user
@@ -108,7 +113,7 @@ export async function sendMulticast(
       // digest included, arrived silently. Android needs no equivalent: its sound
       // comes from the channel's importance, which a payload cannot override on
       // API 26+ and which the user owns.
-      ...(payload.silent ? {} : { apns: { payload: { aps: { sound: 'default' } } } }),
+      ...apnsConfig(payload),
       ...(payload.data ? { data: payload.data } : {}),
     });
 
@@ -128,6 +133,21 @@ export async function sendMulticast(
   }
 
   return { successCount, invalidTokens };
+}
+
+/**
+ * APNs block: the sound (unless silent) and the optional collapse id. Omitted
+ * entirely when neither applies, which is byte-identical to the old silent path.
+ */
+function apnsConfig(payload: PushPayload): { apns?: { headers?: Record<string, string>; payload: { aps: { sound?: string } } } } {
+  const headers = payload.apnsCollapseId ? { 'apns-collapse-id': payload.apnsCollapseId.slice(0, 64) } : undefined;
+  if (payload.silent && !headers) return {};
+  return {
+    apns: {
+      ...(headers ? { headers } : {}),
+      payload: { aps: payload.silent ? {} : { sound: 'default' } },
+    },
+  };
 }
 
 /**

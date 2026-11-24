@@ -87,6 +87,7 @@ import stitchpad.composeapp.generated.resources.settings_receipt_image_dark
 import stitchpad.composeapp.generated.resources.settings_receipt_image_light
 import stitchpad.composeapp.generated.resources.settings_row_account_security
 import stitchpad.composeapp.generated.resources.settings_row_account_security_subtitle
+import stitchpad.composeapp.generated.resources.settings_row_activity_push
 import stitchpad.composeapp.generated.resources.settings_row_announcements
 import stitchpad.composeapp.generated.resources.settings_row_appearance
 import stitchpad.composeapp.generated.resources.settings_row_change_password
@@ -397,6 +398,21 @@ private fun SettingsLandingLegacy(
                     )
                 },
             )
+            SettingsRowDivider()
+            // Workshop activity (staff changed a status, an order was assigned to you,
+            // someone asked to join). Its own switch so a busy workshop can quiet these
+            // without losing the daily reminder.
+            SettingsRow(
+                icon = Icons.Outlined.Notifications,
+                label = stringResource(Res.string.settings_row_activity_push),
+                onClick = { onAction(SettingsAction.OnActivityPushToggle(!state.activityPushEnabled)) },
+                trailing = {
+                    Switch(
+                        checked = state.activityPushEnabled,
+                        onCheckedChange = { onAction(SettingsAction.OnActivityPushToggle(it)) },
+                    )
+                },
+            )
         }
     }
 
@@ -687,6 +703,21 @@ private fun SettingsLandingHub(
                     Switch(
                         checked = state.announcementsPushEnabled,
                         onCheckedChange = { onAction(SettingsAction.OnAnnouncementsPushToggle(it)) },
+                    )
+                },
+            )
+            SettingsRowDivider()
+            // Workshop activity (staff changed a status, an order was assigned to you,
+            // someone asked to join). Its own switch so a busy workshop can quiet these
+            // without losing the daily reminder.
+            SettingsRow(
+                icon = Icons.Outlined.Notifications,
+                label = stringResource(Res.string.settings_row_activity_push),
+                onClick = { onAction(SettingsAction.OnActivityPushToggle(!state.activityPushEnabled)) },
+                trailing = {
+                    Switch(
+                        checked = state.activityPushEnabled,
+                        onCheckedChange = { onAction(SettingsAction.OnActivityPushToggle(it)) },
                     )
                 },
             )

@@ -60,6 +60,7 @@ data class SettingsState(
     val showDigestEmailToggle: Boolean = false,
     val dailyPushEnabled: Boolean = true,
     val announcementsPushEnabled: Boolean = true,
+    val activityPushEnabled: Boolean = true,
     val pushReminderSupported: Boolean = true,
     val showSignOutDialog: Boolean = false,
     val isSigningOut: Boolean = false,
