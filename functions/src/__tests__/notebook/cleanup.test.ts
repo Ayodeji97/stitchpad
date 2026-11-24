@@ -95,6 +95,28 @@ describe('cleanupHandler', () => {
     expect(deleted).toEqual([]);
   });
 
+  it('cleanup_sweepsAgainAfterStamp: an image uploaded after imagesDeletedAt goes on the next run', async () => {
+    const path = J('u1', 'late');
+    const s = fakeStore({ [path]: { status: 'open', createdAt: ts(NOW.getTime() - 9 * DAY), pageCount: 1 } });
+    const deleted: string[] = [];
+    const deps = { db: s.db, deletePrefix: async (p: string) => { deleted.push(p); }, now: () => NOW };
+    await cleanupHandler(deps);
+    const stamp = s.jobStore.get(path).imagesDeletedAt;
+    expect(stamp).toBeDefined();
+    // a late upload lands after the stamp; the next daily run sweeps the prefix again
+    await cleanupHandler({ ...deps, now: () => new Date(NOW.getTime() + DAY) });
+    expect(deleted).toEqual([`${path}/`, `${path}/`]);
+    expect(s.jobStore.get(path).imagesDeletedAt).toBe(stamp);
+  });
+
+  it('cleanup_sweepsOldSavedJobEvenWhenStamped', async () => {
+    const path = J('u1', 'oldSaved');
+    const s = fakeStore({ [path]: { status: 'saved', createdAt: ts(NOW.getTime() - 10 * DAY), pageCount: 1, imagesDeletedAt: ts(1) } });
+    const deleted: string[] = [];
+    await cleanupHandler({ db: s.db, deletePrefix: async (p) => { deleted.push(p); }, now: () => NOW });
+    expect(deleted).toEqual([`${path}/`]);
+  });
+
   it('cleanup_deletesJobTreeAfter30Days covering pages and cards', async () => {
     const path = J('u1', 'ancient');
     const s = fakeStore({ [path]: { status: 'saved', createdAt: ts(NOW.getTime() - 31 * DAY), pageCount: 2, imagesDeletedAt: ts(1) } });

@@ -13,9 +13,13 @@ export interface CleanupDeps {
 
 type JobSnap = admin.firestore.QueryDocumentSnapshot;
 
-/** Deletes every object under the job's Storage prefix, then stamps imagesDeletedAt. */
+/**
+ * Deletes every object under the job's Storage prefix, then stamps
+ * imagesDeletedAt (kept as first set, so the stamp marks the first sweep).
+ */
 async function deleteImages(job: JobSnap, deps: CleanupDeps): Promise<void> {
   await deps.deletePrefix(`${job.ref.path}/`);
+  if (job.data().imagesDeletedAt) return;
   await job.ref.set(
     { imagesDeletedAt: admin.firestore.Timestamp.fromDate(deps.now()) },
     { merge: true },
@@ -24,7 +28,8 @@ async function deleteImages(job: JobSnap, deps: CleanupDeps): Promise<void> {
 
 /**
  * Daily: images go once a job is saved/abandoned or 7 days old (docs stay so
- * the review can still be read); the whole job tree goes at 30 days. One bad
+ * the review can still be read), and every job 7+ days old is swept again on
+ * each run; the whole job tree goes at 30 days. One bad
  * job never stops the rest. Logs carry ids and counts only, never content.
  */
 export async function cleanupHandler(deps: CleanupDeps): Promise<void> {
@@ -56,9 +61,11 @@ export async function cleanupHandler(deps: CleanupDeps): Promise<void> {
     }
   }
 
-  const needImages = [...finished.docs, ...stale.docs.filter((j) => j.data().status === 'open')];
+  // Jobs 7+ days old are swept on every run even when already stamped: an
+  // upload can land after the stamp, and an empty prefix sweep is cheap.
+  const needImages = [...stale.docs, ...finished.docs.filter((j) => !j.data().imagesDeletedAt)];
   for (const job of needImages) {
-    if (handled.has(job.ref.path) || job.data().imagesDeletedAt) continue;
+    if (handled.has(job.ref.path)) continue;
     handled.add(job.ref.path);
     try {
       await deleteImages(job, deps);

@@ -16,17 +16,21 @@ const person = (name: string) => ({
 });
 const goodJson = JSON.stringify([person('Ada Obi'), person('Bisi Ade')]);
 
-function setup(opts: { initial?: Record<string, any>; model?: jest.Mock; read?: jest.Mock } = {}) {
-  const { db, store } = fakeDb({ 'users/u1': {}, [JOB]: { pageCount: 0 }, ...opts.initial });
+function setup(opts: { initial?: Record<string, any>; model?: jest.Mock; read?: jest.Mock; noJob?: boolean } = {}) {
+  const base: Record<string, any> = { 'users/u1': {}, [JOB]: { status: 'open', pageCount: 0 } };
+  if (opts.noJob) delete base[JOB];
+  const { db, store } = fakeDb({ ...base, ...opts.initial });
   const generateJsonFromImage = opts.model ?? jest.fn().mockResolvedValue(goodJson);
   const readImage = opts.read ?? jest.fn().mockResolvedValue(Buffer.from('img'));
+  const deleteObject = jest.fn().mockResolvedValue(undefined);
   const deps: ProcessDeps = {
     db,
     readImage,
+    deleteObject,
     vertex: { generateText: jest.fn(), generateJsonFromImage },
     now: () => NOW,
   };
-  return { deps, store, generateJsonFromImage, readImage };
+  return { deps, store, generateJsonFromImage, readImage, deleteObject };
 }
 
 const cards = (store: Map<string, any>) => [...store.keys()].filter((k) => k.includes('/cards/'));
@@ -136,6 +140,42 @@ describe('processPageHandler', () => {
     expect(store.get(PAGE)).toMatchObject({ status: 'done', personCount: 2 });
   });
 
+  it('closedJob_deletesUploadAndWritesNothing', async () => {
+    const { deps, store, generateJsonFromImage, deleteObject } = setup({
+      initial: { [JOB]: { status: 'saved', pageCount: 3 } },
+    });
+    await processPageHandler(PATH, deps);
+    expect(generateJsonFromImage).not.toHaveBeenCalled();
+    expect(deleteObject).toHaveBeenCalledWith(PATH);
+    expect(store.has(PAGE)).toBe(false);
+    expect(cards(store)).toEqual([]);
+    expect(store.has(USAGE)).toBe(false);
+    expect(store.get(JOB)).toEqual({ status: 'saved', pageCount: 3 });
+  });
+
+  it('deletedJob_deletesUploadAndNeverRecreatesTheJob', async () => {
+    const { deps, store, generateJsonFromImage, deleteObject } = setup({ noJob: true });
+    await processPageHandler(PATH, deps);
+    expect(generateJsonFromImage).not.toHaveBeenCalled();
+    expect(deleteObject).toHaveBeenCalledWith(PATH);
+    expect(store.has(JOB)).toBe(false);
+    expect(store.has(PAGE)).toBe(false);
+    expect(cards(store)).toEqual([]);
+    expect(store.has(USAGE)).toBe(false);
+  });
+
+  it('jobDeletedWhileReading_writesNoCardsAndNeverRecreatesTheJob', async () => {
+    const { deps, store, deleteObject } = setup();
+    (deps.vertex.generateJsonFromImage as jest.Mock).mockImplementation(async () => {
+      store.delete(JOB);
+      return goodJson;
+    });
+    await processPageHandler(PATH, deps);
+    expect(store.has(JOB)).toBe(false);
+    expect(cards(store)).toEqual([]);
+    expect(deleteObject).toHaveBeenCalledWith(PATH);
+  });
+
   it('cap_freeLifetime300: the 301st page fails without calling the model', async () => {
     const { deps, store, generateJsonFromImage } = setup({
       initial: { [USAGE]: { lifetimePages: 300, monthKey: '2026-11', monthPages: 300 } },
@@ -181,6 +221,56 @@ describe('retryNotebookPageHandler', () => {
     ]);
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
     expect(generateJsonFromImage).toHaveBeenCalledTimes(1);
+  });
+
+  it('retry_stuckProcessingOver10Min_isRetriedWithoutNewReservation', async () => {
+    const { deps, store, generateJsonFromImage } = setup({
+      initial: { [PAGE]: { status: 'processing', storagePath: PATH, claimedAt: new Date(NOW.getTime() - 11 * 60_000) } },
+    });
+    const result = await retryNotebookPageHandler({ jobId: 'j1', pageId: 'p1' }, authCtx('u1'), deps);
+    expect(result).toEqual({ status: 'done' });
+    expect(generateJsonFromImage).toHaveBeenCalledTimes(1);
+    expect(store.get(USAGE)).toBeUndefined();
+    expect(cards(store)).toHaveLength(2);
+    // the crashed first run never counted the page
+    expect(store.get(JOB).pageCount).toEqual(admin.firestore.FieldValue.increment(1));
+  });
+
+  it('retry_freshProcessing_isRefused', async () => {
+    const { deps, generateJsonFromImage } = setup({
+      initial: { [PAGE]: { status: 'processing', storagePath: PATH, claimedAt: new Date(NOW.getTime() - 60_000) } },
+    });
+    await expect(retryNotebookPageHandler({ jobId: 'j1', pageId: 'p1' }, authCtx('u1'), deps))
+      .rejects.toMatchObject({ code: 'failed-precondition' });
+    expect(generateJsonFromImage).not.toHaveBeenCalled();
+  });
+
+  it('retry_countsRetriesAndRefusesBeyondThree', async () => {
+    const { deps, store, generateJsonFromImage } = setup({
+      model: jest.fn().mockResolvedValue('not json'),
+      initial: { [PAGE]: { status: 'failed', error: 'read_failed', storagePath: PATH, personCount: 0 } },
+    });
+    for (let i = 1; i <= 3; i++) {
+      await expect(retryNotebookPageHandler({ jobId: 'j1', pageId: 'p1' }, authCtx('u1'), deps))
+        .resolves.toEqual({ status: 'failed' });
+      expect(store.get(PAGE)).toMatchObject({ status: 'failed', retryCount: i });
+    }
+    await expect(retryNotebookPageHandler({ jobId: 'j1', pageId: 'p1' }, authCtx('u1'), deps))
+      .rejects.toMatchObject({ code: 'resource-exhausted', message: 'retry_limit_reached' });
+    expect(generateJsonFromImage).toHaveBeenCalledTimes(3);
+    expect(store.get(PAGE)).toMatchObject({ status: 'failed', retryCount: 3 });
+  });
+
+  it('retry_onClosedJob_isRefused', async () => {
+    const { deps, generateJsonFromImage } = setup({
+      initial: {
+        [JOB]: { status: 'abandoned', pageCount: 1 },
+        [PAGE]: { status: 'failed', error: 'read_failed', storagePath: PATH, personCount: 0 },
+      },
+    });
+    await expect(retryNotebookPageHandler({ jobId: 'j1', pageId: 'p1' }, authCtx('u1'), deps))
+      .rejects.toMatchObject({ code: 'failed-precondition', message: 'job_not_open' });
+    expect(generateJsonFromImage).not.toHaveBeenCalled();
   });
 
   it('rejects a page that is not failed', async () => {

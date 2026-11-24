@@ -125,6 +125,14 @@ describe('notebookImports images', () => {
     await seedJob('saved');
     await assertFails(uploadString(ref(owner(), PAGE), 'x', 'raw', { contentType: 'image/jpeg' }));
   });
+  it('owner upload to an open job whose images were already deleted is denied', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `users/${OWNER}/notebookImports/j1`), {
+        status: 'open', pageCount: 0, imagesDeletedAt: new Date(),
+      });
+    });
+    await assertFails(uploadString(ref(owner(), PAGE), 'x', 'raw', { contentType: 'image/jpeg' }));
+  });
   it('owner upload of a non-.jpg name is denied', async () => {
     await assertFails(uploadString(ref(owner(), `users/${OWNER}/notebookImports/j1/x.png`), 'x', 'raw', { contentType: 'image/jpeg' }));
   });

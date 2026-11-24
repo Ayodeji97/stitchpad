@@ -63,7 +63,7 @@ service firebase.storage {
     }
 
     // Notebook scan import: one JPEG per page, written by the owner only while
-    // the job doc exists and is still 'open'. Owner may always read and delete
+    // the job doc exists, is still 'open' and its images were not yet swept. Owner may always read and delete
     // (the client deletes images when abandoning). Staff get nothing.
     match /users/{uid}/notebookImports/{jobId}/{file} {
       allow read, delete: if request.auth != null && request.auth.uid == uid;
@@ -72,7 +72,9 @@ service firebase.storage {
         && request.resource.size < 6 * 1024 * 1024
         && request.resource.contentType == 'image/jpeg'
         && firestore.exists(/databases/(default)/documents/users/$(uid)/notebookImports/$(jobId))
-        && firestore.get(/databases/(default)/documents/users/$(uid)/notebookImports/$(jobId)).data.status == 'open';
+        && firestore.get(/databases/(default)/documents/users/$(uid)/notebookImports/$(jobId)).data.status == 'open'
+        // The cleanup cron already swept this job's images: new pages go to a new job.
+        && !('imagesDeletedAt' in firestore.get(/databases/(default)/documents/users/$(uid)/notebookImports/$(jobId)).data);
     }
 
     // Phase 2b: staff add style/fabric photos to orders. Write-scope is the
