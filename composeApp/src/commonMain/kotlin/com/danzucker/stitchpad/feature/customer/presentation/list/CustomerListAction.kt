@@ -7,6 +7,7 @@ sealed interface CustomerListAction {
     data class OnCustomerClick(val customer: Customer) : CustomerListAction
     data class OnDeleteCustomerClick(val customer: Customer) : CustomerListAction
     data object OnAddCustomerClick : CustomerListAction
+    data object OnImportFromNotebookClick : CustomerListAction
     data object OnConfirmDelete : CustomerListAction
     data object OnDismissDeleteDialog : CustomerListAction
     data object OnErrorDismiss : CustomerListAction

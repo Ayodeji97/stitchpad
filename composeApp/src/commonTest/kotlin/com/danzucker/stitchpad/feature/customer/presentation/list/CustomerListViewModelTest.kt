@@ -16,6 +16,7 @@ import com.danzucker.stitchpad.core.domain.session.MembershipStatus
 import com.danzucker.stitchpad.core.domain.session.StaffRole
 import com.danzucker.stitchpad.core.domain.session.WorkshopSession
 import com.danzucker.stitchpad.feature.freemium.domain.FreemiumRepository
+import com.danzucker.stitchpad.feature.notebookimport.presentation.capture.FakeEntitlements
 import com.danzucker.stitchpad.feature.measurement.presentation.entry.MeasurementEntryResolver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -69,6 +70,7 @@ class CustomerListViewModelTest {
             activeWorkshopProvider = activeWorkshopProvider,
             freemiumRepository = freemiumRepository,
             measurementEntryResolver = MeasurementEntryResolver(measurementRepository, activeWorkshopProvider),
+            entitlements = FakeEntitlements(),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -292,5 +294,37 @@ class CustomerListViewModelTest {
             promote: String,
             demote: String,
         ): EmptyResult<DataError.Network> = Result.Success(Unit)
+    }
+
+    // --- Notebook import entry ---
+
+    @Test
+    fun customerList_importVisibleForOwnerOnly() = runTest {
+        val ownerVm = createViewModel()
+        assertTrue(ownerVm.state.value.canImportNotebook)
+
+        activeWorkshopProvider.setSession(
+            WorkshopSession(
+                authUid = "staff-uid",
+                workshopUid = "owner-uid",
+                role = StaffRole.STAFF,
+                membershipStatus = MembershipStatus.ACTIVE,
+            )
+        )
+        assertFalse(ownerVm.state.value.canImportNotebook)
+
+        ownerVm.events.test {
+            ownerVm.onAction(CustomerListAction.OnImportFromNotebookClick)
+            expectNoEvents()
+        }
+    }
+
+    @Test
+    fun customerList_importClick_navigatesForOwner() = runTest {
+        val vm = createViewModel()
+        vm.events.test {
+            vm.onAction(CustomerListAction.OnImportFromNotebookClick)
+            assertIs<CustomerListEvent.NavigateToNotebookImport>(awaitItem())
+        }
     }
 }

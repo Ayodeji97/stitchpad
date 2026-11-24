@@ -10,6 +10,8 @@ sealed interface CustomerListEvent {
     data class NavigateToMeasurementDetail(val customerId: String, val measurementId: String?) : CustomerListEvent
     data class NavigateToOrderForm(val customerId: String) : CustomerListEvent
 
+    data object NavigateToNotebookImport : CustomerListEvent
+
     /** PTSP-32: open WhatsApp to the customer with a prefilled greeting. */
     data class LaunchWhatsApp(val phone: String, val message: String) : CustomerListEvent
 }

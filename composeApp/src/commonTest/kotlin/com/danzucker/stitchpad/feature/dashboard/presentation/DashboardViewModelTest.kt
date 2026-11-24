@@ -38,6 +38,8 @@ import com.danzucker.stitchpad.core.config.FakeAppConfigRepository
 import com.danzucker.stitchpad.core.config.FakeCommunityJoinTracker
 import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
 import com.danzucker.stitchpad.core.data.staff.FakeStaffMembershipPrefsStore
+import com.danzucker.stitchpad.core.domain.preferences.FakeNotebookImportPreferencesStore
+import com.danzucker.stitchpad.core.domain.preferences.NotebookImportPreferencesStore
 import com.danzucker.stitchpad.core.domain.session.FakeActiveWorkshopProvider
 import com.danzucker.stitchpad.core.domain.session.MembershipStatus
 import com.danzucker.stitchpad.core.domain.session.StaffRole
@@ -122,6 +124,7 @@ class DashboardViewModelTest {
     private lateinit var activeWorkshopProvider: FakeActiveWorkshopProvider
     private lateinit var staffMembershipPrefs: FakeStaffMembershipPrefsStore
     private lateinit var analytics: FakeAnalytics
+    private lateinit var notebookPrefs: FakeNotebookImportPreferencesStore
 
     private val testTimeZone = TimeZone.UTC
     private val today = LocalDate(2026, 4, 22)
@@ -140,6 +143,8 @@ class DashboardViewModelTest {
         activeWorkshopProvider = FakeActiveWorkshopProvider()
         staffMembershipPrefs = FakeStaffMembershipPrefsStore()
         analytics = FakeAnalytics()
+        // Intro already shown so unrelated brand-new tests never see the capture navigation.
+        notebookPrefs = FakeNotebookImportPreferencesStore(introShown = true)
     }
 
     @AfterTest
@@ -155,6 +160,7 @@ class DashboardViewModelTest {
         entitlements: EntitlementsProvider = FakeEntitlementsProvider(),
         measurementRepository: MeasurementRepository = this@DashboardViewModelTest.measurementRepository,
         orderRepository: OrderRepository = this@DashboardViewModelTest.orderRepository,
+        notebookPrefs: NotebookImportPreferencesStore = this@DashboardViewModelTest.notebookPrefs,
     ): DashboardViewModel {
         val vm = DashboardViewModel(
             orderRepository = orderRepository,
@@ -175,6 +181,7 @@ class DashboardViewModelTest {
             activeWorkshopProvider = activeWorkshopProvider,
             staffMembershipPrefs = staffMembershipPrefs,
             analytics = analytics,
+            notebookPrefs = notebookPrefs,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -304,6 +311,84 @@ class DashboardViewModelTest {
     private suspend fun signIn(businessName: String? = "Ade's Fashions") {
         authRepository.signUpWithEmail("t@t.com", "pass", "Ade Bello")
         authRepository.currentBusinessName = businessName
+    }
+
+    // --- Notebook import entry points ---
+
+    @Test
+    fun dashboard_brandNewOwner_firstTime_navigatesToCaptureOnce() = runTest {
+        signIn()
+        val prefs = FakeNotebookImportPreferencesStore(introShown = false)
+
+        val vm = createViewModel(notebookPrefs = prefs)
+        vm.events.test {
+            assertEquals(DashboardEvent.NavigateToNotebookCapture, awaitItem())
+            expectNoEvents()
+        }
+        assertTrue(prefs.introShown())
+
+        // A second load (new ViewModel, same persisted prefs) must not navigate again.
+        val second = createViewModel(notebookPrefs = prefs)
+        second.events.test { expectNoEvents() }
+    }
+
+    @Test
+    fun dashboard_existingCustomers_neverNavigatesToCapture() = runTest {
+        signIn()
+        customerRepository.customersList = listOf(fakeCustomer())
+        val prefs = FakeNotebookImportPreferencesStore(introShown = false)
+
+        val vm = createViewModel(notebookPrefs = prefs)
+        vm.events.test { expectNoEvents() }
+        assertTrue(prefs.introShown())
+    }
+
+    @Test
+    fun dashboard_staff_noCardNoNav() = runTest {
+        signIn()
+        becomeActiveStaff()
+        val prefs = FakeNotebookImportPreferencesStore(introShown = false)
+
+        val vm = createViewModel(notebookPrefs = prefs)
+        vm.events.test { expectNoEvents() }
+        assertFalse(vm.state.value.showNotebookCard)
+        assertFalse(prefs.introShown())
+    }
+
+    @Test
+    fun dashboard_cardHiddenAt5Customers() = runTest {
+        signIn()
+        customerRepository.customersList = (1..4).map { fakeCustomer(id = "c$it") }
+        val vm = createViewModel()
+        assertTrue(vm.state.value.showNotebookCard)
+
+        customerRepository.customersList = (1..5).map { fakeCustomer(id = "c$it") }
+        val atFive = createViewModel()
+        assertFalse(atFive.state.value.showNotebookCard)
+    }
+
+    @Test
+    fun dashboard_dismissPersists() = runTest {
+        signIn()
+        val prefs = FakeNotebookImportPreferencesStore(introShown = true)
+        val vm = createViewModel(notebookPrefs = prefs)
+        assertTrue(vm.state.value.showNotebookCard)
+
+        vm.onAction(DashboardAction.OnDismissNotebookCard)
+
+        assertFalse(vm.state.value.showNotebookCard)
+        assertTrue(prefs.observeCardDismissed().first())
+        assertFalse(createViewModel(notebookPrefs = prefs).state.value.showNotebookCard)
+    }
+
+    @Test
+    fun dashboard_notebookCardClick_navigatesToCapture() = runTest {
+        signIn()
+        val vm = createViewModel()
+        vm.events.test {
+            vm.onAction(DashboardAction.OnNotebookCardClick)
+            assertEquals(DashboardEvent.NavigateToNotebookCapture, awaitItem())
+        }
     }
 
     // --- Brand-new detection ---

@@ -1918,4 +1918,12 @@
     <string name="notebook_card_duplicate_needed">Même personne qu'une autre fiche ? Choisissez d'abord Réunir ou Garder séparés dans la liste</string>
     <string name="notebook_review_saved_before_cap">Limite de clients atteinte. Clients enregistrés avant la limite : %1$d</string>
     <string name="notebook_merge_phone_label">Téléphone</string>
+
+    <!-- Notebook scan import: entry points -->
+    <string name="notebook_entry_customers">Importer depuis un cahier</string>
+    <string name="notebook_entry_more_cd">Plus d'options</string>
+    <string name="notebook_entry_dashboard_title">Des clients dans un cahier ?</string>
+    <string name="notebook_entry_dashboard_body">Photographiez les pages et nous les importons pour vous.</string>
+    <string name="notebook_entry_dashboard_cta">Les scanner</string>
+    <string name="notebook_entry_dashboard_not_now">Pas maintenant</string>
 </resources>

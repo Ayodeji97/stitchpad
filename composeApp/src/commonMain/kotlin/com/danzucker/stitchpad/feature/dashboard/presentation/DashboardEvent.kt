@@ -58,6 +58,9 @@ sealed interface DashboardEvent {
     /** Founding Tailors card tapped: navigate to the referral + leaderboard screen. */
     data object NavigateToFoundingTailors : DashboardEvent
 
+    /** Open the notebook scan import capture screen (card tap, or the one-time first-run hop). */
+    data object NavigateToNotebookCapture : DashboardEvent
+
     /** Open the WhatsApp community invite (chat.whatsapp.com) directly. */
     data class OpenCommunityLink(val url: String) : DashboardEvent
 

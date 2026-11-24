@@ -2258,4 +2258,12 @@
     <string name="notebook_card_duplicate_needed">Same person as another card? Choose Combine or Keep separate on the review list first</string>
     <string name="notebook_review_saved_before_cap">Customer limit reached. Customers saved before the limit: %1$d</string>
     <string name="notebook_merge_phone_label">Phone</string>
+
+    <!-- Notebook scan import: entry points -->
+    <string name="notebook_entry_customers">Import from notebook</string>
+    <string name="notebook_entry_more_cd">More options</string>
+    <string name="notebook_entry_dashboard_title">Have customers in a notebook?</string>
+    <string name="notebook_entry_dashboard_body">Snap the pages and we bring them in for you.</string>
+    <string name="notebook_entry_dashboard_cta">Scan them in</string>
+    <string name="notebook_entry_dashboard_not_now">Not now</string>
 </resources>
