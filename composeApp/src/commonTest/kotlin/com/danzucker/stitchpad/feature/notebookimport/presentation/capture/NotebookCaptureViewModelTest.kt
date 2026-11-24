@@ -15,8 +15,13 @@ import com.danzucker.stitchpad.core.media.ImageCompressor
 import com.danzucker.stitchpad.feature.notebookimport.domain.ImportJob
 import com.danzucker.stitchpad.feature.notebookimport.domain.ImportPage
 import com.danzucker.stitchpad.feature.notebookimport.domain.NotebookImportRepository
+import com.danzucker.stitchpad.feature.notebookimport.domain.NotebookPageUploader
 import com.danzucker.stitchpad.feature.notebookimport.domain.PageStatus
 import com.danzucker.stitchpad.feature.notebookimport.domain.ReviewCard
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -41,15 +46,18 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
 
+internal fun unconfinedAppScope() = CoroutineScope(SupervisorJob() + UnconfinedTestDispatcher())
+
 private const val OWNER = "owner-1"
 
-private class FakeCaptureRepository : NotebookImportRepository {
+internal class FakeCaptureRepository : NotebookImportRepository {
     val openJob = MutableStateFlow<ImportJob?>(null)
     val pages = MutableStateFlow<List<ImportPage>>(emptyList())
 
     var createJobResult: Result<String, DataError.Network> = Result.Success("job-1")
     var uploadError: DataError.Network? = null
     var retryError: DataError.Network? = null
+    var uploadGate: CompletableDeferred<Unit>? = null
 
     var createJobCalls = 0
     val uploaded = mutableListOf<Pair<String, ByteArray>>()
@@ -69,6 +77,7 @@ private class FakeCaptureRepository : NotebookImportRepository {
         jpeg: ByteArray,
     ): Result<String, DataError.Network> {
         events += "upload"
+        uploadGate?.await()
         uploadError?.let { return Result.Error(it) }
         val id = "p${(1_000_000_000_000L + counter++)}_abcd0000"
         uploaded += id to jpeg
@@ -105,7 +114,7 @@ private class FakeCaptureRepository : NotebookImportRepository {
     }
 }
 
-private class RecordingCompressor : ImageCompressor {
+internal class RecordingCompressor : ImageCompressor {
     val calls = mutableListOf<Triple<Int, Int, Int>>()
     override suspend fun compress(bytes: ByteArray, maxEdgePx: Int, jpegQuality: Int): ByteArray? {
         calls += Triple(bytes.size, maxEdgePx, jpegQuality)
@@ -113,7 +122,7 @@ private class RecordingCompressor : ImageCompressor {
     }
 }
 
-private class FakeEntitlements : EntitlementsProvider {
+internal class FakeEntitlements : EntitlementsProvider {
     private val value = UserEntitlements(
         tier = SubscriptionTier.FREE,
         customerCap = 15,
@@ -136,6 +145,7 @@ class NotebookCaptureViewModelTest {
     private lateinit var repository: FakeCaptureRepository
     private lateinit var workshop: FakeActiveWorkshopProvider
     private lateinit var compressor: RecordingCompressor
+    private lateinit var appScope: CoroutineScope
 
     @BeforeTest
     fun setUp() {
@@ -143,19 +153,23 @@ class NotebookCaptureViewModelTest {
         repository = FakeCaptureRepository()
         workshop = FakeActiveWorkshopProvider(WorkshopSession.ownerOfSelf(OWNER))
         compressor = RecordingCompressor()
+        appScope = unconfinedAppScope()
     }
 
     @AfterTest
     fun tearDown() {
+        appScope.cancel()
         Dispatchers.resetMain()
     }
 
-    private fun TestScope.createViewModel(): NotebookCaptureViewModel {
+    private fun newUploader() = NotebookPageUploader(repository, compressor, appScope)
+
+    private fun TestScope.createViewModel(uploader: NotebookPageUploader = newUploader()): NotebookCaptureViewModel {
         val vm = NotebookCaptureViewModel(
             repository = repository,
             activeWorkshop = workshop,
             entitlements = FakeEntitlements(),
-            imageCompressor = compressor,
+            uploader = uploader,
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm
@@ -173,11 +187,12 @@ class NotebookCaptureViewModelTest {
         assertEquals(1, repository.createJobCalls)
         assertEquals(listOf("create", "upload"), repository.events)
         assertContentEquals(byteArrayOf(9, 1, 2, 3), repository.uploaded.single().second)
-        assertEquals(listOf(Triple(3, 2560, 90)), compressor.calls)
+        assertEquals(listOf(Triple(3, 2560, 90), Triple(4, 256, 80)), compressor.calls)
         val page = vm.state.value.pages.single()
         assertEquals(1, page.number)
         assertEquals(CapturePageStatus.READING, page.status)
-        assertNotNull(page.thumb)
+        // After upload only the small thumbnail is kept.
+        assertContentEquals(byteArrayOf(9, 9, 1, 2, 3), page.thumb)
     }
 
     @Test
@@ -353,7 +368,7 @@ class NotebookCaptureViewModelTest {
                 membershipStatus = MembershipStatus.ACTIVE,
             )
         )
-        val vm = NotebookCaptureViewModel(repository, workshop, FakeEntitlements(), compressor)
+        val vm = NotebookCaptureViewModel(repository, workshop, FakeEntitlements(), newUploader())
 
         vm.events.test {
             backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
@@ -372,5 +387,25 @@ class NotebookCaptureViewModelTest {
             vm.onAction(NotebookCaptureAction.OnNavigateBack)
             assertEquals(NotebookCaptureEvent.NavigateBack, awaitItem())
         }
+    }
+
+    @Test
+    fun recreatedViewModel_seesPagesQueuedByEarlierOne() = runTest {
+        val uploader = newUploader()
+        repository.uploadGate = CompletableDeferred()
+        val first = createViewModel(uploader)
+        first.onAction(NotebookCaptureAction.OnPhotosPicked(listOf(byteArrayOf(1), byteArrayOf(2))))
+
+        // The tailor leaves and comes back while the first upload is still in flight.
+        val second = createViewModel(uploader)
+        assertEquals(2, second.state.value.pages.size)
+        assertTrue(second.state.value.pages.all { it.status == CapturePageStatus.UPLOADING })
+
+        repository.uploadGate!!.complete(Unit)
+
+        assertEquals(2, repository.uploaded.size)
+        assertEquals(1, repository.createJobCalls)
+        assertEquals(listOf(1, 2), second.state.value.pages.map { it.number })
+        assertTrue(second.state.value.pages.all { it.status == CapturePageStatus.READING })
     }
 }

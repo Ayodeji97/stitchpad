@@ -7,78 +7,57 @@ import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.session.ActiveWorkshopProvider
 import com.danzucker.stitchpad.core.logging.AppLogger
-import com.danzucker.stitchpad.core.media.ImageCompressor
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.feature.notebookimport.domain.ImportPage
+import com.danzucker.stitchpad.feature.notebookimport.domain.LocalUpload
 import com.danzucker.stitchpad.feature.notebookimport.domain.NotebookImportRepository
+import com.danzucker.stitchpad.feature.notebookimport.domain.NotebookPageUploader
 import com.danzucker.stitchpad.feature.notebookimport.domain.PageStatus
+import com.danzucker.stitchpad.feature.notebookimport.domain.UploadPhase
 import com.danzucker.stitchpad.feature.notebookimport.domain.canStartNotebookImport
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import stitchpad.composeapp.generated.resources.Res
 import stitchpad.composeapp.generated.resources.error_no_internet
 import stitchpad.composeapp.generated.resources.error_unknown
 
 private const val TAG = "NotebookCapture"
-
-// Handwriting needs more resolution than a style photo; values from the plan's Global Constraints.
-private const val NOTEBOOK_MAX_EDGE_PX = 2560
-private const val NOTEBOOK_JPEG_QUALITY = 90
-
 private const val RESUME_LOOKUP_TIMEOUT_MS = 3_000L
 
 /** Server error value on a page that was refused by the page cap. Retrying cannot help. */
 private const val PAGE_CAP_REACHED = "page_cap_reached"
 
-private enum class LocalPhase { UPLOADING, FAILED, UPLOADED }
-
-/** A page captured in this session. Holds the compressed JPEG for the thumbnail and for re-upload. */
-private class LocalPage(
-    val id: String,
-    val bytes: ByteArray,
-    val phase: LocalPhase,
-    val pageId: String? = null,
-) {
-    fun with(phase: LocalPhase, pageId: String? = this.pageId) = LocalPage(id, bytes, phase, pageId)
-}
-
 /**
- * Capture screen logic. Never logs names, phones, values or image bytes: only ids and error types.
- *
- * Uploads run one at a time, in capture order, so server page ids (which encode upload time) keep
- * the order the tailor shot the pages in. The job is created lazily before the first upload and
- * only after the server confirmed it ([NotebookImportRepository.createJob]).
+ * Thin observer over [NotebookPageUploader] (which owns capture, compression and upload for the app's
+ * lifetime) and the repository's pages. Never logs names, phones, values or image bytes.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @Suppress("TooManyFunctions")
 class NotebookCaptureViewModel(
     private val repository: NotebookImportRepository,
     private val activeWorkshop: ActiveWorkshopProvider,
     private val entitlements: EntitlementsProvider,
-    private val imageCompressor: ImageCompressor,
+    private val uploader: NotebookPageUploader,
 ) : ViewModel() {
 
     private var hasLoadedInitialData = false
     private val loaded = CompletableDeferred<Unit>()
-
-    private var jobId: String? = null
-    private var observeJob: Job? = null
     private var serverPages: List<ImportPage> = emptyList()
-    private var localPages: List<LocalPage> = emptyList()
-    private var localCounter = 0
-
-    private val uploadMutex = Mutex()
 
     private val _state = MutableStateFlow(NotebookCaptureState())
     private val _events = Channel<NotebookCaptureEvent>()
@@ -125,7 +104,9 @@ class NotebookCaptureViewModel(
                 _events.send(NotebookCaptureEvent.NavigateBack)
                 return
             }
-            resumeOpenJob(uid)
+            // A job already held by the uploader (earlier visit to this screen) is the live one.
+            if (uploader.jobId.value == null) resumeOpenJob(uid)
+            observe(uid)
         } finally {
             loaded.complete(Unit)
         }
@@ -141,21 +122,29 @@ class NotebookCaptureViewModel(
             val pages = repository.observePages(uid, job.id).first()
             if (pages is Result.Success && pages.data.isNotEmpty()) job.id else null
         } ?: return
-        jobId = resumed
-        observePages(uid, resumed)
+        uploader.adoptJob(resumed)
     }
 
-    private fun observePages(uid: String, id: String) {
-        observeJob?.cancel()
-        observeJob = viewModelScope.launch {
-            repository.observePages(uid, id).collect { result ->
-                when (result) {
-                    is Result.Success -> {
-                        serverPages = result.data
-                        publish()
-                    }
-                    is Result.Error -> AppLogger.w(TAG) { "observePages failed: ${result.error}" }
+    private fun observe(uid: String) {
+        viewModelScope.launch {
+            uploader.jobId
+                .flatMapLatest { id -> if (id == null) flowOf(emptyList()) else serverPagesOf(uid, id) }
+                .combine(uploader.pages) { server, local ->
+                    serverPages = server
+                    buildPages(server, local)
                 }
+                .collect { pages -> _state.update { it.copy(pages = pages) } }
+        }
+        viewModelScope.launch {
+            uploader.errors.collect { showError(it) }
+        }
+    }
+
+    private fun serverPagesOf(uid: String, jobId: String): Flow<List<ImportPage>> = flow {
+        repository.observePages(uid, jobId).collect { result ->
+            when (result) {
+                is Result.Success -> emit(result.data)
+                is Result.Error -> AppLogger.w(TAG) { "observePages failed: ${result.error}" }
             }
         }
     }
@@ -163,62 +152,20 @@ class NotebookCaptureViewModel(
     private fun onPhotosPicked(photos: List<ByteArray>) {
         if (photos.isEmpty()) return
         viewModelScope.launch {
-            if (ownerUidOrNull() == null) return@launch
-            for (photo in photos) {
-                val jpeg = imageCompressor.compress(photo, NOTEBOOK_MAX_EDGE_PX, NOTEBOOK_JPEG_QUALITY) ?: photo
-                val page = LocalPage(id = "local-${localCounter++}", bytes = jpeg, phase = LocalPhase.UPLOADING)
-                localPages = localPages + page
-                publish()
-                launch { upload(page.id) }
-            }
-        }
-    }
-
-    private suspend fun upload(localId: String) {
-        val uid = ownerUidOrNull()
-        if (uid == null) {
-            updateLocal(localId) { it.with(LocalPhase.FAILED) }
-            return
-        }
-        uploadMutex.withLock {
             loaded.await()
-            val page = localPages.find { it.id == localId } ?: return
-            val result = when (val job = ensureJob(uid)) {
-                is Result.Success -> repository.uploadPage(uid, job.data, page.bytes)
-                is Result.Error -> Result.Error(job.error)
-            }
-            when (result) {
-                is Result.Success -> updateLocal(localId) { it.with(LocalPhase.UPLOADED, result.data) }
-                is Result.Error -> {
-                    AppLogger.w(TAG) { "upload failed: ${result.error}" }
-                    updateLocal(localId) { it.with(LocalPhase.FAILED) }
-                    showError(result.error)
-                }
-            }
+            val uid = ownerUidOrNull() ?: return@launch
+            uploader.submit(uid, photos)
         }
-    }
-
-    private suspend fun ensureJob(uid: String): Result<String, DataError.Network> {
-        jobId?.let { return Result.Success(it) }
-        val created = repository.createJob(uid)
-        if (created is Result.Success) {
-            jobId = created.data
-            observePages(uid, created.data)
-        }
-        return created
     }
 
     private fun onRetry(key: String) {
-        val local = localPages.find { it.id == key }
+        val local = uploader.pages.value.find { it.id == key }
         if (local != null) {
-            if (local.phase == LocalPhase.FAILED) {
-                updateLocal(key) { it.with(LocalPhase.UPLOADING) }
-                viewModelScope.launch { upload(key) }
-            }
+            viewModelScope.launch { ownerUidOrNull()?.let { uploader.retry(it, key) } }
             return
         }
         val page = serverPages.find { it.id == key }
-        val job = jobId
+        val job = uploader.jobId.value
         if (page != null && job != null && page.isRetryable()) {
             viewModelScope.launch { retryServerPage(job, page.id) }
         }
@@ -235,14 +182,9 @@ class NotebookCaptureViewModel(
     }
 
     private fun onReviewClick() {
-        val job = jobId ?: return
+        val job = uploader.jobId.value ?: return
         if (!_state.value.canReview) return
         send(NotebookCaptureEvent.NavigateToReview(job))
-    }
-
-    private fun updateLocal(id: String, change: (LocalPage) -> LocalPage) {
-        localPages = localPages.map { if (it.id == id) change(it) else it }
-        publish()
     }
 
     private fun showError(error: DataError.Network) {
@@ -253,34 +195,33 @@ class NotebookCaptureViewModel(
         _state.update { it.copy(errorMessage = text) }
     }
 
-    private fun publish() {
-        val uploadedThumbs = localPages.filter { it.pageId != null }.associateBy { it.pageId }
-        val serverIds = serverPages.mapTo(HashSet()) { it.id }
+    private fun buildPages(server: List<ImportPage>, local: List<LocalUpload>): List<CapturePage> {
+        val uploaded = local.filter { it.pageId != null }.associateBy { it.pageId }
+        val serverIds = server.mapTo(HashSet()) { it.id }
 
-        val fromServer = serverPages.sortedBy { it.id }.map { page ->
+        val fromServer = server.sortedBy { it.id }.map { page ->
             CapturePage(
                 key = page.id,
                 number = 0,
                 status = page.toCaptureStatus(),
                 personCount = page.personCount,
-                thumb = uploadedThumbs[page.id]?.bytes,
+                thumb = uploaded[page.id]?.display,
             )
         }
         // Not on the server yet: still uploading, failed to upload, or uploaded but not synced back.
-        val pending = localPages.filter { it.pageId == null || it.pageId !in serverIds }.map { page ->
+        val pending = local.filter { it.pageId == null || it.pageId !in serverIds }.map { page ->
             CapturePage(
                 key = page.id,
                 number = 0,
-                status = if (page.phase == LocalPhase.FAILED) {
+                status = if (page.phase == UploadPhase.FAILED) {
                     CapturePageStatus.UPLOAD_FAILED
                 } else {
                     CapturePageStatus.UPLOADING
                 },
-                thumb = page.bytes,
+                thumb = page.display,
             )
         }
-        val pages = (fromServer + pending).mapIndexed { index, page -> page.numbered(index + 1) }
-        _state.update { it.copy(pages = pages) }
+        return (fromServer + pending).mapIndexed { index, page -> page.numbered(index + 1) }
     }
 
     private fun ImportPage.toCaptureStatus(): CapturePageStatus = when (status) {
