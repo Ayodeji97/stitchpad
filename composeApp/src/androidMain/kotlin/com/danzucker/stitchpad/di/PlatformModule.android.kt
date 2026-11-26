@@ -2,10 +2,12 @@ package com.danzucker.stitchpad.di
 
 import coil3.imageLoader
 import com.danzucker.stitchpad.BuildConfig
+import com.danzucker.stitchpad.core.data.preferences.NotebookImportPreferences
 import com.danzucker.stitchpad.core.data.preferences.ReceiptImagePreferences
 import com.danzucker.stitchpad.core.data.preferences.ThemePreferences
 import com.danzucker.stitchpad.core.data.staff.StaffMembershipPrefs
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
+import com.danzucker.stitchpad.core.domain.preferences.NotebookImportPreferencesStore
 import com.danzucker.stitchpad.core.domain.preferences.ReceiptImagePreferencesStore
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreferencesStore
 import com.danzucker.stitchpad.core.domain.staff.StaffMembershipPrefsStore
@@ -59,6 +61,7 @@ actual val platformModule: Module = module {
     single { MeasurementPreferences(androidContext()) } bind MeasurementPreferencesStore::class
     single { ThemePreferences(androidContext()) } bind ThemePreferencesStore::class
     single { ReceiptImagePreferences(androidContext()) } bind ReceiptImagePreferencesStore::class
+    single { NotebookImportPreferences(androidContext()) } bind NotebookImportPreferencesStore::class
     single { StaffMembershipPrefs(androidContext()) } bind StaffMembershipPrefsStore::class
     single { OfflinePhotoStore(androidContext()) }
     single { TutorialVideoCache(androidContext()) }

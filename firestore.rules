@@ -183,6 +183,36 @@ service cloud.firestore {
           : true;
       }
 
+      // ── Notebook scan import (owner-only; staff get nothing) ───────────────
+      // Job doc: the client creates it as exactly {createdAt, status:'open',
+      // pageCount:0} and may later flip only `status`. pageCount and
+      // imagesDeletedAt are server-only. Pages are server-written (read-only
+      // to the owner); cards are server-created, owner-edited in a few fields.
+      match /notebookImports/{jobId} {
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && request.resource.data.keys().hasOnly(['createdAt', 'status', 'pageCount'])
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.status == 'open'
+          && request.resource.data.pageCount == 0;
+        allow update: if isOwner(uid)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+          && request.resource.data.status in ['saved', 'abandoned'];
+
+        match /pages/{pageId} {
+          allow read: if isOwner(uid);
+        }
+
+        match /cards/{cardId} {
+          allow read, delete: if isOwner(uid);
+          allow update: if isOwner(uid)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+                 ['name', 'phone', 'gender', 'unit', 'dateWritten', 'values',
+                  'status', 'matchedCustomerId', 'savedCustomerId', 'keepAsNew', 'updatedAt'])
+            && request.resource.data.status in ['new', 'checked', 'saved', 'skipped'];
+        }
+      }
+
       // ── Slice 8e: base docs must stay money/contact-free ──────────────────
       // After the Slice-8d strip, order money lives ONLY in
       // orders/{oid}/private/money and customer contact ONLY in

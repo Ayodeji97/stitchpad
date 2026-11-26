@@ -8,12 +8,15 @@ import com.danzucker.stitchpad.core.config.domain.CommunityBannerDismissal
 import com.danzucker.stitchpad.core.config.domain.CommunityJoinTracker
 import com.danzucker.stitchpad.core.config.domain.isUsableCommunityInviteUrl
 import com.danzucker.stitchpad.core.config.domain.repository.AppConfigRepository
+import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsCalculator
 import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
+import com.danzucker.stitchpad.core.domain.model.CustomerSlotState
 import com.danzucker.stitchpad.core.domain.model.Order
 import com.danzucker.stitchpad.core.domain.model.User
+import com.danzucker.stitchpad.core.domain.preferences.NotebookImportPreferencesStore
 import com.danzucker.stitchpad.core.domain.repository.CustomerRepository
 import com.danzucker.stitchpad.core.domain.repository.MeasurementRepository
 import com.danzucker.stitchpad.core.domain.repository.NotificationRepository
@@ -48,6 +51,7 @@ import com.danzucker.stitchpad.feature.goals.domain.model.WeeklyGoal
 import com.danzucker.stitchpad.feature.goals.domain.repository.WeeklyGoalRepository
 import com.danzucker.stitchpad.feature.measurement.presentation.entry.MeasurementEntryDestination
 import com.danzucker.stitchpad.feature.measurement.presentation.entry.MeasurementEntryResolver
+import com.danzucker.stitchpad.feature.notebookimport.domain.canStartNotebookImport
 import com.danzucker.stitchpad.feature.notification.push.PushTokenRegistrar
 import com.danzucker.stitchpad.feature.order.presentation.list.OrderListFilter
 import kotlinx.coroutines.CancellationException
@@ -90,6 +94,16 @@ private const val ONE_DAY_MILLIS: Long = 24L * 60L * 60L * 1000L
 private const val PICKER_DISMISS_DELAY_MS = 450L
 private const val COUNT_FETCH_TIMEOUT_MS = 3_000L
 
+// The notebook card is a nudge for tailors who have barely started; past this many
+// active customers they have clearly entered their book already.
+private const val NOTEBOOK_CARD_MAX_CUSTOMERS = 5
+
+// The one-time capture hop is for genuinely new accounts only.
+private const val NEW_ACCOUNT_DAYS = 3L
+
+// The dashboard card is for the first days of an account (spec "first days").
+private const val NOTEBOOK_CARD_MAX_ACCOUNT_DAYS = 14L
+
 @OptIn(ExperimentalTime::class, ExperimentalCoroutinesApi::class)
 @Suppress("TooManyFunctions", "LongParameterList", "LargeClass")
 class DashboardViewModel(
@@ -111,9 +125,13 @@ class DashboardViewModel(
     private val activeWorkshopProvider: ActiveWorkshopProvider,
     private val staffMembershipPrefs: StaffMembershipPrefsStore,
     private val analytics: Analytics,
+    private val notebookPrefs: NotebookImportPreferencesStore,
 ) : ViewModel() {
 
     private var hasLoadedInitialData = false
+
+    // True once the one-time notebook capture intro has been decided for this ViewModel.
+    private var notebookIntroEvaluated = false
     private val _state = MutableStateFlow(DashboardState())
 
     // Captured from loadData()'s combine collect — not stored in DashboardState
@@ -140,6 +158,7 @@ class DashboardViewModel(
                 observeEntitlements()
                 observeUnreadNotifications()
                 observeCommunity()
+                observeNotebookCardDismissed()
             }
         }
         .stateIn(
@@ -217,6 +236,71 @@ class DashboardViewModel(
                 }
             }
         }
+    }
+
+    private fun observeNotebookCardDismissed() {
+        viewModelScope.launch {
+            notebookPrefs.observeCardDismissed().collect { dismissed ->
+                _state.update { it.copy(notebookCardDismissed = dismissed) }
+            }
+        }
+    }
+
+    private fun canImportNotebook(): Boolean =
+        canStartNotebookImport(activeWorkshopProvider.current(), entitlements.current())
+
+    /**
+     * Runs the notebook entry rules for one owner tick and returns the card eligibility.
+     * A tick with a failed orders/customers read changes nothing: no intro decision, and the
+     * previous eligibility is kept.
+     */
+    private fun resolveNotebookEntry(
+        ordersResult: Result<List<Order>, DataError.Network>,
+        customersResult: Result<List<Customer>, DataError.Network>,
+        uiState: DashboardUiState,
+        customers: List<Customer>,
+    ): Boolean {
+        if (ordersResult !is Result.Success || customersResult !is Result.Success) {
+            return _state.value.notebookCardEligible
+        }
+        maybeShowNotebookIntro(uiState)
+        return canImportNotebook() &&
+            isAccountYoungerThan(NOTEBOOK_CARD_MAX_ACCOUNT_DAYS, entitlements.current().welcomeEndsAt) &&
+            customers.count { it.slotState == CustomerSlotState.ACTIVE } < NOTEBOOK_CARD_MAX_CUSTOMERS
+    }
+
+    /**
+     * One-time hop to the notebook capture screen for an owner whose very first loaded
+     * dashboard is [DashboardUiState.BrandNew]. The flag is persisted as soon as the first
+     * real data tick is seen (brand new or not), so it can never fire on a later empty state.
+     */
+    private fun maybeShowNotebookIntro(uiState: DashboardUiState) {
+        if (notebookIntroEvaluated || !canImportNotebook()) return
+        notebookIntroEvaluated = true
+        viewModelScope.launch {
+            if (notebookPrefs.introShown()) return@launch
+            notebookPrefs.setIntroShown()
+            if (uiState == DashboardUiState.BrandNew && isNewAccount()) {
+                emitEvent(DashboardEvent.NavigateToNotebookCapture)
+            }
+        }
+    }
+
+    /**
+     * True when the account is under [NEW_ACCOUNT_DAYS] old. Age comes from the server-stamped
+     * welcome-bonus time on the user doc (set once at account creation) which the entitlements
+     * provider already holds: creation = welcomeEndsAt minus the welcome window. Unknown means
+     * not new, so older or legacy accounts never get hopped.
+     */
+    private suspend fun isNewAccount(): Boolean =
+        isAccountYoungerThan(NEW_ACCOUNT_DAYS, entitlements.awaitHydrated().welcomeEndsAt)
+
+    /** Account age (from [welcomeEndsAt], see [isNewAccount]) is at most [days]; unknown age is false. */
+    private fun isAccountYoungerThan(days: Long, welcomeEndsAt: Instant?): Boolean {
+        val endsAt = welcomeEndsAt ?: return false
+        val createdAtMillis = endsAt.toEpochMilliseconds() - EntitlementsCalculator.WELCOME_WINDOW_DAYS * ONE_DAY_MILLIS
+        val ageMillis = nowMillis() - createdAtMillis
+        return ageMillis in 0..days * ONE_DAY_MILLIS
     }
 
     private fun dismissCommunityBanner() {
@@ -324,6 +408,10 @@ class DashboardViewModel(
                 dismissCommunityBanner()
             }
             DashboardAction.OnDismissCommunityBanner -> dismissCommunityBanner()
+            DashboardAction.OnNotebookCardClick -> {
+                if (_state.value.showNotebookCard) emitEvent(DashboardEvent.NavigateToNotebookCapture)
+            }
+            DashboardAction.OnDismissNotebookCard -> viewModelScope.launch { notebookPrefs.dismissCard() }
             DashboardAction.OnMeasurementsShortcutClick -> openMeasurementsPicker()
             is DashboardAction.OnMeasurementsPickerQueryChange -> _state.update { s ->
                 s.copy(measurementsPicker = s.measurementsPicker?.copy(query = action.query))
@@ -722,6 +810,7 @@ class DashboardViewModel(
         _state.update {
             it.copy(
                 uiState = DashboardUiState.BrandNew,
+                notebookCardEligible = false,
                 staffPipeline = null,
                 staffMineCount = 0,
                 staffOpenQueue = emptyList(),
@@ -760,6 +849,7 @@ class DashboardViewModel(
         _state.update {
             it.copy(
                 isStaff = true,
+                notebookCardEligible = false,
                 businessName = staffMembershipPrefs.workshopName.value,
                 workshopEarnings = emptyList(),
                 earningsCardDismissed = false,
@@ -870,6 +960,7 @@ class DashboardViewModel(
         _state.update {
             it.copy(
                 isStaff = true,
+                notebookCardEligible = false,
                 workshopEarnings = emptyList(),
                 earningsCardDismissed = false,
                 viewerMemberId = staffAuthUid,
@@ -972,6 +1063,7 @@ class DashboardViewModel(
             null
         }
         val firstOrderSetup = computeFirstOrderSetup(customers, orders)
+        val notebookCardEligible = resolveNotebookEntry(ordersResult, customersResult, uiState, customers)
 
         _state.update {
             it.copy(
@@ -982,6 +1074,7 @@ class DashboardViewModel(
                 // holds at the state level, not just while `isStaff` composable guards
                 // are in effect.
                 isStaff = false,
+                notebookCardEligible = notebookCardEligible,
                 viewerMemberId = authUser.id,
                 staffPipeline = null,
                 staffMineCount = 0,

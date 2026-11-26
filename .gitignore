@@ -86,3 +86,7 @@ fastlane/metadata/
 output/
 reports/
 research_notes/
+
+# Notebook eval (customer data)
+tools/notebook_eval/pages/
+tools/notebook_eval/out/

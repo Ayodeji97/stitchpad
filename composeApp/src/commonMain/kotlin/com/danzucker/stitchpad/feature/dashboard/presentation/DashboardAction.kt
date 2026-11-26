@@ -95,6 +95,12 @@ sealed interface DashboardAction {
     /** Community banner ✕ tapped → hide it for good (local flag). */
     data object OnDismissCommunityBanner : DashboardAction
 
+    /** Notebook import card: "Scan them in". */
+    data object OnNotebookCardClick : DashboardAction
+
+    /** Notebook import card: "Not now" (persisted). */
+    data object OnDismissNotebookCard : DashboardAction
+
     /** "Measurement" dashboard tile tapped → open the customer picker sheet. */
     data object OnMeasurementsShortcutClick : DashboardAction
 

@@ -221,3 +221,15 @@ data object HelpTutorialsRoute
 
 @Serializable
 data class TutorialPlayerRoute(val tutorialId: String)
+
+/** Notebook scan import: photograph notebook pages (owner only). */
+@Serializable
+data object NotebookCaptureRoute
+
+/** Notebook scan import: the review list for one import job. */
+@Serializable
+data class NotebookReviewRoute(val jobId: String)
+
+/** Notebook scan import: the card editor for one detected person in a job. */
+@Serializable
+data class NotebookCardRoute(val jobId: String, val cardId: String)

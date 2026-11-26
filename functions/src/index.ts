@@ -51,6 +51,8 @@ function serialiseSettledError(error: unknown): unknown {
 }
 
 export { smartDraftMessage } from './smart/draftMessage';
+export { processNotebookPage, retryNotebookPage } from './notebook/processPage';
+export { cleanupNotebookImports } from './notebook/cleanup';
 export { reconcileCustomerSlots } from './freemium/reconcileSlots';
 export { sendVerificationEmail } from './auth/sendVerificationEmail';
 export { sendPasswordResetEmail } from './auth/sendPasswordResetEmail';

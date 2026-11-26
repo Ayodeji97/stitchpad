@@ -49,6 +49,9 @@ import com.danzucker.stitchpad.feature.goals.presentation.setup.GoalSetupRoot
 import com.danzucker.stitchpad.feature.measurement.presentation.detail.MeasurementDetailRoot
 import com.danzucker.stitchpad.feature.measurement.presentation.detail.MeasurementDetailSource
 import com.danzucker.stitchpad.feature.measurement.presentation.form.MeasurementFormRoot
+import com.danzucker.stitchpad.feature.notebookimport.presentation.capture.NotebookCaptureRoot
+import com.danzucker.stitchpad.feature.notebookimport.presentation.card.NotebookCardRoot
+import com.danzucker.stitchpad.feature.notebookimport.presentation.review.NotebookReviewRoot
 import com.danzucker.stitchpad.feature.notification.presentation.inbox.NotificationsInboxRoot
 import com.danzucker.stitchpad.feature.order.presentation.detail.OrderDetailRoot
 import com.danzucker.stitchpad.feature.order.presentation.form.OrderFormRoot
@@ -89,6 +92,9 @@ import com.danzucker.stitchpad.navigation.GoalSetupRoute
 import com.danzucker.stitchpad.navigation.HelpTutorialsRoute
 import com.danzucker.stitchpad.navigation.MeasurementDetailRoute
 import com.danzucker.stitchpad.navigation.MeasurementFormRoute
+import com.danzucker.stitchpad.navigation.NotebookCaptureRoute
+import com.danzucker.stitchpad.navigation.NotebookCardRoute
+import com.danzucker.stitchpad.navigation.NotebookReviewRoute
 import com.danzucker.stitchpad.navigation.NotificationsInboxRoute
 import com.danzucker.stitchpad.navigation.OrderDetailRoute
 import com.danzucker.stitchpad.navigation.OrderFormRoute
@@ -273,6 +279,46 @@ private fun MainNavGraph(
                 },
                 onNavigateToTutorial = { tutorialId ->
                     navController.navigate(TutorialPlayerRoute(tutorialId = tutorialId))
+                },
+                onNavigateToNotebookImport = {
+                    navController.navigate(NotebookCaptureRoute) { launchSingleTop = true }
+                },
+            )
+        }
+        composable<NotebookCaptureRoute> {
+            NotebookCaptureRoot(
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToReview = { jobId ->
+                    navController.navigate(NotebookReviewRoute(jobId = jobId))
+                },
+            )
+        }
+        composable<NotebookReviewRoute> {
+            NotebookReviewRoot(
+                onNavigateBack = { navController.navigateUp() },
+                onOpenCard = { jobId, cardId ->
+                    navController.navigate(NotebookCardRoute(jobId = jobId, cardId = cardId))
+                },
+                onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
+                onNavigateToCustomers = {
+                    // Reuse an existing customer list in the back stack instead of stacking a second.
+                    navController.navigate(CustomerListRoute) {
+                        popUpTo(CustomerListRoute)
+                        launchSingleTop = true
+                    }
+                },
+            )
+        }
+        composable<NotebookCardRoute> {
+            NotebookCardRoot(
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToUpgrade = { navController.navigate(UpgradeRoute) },
+                onNavigateToCustomers = {
+                    // Reuse an existing customer list in the back stack instead of stacking a second.
+                    navController.navigate(CustomerListRoute) {
+                        popUpTo(CustomerListRoute)
+                        launchSingleTop = true
+                    }
                 },
             )
         }
@@ -568,6 +614,9 @@ private fun MainNavGraph(
                 },
                 onNavigateToFoundingTailors = {
                     navController.navigate(FoundingTailorsRoute) { launchSingleTop = true }
+                },
+                onNavigateToNotebookCapture = {
+                    navController.navigate(NotebookCaptureRoute) { launchSingleTop = true }
                 },
                 onNavigateToUpgrade = {
                     navController.navigate(UpgradeRoute)

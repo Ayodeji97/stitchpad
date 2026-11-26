@@ -124,5 +124,11 @@ data class DashboardState(
     // stage stepper). Null means closed. The sheet's row is resolved live from
     // [staffOpenQueue] by this id, not stored separately — StaffDashboardContent.
     val stageSheetOrderId: String? = null,
+    // Notebook import card: eligible = owner with fewer than 5 active customers (set by the
+    // owner tick, false for staff); dismissed = the persisted "Not now".
+    val notebookCardEligible: Boolean = false,
+    val notebookCardDismissed: Boolean = false,
     val errorMessage: UiText? = null
-)
+) {
+    val showNotebookCard: Boolean get() = notebookCardEligible && !notebookCardDismissed
+}

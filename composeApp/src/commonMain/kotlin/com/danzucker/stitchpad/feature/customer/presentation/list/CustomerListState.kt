@@ -39,4 +39,6 @@ data class CustomerListState(
      * handler as defense-in-depth.
      */
     val isActiveStaff: Boolean = false,
+    /** Owner-only entry point to the notebook scan import (see canStartNotebookImport). */
+    val canImportNotebook: Boolean = false,
 )

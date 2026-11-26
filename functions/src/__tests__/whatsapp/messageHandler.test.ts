@@ -45,7 +45,7 @@ function fakeKnowledge(articles: KbArticle[] = KB): KbIO {
 }
 
 function fakeVertex(reply: string): VertexClient {
-  return { async generateText() { return reply; } };
+  return { async generateText() { return reply; }, generateJsonFromImage: async () => { throw new Error('not used'); } };
 }
 
 function fakeEscalation() {
@@ -79,7 +79,7 @@ describe('handleInboundPayload (orchestration)', () => {
   it('sends the terms gate on first contact and never calls the model', async () => {
     const { client, sent } = fakeClient();
     let vertexCalled = false;
-    const vertex: VertexClient = { async generateText() { vertexCalled = true; return ''; } };
+    const vertex: VertexClient = { async generateText() { vertexCalled = true; return ''; }, generateJsonFromImage: async () => { throw new Error('not used'); } };
     await handleInboundPayload(textPayload('a', '1', 'hello'), deps({ client, vertex }));
 
     expect(sent).toHaveLength(1);
@@ -110,7 +110,7 @@ describe('handleInboundPayload (orchestration)', () => {
     const { client, sent } = fakeClient();
     const conv = fakeConversations({ a: { state: 'BOT', termsAccepted: true, language: 'en' } });
     const esc = fakeEscalation();
-    const vertex: VertexClient = { async generateText() { throw new Error('genai down'); } };
+    const vertex: VertexClient = { async generateText() { throw new Error('genai down'); }, generateJsonFromImage: async () => { throw new Error('not used'); } };
     await handleInboundPayload(textPayload('a', '1', 'something obscure'), deps({ client, conversations: conv.io, vertex, escalation: esc.io }));
 
     expect(sent[0].body.toLowerCase()).toMatch(/connect|team/);
@@ -122,7 +122,7 @@ describe('handleInboundPayload (orchestration)', () => {
   it('stays silent when a human owns the conversation (non-BOT state)', async () => {
     const { client, sent } = fakeClient();
     let vertexCalled = false;
-    const vertex: VertexClient = { async generateText() { vertexCalled = true; return ''; } };
+    const vertex: VertexClient = { async generateText() { vertexCalled = true; return ''; }, generateJsonFromImage: async () => { throw new Error('not used'); } };
     const conv = fakeConversations({ a: { state: 'AWAITING_HUMAN', termsAccepted: true, language: 'en' } });
     await handleInboundPayload(textPayload('a', '1', 'are you there?'), deps({ client, conversations: conv.io, vertex }));
 
@@ -147,7 +147,7 @@ describe('handleInboundPayload (orchestration)', () => {
     const conv = fakeConversations({ a: { state: 'BOT', termsAccepted: true, language: 'en' } });
     const esc = fakeEscalation();
     let vertexCalled = false;
-    const vertex: VertexClient = { async generateText() { vertexCalled = true; return ''; } };
+    const vertex: VertexClient = { async generateText() { vertexCalled = true; return ''; }, generateJsonFromImage: async () => { throw new Error('not used'); } };
     await handleInboundPayload(textPayload('a', '1', 'please let me talk to a human'), deps({ client, conversations: conv.io, vertex, escalation: esc.io }));
 
     expect(vertexCalled).toBe(false);

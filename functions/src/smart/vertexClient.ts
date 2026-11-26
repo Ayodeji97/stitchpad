@@ -14,6 +14,15 @@ const MODEL_ID = 'gemini-3.1-flash-lite';
  */
 export interface VertexClient {
   generateText(args: { systemPrompt: string; userPrompt: string; maxOutputTokens?: number }): Promise<string>;
+  /** Reads one page image and returns the model's JSON text (temperature 0). */
+  generateJsonFromImage(args: {
+    model: string;
+    systemPrompt: string;
+    imageBase64: string;
+    mimeType: 'image/jpeg';
+    responseSchema: object;
+    maxOutputTokens?: number;
+  }): Promise<string>;
 }
 
 let cachedClient: VertexClient | null = null;
@@ -34,6 +43,24 @@ export function getVertexClient(): VertexClient {
           systemInstruction: systemPrompt,
           temperature: 0.7,
           maxOutputTokens,
+        },
+      });
+      const text = response.text;
+      if (!text || text.trim().length === 0) {
+        throw new Error('genai_empty_text');
+      }
+      return text.trim();
+    },
+    async generateJsonFromImage({ model, systemPrompt, imageBase64, mimeType, responseSchema, maxOutputTokens = 8192 }) {
+      const response = await ai.models.generateContent({
+        model,
+        contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: imageBase64 } }] }],
+        config: {
+          systemInstruction: systemPrompt,
+          temperature: 0,
+          maxOutputTokens,
+          responseMimeType: 'application/json',
+          responseSchema,
         },
       });
       const text = response.text;

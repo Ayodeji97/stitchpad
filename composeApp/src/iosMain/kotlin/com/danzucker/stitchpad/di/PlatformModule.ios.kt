@@ -2,10 +2,12 @@ package com.danzucker.stitchpad.di
 
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
+import com.danzucker.stitchpad.core.data.preferences.NotebookImportPreferences
 import com.danzucker.stitchpad.core.data.preferences.ReceiptImagePreferences
 import com.danzucker.stitchpad.core.data.preferences.ThemePreferences
 import com.danzucker.stitchpad.core.data.staff.StaffMembershipPrefs
 import com.danzucker.stitchpad.core.domain.preferences.MeasurementPreferencesStore
+import com.danzucker.stitchpad.core.domain.preferences.NotebookImportPreferencesStore
 import com.danzucker.stitchpad.core.domain.preferences.ReceiptImagePreferencesStore
 import com.danzucker.stitchpad.core.domain.preferences.ThemePreferencesStore
 import com.danzucker.stitchpad.core.domain.staff.StaffMembershipPrefsStore
@@ -82,6 +84,7 @@ actual val platformModule: Module = module {
     single { MeasurementPreferences() } bind MeasurementPreferencesStore::class
     single { ThemePreferences() } bind ThemePreferencesStore::class
     single { ReceiptImagePreferences() } bind ReceiptImagePreferencesStore::class
+    single { NotebookImportPreferences() } bind NotebookImportPreferencesStore::class
     single { StaffMembershipPrefs() } bind StaffMembershipPrefsStore::class
     single { OfflinePhotoStore() }
     single { TutorialVideoCache() }

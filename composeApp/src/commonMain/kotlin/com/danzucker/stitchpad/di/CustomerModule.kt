@@ -24,6 +24,7 @@ val customerPresentationModule = module {
             activeWorkshopProvider = get(),
             freemiumRepository = get<FreemiumRepository>(),
             measurementEntryResolver = get(),
+            entitlements = get(),
         )
     }
     viewModelOf(::CustomerFormViewModel)

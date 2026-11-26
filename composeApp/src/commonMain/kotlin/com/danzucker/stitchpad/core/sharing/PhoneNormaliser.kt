@@ -120,3 +120,15 @@ private fun urlEncode(text: String): String {
 }
 
 private const val HEX_RADIX = 16
+
+/** The visible dial-code control makes a national customer number unambiguous. */
+fun customerPhoneForStorage(raw: String, country: Country): String {
+    val normalized = normalisePhone(applyImpliedCountryCode(raw, country), country)
+    val matchesCountry = normalized.startsWith(country.dialCode) &&
+        normalized.length == country.dialCode.length + country.nationalLength
+    return if (matchesCountry) {
+        "+$normalized"
+    } else {
+        raw.trim()
+    }
+}

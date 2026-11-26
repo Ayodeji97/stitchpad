@@ -17,8 +17,7 @@ import com.danzucker.stitchpad.core.domain.session.workshopUidOrNull
 import com.danzucker.stitchpad.core.presentation.UiText
 import com.danzucker.stitchpad.core.presentation.celebration.CelebrationController
 import com.danzucker.stitchpad.core.presentation.celebration.Milestone
-import com.danzucker.stitchpad.core.sharing.applyImpliedCountryCode
-import com.danzucker.stitchpad.core.sharing.normalisePhone
+import com.danzucker.stitchpad.core.sharing.customerPhoneForStorage
 import com.danzucker.stitchpad.feature.auth.domain.PatternValidator
 import com.danzucker.stitchpad.feature.customer.presentation.toCustomerUiText
 import com.danzucker.stitchpad.feature.freemium.presentation.upgradeCtaPrice
@@ -320,18 +319,6 @@ class CustomerFormViewModel(
             }
         }
         return isValid
-    }
-}
-
-/** The visible dial-code control makes a national customer number unambiguous. */
-internal fun customerPhoneForStorage(raw: String, country: Country): String {
-    val normalized = normalisePhone(applyImpliedCountryCode(raw, country), country)
-    val matchesCountry = normalized.startsWith(country.dialCode) &&
-        normalized.length == country.dialCode.length + country.nationalLength
-    return if (matchesCountry) {
-        "+$normalized"
-    } else {
-        raw.trim()
     }
 }
 

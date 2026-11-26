@@ -6,7 +6,7 @@ import {
   initializeTestEnvironment,
   RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { ref, uploadString, getBytes } from 'firebase/storage';
+import { ref, uploadString, getBytes, deleteObject } from 'firebase/storage';
 import { doc, setDoc } from 'firebase/firestore';
 
 /**
@@ -79,4 +79,70 @@ it('a foreign user may neither read nor write the tree', async () => {
 it('owner keeps full read/write', async () => {
   const owner = testEnv.authenticatedContext(OWNER).storage();
   await assertSucceeds(uploadString(ref(owner, `users/${OWNER}/logo.png`), 'x'));
+});
+
+describe('notebookImports images', () => {
+  const PAGE = `users/${OWNER}/notebookImports/j1/p1.jpg`;
+  const owner = () => testEnv.authenticatedContext(OWNER).storage();
+  const seedJob = (status = 'open') => testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), `users/${OWNER}/notebookImports/j1`), { status, pageCount: 0 });
+  });
+  beforeEach(async () => { await seedJob(); });
+  const seedPage = () => testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await uploadString(ref(ctx.storage(), PAGE), 'x');
+  });
+
+  it('owner uploads a jpeg under 6 MB', async () => {
+    await assertSucceeds(uploadString(ref(owner(), PAGE), 'x', 'raw', { contentType: 'image/jpeg' }));
+  });
+  it('owner upload of 7 MB is denied', async () => {
+    await assertFails(uploadString(ref(owner(), PAGE), 'x'.repeat(7 * 1024 * 1024), 'raw', { contentType: 'image/jpeg' }));
+  });
+  it('owner upload of image/png is denied', async () => {
+    await assertFails(uploadString(ref(owner(), PAGE), 'x', 'raw', { contentType: 'image/png' }));
+  });
+  it('owner can read and delete their page image', async () => {
+    await seedPage();
+    await assertSucceeds(getBytes(ref(owner(), PAGE)));
+    await assertSucceeds(deleteObject(ref(owner(), PAGE)));
+  });
+  it('staff cannot read a page image', async () => {
+    await seedPage();
+    await assertFails(getBytes(ref(staffStorage(), PAGE)));
+  });
+  it('staff cannot write a page image', async () => {
+    await assertFails(uploadString(ref(staffStorage(), PAGE), 'x', 'raw', { contentType: 'image/jpeg' }));
+  });
+  it('staff can still read a non-notebook path (order photo)', async () => {
+    const p = `users/${OWNER}/orders/o1/fabrics/i1.jpg`;
+    await testEnv.withSecurityRulesDisabled(async (ctx) => { await uploadString(ref(ctx.storage(), p), 'x'); });
+    await assertSucceeds(getBytes(ref(staffStorage(), p)));
+  });
+  it('owner upload to a missing job is denied', async () => {
+    await assertFails(uploadString(ref(owner(), `users/${OWNER}/notebookImports/nojob/p1.jpg`), 'x', 'raw', { contentType: 'image/jpeg' }));
+  });
+  it('owner upload to a saved job is denied', async () => {
+    await seedJob('saved');
+    await assertFails(uploadString(ref(owner(), PAGE), 'x', 'raw', { contentType: 'image/jpeg' }));
+  });
+  it('owner upload to an open job whose images were already deleted is denied', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `users/${OWNER}/notebookImports/j1`), {
+        status: 'open', pageCount: 0, imagesDeletedAt: new Date(),
+      });
+    });
+    await assertFails(uploadString(ref(owner(), PAGE), 'x', 'raw', { contentType: 'image/jpeg' }));
+  });
+  it('owner upload of a non-.jpg name is denied', async () => {
+    await assertFails(uploadString(ref(owner(), `users/${OWNER}/notebookImports/j1/x.png`), 'x', 'raw', { contentType: 'image/jpeg' }));
+  });
+  it('owner delete on a saved job is allowed', async () => {
+    await seedPage();
+    await seedJob('saved');
+    await assertSucceeds(deleteObject(ref(owner(), PAGE)));
+  });
+  it('owner delete of a missing non-notebook object is not a rules denial', async () => {
+    await expect(deleteObject(ref(owner(), `users/${OWNER}/orders/none.jpg`)))
+      .rejects.toMatchObject({ code: 'storage/object-not-found' });
+  });
 });

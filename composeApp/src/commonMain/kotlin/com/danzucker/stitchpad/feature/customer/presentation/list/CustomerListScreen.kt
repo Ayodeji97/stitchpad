@@ -31,6 +31,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -52,8 +54,10 @@ import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -110,6 +114,8 @@ import stitchpad.composeapp.generated.resources.customer_search_no_results_subti
 import stitchpad.composeapp.generated.resources.customer_search_no_results_title
 import stitchpad.composeapp.generated.resources.customer_swap_failure
 import stitchpad.composeapp.generated.resources.customer_swap_success
+import stitchpad.composeapp.generated.resources.notebook_entry_customers
+import stitchpad.composeapp.generated.resources.notebook_entry_more_cd
 import stitchpad.composeapp.generated.resources.whatsapp_launch_failed
 
 @Composable
@@ -121,6 +127,7 @@ fun CustomerListRoot(
     onNavigateToMeasurementDetail: (String, String?) -> Unit,
     onNavigateToOrderForm: (String) -> Unit,
     onNavigateToTutorial: (String) -> Unit,
+    onNavigateToNotebookImport: () -> Unit,
 ) {
     val viewModel: CustomerListViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -131,6 +138,7 @@ fun CustomerListRoot(
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             CustomerListEvent.NavigateToAddCustomer -> onNavigateToAddCustomer()
+            CustomerListEvent.NavigateToNotebookImport -> onNavigateToNotebookImport()
             is CustomerListEvent.NavigateToCustomerDetail -> onNavigateToCustomerDetail(event.customerId)
             is CustomerListEvent.NavigateToEditCustomer -> onNavigateToEditCustomer(event.customerId)
             is CustomerListEvent.NavigateToAddMeasurement -> onNavigateToAddMeasurement(event.customerId)
@@ -193,6 +201,13 @@ fun CustomerListScreen(
                         fontWeight = FontWeight.Bold
                     )
                 },
+                actions = {
+                    if (state.canImportNotebook) {
+                        NotebookOverflowMenu(
+                            onImportClick = { onAction(CustomerListAction.OnImportFromNotebookClick) },
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                     titleContentColor = MaterialTheme.colorScheme.onSurface
@@ -240,6 +255,11 @@ fun CustomerListScreen(
                     } else {
                         CustomerEmptyState(
                             onClick = { onAction(CustomerListAction.OnAddCustomerClick) },
+                            onImportFromNotebookClick = if (state.canImportNotebook) {
+                                { onAction(CustomerListAction.OnImportFromNotebookClick) }
+                            } else {
+                                null
+                            },
                             onNavigateToTutorial = onNavigateToTutorial,
                             modifier = Modifier.fillMaxSize()
                         )
@@ -503,9 +523,33 @@ private fun CustomerSearchField(
 }
 
 @Composable
+private fun NotebookOverflowMenu(onImportClick: () -> Unit) {
+    // Compose-internal popup state only; the action itself goes through the ViewModel.
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(
+                imageVector = Icons.Default.MoreVert,
+                contentDescription = stringResource(Res.string.notebook_entry_more_cd),
+            )
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(Res.string.notebook_entry_customers)) },
+                onClick = {
+                    expanded = false
+                    onImportClick()
+                },
+            )
+        }
+    }
+}
+
+@Composable
 private fun CustomerEmptyState(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onImportFromNotebookClick: (() -> Unit)? = null,
     onNavigateToTutorial: (String) -> Unit = {},
 ) {
     val addLabel = stringResource(Res.string.customer_fab_cd)
@@ -552,6 +596,12 @@ private fun CustomerEmptyState(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
+        }
+        if (onImportFromNotebookClick != null) {
+            Spacer(Modifier.height(DesignTokens.space3))
+            TextButton(onClick = onImportFromNotebookClick) {
+                Text(text = stringResource(Res.string.notebook_entry_customers))
+            }
         }
         Spacer(Modifier.height(DesignTokens.space5))
         TutorialHintRoot(
@@ -777,6 +827,15 @@ private fun CustomerListItem(
 private fun CustomerListScreenEmptyPreview() {
     StitchPadTheme {
         CustomerListScreen(state = CustomerListState(isLoading = false), onAction = {})
+    }
+}
+
+@Suppress("UnusedPrivateMember")
+@Composable
+@Preview
+private fun CustomerListScreenEmptyOwnerImportPreview() {
+    StitchPadTheme {
+        CustomerListScreen(state = CustomerListState(isLoading = false, canImportNotebook = true), onAction = {})
     }
 }
 

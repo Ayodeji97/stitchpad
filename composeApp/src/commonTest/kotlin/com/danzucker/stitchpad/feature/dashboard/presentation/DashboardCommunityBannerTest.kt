@@ -114,6 +114,9 @@ class DashboardCommunityBannerTest {
             activeWorkshopProvider = FakeActiveWorkshopProvider(),
             staffMembershipPrefs = FakeStaffMembershipPrefsStore(),
             analytics = FakeAnalytics(),
+            notebookPrefs = com.danzucker.stitchpad.core.domain.preferences.FakeNotebookImportPreferencesStore(
+                introShown = true,
+            ),
         )
         backgroundScope.launch(Dispatchers.Main) { vm.state.collect {} }
         return vm

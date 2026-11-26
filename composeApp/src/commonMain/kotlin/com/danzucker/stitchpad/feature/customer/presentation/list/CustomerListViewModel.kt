@@ -2,6 +2,7 @@ package com.danzucker.stitchpad.feature.customer.presentation.list
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.danzucker.stitchpad.core.domain.entitlement.EntitlementsProvider
 import com.danzucker.stitchpad.core.domain.error.DataError
 import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.Customer
@@ -18,6 +19,7 @@ import com.danzucker.stitchpad.feature.customer.presentation.toCustomerUiText
 import com.danzucker.stitchpad.feature.freemium.domain.FreemiumRepository
 import com.danzucker.stitchpad.feature.measurement.presentation.entry.MeasurementEntryDestination
 import com.danzucker.stitchpad.feature.measurement.presentation.entry.MeasurementEntryResolver
+import com.danzucker.stitchpad.feature.notebookimport.domain.canStartNotebookImport
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -25,6 +27,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -47,6 +50,7 @@ class CustomerListViewModel(
     private val activeWorkshopProvider: ActiveWorkshopProvider,
     private val freemiumRepository: FreemiumRepository,
     private val measurementEntryResolver: MeasurementEntryResolver,
+    private val entitlements: EntitlementsProvider,
 ) : ViewModel() {
 
     /** Cached count of non-delivered orders per customer id, maintained by [observeOrders]. */
@@ -86,8 +90,12 @@ class CustomerListViewModel(
         // Slice 6c: reflect active-staff into state so rows/sheet hide contact
         // (phone + WhatsApp) and the WhatsApp handler early-returns.
         viewModelScope.launch {
-            activeWorkshopProvider.flow.collect { session ->
-                _state.update { it.copy(isActiveStaff = session.isActiveStaff) }
+            combine(activeWorkshopProvider.flow, entitlements.flow) { session, e ->
+                session to canStartNotebookImport(session, e)
+            }.collect { (session, canImport) ->
+                _state.update {
+                    it.copy(isActiveStaff = session.isActiveStaff, canImportNotebook = canImport)
+                }
             }
         }
     }
@@ -116,6 +124,11 @@ class CustomerListViewModel(
                 viewModelScope.launch {
                     _events.send(CustomerListEvent.NavigateToAddCustomer)
                 }
+            }
+            CustomerListAction.OnImportFromNotebookClick -> {
+                // Owner-only; the entry points are hidden otherwise, this is defense-in-depth.
+                if (!_state.value.canImportNotebook) return
+                viewModelScope.launch { _events.send(CustomerListEvent.NavigateToNotebookImport) }
             }
             is CustomerListAction.OnDeleteCustomerClick -> {
                 // Slice 6c: staff can't delete customers. Defense-in-depth — the

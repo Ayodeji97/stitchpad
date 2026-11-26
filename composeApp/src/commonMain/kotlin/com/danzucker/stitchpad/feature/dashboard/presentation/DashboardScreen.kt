@@ -83,6 +83,7 @@ import com.danzucker.stitchpad.feature.dashboard.presentation.components.EmptyIl
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.FoundingTailorsCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.IllustratedFocusCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.MeasurementsPickerSheet
+import com.danzucker.stitchpad.feature.dashboard.presentation.components.NotebookImportCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.OnboardingStepsCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.OrderSetupActionCard
 import com.danzucker.stitchpad.feature.dashboard.presentation.components.PipelineSummaryRow
@@ -302,6 +303,7 @@ fun DashboardRoot(
     onNavigateToInspiration: () -> Unit,
     onNavigateToDraftMessage: () -> Unit,
     onNavigateToFoundingTailors: () -> Unit,
+    onNavigateToNotebookCapture: () -> Unit,
     onNavigateToUpgrade: () -> Unit,
     onNavigateToNotifications: () -> Unit,
     onNavigateToTutorial: (String) -> Unit,
@@ -361,6 +363,7 @@ fun DashboardRoot(
             onNavigateToInspiration = onNavigateToInspiration,
             onNavigateToDraftMessage = onNavigateToDraftMessage,
             onNavigateToFoundingTailors = onNavigateToFoundingTailors,
+            onNavigateToNotebookCapture = onNavigateToNotebookCapture,
             onNavigateToUpgrade = onNavigateToUpgrade,
             onNavigateToNotifications = onNavigateToNotifications,
             onNavigateToMeasurementDetail = onNavigateToMeasurementDetail,
@@ -504,6 +507,7 @@ private fun handleDashboardEvent(
     onNavigateToInspiration: () -> Unit,
     onNavigateToDraftMessage: () -> Unit,
     onNavigateToFoundingTailors: () -> Unit,
+    onNavigateToNotebookCapture: () -> Unit,
     onNavigateToUpgrade: () -> Unit,
     onNavigateToNotifications: () -> Unit,
     onNavigateToMeasurementDetail: (customerId: String, measurementId: String) -> Unit,
@@ -524,6 +528,7 @@ private fun handleDashboardEvent(
         DashboardEvent.NavigateToInspiration -> onNavigateToInspiration()
         DashboardEvent.NavigateToDraftMessage -> onNavigateToDraftMessage()
         DashboardEvent.NavigateToFoundingTailors -> onNavigateToFoundingTailors()
+        DashboardEvent.NavigateToNotebookCapture -> onNavigateToNotebookCapture()
         DashboardEvent.NavigateToUpgrade -> onNavigateToUpgrade()
         DashboardEvent.NavigateToNotifications -> onNavigateToNotifications()
         is DashboardEvent.LaunchWhatsApp -> launchWhatsAppForAction(
@@ -886,6 +891,15 @@ private fun DashboardContent(
             CommunityStrip(
                 onJoin = { onAction(DashboardAction.OnJoinCommunity) },
                 onDismiss = { onAction(DashboardAction.OnDismissCommunityBanner) },
+            )
+        }
+
+        // Notebook import invitation: owners with a nearly empty book, until "Not now".
+        // Never shown for staff (the ViewModel keeps notebookCardEligible false for them).
+        if (state.showNotebookCard) {
+            NotebookImportCard(
+                onScan = { onAction(DashboardAction.OnNotebookCardClick) },
+                onDismiss = { onAction(DashboardAction.OnDismissNotebookCard) },
             )
         }
 
