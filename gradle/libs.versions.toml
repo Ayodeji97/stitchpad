@@ -35,6 +35,7 @@ coil = "3.6.3"
 napier = "2.7.1"
 peekaboo = "0.5.2"
 play-review = "2.0.2"
+play-billing = "9.1.0"
 turbine = "1.2.1"
 
 [libraries]
@@ -105,6 +106,7 @@ peekaboo-image-picker = { module = "io.github.onseok:peekaboo-image-picker", ver
 
 # Play In-App Review
 play-review = { module = "com.google.android.play:review-ktx", version.ref = "play-review" }
+play-billing-ktx = { module = "com.android.billingclient:billing-ktx", version.ref = "play-billing" }
 
 # Napier (KMP logger — Timber-like API)
 napier = { module = "io.github.aakira:napier", version.ref = "napier" }

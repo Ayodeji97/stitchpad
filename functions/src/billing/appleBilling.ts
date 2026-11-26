@@ -16,7 +16,10 @@ import { createAppleVerifier, createAppStoreApi, AppStoreApi } from './appleVeri
 // skip them (it filters subscriptionRenews == false). Renewals, cancellations,
 // grace periods and refunds arrive via App Store Server Notifications V2.
 
-export type BillingTier = 'pro' | 'atelier';
+import { BillingTier, shouldWriteUserDoc } from './storeEntitlement';
+
+export type { BillingTier } from './storeEntitlement';
+export { tierRank } from './storeEntitlement';
 export type BillingCadence = 'monthly' | 'annual';
 
 const REGION = 'europe-west1';
@@ -32,14 +35,6 @@ const PRODUCT_MAP: Record<string, { tier: BillingTier; cadence: BillingCadence }
 
 export function planForProduct(productId: string): { tier: BillingTier; cadence: BillingCadence } | null {
   return PRODUCT_MAP[productId] ?? null;
-}
-
-// Tier precedence for guarding the SHARED entitlement doc: an active Apple grant
-// must never reduce a higher-tier entitlement owned by a different (e.g. Paystack)
-// subscription. free < pro < atelier.
-const TIER_RANK: Record<string, number> = { free: 0, pro: 1, atelier: 2 };
-function tierRank(tier?: string | null): number {
-  return (tier != null && TIER_RANK[tier]) || 0;
 }
 
 // Deterministic Firebase-uid -> UUID derivation, used as StoreKit's
@@ -615,29 +610,13 @@ async function commitAppleState(
   const ownsCurrentEntitlement = userData.subscriptionSource === 'apple'
     && userData.appleOriginalTransactionId === desired.originalTransactionId;
 
-  let writeUserDoc: boolean;
-  if (desired.tier === 'free') {
-    // A downgrade (expire/refund/revoke) must only clear the SHARED entitlement
-    // doc if it still belongs to THIS Apple subscription. If the user has since
-    // moved to Paystack (subscriptionSource != 'apple') or a different Apple
-    // subscription, a stale Apple notification must not revoke current access.
-    writeUserDoc = ownsCurrentEntitlement;
-  } else {
-    // An active grant wins over Apple/nothing/an expired sub, but must NOT take
-    // over the SHARED doc while a different subscription's entitlement is still
-    // active — even at an equal or lower tier. Taking ownership would overwrite
-    // subscriptionSource/appleOriginalTransactionId, so a later Apple EXPIRED/
-    // REFUND would then satisfy ownsCurrentEntitlement and revoke access that
-    // still belongs to the foreign (e.g. Paystack) sub. The Apple sub stays
-    // recorded in its billing/index docs; the daily reconcile re-applies it once
-    // the foreign entitlement lapses.
-    const foreignActive = !ownsCurrentEntitlement
-      && userData.subscriptionStatus === 'active'
-      && tierRank(userData.subscriptionTier) > 0
-      && (userData.subscriptionEndsAt == null
-        || userData.subscriptionEndsAt.toMillis() > now.getTime());
-    writeUserDoc = !foreignActive;
-  }
+  // Ownership rule shared with Play (see storeEntitlement.ts for the reasoning).
+  const writeUserDoc = shouldWriteUserDoc({
+    desiredTier: desired.tier,
+    ownsCurrentEntitlement,
+    current: userData,
+    nowMs: now.getTime(),
+  });
 
   if (writeUserDoc) {
     const userUpdate: Record<string, unknown> = {

@@ -174,6 +174,7 @@ export async function initializeSubscriptionCheckoutHandler(
 
   const tier = parseTier(data.tier);
   const cadence = parseCadence(data.cadence);
+  await assertPaystackCountry(uid, deps.db);
   const amountKobo = priceFor(tier, cadence);
   const reference = buildReference(uid, deps.now(), deps.randomId());
   const email = await resolveEmail(uid, context, deps.db);
@@ -456,6 +457,24 @@ function getCallbackUrl(): string | undefined {
 function getRawBody(req: functions.https.Request): Buffer {
   const rawBody = (req as functions.https.Request & { rawBody?: Buffer }).rawBody;
   return rawBody ?? Buffer.from(JSON.stringify(req.body ?? {}));
+}
+
+// Paystack is the Nigeria-only checkout (spec 6b). Every other wave-1 country
+// buys through Google Play on Android (and Apple on iOS). A missing country is a
+// legacy NG workshop. The message carries the client's PROVIDER_UNAVAILABLE
+// marker (CloudFunctionsPaymentRepository.kt MARKER_PROVIDER_UNAVAILABLE) so an
+// old build shows the right error.
+const PAYSTACK_COUNTRY = 'NG';
+async function assertPaystackCountry(uid: string, db: admin.firestore.Firestore): Promise<void> {
+  const snap = await db.doc(`users/${uid}`).get();
+  const raw = (snap.data() as { country?: unknown } | undefined)?.country;
+  const country = typeof raw === 'string' && raw ? raw.toUpperCase() : PAYSTACK_COUNTRY;
+  if (country !== PAYSTACK_COUNTRY) {
+    throw new functions.https.HttpsError(
+      'failed-precondition',
+      'payment_provider_unavailable: provider_unavailable_country',
+    );
+  }
 }
 
 async function resolveEmail(

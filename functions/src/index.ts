@@ -75,6 +75,11 @@ export {
   reconcileAppleSubscriptions,
 } from './billing/appleBilling';
 export {
+  verifyPlayPurchase,
+  playRealtimeNotifications,
+  reconcilePlaySubscriptions,
+} from './billing/playBilling';
+export {
   initializeGiftCheckout,
   redeemGift,
   getPublicGiftProfile,

@@ -50,6 +50,9 @@ describe('buildLaunchGrantFields', () => {
       'subscriptionFallbackEndsAt',
       'appleOriginalTransactionId',
       'appleLastSignedDate',
+      'playPurchaseToken',
+      'playPurchaseTokenHash',
+      'playProductId',
     ] as const;
 
     for (const field of staleFields) {

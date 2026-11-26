@@ -29,14 +29,14 @@ function toMillis(value: unknown): number | null {
 }
 
 /**
- * A paid owner bought a plan through Paystack or Apple, and that plan is still
+ * A paid owner bought a plan through Paystack, Apple or Google Play, and that plan is still
  * running. A launch grant (`grantSource: launch_free`, no end date) is NOT paid,
  * and neither is a paid plan whose end date has passed.
  */
 export function isPaidSubscriber(user: Record<string, unknown> | undefined, now: number): boolean {
   if (!user) return false;
   const source = user.subscriptionSource;
-  if (source !== 'paystack' && source !== 'apple') return false;
+  if (source !== 'paystack' && source !== 'apple' && source !== 'play') return false;
   if (user.subscriptionStatus !== 'active') return false;
   const endsAt = toMillis(user.subscriptionEndsAt);
   return endsAt !== null && endsAt > now;

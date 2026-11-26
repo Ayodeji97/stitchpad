@@ -3,13 +3,15 @@ package com.danzucker.stitchpad.feature.freemium.domain
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 
 /**
- * App Store Connect product identifiers for the auto-renewable subscriptions.
+ * Store product identifiers for the auto-renewable subscriptions. The SAME ids
+ * are used on the App Store (iOS) and Google Play (Android outside Nigeria).
  * MUST stay in sync with the server-side PRODUCT_MAP in
- * functions/src/billing/appleBilling.ts and the products configured in App Store
- * Connect. The server is the authoritative tier↔product mapping; this client copy
- * only picks which product to purchase and which price to display on iOS.
+ * functions/src/billing/appleBilling.ts (also used by playBilling.ts) and the
+ * products configured in App Store Connect and Play Console. The server is the
+ * authoritative tier to product mapping; this client copy only picks which
+ * product to purchase and which store price to display.
  */
-object AppleProductIds {
+object StoreProductIds {
     const val PRO_MONTHLY = "com.danzucker.stitchpad.pro.monthly"
     const val PRO_ANNUAL = "com.danzucker.stitchpad.pro.annual"
     const val ATELIER_MONTHLY = "com.danzucker.stitchpad.atelier.monthly"

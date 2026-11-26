@@ -4,11 +4,11 @@ import com.danzucker.stitchpad.core.domain.error.Result
 import com.danzucker.stitchpad.core.domain.model.SubscriptionTier
 import com.danzucker.stitchpad.core.logging.AppLogger
 import com.danzucker.stitchpad.feature.auth.domain.AuthRepository
-import com.danzucker.stitchpad.feature.freemium.domain.AppleProductIds
 import com.danzucker.stitchpad.feature.freemium.domain.BillingCadence
 import com.danzucker.stitchpad.feature.freemium.domain.CheckoutOutcome
 import com.danzucker.stitchpad.feature.freemium.domain.PaymentError
 import com.danzucker.stitchpad.feature.freemium.domain.PaymentRepository
+import com.danzucker.stitchpad.feature.freemium.domain.StoreProductIds
 import dev.gitlive.firebase.functions.FirebaseFunctions
 import dev.gitlive.firebase.functions.FirebaseFunctionsException
 import dev.gitlive.firebase.functions.FunctionsExceptionCode
@@ -35,7 +35,7 @@ internal class StoreKitPaymentRepository(
         tier: SubscriptionTier,
         cadence: BillingCadence,
     ): Result<CheckoutOutcome, PaymentError> {
-        val productId = AppleProductIds.idFor(tier, cadence)
+        val productId = StoreProductIds.idFor(tier, cadence)
         val uid = authRepository.getCurrentUser()?.id
         return when {
             productId == null -> Result.Error(PaymentError.INVALID_PLAN)
@@ -53,7 +53,7 @@ internal class StoreKitPaymentRepository(
     }
 
     override suspend fun productCatalog(): Result<Map<String, String>, PaymentError> =
-        when (val res = purchaser.fetchProducts(AppleProductIds.ALL)) {
+        when (val res = purchaser.fetchProducts(StoreProductIds.ALL)) {
             is Result.Success -> Result.Success(res.data.associate { it.id to it.displayPrice })
             is Result.Error -> Result.Error(res.error.toPaymentError())
         }

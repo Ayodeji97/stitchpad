@@ -112,6 +112,20 @@ describe('users/{uid} creation', () => {
     );
   });
 
+  it('rejects planting Play provenance fields at creation', async () => {
+    await assertFails(
+      setDoc(doc(db('alice'), 'users/alice'), { ...SEED_DEFAULTS, playPurchaseToken: 'tok' }),
+    );
+    await assertFails(
+      setDoc(doc(db('alice'), 'users/alice'), { ...SEED_DEFAULTS, playPurchaseTokenHash: 'hash' }),
+    );
+    await assertFails(
+      setDoc(doc(db('alice'), 'users/alice'), {
+        ...SEED_DEFAULTS, playProductId: 'com.danzucker.stitchpad.pro.monthly',
+      }),
+    );
+  });
+
   it('rejects another user creating your doc', async () => {
     await assertFails(setDoc(doc(db('bob'), 'users/alice'), SEED_DEFAULTS));
   });
@@ -263,6 +277,23 @@ describe('appleSubscriptions reverse index', () => {
   it('rejects any client write (cannot forge ownership)', async () => {
     await assertFails(setDoc(doc(db('alice'), 'appleSubscriptions/orig-2'), { uid: 'alice' }));
     await assertFails(updateDoc(doc(db('alice'), 'appleSubscriptions/orig-1'), { uid: 'mallory' }));
+  });
+});
+
+describe('playSubscriptions reverse index', () => {
+  beforeEach(async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'playSubscriptions/x'), { uid: 'alice' });
+    });
+  });
+
+  it('rejects any client read (uid ownership map is not enumerable)', async () => {
+    await assertFails(getDoc(doc(db('alice'), 'playSubscriptions/x')));
+  });
+
+  it('rejects any client write (cannot forge ownership)', async () => {
+    await assertFails(setDoc(doc(db('alice'), 'playSubscriptions/y'), { uid: 'alice' }));
+    await assertFails(updateDoc(doc(db('alice'), 'playSubscriptions/x'), { uid: 'mallory' }));
   });
 });
 
@@ -552,6 +583,24 @@ describe('server-owned field hardening', () => {
       await assertFails(
         updateDoc(doc(db('alice'), 'users/alice'), { appleProductId: 'com.danzucker.stitchpad.pro.monthly' }),
       );
+    });
+
+    it('rejects adding, changing or deleting Play provenance fields via update', async () => {
+      await asAdmin(async (admin) => {
+        await setDoc(doc(admin, 'users/alice'), {
+          ...SEED_DEFAULTS,
+          playPurchaseToken: 'tok',
+          playPurchaseTokenHash: 'hash',
+          playProductId: 'com.danzucker.stitchpad.pro.monthly',
+        });
+      });
+      await assertFails(updateDoc(doc(db('alice'), 'users/alice'), { playPurchaseToken: 'other' }));
+      await assertFails(updateDoc(doc(db('alice'), 'users/alice'), { playPurchaseTokenHash: 'other' }));
+      await assertFails(
+        updateDoc(doc(db('alice'), 'users/alice'), { playProductId: 'com.danzucker.stitchpad.atelier.annual' }),
+      );
+      await assertFails(updateDoc(doc(db('alice'), 'users/alice'), { playProductId: deleteField() }));
+      await assertFails(updateDoc(doc(db('alice'), 'users/alice'), { playPurchaseToken: deleteField() }));
     });
   });
 });
