@@ -258,6 +258,11 @@ service cloud.firestore {
         // marketer (or itself), inflating payouts — so it must never be set at
         // creation.
         && (!('referredBy' in request.resource.data))
+        // grantSource / grantedAt are stamped only by the launch-grant function
+        // (Admin SDK). The launch_free cutoff selects users by grantSource, so a
+        // client must never plant either field at creation.
+        && (!('grantSource' in request.resource.data))
+        && (!('grantedAt' in request.resource.data))
         // referralCode is the user's OWN outbound share code, minted exactly once
         // by getOrCreateMyReferralLink (Admin SDK). The app later TRUSTS this field
         // to build/share the referral link and to decide whether to mint. The client
@@ -282,6 +287,11 @@ service cloud.firestore {
         && serverOnlyField('subscriptionFallbackEndsAt')
         && serverOnlyField('giftLinkToken')
         && serverOnlyField('referredBy')
+        // grantSource / grantedAt are server-owned. The launch_free cutoff selects
+        // users by grantSource, so deleting or rewriting it would dodge the cutoff
+        // and keep a free Atelier grant forever.
+        && serverOnlyField('grantSource')
+        && serverOnlyField('grantedAt')
         // referralCode is server-owned (minted once by getOrCreateMyReferralLink via
         // the Admin SDK). serverOnlyField makes it immutable from the client: once
         // present it must stay present AND equal — blocking a change AND a
