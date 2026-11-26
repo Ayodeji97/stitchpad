@@ -403,6 +403,57 @@ describe('giftLinkToken field hardening', () => {
   });
 });
 
+// grantSource / grantedAt are stamped only by the launch-grant function (Admin SDK).
+// The launch_free cutoff selects users by grantSource, so a client that deletes or
+// rewrites it would dodge the cutoff and keep a free Atelier grant forever.
+describe('launch grant field hardening', () => {
+  const GRANTED_AT = new Date('2026-07-01T00:00:00Z');
+
+  it('rejects planting grantSource or grantedAt at user-doc creation', async () => {
+    await assertFails(
+      setDoc(doc(db('alice'), 'users/alice'), { ...SEED_DEFAULTS, grantSource: 'gift' }),
+    );
+    await assertFails(
+      setDoc(doc(db('alice'), 'users/alice'), { ...SEED_DEFAULTS, grantedAt: GRANTED_AT }),
+    );
+  });
+
+  it('rejects deleting or changing grantSource and grantedAt via update', async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice'), {
+        ...SEED_DEFAULTS,
+        grantSource: 'launch_free',
+        grantedAt: GRANTED_AT,
+      });
+    });
+    const ref = doc(db('alice'), 'users/alice');
+    await assertFails(updateDoc(ref, { grantSource: deleteField() }));
+    await assertFails(updateDoc(ref, { grantSource: 'paystack' }));
+    await assertFails(updateDoc(ref, { grantedAt: deleteField() }));
+    await assertFails(updateDoc(ref, { grantedAt: new Date('2030-01-01T00:00:00Z') }));
+  });
+
+  it('rejects adding grantSource or grantedAt via update when absent', async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice'), SEED_DEFAULTS);
+    });
+    const ref = doc(db('alice'), 'users/alice');
+    await assertFails(updateDoc(ref, { grantSource: 'gift' }));
+    await assertFails(updateDoc(ref, { grantedAt: GRANTED_AT }));
+  });
+
+  it('still allows a normal profile edit on a granted user', async () => {
+    await asAdmin(async (admin) => {
+      await setDoc(doc(admin, 'users/alice'), {
+        ...SEED_DEFAULTS,
+        grantSource: 'launch_free',
+        grantedAt: GRANTED_AT,
+      });
+    });
+    await assertSucceeds(updateDoc(doc(db('alice'), 'users/alice'), { displayName: 'Alice A' }));
+  });
+});
+
 describe('subscription fallback (queued gift segment) hardening', () => {
   it('rejects planting fallback fields at user-doc creation', async () => {
     await assertFails(
