@@ -103,3 +103,18 @@ evaluation tooling (can adapt the study kit's evaluator).
   (phone-photo methods about +/-1 to 2 cm average, sometimes 3 to 5 cm; no vendor reports error by skin tone).
 - `reports/Native wear marketplace for tailors.md`, `reports/Luxury connect validation.md`.
 - `output/measurement-study/`: the Nov-5 study kit (never run).
+
+## Using StitchPad's own measurement data (Daniel approved in principle, 2026-11-26)
+Daniel: "We can use the StitchPad data if it will be useful." StitchPad holds tailor-entered tape measurements
+(no photos), so it cannot train the photo model alone, but it is useful for:
+1. Sanity checks: realistic ranges and proportions to reject impossible scans and trigger retakes.
+2. Filling in hard-to-see fields: predict bicep, wrist, knee etc. from the fields a camera sees reliably.
+3. Choosing v1 fields: which measurements tailors actually record, by garment and country.
+4. Recruiting: tailors who record measurements often are the first data-collection partners.
+
+Limits before use:
+- Consent: anonymised, aggregate internal use (ranges, correlations) is low risk; training a model we sell to
+  third parties needs a privacy policy update and possibly tailor/customer consent first (NDPA purpose limitation).
+- Quality: garment ease mixed in, unit errors, sparse fields; needs cleaning.
+- Volume unknown: first step when resumed is an aggregate count of measurement records and fields filled
+  (no personal data exported). Analytics shows 96 measurement_added events from 51 users in its latest window.
